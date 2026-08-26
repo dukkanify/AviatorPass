@@ -1,0 +1,12 @@
+{
+  "name": "AviatorPass",
+  "install": "npm ci",
+  "start": "npm run demo:seed",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev"
+    }
+  ],
+  "repositoryDependencies": ["github.com/dukkanify/AviatorPass"]
+}
