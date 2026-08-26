@@ -96,16 +96,37 @@ if (fs.existsSync(ci)) {
   }
 }
 
-// 7) Optional: compare remote main package name if git available
+// 7) Git remotes must point only to AviatorPass (no legacy UAE-Sales / Sooqnah remotes)
+try {
+  const remotes = execSync("git remote -v", { encoding: "utf8" }).trim().split("\n");
+  const remoteNames = [...new Set(remotes.map((line) => line.split("\t")[0]))];
+  for (const name of remoteNames) {
+    if (/legacy|uae-sales|sooqna/i.test(name)) {
+      errors.push(`forbidden git remote name: ${name}`);
+    }
+  }
+  const remoteUrls = remotes.join("\n");
+  if (/UAE-Sales|sooqna\.site/i.test(remoteUrls)) {
+    errors.push("git remotes still reference UAE-Sales or sooqna.site");
+  }
+  if (!/AviatorPass/i.test(remoteUrls)) {
+    errors.push("origin must reference github.com/dukkanify/AviatorPass");
+  }
+  notes.push(`git remotes: ${remoteNames.join(", ")}`);
+} catch {
+  notes.push("git remotes not available for cross-check (ok)");
+}
+
+// 8) origin/main must remain AviatorPass after dedicated-repo cutover
 try {
   const mainPkg = execSync("git show origin/main:package.json", {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   });
   const mainName = JSON.parse(mainPkg).name;
-  notes.push(`origin/main package name (other product): ${mainName}`);
-  if (mainName === pkg.name) {
-    errors.push("origin/main package name matches AviatorPass — products not diverged");
+  notes.push(`origin/main package name: ${mainName}`);
+  if (mainName !== "aviatorpass") {
+    errors.push(`origin/main package name is "${mainName}" (expected "aviatorpass")`);
   }
 } catch {
   notes.push("origin/main not available for cross-check (ok)");

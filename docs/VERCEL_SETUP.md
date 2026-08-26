@@ -11,12 +11,11 @@
 
 ## Cutover steps
 
-1. Vercel → **aviatorpass** → Settings → Git → **Disconnect** `UAE-Sales`.
-2. **Connect** `dukkanify/AviatorPass`.
-3. Set Production Branch = `main`.
-4. Ensure Deploy Hook secret in GitHub Environment matches this project only.
-5. Push to `main` or fire `VERCEL_AVIATORPASS_DEPLOY_HOOK`.
-6. Verify `/api/health` → `deployment.gitSha` matches new repo tip.
+1. Vercel → **aviatorpass** → Settings → Git → connect **`dukkanify/AviatorPass`** (disconnect any legacy shared remote).
+2. Set Production Branch = `main`.
+3. Ensure Deploy Hook secret in GitHub Environment matches this project only.
+4. Push to `main` or fire `VERCEL_AVIATORPASS_DEPLOY_HOOK`.
+5. Verify `/api/health` → `deployment.gitSha` matches new repo tip.
 
 ## Preview
 
@@ -24,4 +23,4 @@ PRs into `main` / `develop` on `dukkanify/AviatorPass` should create Vercel Prev
 
 ## Isolation
 
-This Vercel project must not be linked to marketplace repositories. Marketplace (`sooqna`) stays on its own Vercel project + `UAE-Sales` (or future Sooqna repo).
+This Vercel project must be linked only to `dukkanify/AviatorPass`. Marketplace products use separate repositories and Vercel projects.

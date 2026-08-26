@@ -2,13 +2,11 @@
 
 ## Repository
 
-| Item      | Value                                                               |
-| --------- | ------------------------------------------------------------------- |
-| GitHub    | [`dukkanify/AviatorPass`](https://github.com/dukkanify/AviatorPass) |
-| Product   | AviatorPass only                                                    |
-| Migration | See `REPOSITORY_MIGRATION_PLAN.md`                                  |
-
-Do **not** use `dukkanify/UAE-Sales` as the AviatorPass origin after cutover.
+| Item    | Value                                                               |
+| ------- | ------------------------------------------------------------------- |
+| GitHub  | [`dukkanify/AviatorPass`](https://github.com/dukkanify/AviatorPass) |
+| Product | AviatorPass only                                                    |
+| History | Migration notes in `docs/archive/migration/` (historical only)      |
 
 ## Branches
 
