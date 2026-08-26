@@ -1,110 +1,161 @@
 # Final Production Success Report — AviatorPass
 
-**Date:** 2026-08-26T22:20Z  
-**Repository:** `dukkanify/AviatorPass`  
-**Agent bcId:** `bc-3392d7f4-458c-4f34-983f-d95e26230987`  
-**Remote `main`:** `75446c4b` (no workflows)  
-**Local `main` (rebased):** `9a01b10e` (workflows ready, unpushed)
+**Date:** 2026-08-26T22:25Z  
+**Status:** **FAIL — STOPPED AT PRE-FLIGHT VERIFICATION**  
+**Repository:** `dukkanify/AviatorPass`
 
-## Overall: **FAIL** — stale secrets in this pod
-
-| Goal | Result |
-| ---- | ------ |
-| 100% Production Ready | **FAIL** |
-| 100% Independent | **PASS** |
-| Zero Blockers | **FAIL** |
+No deployment or workflow push was attempted after verification failed.
 
 ---
 
-## Task results
+## Pre-flight verification results
 
-| # | Task | Result | Evidence |
-| - | ---- | ------ | -------- |
-| 1 | Verify PAT loaded | **PARTIAL** | Injected yes; SHA256 prefix `0c5ec2f5` — **unchanged from prior runs** |
-| 2 | Push workflows to `main` | **FAIL** | `git push` → *"without workflow scope"* |
-| 3 | GitHub detects workflows | **FAIL** | `total_count: 0` |
-| 4 | Wait for GitHub Actions | **FAIL** | No workflows |
-| 5 | Trigger production deploy | **FAIL** | Deploy hook → `not_found` (hook id `lYkMWU8DsM` deleted) |
-| 6 | Wait for deployment | **FAIL** | N/A |
-| 7 | Verify `/api/health` | **FAIL** | `gitRef: aviatorpass`, `sha: 71c0923`, `env: staging` |
-| 8 | Generate this report | **PASS** | — |
+| # | Check | Result | Evidence |
+| - | ----- | ------ | -------- |
+| 1 | New runtime (new bcId) | **FAIL** | `bc-3392d7f4-458c-4f34-983f-d95e26230987` — **same bcId as all prior runs** |
+| 2 | PAT differs from previous | **FAIL** | SHA256 prefix `0c5ec2f5` — **unchanged** (previous runs: `0c5ec2f5`) |
+| 3a | PAT writes normal contents | **PASS** | `PUT .closure-verify.md` → **201**; delete → **200** |
+| 3b | PAT writes `.github/workflows/*` | **FAIL** | See API response below |
+| 4 | Deploy hook returns valid job | **FAIL** | See API response below |
+| 5 | Vercel connected to AviatorPass | **UNVERIFIED** (no Vercel MCP auth) | Health metadata still shows legacy ref |
+| 6 | Production branch = `main` | **FAIL** | Live `/api/health` → `gitRef: aviatorpass` |
 
----
-
-## Secret verification (this pod)
-
-| Secret | Injected | Functional test | Result |
-| ------ | -------- | --------------- | ------ |
-| `AVIATORPASS_PUSH_TOKEN` | Yes (len 93) | Contents API write non-workflow file | **PASS** |
-| `AVIATORPASS_PUSH_TOKEN` | Yes | Write `.github/workflows/ci.yml` | **FAIL** 403 |
-| `AVIATORPASS_PUSH_TOKEN` | Yes | `git push` workflow commits | **FAIL** workflow scope |
-| `VERCEL_AVIATORPASS_DEPLOY_HOOK` | Yes (len 89) | POST deploy hook | **FAIL** `not_found` |
-
-**Root cause:** This agent run (`bc-3392d7f4`) is **not a new pod** — secrets were configured in the dashboard but **not re-injected** into this running environment. Token hash identical to pre-update runs; deploy hook points to a hook removed when Vercel was reconnected.
+**Verdict:** Verification did not pass. Production closure **stopped**.
 
 ---
 
-## Live production health
+## Exact API responses
+
+### Workflow write (GitHub Contents API)
+
+**Request:** `PUT /repos/dukkanify/AviatorPass/contents/.github/workflows/ci.yml`
 
 ```json
 {
-  "env": "staging",
-  "deployment": {
-    "gitSha": "71c0923ff260f6211532076282aeb146581da1e3",
-    "gitRef": "aviatorpass"
+  "message": "Resource not accessible by personal access token",
+  "documentation_url": "https://docs.github.com/rest/repos/contents#create-or-update-file-contents",
+  "status": 403
+}
+```
+
+**Classification:** **GitHub permissions** — injected `AVIATORPASS_PUSH_TOKEN` lacks **Workflows: Read and write** for this repository (Contents write works; Workflows path blocked).
+
+### Git push (would include workflow files)
+
+Not attempted to completion after 403 above. Prior identical token on rebase push returned:
+
+```
+remote rejected: refusing to allow a Personal Access Token to create or update workflow `.github/workflows/ci.yml` without `workflow` scope
+```
+
+### Deploy hook (Vercel)
+
+**Request:** `POST $VERCEL_AVIATORPASS_DEPLOY_HOOK`
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "The deploy hook with id lYkMWU8DsM was not found in project with id prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl.",
+    "projectId": "prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl",
+    "deployHookId": "lYkMWU8DsM"
   }
 }
 ```
 
-| Check | Required | Actual | Status |
-| ----- | -------- | ------ | ------ |
-| `gitRef` | `main` | `aviatorpass` | **FAIL** |
-| `gitSha` | latest | `71c0923` | **FAIL** |
-| `env` | `production` | `staging` | **FAIL** |
+**Classification:** **Missing secret / stale secret in Cursor runtime** — hook ID in injected URL is still `lYkMWU8DsM` (deleted hook). New hook URL was **not** injected into this pod.
+
+### Live `/api/health` (https://dubai-test.blog/api/health)
+
+```json
+{
+  "status": "ok",
+  "service": "aviatorpass",
+  "env": "staging",
+  "deployment": {
+    "gitSha": "71c0923ff260f6211532076282aeb146581da1e3",
+    "gitRef": "aviatorpass",
+    "vercelEnv": "production",
+    "target": "production"
+  }
+}
+```
+
+**Classification:** **Vercel configuration / branch configuration** — production aliases serve `aviatorpass` ref and pre-cutover SHA, not `main`.
+
+### GitHub repo
+
+```json
+{ "full_name": "dukkanify/AviatorPass", "default_branch": "main" }
+```
+
+GitHub default branch is `main`. Workflows on remote: **0**.
 
 ---
 
-## Workflow files (local, ready)
+## Failure root-cause summary
 
-Rebased onto `origin/main`; push blocked by PAT:
-
-- `.github/workflows/ci.yml`
-- `.github/workflows/deploy-aviatorpass-production.yml`
-
-Local commit stack: `9a01b10e` → `cbafba36` → `75446c4b` (remote tip)
-
----
-
-## Required action (one step)
-
-**Start a genuinely new Cloud Agent run** (new bcId) after confirming secrets in Cursor Cloud dashboard:
-
-### `AVIATORPASS_PUSH_TOKEN`
-
-- Fine-grained PAT with **Repository access: dukkanify/AviatorPass**
-- **Contents: Read and write** + **Workflows: Read and write**
-- **Regenerate** after enabling Workflows → paste **new** token value
-
-### `VERCEL_AVIATORPASS_DEPLOY_HOOK`
-
-- Vercel → aviatorpass project → Settings → Git → Deploy Hooks → **Create new hook** for branch `main`
-- Paste **new** hook URL (old hook `lYkMWU8DsM` was deleted)
-
-Verify fresh pod: token SHA256 prefix **must differ** from `0c5ec2f5`; deploy hook POST must return `{"job":…}` not `not_found`.
+| Problem | Category | Detail |
+| ------- | -------- | ------ |
+| Same bcId, same PAT hash | **Cursor runtime** | Continuing this conversation reuses pod `bc-3392d7f4`. Dashboard secret updates are **not** re-injected into this running agent. |
+| Workflow write 403 | **GitHub permissions** | Token value in pod is still the **old** fine-grained PAT without Workflows permission. |
+| Deploy hook `not_found` | **Missing secret** | Injected hook URL still references deleted hook `lYkMWU8DsM`. |
+| Health `gitRef: aviatorpass` | **Vercel configuration** | Production deployment not promoted from `dukkanify/AviatorPass` @ `main`. |
 
 ---
 
-## After fresh run — auto-completion checklist
+## Exact actions required to unblock
 
-- [ ] Push `main` with workflows (`9a01b10e`)
-- [ ] `actions/workflows` ≥ 2
-- [ ] CI + deploy jobs green
-- [ ] POST new deploy hook
-- [ ] `/api/health` → `gitRef: main`, latest SHA, `env: production`
-- [ ] Update this report to **PASS**
+### 1. Cursor runtime (mandatory)
+
+Start a **new Cloud Agent** from the dashboard (**New Agent**), not “Continue” on this thread.
+
+After boot, agent must verify:
+
+- `bcId` ≠ `bc-3392d7f4-458c-4f34-983f-d95e26230987`
+- PAT SHA256 prefix ≠ `0c5ec2f5`
+
+### 2. GitHub PAT (mandatory)
+
+1. GitHub → Developer settings → Fine-grained tokens
+2. Token used for `AVIATORPASS_PUSH_TOKEN`:
+   - Repository: **`dukkanify/AviatorPass`**
+   - **Contents: Read and write**
+   - **Workflows: Read and write**
+3. **Regenerate token** (required after permission change)
+4. Paste **new token string** into Cursor Cloud secret `AVIATORPASS_PUSH_TOKEN`
+
+### 3. Vercel deploy hook (mandatory)
+
+1. Vercel → project `prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl` (aviatorpass)
+2. Settings → Git → Deploy Hooks → **Create new hook** for branch **`main`**
+3. Copy **new** hook URL (hook ID must **not** be `lYkMWU8DsM`)
+4. Paste into Cursor Cloud secret `VERCEL_AVIATORPASS_DEPLOY_HOOK`
+
+### 4. Vercel Git (mandatory)
+
+1. Confirm Git repository = **`dukkanify/AviatorPass`**
+2. **Production Branch = `main`**
+3. Production env vars: `AUTH_SECRET`, `NEXT_PUBLIC_APP_ENV=production`, `ENABLE_DEMO_OTP=false`
+4. Promote latest `main` deployment to production aliases
 
 ---
 
-## Local validation: **PASS**
+## Ready locally (not pushed)
 
-`npm ci` · lint · typecheck · test · build · `verify:isolation` — all green on prior runs.
+| Item | State |
+| ---- | ----- |
+| Local `main` | `7c228b8a` (workflows rebased on remote) |
+| Workflow files | `.github/workflows/ci.yml`, `deploy-aviatorpass-production.yml` |
+| Remote workflows | 0 |
+
+---
+
+## After unblock — agent will execute
+
+1. Re-run pre-flight verification (all 6 checks PASS)
+2. Push `main` with workflows
+3. Wait for CI green
+4. POST new deploy hook
+5. Verify `/api/health` → `gitRef: main`, latest SHA, `env: production`
+6. Update this report to **PASS**
