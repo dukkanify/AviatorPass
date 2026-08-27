@@ -81,6 +81,7 @@ export function ensureSuperAdminSeeded(): void {
       status: ACCOUNT_STATUS.ACTIVE,
       emailVerified: true,
       profileComplete: true,
+      mustChangePassword: false,
       passwordHash: null,
       passwordSalt: null,
       lastLoginAt: null,

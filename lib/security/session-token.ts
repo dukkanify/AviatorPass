@@ -12,6 +12,7 @@ export interface SessionJwtPayload {
   role: string;
   status: string;
   pc: boolean; // profile complete
+  mp?: boolean; // must change password
 }
 
 function getSecretKey() {
@@ -52,6 +53,7 @@ export async function verifySessionJwt(
       role: payload.role,
       status: payload.status,
       pc: Boolean(payload.pc),
+      mp: Boolean(payload.mp),
     };
   } catch {
     return null;

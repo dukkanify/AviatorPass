@@ -18,6 +18,7 @@ import {
 import type { ApiResponse, UserProfile } from "@/types";
 import { sanitizeEmail, sanitizeString } from "@/utils/sanitize";
 import {
+  defaultSecuritySettings,
   findUserByEmail,
   findUserById,
   isStudentProfileComplete,
@@ -95,6 +96,7 @@ function createUser(partial: {
     status: partial.status ?? ACCOUNT_STATUS.PENDING,
     emailVerified: false,
     profileComplete: false,
+    mustChangePassword: false,
     passwordHash: null,
     passwordSalt: null,
     lastLoginAt: null,
@@ -194,6 +196,7 @@ async function issueSession(
       role: fresh.role,
       status: fresh.status,
       profileComplete: fresh.profileComplete,
+      mustChangePassword: Boolean(fresh.mustChangePassword),
     },
     days * 86_400,
   );
@@ -681,12 +684,7 @@ export async function verifyOtp(input: {
     }
   }
 
-  const redirectTo =
-    profile.role === ROLES.INSTRUCTOR && profile.status === ACCOUNT_STATUS.PENDING
-      ? "/instructor-pending"
-      : profile.profileComplete
-        ? ROLE_DASHBOARD[profile.role]
-        : "/complete-profile";
+  const redirectTo = postAuthRedirect(profile);
 
   return {
     success: true,
@@ -697,6 +695,14 @@ export async function verifyOtp(input: {
     },
     error: null,
   };
+}
+
+export function postAuthRedirect(profile: UserProfile): string {
+  if (profile.mustChangePassword) return "/change-password";
+  if (profile.role === ROLES.INSTRUCTOR && profile.status === ACCOUNT_STATUS.PENDING) {
+    return "/instructor-pending";
+  }
+  return profile.profileComplete ? ROLE_DASHBOARD[profile.role] : "/complete-profile";
 }
 
 export async function resetPassword(input: {
@@ -730,6 +736,7 @@ export async function resetPassword(input: {
     if (u) {
       u.passwordHash = hash;
       u.passwordSalt = salt;
+      u.mustChangePassword = false;
       u.updatedAt = nowIso();
     }
     d.otps = d.otps.filter((o) => o.id !== challenge.id);
@@ -825,6 +832,7 @@ export async function completeProfile(input: {
         role: profile.role,
         status: profile.status,
         profileComplete: profile.profileComplete,
+        mustChangePassword: Boolean(fresh.mustChangePassword),
       },
       days * 86_400,
     );
@@ -842,7 +850,7 @@ export async function completeProfile(input: {
     success: true,
     data: {
       user: profile,
-      redirectTo: ROLE_DASHBOARD[profile.role],
+      redirectTo: postAuthRedirect(profile),
     },
     error: null,
   };
@@ -919,6 +927,7 @@ export async function updateProfile(
         role: profile.role,
         status: profile.status,
         profileComplete: profile.profileComplete,
+        mustChangePassword: Boolean(findUserById(userId)?.mustChangePassword),
       },
       env.AUTH_SESSION_DAYS * 86_400,
     );
@@ -967,6 +976,176 @@ export function verifyStoredPassword(userId: string, password: string): boolean 
   const user = findUserById(userId);
   if (!user?.passwordHash || !user.passwordSalt) return false;
   return verifyPassword(password, user.passwordHash, user.passwordSalt);
+}
+
+export async function passwordLogin(input: {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+  deviceFingerprint?: string | null;
+  deviceLabel?: string | null;
+  ctx?: RequestContext;
+}): Promise<
+  ApiResponse<{
+    user: UserProfile;
+    redirectTo: string;
+    requiresProfile: boolean;
+    mustChangePassword: boolean;
+  }>
+> {
+  ensureSuperAdminSeeded();
+  const email = sanitizeEmail(input.email);
+  const user = findUserByEmail(email);
+
+  if (!user) {
+    await logActivity({
+      actorId: null,
+      action: ACTIVITY_ACTIONS.LOGIN_FAILED,
+      entityType: "auth",
+      entityId: null,
+      metadata: { email, reason: "unknown_email", via: "password" },
+      ...input.ctx,
+    });
+    return { success: false, data: null, error: "Invalid email or password." };
+  }
+
+  if (!AUTHENTICATABLE_STATUSES.includes(user.status)) {
+    return { success: false, data: null, error: "Account cannot sign in in its current status." };
+  }
+
+  const security = readAuthDb().securitySettings.find((s) => s.userId === user.id);
+  if (security?.lockedUntil && new Date(security.lockedUntil).getTime() > Date.now()) {
+    return {
+      success: false,
+      data: null,
+      error: "Too many failed attempts. Try again later or use email OTP.",
+    };
+  }
+
+  if (!user.passwordHash || !user.passwordSalt) {
+    return {
+      success: false,
+      data: null,
+      error: "This account uses email OTP. Continue without a password, or reset your password.",
+    };
+  }
+
+  const ok = verifyPassword(input.password, user.passwordHash, user.passwordSalt);
+  if (!ok) {
+    writeAuthDb((d) => {
+      let row = d.securitySettings.find((s) => s.userId === user.id);
+      if (!row) {
+        row = defaultSecuritySettings(user.id);
+        d.securitySettings.push(row);
+      }
+      row.failedLoginCount += 1;
+      row.updatedAt = nowIso();
+      if (row.failedLoginCount >= 5) {
+        row.lockedUntil = addMinutes(15);
+      }
+    });
+    await logActivity({
+      actorId: user.id,
+      action: ACTIVITY_ACTIONS.LOGIN_FAILED,
+      entityType: "auth",
+      entityId: user.id,
+      metadata: { email, reason: "invalid_password", via: "password" },
+      ...input.ctx,
+    });
+    return { success: false, data: null, error: "Invalid email or password." };
+  }
+
+  writeAuthDb((d) => {
+    const row = d.securitySettings.find((s) => s.userId === user.id);
+    if (row) {
+      row.failedLoginCount = 0;
+      row.lockedUntil = null;
+      row.updatedAt = nowIso();
+    }
+  });
+
+  const { profile } = await issueSession(user, Boolean(input.rememberMe), {
+    ...(input.ctx ?? {}),
+    deviceFingerprint: input.deviceFingerprint ?? input.ctx?.deviceFingerprint ?? null,
+    deviceLabel: input.deviceLabel ?? input.ctx?.deviceLabel ?? null,
+  });
+
+  await logActivity({
+    actorId: profile.id,
+    action: ACTIVITY_ACTIONS.LOGIN,
+    entityType: "session",
+    entityId: profile.id,
+    metadata: { rememberMe: Boolean(input.rememberMe), via: "password" },
+    ...input.ctx,
+  });
+
+  return {
+    success: true,
+    data: {
+      user: profile,
+      redirectTo: postAuthRedirect(profile),
+      requiresProfile: !profile.profileComplete,
+      mustChangePassword: Boolean(profile.mustChangePassword),
+    },
+    error: null,
+  };
+}
+
+export async function changePassword(input: {
+  userId: string;
+  currentPassword: string;
+  password: string;
+  ctx?: RequestContext;
+}): Promise<ApiResponse<{ user: UserProfile; redirectTo: string }>> {
+  const user = findUserById(input.userId);
+  if (!user) {
+    return { success: false, data: null, error: "Account not found." };
+  }
+  if (!user.passwordHash || !user.passwordSalt) {
+    return { success: false, data: null, error: "No password is set on this account." };
+  }
+  if (!verifyPassword(input.currentPassword, user.passwordHash, user.passwordSalt)) {
+    await logActivity({
+      actorId: user.id,
+      action: ACTIVITY_ACTIONS.LOGIN_FAILED,
+      entityType: "user",
+      entityId: user.id,
+      metadata: { reason: "change_password_current_mismatch" },
+      ...input.ctx,
+    });
+    return { success: false, data: null, error: "Current password is incorrect." };
+  }
+
+  const { hash, salt } = hashPassword(input.password);
+  writeAuthDb((d) => {
+    const u = d.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.passwordHash = hash;
+    u.passwordSalt = salt;
+    u.mustChangePassword = false;
+    u.updatedAt = nowIso();
+    d.sessions.forEach((s) => {
+      if (s.userId === user.id && !s.revokedAt) s.revokedAt = nowIso();
+    });
+  });
+
+  const fresh = findUserById(user.id)!;
+  const { profile } = await issueSession(fresh, false, input.ctx ?? {});
+
+  await logActivity({
+    actorId: profile.id,
+    action: ACTIVITY_ACTIONS.PASSWORD_CHANGE,
+    entityType: "user",
+    entityId: profile.id,
+    metadata: { firstLogin: Boolean(user.mustChangePassword) },
+    ...input.ctx,
+  });
+
+  return {
+    success: true,
+    data: { user: profile, redirectTo: postAuthRedirect(profile) },
+    error: null,
+  };
 }
 
 export { ROLE_DASHBOARD };

@@ -38,7 +38,7 @@ export default function LoginPage() {
             </p>
             <CardTitle className="font-display text-2xl">Sign in</CardTitle>
             <CardDescription>
-              Enter your email to receive a one-time code for secure access.
+              Use the password from your purchase email, or continue with a one-time code.
             </CardDescription>
           </div>
         </CardHeader>

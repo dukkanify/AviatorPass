@@ -132,7 +132,7 @@ class StripeGateway implements PaymentGateway {
         providerPaymentId: stubId,
         status: "requires_payment",
         clientSecret: null,
-        checkoutUrl: `/student/checkout/confirm?session=${stubId}&order=${input.orderId}`,
+        checkoutUrl: `/checkout/success?session=${stubId}&order=${input.orderId}`,
         methodBrand: input.methodBrand,
         paymentMethodSummary: "Stripe Checkout (test stub)",
         rawProviderPayload: {
@@ -167,10 +167,10 @@ class StripeGateway implements PaymentGateway {
         ],
         success_url:
           input.successUrl ??
-          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/billing?paid=1`,
+          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/checkout/success?paid=1`,
         cancel_url:
           input.cancelUrl ??
-          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/checkout?canceled=1`,
+          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/checkout?canceled=1`,
         metadata: {
           orderId: input.orderId,
           idempotencyKey: input.idempotencyKey,

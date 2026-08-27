@@ -568,7 +568,7 @@ async function finalizeSuccessfulPayment(input: {
   return { order: updated, payment: getPayment(payment.id)! };
 }
 
-async function completePaidOrder(order: Order, payment: PaymentRecord, actorId: string) {
+export async function completePaidOrder(order: Order, payment: PaymentRecord, actorId: string) {
   const invoice = await issueInvoiceForOrder(order, payment);
 
   for (const item of order.items) {
@@ -761,13 +761,15 @@ export async function handleProviderWebhook(input: { payload: string; signature:
         o.status = "paid";
         o.paidAt = nowIso();
       });
-      const userLike = {
-        id: order.studentId,
-        email: order.studentEmail,
-        fullName: order.studentName,
-      } as UserProfile;
-      await completePaidOrder(getOrder(order.id)!, getPayment(payment.id)!, order.studentId);
-      void userLike;
+      const paidOrder = getOrder(order.id)!;
+      const paidPayment = getPayment(payment.id)!;
+      if (paidOrder.metadata?.purchaseFirst) {
+        const { fulfillGuestPaidOrder } =
+          await import("@/services/payments/purchase-first-service");
+        await fulfillGuestPaidOrder(paidOrder, paidPayment);
+      } else {
+        await completePaidOrder(paidOrder, paidPayment, paidOrder.studentId);
+      }
     }
   }
 

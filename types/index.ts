@@ -27,6 +27,8 @@ export interface UserProfile {
   status: AccountStatus;
   emailVerified: boolean;
   profileComplete: boolean;
+  /** Purchase-first / generated password accounts must rotate on first login. */
+  mustChangePassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

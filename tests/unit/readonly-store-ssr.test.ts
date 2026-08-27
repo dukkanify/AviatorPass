@@ -106,6 +106,7 @@ describe("readonly JSON stores (SSR safety)", () => {
       status: "active",
       emailVerified: true,
       profileComplete: true,
+      mustChangePassword: false,
       lastLoginAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

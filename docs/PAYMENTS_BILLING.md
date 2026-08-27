@@ -45,19 +45,20 @@ Platform collects payments centrally; instructor share is credited to internal w
 
 ## API
 
-| Path                                 | Purpose                                |
-| ------------------------------------ | -------------------------------------- |
-| `/api/payments/catalog`              | Products, coupons, settings            |
-| `/api/payments/orders`               | Checkout, pay, retry, cancel, ledger   |
-| `/api/payments/invoices`             | List / printable HTML                  |
-| `/api/payments/wallet`               | Wallet, transactions, payouts          |
-| `/api/payments/refunds`              | Request / review                       |
-| `/api/payments/reports`              | Dashboard + CSV                        |
-| `/api/payments/webhooks`             | Provider webhooks                      |
-| `/api/payments/regional-rules`       | Country BNPL / installment eligibility |
-| `/api/payments/installments`         | Plans, schedule, suspend/resume        |
-| `/api/payments/installments/process` | Cron: overdue + reminder emails        |
-| `/api/payments/kyc`                  | Passport upload / verification         |
+| Path                                 | Purpose                                    |
+| ------------------------------------ | ------------------------------------------ |
+| `/api/public/checkout`               | Guest purchase-first quote + pay (no auth) |
+| `/api/payments/catalog`              | Products, coupons, settings                |
+| `/api/payments/orders`               | Checkout, pay, retry, cancel, ledger       |
+| `/api/payments/invoices`             | List / printable HTML                      |
+| `/api/payments/wallet`               | Wallet, transactions, payouts              |
+| `/api/payments/refunds`              | Request / review                           |
+| `/api/payments/reports`              | Dashboard + CSV                            |
+| `/api/payments/webhooks`             | Provider webhooks                          |
+| `/api/payments/regional-rules`       | Country BNPL / installment eligibility     |
+| `/api/payments/installments`         | Plans, schedule, suspend/resume            |
+| `/api/payments/installments/process` | Cron: overdue + reminder emails            |
+| `/api/payments/kyc`                  | Passport upload / verification             |
 
 ## CR003 — Installments & regional payment rules (ATPL package)
 
@@ -72,6 +73,17 @@ Sourced from the **ATPL Theory Package** (`metadata.sku: ATPL-PACKAGE`).
 Checkout requires **passport upload** + **agreement acceptance** for installments/BNPL. Schedule items carry **due dates**; reminder emails/in-app fire on configured offsets; overdue plans can **auto-suspend** package course access and **resume** after payment.
 
 SQL: `database/migrations/020_installments_regional_payments.sql`
+
+## Purchase-first ATPL enrolment
+
+Marketing CTAs (`Enrol in ATPL PASS`) open public `/checkout`. Visitors pay before an account exists. On **successful** payment AviatorPass:
+
+1. Creates a student (or attaches the order to an existing email)
+2. Generates a one-time password (emailed once) and forces a password change on first login
+3. Enrolls ATPL package courses immediately
+4. Sends branded welcome, receipt, and invoice emails
+
+Failed charges create **no** user and reserve **no** seat. OTP `/register` remains for free accounts. Logged-in `/student/checkout` is unchanged.
 
 ## Permissions
 

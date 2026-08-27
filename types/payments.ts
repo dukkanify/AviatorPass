@@ -3,7 +3,7 @@
  * Amounts are integer minor units (e.g. fils for KWD, cents for USD).
  */
 
-export type PaymentProvider = "mock" | "stripe" | "tamara" | "tabby";
+export type PaymentProvider = "mock" | "stripe" | "tamara" | "tabby" | "myfatoorah" | "manual";
 
 export type PaymentMethodBrand =
   | "visa"
@@ -12,6 +12,9 @@ export type PaymentMethodBrand =
   | "apple_pay"
   | "google_pay"
   | "card"
+  | "mada"
+  | "myfatoorah"
+  | "manual"
   | "uae_local"
   | "tamara"
   | "tabby";

@@ -18,8 +18,13 @@ export const routes = {
   verifyOtp: "/verify-otp",
   forgotPassword: "/forgot-password",
   resetPassword: "/reset-password",
+  changePassword: "/change-password",
   completeProfile: "/complete-profile",
   authCallback: "/auth/callback",
+
+  /** Public purchase-first checkout — no registration before payment. */
+  checkout: "/checkout",
+  checkoutSuccess: "/checkout/success",
 
   // System auth states
   accessDenied: "/access-denied",
@@ -48,6 +53,8 @@ export const routes = {
       verifyOtp: "/api/auth/otp/verify",
       forgotPassword: "/api/auth/forgot-password",
       resetPassword: "/api/auth/reset-password",
+      login: "/api/auth/login",
+      changePassword: "/api/auth/change-password",
       completeProfile: "/api/auth/complete-profile",
       profile: "/api/auth/profile",
       sessions: "/api/auth/sessions",
@@ -68,6 +75,7 @@ export const protectedRoutePrefixes = [
   "/super-admin",
   "/dashboard",
   "/complete-profile",
+  "/change-password",
   "/join",
 ] as const;
 
