@@ -1,0 +1,29 @@
+name: Deploy AviatorPass Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Trigger production deploy hook
+        env:
+          VERCEL_AVIATORPASS_DEPLOY_HOOK: ${{ secrets.VERCEL_AVIATORPASS_DEPLOY_HOOK }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: node scripts/trigger-production-deploy.mjs
+
+      - name: Wait for production health
+        run: node scripts/wait-production-health.mjs

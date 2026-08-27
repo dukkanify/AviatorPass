@@ -108,7 +108,7 @@ Required checks on PRs: \`quality\`, \`e2e\`, \`merge-gate\` (see \`.github/work
 
 | Trigger | Workflow | Status |
 |---------|----------|--------|
-| Push \`aviatorpass\` | \`deploy-aviatorpass-production.yml\` | AviatorPass Vercel (requires \`VERCEL_AVIATORPASS_DEPLOY_HOOK\` or token) |
+| Push \`main\` | \`deploy-aviatorpass-production.yml\` | AviatorPass Vercel (\`npm run deploy:production\` / \`$VERCEL_AVIATORPASS_DEPLOY_HOOK\`) |
 
 > This tip does not deploy marketplace products. Keep AviatorPass secrets isolated from any other Vercel project.
 

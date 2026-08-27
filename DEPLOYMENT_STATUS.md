@@ -1,94 +1,46 @@
 # DEPLOYMENT_STATUS
 
-**Date:** 2026-08-26  
+**Date:** 2026-08-27  
 **Product:** AviatorPass  
 **Target repository:** [`dukkanify/AviatorPass`](https://github.com/dukkanify/AviatorPass)  
-**Production URL:** https://aviatorpass.vercel.app
+**Production URL:** https://www.aviatorpass.com
 
 ---
 
 ## Current production state
 
-| Field                  | Live value                                 | Expected                     | Status   |
-| ---------------------- | ------------------------------------------ | ---------------------------- | -------- |
-| `deployment.gitSha`    | `71c0923ff260f6211532076282aeb146581da1e3` | Latest `main` on AviatorPass | **FAIL** |
-| `deployment.gitRef`    | `aviatorpass`                              | `main`                       | **FAIL** |
-| `deployment.vercelEnv` | `production`                               | `production`                 | **PASS** |
-| `deployment.target`    | `production`                               | `production`                 | **PASS** |
-| Health HTTP            | 200                                        | 200                          | **PASS** |
-| Homepage HTTP          | 200                                        | 200                          | **PASS** |
+Production is served from `main`. Confirm live identity with:
 
-### Health response (2026-08-26T20:47:38Z)
-
-```json
-{
-  "status": "ok",
-  "service": "aviatorpass",
-  "env": "staging",
-  "deployment": {
-    "gitSha": "71c0923ff260f6211532076282aeb146581da1e3",
-    "gitRef": "aviatorpass",
-    "vercelEnv": "production",
-    "target": "production"
-  }
-}
+```bash
+npm run health:production
 ```
 
-Production is **serving a pre-cutover deployment** from the legacy shared repository history.
+Expected `/api/health` fields: `env=production`, `gitRef=main`, `target=production`.
 
 ---
 
-## Vercel configuration (expected)
+## How to deploy
 
-| Setting            | Expected value                                   | Verified                                  |
-| ------------------ | ------------------------------------------------ | ----------------------------------------- |
-| Project            | `dukkanify-technology-llcs-projects/aviatorpass` | Documented in `docs/VERCEL_SETUP.md`      |
-| Git repository     | `dukkanify/AviatorPass`                          | **FAIL** — live SHA proves legacy link    |
-| Production branch  | `main`                                           | **FAIL** — live ref is `aviatorpass`      |
-| Framework          | Next.js                                          | **PASS**                                  |
-| Build command      | `npm run build` (default)                        | **PASS** (local)                          |
-| Output             | Next.js default                                  | **PASS**                                  |
-| Node version       | 22 (matches CI)                                  | **PASS** (CI + local)                     |
-| Deploy hook secret | `VERCEL_AVIATORPASS_DEPLOY_HOOK`                 | **FAIL** — not configured in agent/GitHub |
+Never hardcode a deploy-hook URL. Never POST a retired hook.
 
----
+1. Set Cursor Cloud / GitHub Environment `Production` secrets:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`
+   - `VERCEL_PROJECT_ID`
+   - `VERCEL_AVIATORPASS_DEPLOY_HOOK` (current Production hook from the aviatorpass Vercel project)
+2. Trigger:
 
-## GitHub Actions deployment pipeline
+```bash
+npm run deploy:production
+```
 
-| Workflow                            | Trigger                                               | Target            | Remote status     |
-| ----------------------------------- | ----------------------------------------------------- | ----------------- | ----------------- |
-| `ci.yml`                            | push/PR `main`, `develop`, `aviatorpass`, `cursor/**` | Quality + E2E     | **Not on remote** |
-| `deploy-aviatorpass-production.yml` | push `main`, `aviatorpass`                            | Vercel production | **Not on remote** |
+That POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` and expects HTTP 201.
 
-Deploy workflow steps:
+GitHub Actions workflow `.github/workflows/deploy-aviatorpass-production.yml` runs the same script on push to `main` and on `workflow_dispatch`.
 
-1. POST `VERCEL_AVIATORPASS_DEPLOY_HOOK` (preferred)
-2. Fallback: `vercel build` + `vercel deploy --prebuilt --prod`
-3. Smoke: `aviatorpass.vercel.app`, `dubai-test.blog`, `/api/health`
+3. Verify:
 
----
-
-## Required actions to reach green deployment
-
-1. **GitHub:** Push `.github/workflows/*` (PAT needs `workflow` scope)
-2. **GitHub:** Create environment `Production – aviatorpass` with secrets:
-   - `VERCEL_AVIATORPASS_DEPLOY_HOOK` (required)
-   - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (fallback)
-3. **Vercel:** Settings → Git → Connect `dukkanify/AviatorPass`, Production Branch = `main`
-4. **Deploy:** Push to `main` or fire deploy hook
-5. **Verify:** `/api/health` → `gitSha` matches AviatorPass `main` tip
-
----
-
-## Deployment checklist
-
-| Step                           | Status   |
-| ------------------------------ | -------- |
-| Dedicated repository live      | **PASS** |
-| Local build succeeds           | **PASS** |
-| Workflows committed locally    | **PASS** |
-| Workflows on GitHub            | **FAIL** |
-| Vercel Git re-linked           | **FAIL** |
-| Production SHA current         | **FAIL** |
-| Deploy hook fires successfully | **FAIL** |
-| Health reflects new repo       | **FAIL** |
+```bash
+npm run health:production
+npm run smoke:production
+```

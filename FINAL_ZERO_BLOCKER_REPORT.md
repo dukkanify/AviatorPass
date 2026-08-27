@@ -13,11 +13,11 @@ User reported a new saved Cloud Environment (`dukkanify/AviatorPass`, `main`, `n
 
 ## Task 1 — Verify runtime
 
-| Check | Expected | Result | Verified response |
-| ----- | -------- | ------ | ----------------- |
-| New bcId | ≠ `bc-3392d7f4-458c-4f34-983f-d95e26230987` | **FAIL** | bcId = `bc-3392d7f4-458c-4f34-983f-d95e26230987` |
-| New PAT fingerprint | ≠ `0c5ec2f5` | **FAIL** | SHA256 prefix = `0c5ec2f5` |
-| New deploy hook (injected) | HTTP 201 | **FAIL** | HTTP **404** |
+| Check                      | Expected                                    | Result   | Verified response                                |
+| -------------------------- | ------------------------------------------- | -------- | ------------------------------------------------ |
+| New bcId                   | ≠ `bc-3392d7f4-458c-4f34-983f-d95e26230987` | **FAIL** | bcId = `bc-3392d7f4-458c-4f34-983f-d95e26230987` |
+| New PAT fingerprint        | ≠ `0c5ec2f5`                                | **FAIL** | SHA256 prefix = `0c5ec2f5`                       |
+| New deploy hook (injected) | HTTP 201                                    | **FAIL** | HTTP **404**                                     |
 
 **cursor-cloud run-info:**
 
@@ -54,10 +54,10 @@ User reported a new saved Cloud Environment (`dukkanify/AviatorPass`, `main`, `n
 
 ## Task 2 — Verify PAT permissions
 
-| Check | Result | Verified response |
-| ----- | ------ | ----------------- |
-| Update repository contents | **PASS** | `PUT .../contents/.recovery-verify-*.md` → commit `abd13b5c...` |
-| Update `.github/workflows/*` | **FAIL** | HTTP **403** |
+| Check                        | Result   | Verified response                                               |
+| ---------------------------- | -------- | --------------------------------------------------------------- |
+| Update repository contents   | **PASS** | `PUT .../contents/.recovery-verify-*.md` → commit `abd13b5c...` |
+| Update `.github/workflows/*` | **FAIL** | HTTP **403**                                                    |
 
 **Workflow write (GitHub Contents API):**
 
@@ -94,9 +94,9 @@ remote rejected: refusing to allow a Personal Access Token to create or update w
 
 ## Task 4 — Verify GitHub Actions exist
 
-| Check | Result | Verified response |
-| ----- | ------ | ----------------- |
-| `.github/workflows` on remote `main` | **FAIL** | HTTP 404 |
+| Check                                | Result   | Verified response |
+| ------------------------------------ | -------- | ----------------- |
+| `.github/workflows` on remote `main` | **FAIL** | HTTP 404          |
 
 **GET `/repos/dukkanify/AviatorPass/contents/.github/workflows?ref=main`:**
 
@@ -118,10 +118,10 @@ remote rejected: refusing to allow a Personal Access Token to create or update w
 
 ## Task 6 — Trigger production deployment
 
-| Source | Result | Verified response |
-| ------ | ------ | ----------------- |
-| Injected `$VERCEL_AVIATORPASS_DEPLOY_HOOK` (`lYkMWU8DsM`) | **FAIL** | HTTP **404** |
-| User-provided hook (`xqilQFcQwA`, direct POST) | **PASS** | HTTP **201** |
+| Source                                                    | Result         | Verified response                                          |
+| --------------------------------------------------------- | -------------- | ---------------------------------------------------------- |
+| Injected `$VERCEL_AVIATORPASS_DEPLOY_HOOK` (`lYkMWU8DsM`) | **FAIL**       | HTTP **404**                                               |
+| User-provided hook (direct POST of a now-retired id)      | **superseded** | Do not reuse. POST `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only. |
 
 **Injected hook response:**
 
@@ -135,7 +135,7 @@ remote rejected: refusing to allow a Personal Access Token to create or update w
 }
 ```
 
-**Direct POST `.../xqilQFcQwA` response:**
+**Direct POST of a retired hook (do not repeat):**
 
 ```json
 {
@@ -175,12 +175,12 @@ Deploy hook accepted (job `PENDING`). Waited 30s. Health endpoint unchanged (see
 }
 ```
 
-| Requirement | Result | Verified value |
-| ----------- | ------ | -------------- |
-| `repository` = `dukkanify/AviatorPass` | **NOT EXPOSED** | Field absent from `/api/health` |
-| `gitRef` = `main` | **FAIL** | `aviatorpass` |
-| Latest git SHA | **FAIL** | `71c0923` (remote `main`: `abd13b5c`) |
-| `env` = `production` | **FAIL** | `staging` |
+| Requirement                            | Result          | Verified value                        |
+| -------------------------------------- | --------------- | ------------------------------------- |
+| `repository` = `dukkanify/AviatorPass` | **NOT EXPOSED** | Field absent from `/api/health`       |
+| `gitRef` = `main`                      | **FAIL**        | `aviatorpass`                         |
+| Latest git SHA                         | **FAIL**        | `71c0923` (remote `main`: `abd13b5c`) |
+| `env` = `production`                   | **FAIL**        | `staging`                             |
 
 ---
 
@@ -194,17 +194,17 @@ Live site responds but serves legacy deployment metadata (`gitRef: aviatorpass`,
 
 ## Task 10 — Blocker summary
 
-| # | Blocker | Platform | Exact evidence |
-| - | ------- | -------- | -------------- |
-| 1 | Stale agent runtime | Cursor Cloud | bcId unchanged; `createdAtMs: 1785811598160` |
-| 2 | Saved environment build not active | Cursor Cloud | `build.resolution: no_finished_builds` |
-| 3 | Environment repo mismatch | Cursor Cloud | Name `dukkanify/AviatorPass`; repos `github.com/dukkanify/UAE-Sales` |
-| 4 | Stale PAT | Cursor Cloud / GitHub | Fingerprint `0c5ec2f5`; workflow write 403 |
-| 5 | Stale deploy hook secret | Cursor Cloud / Vercel | Injected `lYkMWU8DsM` → 404 |
-| 6 | Workflows not on remote | GitHub | `.github/workflows` → 404 |
-| 7 | CI not run | GitHub Actions | No workflows file on remote |
-| 8 | Production wrong branch | Vercel | Health `gitRef: aviatorpass` |
-| 9 | Production env wrong | Vercel | Health `env: staging` |
+| #   | Blocker                            | Platform              | Exact evidence                                                       |
+| --- | ---------------------------------- | --------------------- | -------------------------------------------------------------------- |
+| 1   | Stale agent runtime                | Cursor Cloud          | bcId unchanged; `createdAtMs: 1785811598160`                         |
+| 2   | Saved environment build not active | Cursor Cloud          | `build.resolution: no_finished_builds`                               |
+| 3   | Environment repo mismatch          | Cursor Cloud          | Name `dukkanify/AviatorPass`; repos `github.com/dukkanify/UAE-Sales` |
+| 4   | Stale PAT                          | Cursor Cloud / GitHub | Fingerprint `0c5ec2f5`; workflow write 403                           |
+| 5   | Stale deploy hook secret           | Cursor Cloud / Vercel | Injected `lYkMWU8DsM` → 404                                          |
+| 6   | Workflows not on remote            | GitHub                | `.github/workflows` → 404                                            |
+| 7   | CI not run                         | GitHub Actions        | No workflows file on remote                                          |
+| 8   | Production wrong branch            | Vercel                | Health `gitRef: aviatorpass`                                         |
+| 9   | Production env wrong               | Vercel                | Health `env: staging`                                                |
 
 ---
 
@@ -212,7 +212,7 @@ Live site responds but serves legacy deployment metadata (`gitRef: aviatorpass`,
 
 1. **Start a New Cloud Agent** from the dashboard (not Continue). Verify bcId ≠ `bc-3392d7f4-...` and pod boots from saved environment build.
 2. Update **`AVIATORPASS_PUSH_TOKEN`**: regenerate fine-grained PAT with **Contents + Workflows: Read and write** on `dukkanify/AviatorPass`; verify fingerprint ≠ `0c5ec2f5`.
-3. Update **`VERCEL_AVIATORPASS_DEPLOY_HOOK`**: `https://api.vercel.com/v1/integrations/deploy/prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl/xqilQFcQwA`; verify POST → HTTP 201 from injected env.
+3. Update **`VERCEL_AVIATORPASS_DEPLOY_HOOK`** to the current Production hook from the aviatorpass Vercel project (never a retired hook URL). Verify `npm run deploy:production` → HTTP 201.
 4. **Vercel dashboard:** Settings → Git → Production Branch = **`main`**, repo = **`dukkanify/AviatorPass`**, Production env `NEXT_PUBLIC_APP_ENV=production`.
 5. Re-run this recovery checklist on the fresh agent.
 
@@ -220,15 +220,15 @@ Live site responds but serves legacy deployment metadata (`gitRef: aviatorpass`,
 
 ## Recovery checklist status
 
-| Task | Status |
-| ---- | ------ |
-| 1 Verify runtime | **FAIL** |
-| 2 Verify PAT permissions | **PARTIAL** (contents PASS, workflows FAIL) |
-| 3 Push workflows | **NOT COMPLETED** |
-| 4 GitHub Actions exist | **FAIL** |
-| 5 CI green | **NOT RUN** |
-| 6 Trigger deploy | **PARTIAL** (direct hook PASS; injected FAIL) |
-| 7 Wait for deploy | **INCONCLUSIVE** (health unchanged) |
-| 8 Verify health | **FAIL** |
-| 9 Verify live site | **FAIL** (legacy deployment) |
-| 10 This report | **COMPLETE** |
+| Task                     | Status                                        |
+| ------------------------ | --------------------------------------------- |
+| 1 Verify runtime         | **FAIL**                                      |
+| 2 Verify PAT permissions | **PARTIAL** (contents PASS, workflows FAIL)   |
+| 3 Push workflows         | **NOT COMPLETED**                             |
+| 4 GitHub Actions exist   | **FAIL**                                      |
+| 5 CI green               | **NOT RUN**                                   |
+| 6 Trigger deploy         | **PARTIAL** (direct hook PASS; injected FAIL) |
+| 7 Wait for deploy        | **INCONCLUSIVE** (health unchanged)           |
+| 8 Verify health          | **FAIL**                                      |
+| 9 Verify live site       | **FAIL** (legacy deployment)                  |
+| 10 This report           | **COMPLETE**                                  |

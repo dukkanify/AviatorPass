@@ -37,7 +37,11 @@ hotfix/*               →  main
 | ---------------------------- | ----------------------------------- | ------------------ |
 | Push `main` or `aviatorpass` | `deploy-aviatorpass-production.yml` | AviatorPass Vercel |
 
-Secret: `VERCEL_AVIATORPASS_DEPLOY_HOOK` (never marketplace hooks).
+Secret: `VERCEL_AVIATORPASS_DEPLOY_HOOK` (never marketplace hooks, never a hardcoded hook URL).
+
+```bash
+npm run deploy:production
+```
 
 ## Protection
 

@@ -9,16 +9,16 @@
 
 ## Pre-flight verification results
 
-| # | Check | Result | Evidence |
-| - | ----- | ------ | -------- |
-| 1 | New runtime (new bcId) | **FAIL** | Same bcId as all prior runs |
-| 2 | PAT differs from previous | **FAIL** | SHA256 prefix `0c5ec2f5` — unchanged |
-| 3a | PAT writes normal contents | **PASS** | Contents API write/delete works |
-| 3b | PAT writes `.github/workflows/*` | **FAIL** | 403 — no workflow scope |
-| 4a | Deploy hook (injected env) | **FAIL** | Hook ID `lYkMWU8DsM` → `not_found` |
-| 4b | Deploy hook (user-provided URL) | **PASS** | Hook ID `xqilQFcQwA` → job `PENDING` |
-| 5 | Vercel connected to AviatorPass | **UNVERIFIED** | No Vercel MCP auth |
-| 6 | Production branch = `main` | **FAIL** | Live health → `gitRef: aviatorpass` |
+| #   | Check                            | Result         | Evidence                                                  |
+| --- | -------------------------------- | -------------- | --------------------------------------------------------- |
+| 1   | New runtime (new bcId)           | **FAIL**       | Same bcId as all prior runs                               |
+| 2   | PAT differs from previous        | **FAIL**       | SHA256 prefix `0c5ec2f5` — unchanged                      |
+| 3a  | PAT writes normal contents       | **PASS**       | Contents API write/delete works                           |
+| 3b  | PAT writes `.github/workflows/*` | **FAIL**       | 403 — no workflow scope                                   |
+| 4a  | Deploy hook (injected env)       | **FAIL**       | Hook ID `lYkMWU8DsM` → `not_found`                        |
+| 4b  | Deploy hook (user-provided URL)  | **superseded** | Retired hook. Use `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only. |
+| 5   | Vercel connected to AviatorPass  | **UNVERIFIED** | No Vercel MCP auth                                        |
+| 6   | Production branch = `main`       | **FAIL**       | Live health → `gitRef: aviatorpass`                       |
 
 **Verdict:** Workflow push and full production closure remain blocked. User-provided deploy hook is valid and was triggered successfully.
 
@@ -26,13 +26,7 @@
 
 ## Actions taken this run
 
-1. **Triggered user-provided deploy hook** (direct POST, not via env var):
-
-   ```
-   POST https://api.vercel.com/v1/integrations/deploy/prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl/xqilQFcQwA
-   → HTTP 201
-   → {"job":{"id":"0fL16varWGAKkiXfN9rl","state":"PENDING"}}
-   ```
+1. **Triggered a user-provided deploy hook via a hardcoded URL** (historical). That pattern is retired. Future deploys must `POST $VERCEL_AVIATORPASS_DEPLOY_HOOK` only (`npm run deploy:production`).
 
 2. **Rebased local `main`** onto `origin/main` (`b940e835`) with workflow commits on top.
 
@@ -89,20 +83,9 @@
 
 **Classification:** **Stale secret in Cursor runtime** — pod still has deleted hook.
 
-### Deploy hook — user-provided URL (PASS)
+### Deploy hook — user-provided URL (historical)
 
-**Request:** `POST .../xqilQFcQwA`
-
-```json
-{
-  "job": {
-    "id": "0fL16varWGAKkiXfN9rl",
-    "state": "PENDING"
-  }
-}
-```
-
-**Classification:** Hook is valid. Update `VERCEL_AVIATORPASS_DEPLOY_HOOK` secret and start a **new** agent run to inject it.
+Do not POST retired hook ids. Set `VERCEL_AVIATORPASS_DEPLOY_HOOK` to the current Production hook and run `npm run deploy:production`.
 
 ### Live `/api/health` (https://dubai-test.blog/api/health)
 
@@ -114,12 +97,12 @@ Production aliases still serve legacy `aviatorpass` branch @ SHA `71c0923`, with
 
 ## Failure root-cause summary
 
-| Problem | Category | Detail |
-| ------- | -------- | ------ |
-| Same bcId, same PAT hash | **Cursor runtime** | Continuing this conversation reuses pod; secret updates not re-injected |
-| Workflow push rejected | **GitHub permissions** | PAT needs **Workflows: Read and write** + regenerate |
-| Injected hook `not_found` | **Missing/stale secret** | Env still has `lYkMWU8DsM`; user hook `xqilQFcQwA` works when used directly |
-| Health `gitRef: aviatorpass` | **Vercel configuration** | Set Production Branch = `main`, promote latest deployment |
+| Problem                      | Category                 | Detail                                                                  |
+| ---------------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| Same bcId, same PAT hash     | **Cursor runtime**       | Continuing this conversation reuses pod; secret updates not re-injected |
+| Workflow push rejected       | **GitHub permissions**   | PAT needs **Workflows: Read and write** + regenerate                    |
+| Injected hook `not_found`    | **Missing/stale secret** | Update `VERCEL_AVIATORPASS_DEPLOY_HOOK` to the current Production hook  |
+| Health `gitRef: aviatorpass` | **Vercel configuration** | Set Production Branch = `main`, promote latest deployment               |
 
 ---
 
@@ -127,12 +110,12 @@ Production aliases still serve legacy `aviatorpass` branch @ SHA `71c0923`, with
 
 ### 1. Update Cursor Cloud secrets (then start **New Agent**, not Continue)
 
-| Secret | Required value |
-| ------ | -------------- |
-| `VERCEL_AVIATORPASS_DEPLOY_HOOK` | `https://api.vercel.com/v1/integrations/deploy/prj_vr3GT7zLXFB5srwIW8WnzKHZ5ecl/xqilQFcQwA` |
-| `AVIATORPASS_PUSH_TOKEN` | New fine-grained PAT: **Contents + Workflows: Read and write** on `dukkanify/AviatorPass` (regenerate after adding scope) |
+| Secret                           | Required value                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `VERCEL_AVIATORPASS_DEPLOY_HOOK` | Current Production hook from the aviatorpass Vercel project (never a retired id)                                          |
+| `AVIATORPASS_PUSH_TOKEN`         | New fine-grained PAT: **Contents + Workflows: Read and write** on `dukkanify/AviatorPass` (regenerate after adding scope) |
 
-Verify on boot: bcId ≠ `bc-3392d7f4-...`, PAT hash ≠ `0c5ec2f5`, deploy hook ends with `xqilQFcQwA`.
+Verify on boot: bcId ≠ `bc-3392d7f4-...`, PAT hash ≠ `0c5ec2f5`, and `POST $VERCEL_AVIATORPASS_DEPLOY_HOOK` returns HTTP 201.
 
 ### 2. Vercel dashboard (manual)
 
@@ -154,8 +137,8 @@ Verify on boot: bcId ≠ `bc-3392d7f4-...`, PAT hash ≠ `0c5ec2f5`, deploy hook
 
 ## Ready locally (not on remote)
 
-| Item | State |
-| ---- | ----- |
-| Local `main` | Rebased on `b940e835` + 2 workflow commits |
-| Workflow files | Present locally, **0 on remote** |
-| Remote `main` | `b940e835` (docs only) |
+| Item           | State                                      |
+| -------------- | ------------------------------------------ |
+| Local `main`   | Rebased on `b940e835` + 2 workflow commits |
+| Workflow files | Present locally, **0 on remote**           |
+| Remote `main`  | `b940e835` (docs only)                     |

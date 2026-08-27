@@ -62,8 +62,9 @@ Full checklist: `docs/DOMAIN_DUBAI_TEST.md`.
 ## Post-deploy verification
 
 ```bash
-curl -s https://<host>/api/health
-curl -s https://<host>/api/health?ready=1
+npm run deploy:production    # POST $VERCEL_AVIATORPASS_DEPLOY_HOOK
+npm run health:production
+npm run smoke:production
 ```
 
 Walk `docs/PRODUCTION_CHECKLIST.md`.
