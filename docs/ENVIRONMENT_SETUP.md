@@ -52,10 +52,23 @@ Supabase vars may stay empty for JSON-store mode.
 | Supabase             | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL` |
 
 5. Domain: attach custom domain in Vercel (SSL automatic).
-6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`).
-7. Storage: Supabase Storage bucket `aep-uploads` (or local `public/uploads` only for single-node demos).
-8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops).
-9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
+
+### Cursor Cloud / GitHub Actions deploy secrets
+
+Set these in Cursor Cloud secrets and the GitHub Environment `Production`. Never commit values. Never hardcode deploy-hook URLs.
+
+| Variable                         | Role                           |
+| -------------------------------- | ------------------------------ |
+| `VERCEL_TOKEN`                   | Vercel API access              |
+| `VERCEL_ORG_ID`                  | AviatorPass Vercel team        |
+| `VERCEL_PROJECT_ID`              | AviatorPass Vercel project     |
+| `VERCEL_AVIATORPASS_DEPLOY_HOOK` | Current Production deploy hook |
+
+```bash
+npm run deploy:production
+```
+
+That command POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only and refuses retired hooks. 6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`). 7. Storage: Supabase Storage bucket `aep-uploads` (or local `public/uploads` only for single-node demos). 8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops). 9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
 
 ## Validation after env change
 

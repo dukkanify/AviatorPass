@@ -36,8 +36,8 @@ gh api repos/dukkanify/AviatorPass/branches/main/protection \
 
 ## Secrets
 
-| Environment | Secrets                                                                          |
-| ----------- | -------------------------------------------------------------------------------- |
-| Production  | `VERCEL_AVIATORPASS_DEPLOY_HOOK` and/or AviatorPass `VERCEL_TOKEN` + project ids |
+| Environment | Secrets                                                                                |
+| ----------- | -------------------------------------------------------------------------------------- |
+| Production  | `VERCEL_AVIATORPASS_DEPLOY_HOOK`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` |
 
 Never add marketplace deploy hooks to this repository.

@@ -12,6 +12,23 @@ This workspace tip is **Aviation Education Platform (AEP)** — Next.js 15 (App 
 - Data files are `.data/aep-*.json` only. Deploy secrets must be AviatorPass-specific (`VERCEL_AVIATORPASS_DEPLOY_HOOK`).
 - See `PROJECT_SEPARATION_REPORT.md`, `REPOSITORY_MIGRATION_PLAN.md`, and `docs/GIT_WORKFLOW.md`.
 
+### Production deploy (Cursor Cloud)
+
+Required secrets (names only — never hardcode hook URLs):
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `VERCEL_AVIATORPASS_DEPLOY_HOOK` (current Production hook from the aviatorpass Vercel project)
+
+```bash
+npm run deploy:production    # POST $VERCEL_AVIATORPASS_DEPLOY_HOOK (expects HTTP 201)
+npm run health:production    # poll https://www.aviatorpass.com/api/health
+npm run smoke:production     # live production smoke
+```
+
+Do not POST retired deploy hooks. Do not embed deploy-hook URLs in scripts, workflows, or docs.
+
 Standard commands live in `package.json` (`dev`, `build`, `start`, `lint`, `typecheck`); see `README.md`. Notes:
 
 - Dev server: `npm run dev` serves the app on `http://localhost:3000` (Turbopack, hot reload).

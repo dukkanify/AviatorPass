@@ -16,7 +16,7 @@
 1. Vercel → **aviatorpass** → Settings → Git → connect **`dukkanify/AviatorPass`** (disconnect any legacy shared remote).
 2. Set Production Branch = `main`.
 3. Ensure Deploy Hook secret in GitHub Environment matches this project only.
-4. Push to `main` or fire `VERCEL_AVIATORPASS_DEPLOY_HOOK`.
+4. Push to `main` or run `npm run deploy:production` (POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only; never hardcode a hook URL).
 5. Verify `/api/health` → `deployment.gitSha` matches new repo tip.
 
 ## Preview
