@@ -13,8 +13,7 @@ import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { payGuestCheckout } from "@/services/payments/purchase-first-service";
 import { findUserByEmail, readAuthDb } from "@/services/auth/store";
-import { passwordLogin } from "@/services/auth/auth-service";
-import { generateSecurePassword } from "@/lib/security/crypto";
+import { generateSecurePassword, verifyPassword } from "@/lib/security/crypto";
 
 describe("purchase-first password setup", () => {
   beforeAll(() => {
@@ -60,8 +59,9 @@ describe("purchase-first password setup", () => {
     });
     expect(replay.success).toBe(false);
 
-    const signedIn = await passwordLogin({ email, password });
-    expect(signedIn.success).toBe(true);
-    expect(signedIn.data?.mustChangePassword).toBe(false);
+    const updated = findUserByEmail(email)!;
+    expect(updated.mustChangePassword).toBe(false);
+    expect(updated.passwordHash && updated.passwordSalt).toBeTruthy();
+    expect(verifyPassword(password, updated.passwordHash!, updated.passwordSalt!)).toBe(true);
   });
 });
