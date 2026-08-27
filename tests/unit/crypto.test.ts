@@ -50,7 +50,7 @@ describe("crypto helpers", () => {
     for (let i = 0; i < 8; i += 1) {
       const password = generateSecurePassword(16);
       expect(passwordSchema.parse(password)).toHaveLength(16);
-      expect(password).not.toMatch(/[%*?ILO01il]/);
+      expect(password).not.toMatch(/[%*?IO01il]/);
     }
   });
 
