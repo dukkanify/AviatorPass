@@ -768,7 +768,7 @@ export async function handleStripeWebhook(
   signature: string | null,
 ): Promise<StripeWebhookResult> {
   if (!isStripeWebhookConfigured()) {
-    throw new PaymentError("Stripe webhook secret not configured", 500);
+    throw new PaymentError("Stripe webhook secret not configured", 503);
   }
   if (!signature) {
     throw new PaymentError("Missing Stripe-Signature header", 400);

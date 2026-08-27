@@ -87,6 +87,7 @@ export async function POST(request: Request) {
         data: {
           ...result,
           order: publicOrderSnapshot(result.order),
+          redirectTo: result.order.status === "paid" ? `/welcome?orderId=${result.order.id}` : null,
           payment: result.payment
             ? {
                 id: result.payment.id,
