@@ -456,11 +456,28 @@
   box-shadow: 0 8px 24px -12px rgba(20, 48, 72, 0.12);
 }
 
+/* Tablet + mobile: show the full aircraft (never crop nose/tail).
+   The aircraft layer switches to `contain` so the whole airframe stays
+   visible with its natural aspect ratio; the cockpit layer keeps its
+   `cover` fill behind it so the hero never letterboxes to empty space. */
+@media (max-width: 768px) {
+  .atpl-hero-bg {
+    background-size:
+      contain,
+      cover,
+      cover;
+    background-position:
+      center 15%,
+      center 62%,
+      center top;
+  }
+}
+
 @media (max-width: 640px) {
   .atpl-hero-bg {
     background-position:
-      65% 20%,
-      center 70%,
+      center 12%,
+      center 68%,
       center top;
   }
 

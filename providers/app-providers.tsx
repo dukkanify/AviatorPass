@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/providers/auth-provider";
 import { BrandProvider } from "@/providers/brand-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ScrollToTop } from "@/components/navigation/scroll-to-top";
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ function AppProviders({ children }: AppProvidersProps) {
       <BrandProvider>
         <AuthProvider>
           <TooltipProvider delayDuration={200}>
+            <ScrollToTop />
             {children}
             <Toaster position="top-right" richColors closeButton />
           </TooltipProvider>
