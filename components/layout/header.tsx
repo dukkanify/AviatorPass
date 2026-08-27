@@ -24,6 +24,8 @@ function Header() {
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const isHome = pathname === "/";
+  const onAtplCourse = pathname === routes.atpl;
+  const enrolHref = onAtplCourse ? routes.checkout : routes.atpl;
   const solid = !(isHome && !scrolled && !open);
 
   React.useEffect(() => {
@@ -96,7 +98,7 @@ function Header() {
             className="hero-cta-primary h-10 rounded-xl px-4 shadow-[0_12px_28px_-16px_rgba(204,160,76,0.85)]"
             asChild
           >
-            <Link href={routes.checkout}>
+            <Link href={enrolHref}>
               Enrol in ATPL PASS
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
@@ -155,7 +157,7 @@ function Header() {
                 <Link href={routes.login}>Log in</Link>
               </Button>
               <Button variant="accent" className="hero-cta-primary h-12" asChild>
-                <Link href={routes.checkout}>
+                <Link href={enrolHref}>
                   Enrol in ATPL PASS
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>

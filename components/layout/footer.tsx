@@ -9,7 +9,7 @@ import { siteStatic } from "@/config/site-static";
 import { routes } from "@/constants/routes";
 
 const exploreLinks = [
-  { href: routes.courses, label: "ATPL Program" },
+  { href: routes.atpl, label: "ATPL Course" },
   { href: "/#about", label: "About" },
   { href: "/#instructors", label: "Instructors" },
   { href: routes.book, label: "Private Session" },
@@ -18,7 +18,7 @@ const exploreLinks = [
 
 const accountLinks = [
   { href: routes.login, label: "Log in" },
-  { href: routes.checkout, label: "Enrol in ATPL PASS" },
+  { href: routes.atpl, label: "Enrol in ATPL PASS" },
   { href: routes.register, label: "Free student account" },
 ] as const;
 
@@ -41,7 +41,7 @@ function Footer() {
               {brandingConfig.tagline}. Premium live ATPL training —{" "}
               {siteStatic.locations.join(" · ")}.
             </p>
-            <Link href={routes.checkout} className="site-footer-cta">
+            <Link href={routes.atpl} className="site-footer-cta">
               Enrol in ATPL PASS
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>

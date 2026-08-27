@@ -7,6 +7,7 @@ export const routes = {
   splash: "/splash",
   book: "/book",
   courses: "/courses",
+  atpl: "/atpl",
   flightpath: "/flightpath",
   live: "/live",
   registerInstructor: "/register/instructor",

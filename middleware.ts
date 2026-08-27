@@ -105,6 +105,8 @@ export async function middleware(request: NextRequest) {
     "/flight-path": "/flightpath",
     "/platform": "/",
     "/home": "/",
+    "/atpl-pass": "/atpl",
+    "/atpl-course": "/atpl",
     "/enrol": "/checkout",
     "/enroll": "/checkout",
     "/enroll-atpl": "/checkout",
@@ -122,6 +124,7 @@ export async function middleware(request: NextRequest) {
     if (
       lower === "/book" ||
       lower === "/courses" ||
+      lower === "/atpl" ||
       lower === "/flightpath" ||
       lower === "/live" ||
       lower === "/login" ||

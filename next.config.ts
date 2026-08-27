@@ -73,6 +73,8 @@ const nextConfig: NextConfig = {
       { source: "/flight-path", destination: "/flightpath", permanent: true },
       { source: "/platform", destination: "/", permanent: true },
       { source: "/home", destination: "/", permanent: true },
+      { source: "/atpl-pass", destination: "/atpl", permanent: false },
+      { source: "/atpl-course", destination: "/atpl", permanent: false },
     ];
   },
   async headers() {
