@@ -205,53 +205,57 @@ export async function getCurrentSession(): Promise<{
   user: UserProfile | null;
   permissions: ReturnType<typeof getPermissionsForRole>;
 }> {
-  ensureSuperAdminSeeded();
+  // Seed catalog users so JWT subject ids resolve on a cold serverless isolate
+  // (Vercel has no durable .data — each function has an empty in-memory store).
+  ensureDemoUsersSeeded();
 
   const parsed = await readSessionCookie();
   if (!parsed) {
     return { user: null, permissions: [] };
   }
 
+  const tokenHash = hashSessionToken(parsed.rawToken);
+  if (parsed.payload.th !== tokenHash) {
+    return { user: null, permissions: [] };
+  }
+
   const db = readAuthDb();
   const session = db.sessions.find((s) => s.id === parsed.payload.sid);
-  if (!session || session.revokedAt) {
-    await clearSessionCookies();
-    return { user: null, permissions: [] };
-  }
 
-  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+  if (session) {
+    if (session.revokedAt) {
+      return { user: null, permissions: [] };
+    }
+    if (new Date(session.expiresAt).getTime() <= Date.now()) {
+      writeAuthDb((d) => {
+        const s = d.sessions.find((x) => x.id === session.id);
+        if (s) s.revokedAt = nowIso();
+      });
+      return { user: null, permissions: [] };
+    }
+    if (session.tokenHash !== tokenHash) {
+      return { user: null, permissions: [] };
+    }
     writeAuthDb((d) => {
       const s = d.sessions.find((x) => x.id === session.id);
-      if (s) s.revokedAt = nowIso();
+      if (s) s.lastActiveAt = nowIso();
     });
-    await clearSessionCookies();
-    return { user: null, permissions: [] };
   }
 
-  if (session.tokenHash !== hashSessionToken(parsed.rawToken)) {
-    await clearSessionCookies();
-    return { user: null, permissions: [] };
-  }
-
-  if (session.tokenHash !== parsed.payload.th) {
-    await clearSessionCookies();
-    return { user: null, permissions: [] };
-  }
-
-  const user = findUserById(session.userId);
+  // Do not call cookies().set() here. Next.js throws
+  // "Cookies can only be modified in a Server Action or Route Handler"
+  // during RSC render — that was production digest 889204058 on
+  // /student/dashboard when middleware accepted the JWT but this isolate
+  // had no session row in the in-memory JSON store.
+  const userId = session?.userId ?? parsed.payload.uid;
+  const user = findUserById(userId);
   if (!user) {
-    await clearSessionCookies();
     return { user: null, permissions: [] };
   }
 
   if (user.status === ACCOUNT_STATUS.SUSPENDED || user.status === ACCOUNT_STATUS.INACTIVE) {
     return { user: toUserProfile(user), permissions: [] };
   }
-
-  writeAuthDb((d) => {
-    const s = d.sessions.find((x) => x.id === session.id);
-    if (s) s.lastActiveAt = nowIso();
-  });
 
   return {
     user: toUserProfile(user),

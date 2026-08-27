@@ -7,6 +7,7 @@ import {
   hashPassword,
   hashValue,
   signPayload,
+  stableId,
   verifyPassword,
   verifySignature,
 } from "@/lib/security/crypto";
@@ -16,6 +17,14 @@ describe("crypto helpers", () => {
     const id = generateId();
     expect(id).toMatch(/^[a-f0-9]{32}$/);
     expect(generateId()).not.toBe(id);
+  });
+
+  it("builds stable ids that match across isolates", () => {
+    expect(stableId("user", "Student.One@eagerpilots.com")).toBe(
+      stableId("user", "student.one@eagerpilots.com"),
+    );
+    expect(stableId("user", "student.one@eagerpilots.com")).toMatch(/^[a-f0-9]{32}$/);
+    expect(stableId("user", "a@b.c")).not.toBe(stableId("user", "d@e.f"));
   });
 
   it("generates 6-digit OTP by default", () => {

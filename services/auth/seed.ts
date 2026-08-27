@@ -7,7 +7,7 @@ import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { getServerEnv } from "@/config/env";
-import { generateId } from "@/lib/security/crypto";
+import { stableId } from "@/lib/security/crypto";
 import { findUserByEmail, readAuthDb, writeAuthDb } from "@/services/auth/store";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 
@@ -57,7 +57,7 @@ export function ensureSuperAdminSeeded(): void {
   }
 
   const ts = new Date().toISOString();
-  const id = generateId();
+  const id = stableId("user", email);
 
   writeAuthDb((d) => {
     d.users.push({

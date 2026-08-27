@@ -11,7 +11,7 @@ import {
 } from "@/constants/demo-accounts";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
-import { generateId, hashPassword } from "@/lib/security/crypto";
+import { hashPassword, stableId } from "@/lib/security/crypto";
 import { ensureSuperAdminSeeded } from "@/services/auth/seed";
 import {
   isStudentProfileComplete,
@@ -106,7 +106,7 @@ function buildStoredUser(
 ): StoredUser {
   const initials = `${def.firstName[0] ?? "A"}${def.lastName[0] ?? "P"}`;
   const user: StoredUser = {
-    id: generateId(),
+    id: stableId("user", def.email),
     email: def.email,
     firstName: def.firstName,
     lastName: def.lastName,

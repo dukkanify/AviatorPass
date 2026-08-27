@@ -6,6 +6,14 @@ export function generateId(): string {
   return randomBytes(16).toString("hex");
 }
 
+/** Deterministic 32-char hex id — same email/key on every serverless isolate. */
+export function stableId(scope: string, key: string): string {
+  return createHash("sha256")
+    .update(`${scope}:${key.trim().toLowerCase()}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
 export function generateToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");
 }
