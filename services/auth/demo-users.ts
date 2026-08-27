@@ -126,6 +126,7 @@ function buildStoredUser(
     status: def.status,
     emailVerified: def.emailVerified,
     profileComplete: def.profileComplete,
+    mustChangePassword: false,
     passwordHash: hash,
     passwordSalt: salt,
     lastLoginAt: null,

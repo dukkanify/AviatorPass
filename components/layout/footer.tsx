@@ -18,7 +18,8 @@ const exploreLinks = [
 
 const accountLinks = [
   { href: routes.login, label: "Log in" },
-  { href: routes.register, label: "Join as student" },
+  { href: routes.checkout, label: "Enrol in ATPL PASS" },
+  { href: routes.register, label: "Free student account" },
 ] as const;
 
 function Footer() {
@@ -40,8 +41,8 @@ function Footer() {
               {brandingConfig.tagline}. Premium live ATPL training —{" "}
               {siteStatic.locations.join(" · ")}.
             </p>
-            <Link href={routes.courses} className="site-footer-cta">
-              Explore the ATPL Program
+            <Link href={routes.checkout} className="site-footer-cta">
+              Enrol in ATPL PASS
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>

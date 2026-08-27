@@ -45,6 +45,7 @@ export async function setSessionCookies(
     role: string;
     status: string;
     profileComplete: boolean;
+    mustChangePassword?: boolean;
   },
   maxAgeSeconds: number,
 ): Promise<void> {
@@ -56,6 +57,7 @@ export async function setSessionCookies(
       role: claims.role,
       status: claims.status,
       pc: claims.profileComplete,
+      mp: Boolean(claims.mustChangePassword),
     },
     maxAgeSeconds,
   );

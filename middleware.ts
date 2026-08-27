@@ -26,6 +26,7 @@ async function readClaims(request: NextRequest): Promise<{
   role: Role;
   status: string;
   profileComplete: boolean;
+  mustChangePassword: boolean;
 } | null> {
   const value = request.cookies.get(SESSION_COOKIE)?.value;
   if (!value) return null;
@@ -42,6 +43,7 @@ async function readClaims(request: NextRequest): Promise<{
     role: payload.role as Role,
     status: payload.status,
     profileComplete: payload.pc,
+    mustChangePassword: Boolean(payload.mp),
   };
 }
 
@@ -103,6 +105,9 @@ export async function middleware(request: NextRequest) {
     "/flight-path": "/flightpath",
     "/platform": "/",
     "/home": "/",
+    "/enrol": "/checkout",
+    "/enroll": "/checkout",
+    "/enroll-atpl": "/checkout",
   };
   const aliasTarget = aliases[pathname.toLowerCase()];
   if (aliasTarget && aliasTarget !== pathname) {
@@ -123,7 +128,10 @@ export async function middleware(request: NextRequest) {
       lower === "/register" ||
       lower === "/register/instructor" ||
       lower === "/verify-otp" ||
-      lower === "/blog"
+      lower === "/blog" ||
+      lower === "/checkout" ||
+      lower === "/enrol" ||
+      lower === "/enroll"
     ) {
       const url = request.nextUrl.clone();
       url.pathname = lower;
@@ -188,6 +196,17 @@ export async function middleware(request: NextRequest) {
   if (claims && !claims.profileComplete && pathname !== routes.completeProfile && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = routes.completeProfile;
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    claims?.mustChangePassword &&
+    pathname !== routes.changePassword &&
+    !isAuthRoute &&
+    !pathname.startsWith("/api/")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = routes.changePassword;
     return NextResponse.redirect(url);
   }
 

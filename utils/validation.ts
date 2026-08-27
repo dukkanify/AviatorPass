@@ -68,6 +68,58 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 });
 
+export const passwordLoginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Enter your password"),
+  rememberMe: z.boolean().optional().default(false),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.currentPassword !== data.password, {
+    message: "Choose a new password that is different from the current one",
+    path: ["password"],
+  });
+
+export const guestCheckoutSchema = z.object({
+  productId: z.string().min(1).optional(),
+  firstName: nameSchema,
+  lastName: nameSchema,
+  email: emailSchema,
+  phone: internationalPhoneSchema,
+  country: z.string().length(2, "Select your country"),
+  billingName: z.string().trim().min(2).max(120).optional().or(z.literal("")),
+  billingAddress: z.string().trim().max(240).optional().or(z.literal("")),
+  methodBrand: z
+    .enum([
+      "visa",
+      "mastercard",
+      "amex",
+      "apple_pay",
+      "google_pay",
+      "card",
+      "mada",
+      "myfatoorah",
+      "manual",
+      "uae_local",
+      "tamara",
+      "tabby",
+    ])
+    .optional()
+    .default("card"),
+  paymentToken: z.string().max(80).optional(),
+  simulateFailure: z.boolean().optional(),
+  idempotencyKey: z.string().min(8).max(80).optional(),
+});
+
 /** Enterprise registration — student by default; instructor only when explicitly chosen / invited. */
 export const registerSchema = z
   .object({
@@ -185,6 +237,9 @@ export const updateProfileSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

@@ -4,6 +4,7 @@ import {
   constantTimeEqual,
   generateId,
   generateOtp,
+  generateSecurePassword,
   hashPassword,
   hashValue,
   signPayload,
@@ -42,6 +43,15 @@ describe("crypto helpers", () => {
     const { hash, salt } = hashPassword("Secret123");
     expect(verifyPassword("Secret123", hash, salt)).toBe(true);
     expect(verifyPassword("Wrong123", hash, salt)).toBe(false);
+  });
+
+  it("generates passwords that satisfy complexity rules", async () => {
+    const { passwordSchema } = await import("@/utils/validation");
+    for (let i = 0; i < 8; i += 1) {
+      const password = generateSecurePassword(16);
+      expect(passwordSchema.parse(password)).toHaveLength(16);
+      expect(password).not.toMatch(/[%*?IO01il]/);
+    }
   });
 
   it("signs and verifies payloads", () => {

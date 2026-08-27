@@ -46,6 +46,7 @@ function profile(role: UserProfile["role"], id: string): UserProfile {
     status: "active",
     emailVerified: true,
     profileComplete: true,
+    mustChangePassword: false,
     lastLoginAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

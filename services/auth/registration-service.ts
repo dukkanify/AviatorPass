@@ -344,6 +344,7 @@ export async function finalizeEnterpriseRegistration(input: {
     status,
     emailVerified: true,
     profileComplete: false,
+    mustChangePassword: false,
     passwordHash: pending.passwordHash,
     passwordSalt: pending.passwordSalt,
     lastLoginAt: null,

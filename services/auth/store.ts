@@ -38,6 +38,7 @@ export interface StoredUser {
   status: AccountStatus;
   emailVerified: boolean;
   profileComplete: boolean;
+  mustChangePassword: boolean;
   passwordHash: string | null;
   passwordSalt: string | null;
   lastLoginAt: string | null;
@@ -220,6 +221,7 @@ function normalizeStoredUser(user: StoredUser): StoredUser {
     avatarUrl: user.avatarUrl ?? null,
     timezone: user.timezone || "UTC",
     language: user.language || "en",
+    mustChangePassword: Boolean(user.mustChangePassword),
   };
 }
 
@@ -262,6 +264,7 @@ export function toUserProfile(user: StoredUser): UserProfile {
     status: user.status,
     emailVerified: user.emailVerified,
     profileComplete: user.profileComplete,
+    mustChangePassword: Boolean(user.mustChangePassword),
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

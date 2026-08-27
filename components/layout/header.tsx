@@ -96,8 +96,8 @@ function Header() {
             className="hero-cta-primary h-10 rounded-xl px-4 shadow-[0_12px_28px_-16px_rgba(204,160,76,0.85)]"
             asChild
           >
-            <Link href={routes.courses}>
-              ATPL Program
+            <Link href={routes.checkout}>
+              Enrol in ATPL PASS
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
@@ -155,8 +155,8 @@ function Header() {
                 <Link href={routes.login}>Log in</Link>
               </Button>
               <Button variant="accent" className="hero-cta-primary h-12" asChild>
-                <Link href={routes.courses}>
-                  ATPL Program
+                <Link href={routes.checkout}>
+                  Enrol in ATPL PASS
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>

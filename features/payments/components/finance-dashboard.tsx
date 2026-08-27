@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { REFUND_STATUS_LABELS } from "@/constants/payments";
+import { ORDER_STATUS_LABELS, REFUND_STATUS_LABELS } from "@/constants/payments";
 import { formatMinor } from "@/services/payments/money";
 import { payFetch, payJson } from "@/features/payments/lib/api";
-import type { Coupon, RefundRequest } from "@/types/payments";
+import type { Coupon, Order, RefundRequest } from "@/types/payments";
 
 type FinanceDash = {
   platformRevenue: number;
@@ -50,23 +50,28 @@ function FinanceDashboard() {
   const [plans, setPlans] = React.useState<
     Array<{ plan: { id: string; productName: string; status: string; countryCode: string } }>
   >([]);
+  const [purchases, setPurchases] = React.useState<Order[]>([]);
   const [code, setCode] = React.useState("SAVE15");
   const [value, setValue] = React.useState("15");
   const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
-    const [d, c, r, regional, inst] = await Promise.all([
+    const [d, c, r, regional, inst, orders] = await Promise.all([
       payFetch<FinanceDash>("/api/payments/reports"),
       payFetch<Coupon[]>("/api/payments/catalog?view=coupons"),
       payFetch<RefundRequest[]>("/api/payments/refunds"),
       payFetch<{ rules: typeof rules }>("/api/payments/regional-rules?view=all"),
       payFetch<typeof plans>("/api/payments/installments"),
+      payFetch<Order[]>("/api/payments/orders"),
     ]);
     setDash(d.data);
     setCoupons(c.data ?? []);
     setRefunds(r.data ?? []);
     setRules(regional.data?.rules ?? []);
     setPlans(inst.data ?? []);
+    setPurchases(
+      (orders.data ?? []).filter((o) => Boolean(o.metadata?.purchaseFirst)).slice(0, 12),
+    );
   }, []);
 
   React.useEffect(() => {
@@ -254,6 +259,42 @@ function FinanceDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Purchase-first enrollments</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {purchases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No guest checkout purchases yet.</p>
+          ) : (
+            purchases.map((o) => (
+              <div key={o.id} className="rounded-md border border-border px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-xs">{o.orderNumber}</span>
+                  <Badge variant="secondary">{ORDER_STATUS_LABELS[o.status]}</Badge>
+                </div>
+                <p className="mt-1">
+                  {o.studentEmail} · {formatMinor(o.totalAmount, o.currency)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Student{" "}
+                  {o.metadata?.accountCreated
+                    ? "created automatically"
+                    : o.metadata?.attachedToExisting
+                      ? "attached to existing account"
+                      : "pending"}
+                  {" · "}
+                  Email {o.metadata?.emailSent ? "sent" : "not sent"}
+                  {" · "}
+                  Course {o.metadata?.courseAssigned ? "assigned" : "not assigned"}
+                  {o.invoiceId ? " · Invoice issued" : ""}
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

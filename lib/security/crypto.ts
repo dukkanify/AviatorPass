@@ -18,6 +18,30 @@ export function generateToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");
 }
 
+/**
+ * Cryptographically random password that satisfies `passwordSchema`
+ * (8+, upper, lower, number, special). Never log the return value.
+ */
+export function generateSecurePassword(length = 16): string {
+  const size = Math.max(12, Math.min(64, length));
+  // Unambiguous alphabet — no I/O/l/1/0/% so checkout copy and email stay typeable.
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$&";
+  const all = upper + lower + digits + special;
+  const pick = (alphabet: string) => alphabet[randomBytes(1)[0]! % alphabet.length]!;
+  const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
+  while (chars.length < size) chars.push(pick(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomBytes(1)[0]! % (i + 1);
+    const current = chars[i]!;
+    chars[i] = chars[j]!;
+    chars[j] = current;
+  }
+  return chars.join("");
+}
+
 /** Cryptographically uniform OTP digits (rejection sampling — no modulo bias). */
 export function generateOtp(length = 6): string {
   const digits: string[] = [];

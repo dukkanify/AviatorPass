@@ -14,17 +14,20 @@ import { sanitizeEmail } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
 import { routes } from "@/constants/routes";
 import { useAuth } from "@/providers/auth-provider";
+import type { UserProfile } from "@/types";
 
 function LoginForm() {
   const router = useRouter();
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isLoading, signOut, setUser } = useAuth();
   const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [rememberMe, setRememberMe] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [clearedPriorSession, setClearedPriorSession] = React.useState(false);
+  const completingRef = React.useRef(false);
 
-  // Enter platform always means switchable sign-in: clear any existing session.
   React.useEffect(() => {
+    if (completingRef.current) return;
     if (isLoading || !user) return;
     setClearedPriorSession(true);
     void signOut();
@@ -47,6 +50,35 @@ function LoginForm() {
       if (user) {
         await signOut();
       }
+
+      if (password.trim()) {
+        const result = await authFetch<{
+          user: UserProfile;
+          redirectTo: string;
+          mustChangePassword?: boolean;
+        }>(routes.api.auth.login, {
+          method: "POST",
+          body: JSON.stringify({
+            email: parsed.data.email,
+            password,
+            rememberMe: parsed.data.rememberMe,
+          }),
+        });
+        if (!result.success || !result.data) {
+          toast.error(result.error ?? "Unable to sign in");
+          return;
+        }
+        completingRef.current = true;
+        setUser(result.data.user);
+        toast.success(
+          result.data.mustChangePassword
+            ? "Signed in — choose a new password to continue."
+            : "Signed in",
+        );
+        router.replace(result.data.redirectTo);
+        return;
+      }
+
       const result = await authFetch<{ email: string; demoOtp?: string }>(
         routes.api.auth.requestOtp,
         {
@@ -96,13 +128,29 @@ function LoginForm() {
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="From your purchase email, or leave blank for OTP"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Just bought ATPL PASS? Paste the temporary password here. Leave blank only if you want a
+          one-time email code instead.
+        </p>
+      </div>
+
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} />
         Remember me for 30 days
       </label>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Sending code..." : "Continue with email"}
+        {pending ? "Signing in..." : password.trim() ? "Sign in" : "Continue with email"}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

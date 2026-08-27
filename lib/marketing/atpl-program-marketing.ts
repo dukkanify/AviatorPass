@@ -19,12 +19,12 @@ export function getAtplProgramMarketing(): AtplProgramMarketing {
       listProducts({ activeOnly: true }).find((p) => p.metadata?.sku === "ATPL-PACKAGE") ?? null;
     if (product) {
       return {
-        enrollHref: `/student/checkout?productId=${product.id}`,
+        enrollHref: `${routes.checkout}?productId=${product.id}`,
         priceLabel: formatMinor(product.priceAmount, product.currency),
       };
     }
   } catch (error) {
     console.error("[atpl-program-marketing]", error);
   }
-  return { enrollHref: routes.register, priceLabel: null };
+  return { enrollHref: routes.checkout, priceLabel: null };
 }
