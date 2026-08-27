@@ -19,6 +19,7 @@ import type {
   PaymentRecord,
   PaymentSettings,
   PayoutRequest,
+  ProcessedProviderEvent,
   RefundRequest,
   RegionalPaymentRule,
   StudentKycDocument,
@@ -54,6 +55,7 @@ export interface PaymentsDatabase {
   installmentSchedule: InstallmentScheduleItem[];
   installmentReminders: InstallmentReminderLog[];
   kycDocuments: StudentKycDocument[];
+  processedProviderEvents: ProcessedProviderEvent[];
   seeded: boolean;
 }
 
@@ -102,6 +104,7 @@ function emptyDb(): PaymentsDatabase {
     installmentSchedule: [],
     installmentReminders: [],
     kycDocuments: [],
+    processedProviderEvents: [],
     seeded: false,
   };
 }
@@ -115,7 +118,7 @@ function normalizeDb(raw: Partial<PaymentsDatabase>): PaymentsDatabase {
     coupons: raw.coupons ?? [],
     couponUsages: raw.couponUsages ?? [],
     orders: raw.orders ?? [],
-    payments: raw.payments ?? [],
+    payments: (raw.payments ?? []).map(normalizePayment),
     invoices: raw.invoices ?? [],
     subscriptions: raw.subscriptions ?? [],
     wallets: raw.wallets ?? [],
@@ -128,7 +131,49 @@ function normalizeDb(raw: Partial<PaymentsDatabase>): PaymentsDatabase {
     installmentSchedule: raw.installmentSchedule ?? [],
     installmentReminders: raw.installmentReminders ?? [],
     kycDocuments: raw.kycDocuments ?? [],
+    processedProviderEvents: raw.processedProviderEvents ?? [],
     seeded: Boolean(raw.seeded),
+  };
+}
+
+export function blankStripePaymentFields(): Pick<
+  PaymentRecord,
+  | "stripeCustomerId"
+  | "checkoutSessionId"
+  | "paymentIntentId"
+  | "stripeInvoiceId"
+  | "receiptUrl"
+  | "stripeFeeMinor"
+  | "netAmountMinor"
+  | "country"
+  | "billingAddressSnapshot"
+> {
+  return {
+    stripeCustomerId: null,
+    checkoutSessionId: null,
+    paymentIntentId: null,
+    stripeInvoiceId: null,
+    receiptUrl: null,
+    stripeFeeMinor: null,
+    netAmountMinor: null,
+    country: null,
+    billingAddressSnapshot: null,
+  };
+}
+
+function normalizePayment(raw: PaymentRecord): PaymentRecord {
+  return {
+    ...raw,
+    ...blankStripePaymentFields(),
+    stripeCustomerId: raw.stripeCustomerId ?? null,
+    checkoutSessionId: raw.checkoutSessionId ?? null,
+    paymentIntentId: raw.paymentIntentId ?? null,
+    stripeInvoiceId: raw.stripeInvoiceId ?? null,
+    receiptUrl: raw.receiptUrl ?? null,
+    stripeFeeMinor: raw.stripeFeeMinor ?? null,
+    netAmountMinor: raw.netAmountMinor ?? null,
+    country: raw.country ?? null,
+    billingAddressSnapshot: raw.billingAddressSnapshot ?? null,
   };
 }
 

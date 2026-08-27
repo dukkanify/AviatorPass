@@ -16,7 +16,8 @@ import {
   hashPassword,
 } from "@/lib/security/crypto";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { logActivity } from "@/services/auth/activity-log";
+import { logActivity, logAudit } from "@/services/auth/activity-log";
+import { issuePasswordSetupToken } from "@/services/auth/password-setup-service";
 import {
   defaultNotificationPreferences,
   defaultSecuritySettings,
@@ -29,9 +30,14 @@ import {
 } from "@/services/auth/store";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
+import { emitNotification } from "@/services/notifications/notification-service";
 import { PaymentError } from "@/services/payments/access";
 import { getProduct, listProducts } from "@/services/payments/catalog-service";
 import { completePaidOrder, getOrder, getPayment } from "@/services/payments/checkout-service";
+import {
+  detectCheckoutCurrency,
+  type CurrencyDetection,
+} from "@/services/payments/currency-detection";
 import { getPaymentGateway } from "@/services/payments/gateway";
 import {
   createInstallmentPlanForOrder,
@@ -40,7 +46,13 @@ import {
 } from "@/services/payments/installment-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { getRegionalPaymentRule } from "@/services/payments/regional-rules-service";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import { isStripeConfigured } from "@/services/payments/stripe-client";
+import { tryResolveStripePrice } from "@/services/payments/stripe-catalog";
+import {
+  blankStripePaymentFields,
+  readPaymentsDb,
+  writePaymentsDb,
+} from "@/services/payments/store";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import type {
   CatalogProduct,
@@ -75,6 +87,11 @@ export type GuestCheckoutQuote = {
   supportEmail: string;
   loginUrl: string;
   courseAccessUrl: string;
+  hostedCheckout: boolean;
+  detectedCountry: string | null;
+  detectedCurrency: string;
+  detectionSource: string;
+  stripePriceId: string | null;
 };
 
 export type GuestPayResult = {
@@ -86,6 +103,7 @@ export type GuestPayResult = {
   emailSent: boolean;
   courseAssigned: boolean;
   temporaryPassword: string | null;
+  passwordSetupUrl: string | null;
   loginUrl: string;
   courseAccessUrl: string;
 };
@@ -167,11 +185,13 @@ export function quoteGuestCheckout(productId?: string | null, country = "KW"): G
     throw new PaymentError("ATPL PASS is not available for purchase right now", 404);
   }
   const settings = readPaymentsDb().settings;
+  const detection = detectCheckoutCurrency({ country });
   const subtotal = product.isFree ? 0 : product.priceAmount;
   const taxAmount = calcTax(subtotal, settings.taxRatePercent);
   const totalAmount = subtotal + taxAmount;
   const brand = getPublicBrandConfig();
   const origin = appOrigin();
+  const hosted = isStripeConfigured();
   return {
     product,
     currency: product.currency || settings.currency,
@@ -181,10 +201,53 @@ export function quoteGuestCheckout(productId?: string | null, country = "KW"): G
     totalAmount,
     totalLabel: formatMinor(totalAmount, product.currency || settings.currency),
     methods: listGuestCheckoutMethods(country),
-    processor: settings.provider,
+    processor: hosted ? "stripe" : settings.provider,
     supportEmail: brand.supportEmail,
     loginUrl: `${origin}${routes.login}`,
     courseAccessUrl: `${origin}/student/courses`,
+    hostedCheckout: hosted,
+    detectedCountry: detection.country,
+    detectedCurrency: detection.currency,
+    detectionSource: detection.source,
+    stripePriceId: null,
+  };
+}
+
+export async function quotePublicCheckout(input: {
+  productId?: string | null;
+  country?: string | null;
+  locale?: string | null;
+  geoCountry?: string | null;
+}): Promise<GuestCheckoutQuote> {
+  const detection = detectCheckoutCurrency({
+    country: input.country,
+    geoCountry: input.geoCountry,
+    locale: input.locale,
+  });
+  const base = quoteGuestCheckout(input.productId, detection.country ?? "US");
+  const stripePrice = await tryResolveStripePrice(detection.currency);
+  if (!stripePrice) {
+    return {
+      ...base,
+      detectedCountry: detection.country,
+      detectedCurrency: detection.currency,
+      detectionSource: detection.source,
+    };
+  }
+  return {
+    ...base,
+    currency: stripePrice.currency,
+    subtotalAmount: stripePrice.unitAmount,
+    taxAmount: 0,
+    taxRatePercent: 0,
+    totalAmount: stripePrice.unitAmount,
+    totalLabel: formatMinor(stripePrice.unitAmount, stripePrice.currency),
+    processor: "stripe",
+    hostedCheckout: true,
+    detectedCountry: detection.country,
+    detectedCurrency: stripePrice.currency,
+    detectionSource: detection.source,
+    stripePriceId: stripePrice.stripePriceId,
   };
 }
 
@@ -213,6 +276,10 @@ export function publicOrderSnapshot(order: Order) {
     emailSent: Boolean(order.metadata.emailSent),
     courseAssigned: Boolean(order.metadata.courseAssigned),
     checkoutUrl: typeof order.metadata.checkoutUrl === "string" ? order.metadata.checkoutUrl : null,
+    checkoutSessionId:
+      typeof order.metadata.checkoutSessionId === "string"
+        ? order.metadata.checkoutSessionId
+        : null,
   };
 }
 
@@ -273,6 +340,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       emailSent: Boolean(existing.metadata.emailSent),
       courseAssigned: Boolean(existing.metadata.courseAssigned),
       temporaryPassword: null,
+      passwordSetupUrl: null,
       loginUrl: quote.loginUrl,
       courseAccessUrl: quote.courseAccessUrl,
     };
@@ -389,7 +457,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     simulateFailure: input.simulateFailure || input.paymentToken === "fail",
-    successUrl: `${origin}${routes.checkoutSuccess}?order=${order.id}`,
+    successUrl: `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${origin}${routes.checkout}?canceled=1&productId=${product.id}`,
   });
 
@@ -413,6 +481,11 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     rawProviderPayload: { ...charge.rawProviderPayload, purchaseFirst: true },
     createdAt: payStamp,
     updatedAt: payStamp,
+    ...blankStripePaymentFields(),
+    checkoutSessionId: charge.checkoutSessionId,
+    stripeCustomerId: charge.stripeCustomerId,
+    country: input.country.toUpperCase(),
+    billingAddressSnapshot: sanitizeString(input.billingAddress || ""),
   };
 
   writePaymentsDb((db) => {
@@ -465,6 +538,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       emailSent: false,
       courseAssigned: false,
       temporaryPassword: null,
+      passwordSetupUrl: null,
       loginUrl: quote.loginUrl,
       courseAccessUrl: quote.courseAccessUrl,
     };
@@ -480,6 +554,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       emailSent: false,
       courseAssigned: false,
       temporaryPassword: null,
+      passwordSetupUrl: null,
       loginUrl: quote.loginUrl,
       courseAccessUrl: quote.courseAccessUrl,
     };
@@ -509,12 +584,16 @@ export async function fulfillGuestPaidOrder(
       emailSent: Boolean(order.metadata.emailSent),
       courseAssigned: Boolean(order.metadata.courseAssigned),
       temporaryPassword: null,
+      passwordSetupUrl: null,
       loginUrl: quote.loginUrl,
       courseAccessUrl: quote.courseAccessUrl,
     };
   }
 
   const email = sanitizeEmail(order.billingEmail || order.studentEmail);
+  if (!email || email.includes(".invalid") || email.endsWith("@invalid.local")) {
+    throw new PaymentError("Customer email is required before enrollment", 422);
+  }
   const firstName = String(
     order.metadata.guestFirstName || order.studentName.split(" ")[0] || "Aviator",
   );
@@ -577,35 +656,72 @@ export async function fulfillGuestPaidOrder(
 
   await completePaidOrder(getOrder(order.id)!, payment, user.id);
 
+  const brand = getPublicBrandConfig();
   let emailSent = false;
-  if (provisioned.temporaryPassword) {
-    const brand = getPublicBrandConfig();
+  if (provisioned.accountCreated || provisioned.passwordSetupUrl) {
     const welcome = await dispatchEmailEvent({
       event: "registration",
       userIds: [user.id],
       to: user.email,
-      subject: "Welcome to ATPL PASS — your account and course access",
+      subject: "Welcome to ATPL PASS — set your password",
       data: {
         recipientName: user.fullName || firstName,
         title: "Welcome to ATPL PASS",
-        detail: `${bound.items[0]?.productName ?? "ATPL PASS"} is unlocked. Sign in with the temporary password below, then choose a new password. Invoice ${bound.orderNumber} is in your billing inbox.`,
-        temporaryPassword: provisioned.temporaryPassword,
+        detail: `${bound.items[0]?.productName ?? "ATPL PASS"} is unlocked. Set your password with the secure link below, then sign in. Invoice ${bound.orderNumber} is in your billing inbox.`,
+        passwordSetupUrl: provisioned.passwordSetupUrl,
+        temporaryPassword: provisioned.passwordSetupUrl ? "" : provisioned.temporaryPassword,
         accountEmail: user.email,
         loginUrl: quote.loginUrl,
         courseUrl: quote.courseAccessUrl,
         supportEmail: brand.supportEmail,
         reference: bound.orderNumber,
         amountLabel: formatMinor(bound.totalAmount, bound.currency),
-        cta: "Sign in",
+        cta: "Set your password",
       },
       actorId: user.id,
       system: true,
-      meta: { kind: "purchase_first_welcome", orderId: bound.id, passwordEmailed: true },
+      meta: {
+        kind: "purchase_first_welcome",
+        orderId: bound.id,
+        setupLink: Boolean(provisioned.passwordSetupUrl),
+      },
     });
     emailSent = welcome.sent > 0;
   } else {
-    emailSent = true;
+    const confirm = await dispatchEmailEvent({
+      event: "payment",
+      userIds: [user.id],
+      to: user.email,
+      subject: "ATPL PASS purchase confirmed",
+      data: {
+        recipientName: user.fullName || firstName,
+        title: "Purchase confirmed",
+        detail: `${bound.items[0]?.productName ?? "ATPL PASS"} is active on your existing AviatorPass account.`,
+        loginUrl: quote.loginUrl,
+        courseUrl: quote.courseAccessUrl,
+        supportEmail: brand.supportEmail,
+        reference: bound.orderNumber,
+        amountLabel: formatMinor(bound.totalAmount, bound.currency),
+        cta: "Open your course",
+      },
+      actorId: user.id,
+      system: true,
+      meta: { kind: "purchase_first_existing", orderId: bound.id },
+    });
+    emailSent = confirm.sent > 0;
   }
+
+  await emitNotification({
+    userId: user.id,
+    type: provisioned.accountCreated ? "account.welcome" : "payment.succeeded",
+    title: provisioned.accountCreated ? "Account created" : "Course activated",
+    body: provisioned.accountCreated
+      ? "Your AviatorPass student account is ready. Check your email to set a password."
+      : `${bound.items[0]?.productName ?? "ATPL PASS"} is now on your account.`,
+    actionUrl: "/student/courses",
+    email: false,
+    dedupeKey: `purchase-first:${bound.id}:${user.id}`,
+  });
 
   const enrolled = listStudentEnrollments(user.id).some((e) => e.status === "approved");
   writePaymentsDb((db) => {
@@ -642,6 +758,18 @@ export async function fulfillGuestPaidOrder(
       courseAssigned: enrolled,
     },
   });
+  await logAudit({
+    actorId: user.id,
+    action: provisioned.accountCreated
+      ? "users.purchase_first_created"
+      : "payments.attached_existing",
+    resource: `order:${bound.id}`,
+    afterState: {
+      email,
+      accountCreated: provisioned.accountCreated,
+      courseAssigned: enrolled,
+    },
+  });
 
   return {
     order: getOrder(order.id)!,
@@ -652,6 +780,7 @@ export async function fulfillGuestPaidOrder(
     emailSent,
     courseAssigned: enrolled,
     temporaryPassword: provisioned.temporaryPassword,
+    passwordSetupUrl: provisioned.passwordSetupUrl,
     loginUrl: quote.loginUrl,
     courseAccessUrl: quote.courseAccessUrl,
   };
@@ -668,6 +797,7 @@ function provisionPurchaseFirstStudent(input: {
   accountCreated: boolean;
   attachedToExisting: boolean;
   temporaryPassword: string | null;
+  passwordSetupUrl: string | null;
 } {
   const existing = findUserByEmail(input.email);
   if (existing) {
@@ -688,6 +818,7 @@ function provisionPurchaseFirstStudent(input: {
     });
     const fresh = findUserById(existing.id)!;
     let temporaryPassword: string | null = null;
+    let passwordSetupUrl: string | null = null;
     if (!fresh.passwordHash || !fresh.passwordSalt) {
       temporaryPassword = generateSecurePassword(16);
       const { hash, salt } = hashPassword(temporaryPassword);
@@ -699,12 +830,14 @@ function provisionPurchaseFirstStudent(input: {
         u.mustChangePassword = true;
         u.updatedAt = nowIso();
       });
+      passwordSetupUrl = issuePasswordSetupToken(fresh.id).url;
     }
     return {
       user: findUserById(fresh.id)!,
       accountCreated: false,
       attachedToExisting: true,
       temporaryPassword,
+      passwordSetupUrl,
     };
   }
 
@@ -764,5 +897,233 @@ function provisionPurchaseFirstStudent(input: {
     accountCreated: true,
     attachedToExisting: false,
     temporaryPassword,
+    passwordSetupUrl: issuePasswordSetupToken(created.id).url,
+  };
+}
+
+export async function startHostedCheckout(input: {
+  productId?: string | null;
+  country?: string | null;
+  locale?: string | null;
+  geoCountry?: string | null;
+  email?: string | null;
+  ipAddress?: string | null;
+}): Promise<{
+  checkoutUrl: string;
+  sessionId: string;
+  orderId: string;
+  currency: string;
+  detection: CurrencyDetection;
+}> {
+  if (!isStripeConfigured()) {
+    throw new PaymentError("Stripe Checkout is not configured", 503);
+  }
+
+  const rl = rateLimit(`stripe-checkout:${input.ipAddress || "unknown"}`, 8, 15 * 60_000);
+  if (!rl.allowed) {
+    throw new PaymentError("Too many checkout attempts. Please wait a few minutes and retry.", 429);
+  }
+
+  const quote = await quotePublicCheckout({
+    productId: input.productId,
+    country: input.country,
+    locale: input.locale,
+    geoCountry: input.geoCountry,
+  });
+  const product = quote.product;
+  const detection = detectCheckoutCurrency({
+    country: input.country,
+    geoCountry: input.geoCountry,
+    locale: input.locale,
+  });
+  const email = input.email ? sanitizeEmail(input.email) : "";
+  const existingUser = email ? findUserByEmail(email) : null;
+  if (existingUser && alreadyOwnsProduct(existingUser.id, product.id)) {
+    throw new PaymentError("This email already has ATPL PASS. Sign in to continue learning.", 409);
+  }
+
+  const stamp = nowIso();
+  const origin = appOrigin();
+  const placeholderEmail = email || `pending+${generateId().slice(0, 10)}@checkout.invalid`;
+  const country = (detection.country ?? "US").toUpperCase();
+  const item: OrderItem = {
+    id: generateId(),
+    productId: product.id,
+    productName: product.name,
+    courseId: product.courseId,
+    instructorId: product.instructorId,
+    pricingModel: product.pricingModel,
+    unitAmount: quote.subtotalAmount,
+    quantity: 1,
+    discountAmount: 0,
+    taxAmount: quote.taxAmount,
+    totalAmount: quote.totalAmount,
+  };
+
+  const order: Order = {
+    id: generateId(),
+    orderNumber: nextOrderNumber(),
+    studentId: GUEST_STUDENT_ID,
+    studentName: "Checkout guest",
+    studentEmail: placeholderEmail,
+    status: "pending",
+    currency: quote.currency,
+    subtotalAmount: quote.subtotalAmount,
+    discountAmount: 0,
+    taxAmount: quote.taxAmount,
+    taxRatePercent: quote.taxRatePercent,
+    totalAmount: quote.totalAmount,
+    couponId: null,
+    couponCode: null,
+    billingName: "Checkout guest",
+    billingEmail: placeholderEmail,
+    billingCountry: country,
+    billingAddress: "",
+    items: [item],
+    paymentId: null,
+    invoiceId: null,
+    idempotencyKey: `stripe-${generateToken(12)}`,
+    failureReason: null,
+    paidAt: null,
+    cancelledAt: null,
+    expiresAt: new Date(Date.now() + ORDER_EXPIRY_MINUTES * 60_000).toISOString(),
+    metadata: {
+      purchaseFirst: true,
+      hostedCheckout: true,
+      guestCountry: country,
+      detectedCurrency: detection.currency,
+      detectionSource: detection.source,
+      stripePriceId: quote.stripePriceId,
+    },
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+
+  writePaymentsDb((db) => {
+    db.orders.unshift(order);
+  });
+
+  await logActivity({
+    actorId: existingUser?.id ?? null,
+    action: ACTIVITY_ACTIONS.CHECKOUT_STARTED,
+    entityType: "order",
+    entityId: order.id,
+    metadata: {
+      purchaseFirst: true,
+      hostedCheckout: true,
+      productId: product.id,
+      currency: quote.currency,
+    },
+  });
+
+  const gateway = getPaymentGateway();
+  const charge = await gateway.createPayment({
+    orderId: order.id,
+    amount: order.totalAmount,
+    currency: order.currency,
+    customerEmail: email || placeholderEmail,
+    customerName: "ATPL PASS student",
+    methodBrand: "card",
+    stripePriceId: quote.stripePriceId ?? undefined,
+    country,
+    locale: input.locale ?? undefined,
+    idempotencyKey: `${order.idempotencyKey}-pay`,
+    successUrl: `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}${routes.checkout}?canceled=1&productId=${product.id}`,
+  });
+
+  if (!charge.checkoutUrl) {
+    throw new PaymentError("Stripe did not return a Checkout URL", 502);
+  }
+
+  const payStamp = nowIso();
+  const payment: PaymentRecord = {
+    id: generateId(),
+    orderId: order.id,
+    provider: charge.provider,
+    providerPaymentId: charge.providerPaymentId,
+    status: charge.status,
+    methodBrand: charge.methodBrand,
+    paymentMethodSummary: charge.paymentMethodSummary,
+    amount: order.totalAmount,
+    currency: order.currency,
+    clientSecret: charge.clientSecret,
+    checkoutUrl: charge.checkoutUrl,
+    webhookVerified: false,
+    failureCode: charge.failureCode,
+    failureMessage: charge.failureMessage,
+    rawProviderPayload: { ...charge.rawProviderPayload, purchaseFirst: true, hostedCheckout: true },
+    createdAt: payStamp,
+    updatedAt: payStamp,
+    ...blankStripePaymentFields(),
+    checkoutSessionId: charge.checkoutSessionId ?? charge.providerPaymentId,
+    stripeCustomerId: charge.stripeCustomerId,
+    country,
+  };
+
+  writePaymentsDb((db) => {
+    db.payments.unshift(payment);
+    const o = db.orders.find((x) => x.id === order.id);
+    if (!o) return;
+    o.paymentId = payment.id;
+    o.updatedAt = payStamp;
+    o.metadata = {
+      ...o.metadata,
+      checkoutUrl: charge.checkoutUrl,
+      checkoutSessionId: payment.checkoutSessionId,
+      processor: "stripe",
+    };
+  });
+
+  return {
+    checkoutUrl: charge.checkoutUrl,
+    sessionId: payment.checkoutSessionId ?? charge.providerPaymentId,
+    orderId: order.id,
+    currency: quote.currency,
+    detection,
+  };
+}
+
+export function getWelcomeBySessionId(sessionId: string) {
+  const payment = readPaymentsDb().payments.find(
+    (p) => p.checkoutSessionId === sessionId || p.providerPaymentId === sessionId,
+  );
+  if (!payment) return null;
+  const order = getOrder(payment.orderId);
+  if (!order || !order.metadata?.purchaseFirst) return null;
+  return welcomeSnapshot(order, payment, sessionId);
+}
+
+export function getWelcomeByOrderId(orderId: string) {
+  const order = getOrder(orderId);
+  if (!order || !order.metadata?.purchaseFirst) return null;
+  const payment = order.paymentId ? getPayment(order.paymentId) : null;
+  return welcomeSnapshot(order, payment, payment?.checkoutSessionId ?? orderId);
+}
+
+function welcomeSnapshot(order: Order, payment: PaymentRecord | null, sessionId: string) {
+  const invoiceId = order.invoiceId;
+  return {
+    ...publicOrderSnapshot(order),
+    paymentStatus: payment?.status ?? order.status,
+    receiptUrl: payment?.receiptUrl ?? null,
+    currency: payment?.currency ?? order.currency,
+    amountPaid: payment?.amount ?? order.totalAmount,
+    amountLabel: formatMinor(
+      payment?.amount ?? order.totalAmount,
+      payment?.currency ?? order.currency,
+    ),
+    country: payment?.country ?? order.billingCountry,
+    invoiceId,
+    invoicePrintUrl: invoiceId
+      ? sessionId.startsWith("cs_")
+        ? `/api/public/checkout/invoice?session_id=${encodeURIComponent(sessionId)}`
+        : `/api/public/checkout/invoice?orderId=${encodeURIComponent(order.id)}`
+      : null,
+    loginUrl: `${appOrigin()}${routes.login}`,
+    courseAccessUrl: `${appOrigin()}/student/courses`,
+    dashboardUrl: `${appOrigin()}${routes.studentDashboard}`,
+    setupPasswordPath: routes.setupPassword,
+    supportEmail: getPublicBrandConfig().supportEmail,
   };
 }

@@ -8,7 +8,7 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import {
   payGuestCheckout,
   publicOrderSnapshot,
-  quoteGuestCheckout,
+  quotePublicCheckout,
 } from "@/services/payments/purchase-first-service";
 import { COUNTRIES } from "@/constants/countries";
 import { guestCheckoutSchema } from "@/utils/validation";
@@ -35,8 +35,13 @@ export async function GET(request: Request) {
     }
 
     const productId = searchParams.get("productId");
-    const country = searchParams.get("country") ?? "KW";
-    const quote = quoteGuestCheckout(productId, country);
+    const country = searchParams.get("country");
+    const locale = searchParams.get("locale") ?? request.headers.get("accept-language");
+    const geo =
+      request.headers.get("cf-ipcountry") ??
+      request.headers.get("x-vercel-ip-country") ??
+      request.headers.get("x-country-code");
+    const quote = await quotePublicCheckout({ productId, country, locale, geoCountry: geo });
     return NextResponse.json({
       success: true,
       data: {

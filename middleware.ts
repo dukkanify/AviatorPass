@@ -130,6 +130,7 @@ export async function middleware(request: NextRequest) {
       lower === "/verify-otp" ||
       lower === "/blog" ||
       lower === "/checkout" ||
+      lower === "/welcome" ||
       lower === "/enrol" ||
       lower === "/enroll"
     ) {
@@ -219,6 +220,7 @@ export async function middleware(request: NextRequest) {
       pathname === routes.verifyOtp ||
       pathname === routes.forgotPassword ||
       pathname === routes.resetPassword ||
+      pathname === routes.setupPassword ||
       pathname === routes.login;
     if (!allowAuthWhileSignedIn) {
       const url = request.nextUrl.clone();

@@ -42,6 +42,7 @@ describe("purchase-first ATPL enrollment", () => {
     const quote = quoteGuestCheckout();
     expect(quote.product.metadata?.sku).toBe("ATPL-PACKAGE");
     expect(quote.totalAmount).toBeGreaterThan(0);
+    expect(quote.hostedCheckout).toBe(false);
     const ids = quote.methods.map((m) => m.id);
     expect(ids).toEqual(
       expect.arrayContaining(["card", "apple_pay", "google_pay", "mada", "tabby", "tamara"]),

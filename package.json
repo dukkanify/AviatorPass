@@ -29,6 +29,7 @@
     "deploy:production": "node scripts/trigger-production-deploy.mjs",
     "health:production": "node scripts/wait-production-health.mjs",
     "smoke:production": "node scripts/production-smoke.mjs",
+    "stripe:sync": "node scripts/stripe-sync-atpl-catalog.mjs",
     "git:sync": "bash scripts/git-safe-sync.sh",
     "git:status": "node scripts/git-enterprise-status.mjs",
     "verify:isolation": "node scripts/verify-product-isolation.mjs",
