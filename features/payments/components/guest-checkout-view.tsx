@@ -139,6 +139,12 @@ function GuestCheckoutView() {
         window.location.href = paid.data.checkoutUrl;
         return;
       }
+      if (paid.data.order.status === "paid") {
+        window.location.assign(
+          `${routes.welcome}?orderId=${encodeURIComponent(paid.data.order.id)}`,
+        );
+        return;
+      }
       setResult(paid.data);
       toast.success("Payment successful — ATPL PASS is yours.");
     } finally {

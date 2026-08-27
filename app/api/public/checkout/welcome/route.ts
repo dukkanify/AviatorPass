@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { ensureCsrfToken } from "@/lib/security/cookies";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
-import { getWelcomeBySessionId } from "@/services/payments/purchase-first-service";
+import {
+  getWelcomeByOrderId,
+  getWelcomeBySessionId,
+} from "@/services/payments/purchase-first-service";
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +14,18 @@ export async function GET(request: Request) {
     ensurePaymentsSeeded();
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id") ?? searchParams.get("sessionId");
-    if (!sessionId) {
+    const orderId = searchParams.get("orderId");
+    const snapshot = sessionId
+      ? getWelcomeBySessionId(sessionId)
+      : orderId
+        ? getWelcomeByOrderId(orderId)
+        : null;
+    if (!sessionId && !orderId) {
       return NextResponse.json(
         { success: false, data: null, error: "Missing checkout session" },
         { status: 400 },
       );
     }
-    const snapshot = getWelcomeBySessionId(sessionId);
     if (!snapshot) {
       return NextResponse.json(
         {

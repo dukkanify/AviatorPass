@@ -1091,18 +1091,34 @@ export function getWelcomeBySessionId(sessionId: string) {
   if (!payment) return null;
   const order = getOrder(payment.orderId);
   if (!order || !order.metadata?.purchaseFirst) return null;
+  return welcomeSnapshot(order, payment, sessionId);
+}
+
+export function getWelcomeByOrderId(orderId: string) {
+  const order = getOrder(orderId);
+  if (!order || !order.metadata?.purchaseFirst) return null;
+  const payment = order.paymentId ? getPayment(order.paymentId) : null;
+  return welcomeSnapshot(order, payment, payment?.checkoutSessionId ?? orderId);
+}
+
+function welcomeSnapshot(order: Order, payment: PaymentRecord | null, sessionId: string) {
   const invoiceId = order.invoiceId;
   return {
     ...publicOrderSnapshot(order),
-    paymentStatus: payment.status,
-    receiptUrl: payment.receiptUrl,
-    currency: payment.currency,
-    amountPaid: payment.amount,
-    amountLabel: formatMinor(payment.amount, payment.currency),
-    country: payment.country,
+    paymentStatus: payment?.status ?? order.status,
+    receiptUrl: payment?.receiptUrl ?? null,
+    currency: payment?.currency ?? order.currency,
+    amountPaid: payment?.amount ?? order.totalAmount,
+    amountLabel: formatMinor(
+      payment?.amount ?? order.totalAmount,
+      payment?.currency ?? order.currency,
+    ),
+    country: payment?.country ?? order.billingCountry,
     invoiceId,
     invoicePrintUrl: invoiceId
-      ? `/api/public/checkout/invoice?session_id=${encodeURIComponent(sessionId)}`
+      ? sessionId.startsWith("cs_")
+        ? `/api/public/checkout/invoice?session_id=${encodeURIComponent(sessionId)}`
+        : `/api/public/checkout/invoice?orderId=${encodeURIComponent(order.id)}`
       : null,
     loginUrl: `${appOrigin()}${routes.login}`,
     courseAccessUrl: `${appOrigin()}/student/courses`,

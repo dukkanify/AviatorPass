@@ -40,20 +40,22 @@ type WelcomeSnapshot = {
 function WelcomeView() {
   const search = useSearchParams();
   const sessionId = search.get("session_id") ?? search.get("sessionId");
+  const orderId = search.get("orderId");
   const [data, setData] = React.useState<WelcomeSnapshot | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [tries, setTries] = React.useState(0);
 
   React.useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId && !orderId) {
       setError("Missing checkout session. If you just paid, check the confirmation email.");
       return;
     }
     let cancelled = false;
     const poll = async () => {
-      const result = await authFetch<WelcomeSnapshot>(
-        `/api/public/checkout/welcome?session_id=${encodeURIComponent(sessionId)}`,
-      );
+      const qs = sessionId
+        ? `session_id=${encodeURIComponent(sessionId)}`
+        : `orderId=${encodeURIComponent(orderId!)}`;
+      const result = await authFetch<WelcomeSnapshot>(`/api/public/checkout/welcome?${qs}`);
       if (cancelled) return;
       if (result.success && result.data) {
         setData(result.data);
@@ -70,7 +72,7 @@ function WelcomeView() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, tries]);
+  }, [sessionId, orderId, tries]);
 
   if (!data && !error) {
     return (
