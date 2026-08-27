@@ -9,6 +9,8 @@
 | Production URL              | https://aviatorpass.vercel.app                   |
 | Production branch           | `main` (or `aviatorpass` during cutover)         |
 
+`vercel.json` sets `"ignoreCommand": "exit 1"` so Git deployments always build. This overrides the dashboard Ignored Build Step, which previously cancelled AviatorPass-only-repo pushes as “Canceled by Ignored Build Step” (GitHub still reports that as a green success).
+
 ## Cutover steps
 
 1. Vercel → **aviatorpass** → Settings → Git → connect **`dukkanify/AviatorPass`** (disconnect any legacy shared remote).
