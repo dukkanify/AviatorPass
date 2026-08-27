@@ -15,7 +15,6 @@ import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
-import { authFetch } from "@/features/auth/services/auth-api";
 
 type WelcomeSnapshot = {
   orderNumber: string;
@@ -55,18 +54,34 @@ function WelcomeView() {
       const qs = sessionId
         ? `session_id=${encodeURIComponent(sessionId)}`
         : `orderId=${encodeURIComponent(orderId!)}`;
-      const result = await authFetch<WelcomeSnapshot>(`/api/public/checkout/welcome?${qs}`);
-      if (cancelled) return;
-      if (result.success && result.data) {
-        setData(result.data);
-        setError(null);
-        return;
+      try {
+        const res = await fetch(`/api/public/checkout/welcome?${qs}`, {
+          credentials: "include",
+        });
+        const json = (await res.json().catch(() => null)) as {
+          success?: boolean;
+          data?: WelcomeSnapshot;
+          error?: string | null;
+        } | null;
+        if (cancelled) return;
+        if (json?.success && json.data) {
+          setData(json.data);
+          setError(null);
+          return;
+        }
+        if (tries < 8) {
+          window.setTimeout(() => setTries((n) => n + 1), 1500);
+          return;
+        }
+        setError(json?.error ?? "We are still confirming your payment. Refresh this page shortly.");
+      } catch {
+        if (cancelled) return;
+        if (tries < 8) {
+          window.setTimeout(() => setTries((n) => n + 1), 1500);
+          return;
+        }
+        setError("We are still confirming your payment. Refresh this page shortly.");
       }
-      if (tries < 8) {
-        window.setTimeout(() => setTries((n) => n + 1), 1500);
-        return;
-      }
-      setError(result.error ?? "We are still confirming your payment. Refresh this page shortly.");
     };
     void poll();
     return () => {
@@ -119,7 +134,9 @@ function WelcomeView() {
               : "We are finishing account setup."}{" "}
           {data?.courseAssigned ? "Your course is activated." : "Course access is being assigned."}{" "}
           {data?.emailSent
-            ? "A welcome email with your password setup link is on the way."
+            ? data.attachedToExisting
+              ? "A purchase confirmation email is on the way."
+              : "A welcome email with your password setup link is on the way."
             : "Check your inbox shortly for login instructions."}
         </p>
       </div>
@@ -129,7 +146,7 @@ function WelcomeView() {
           { ok: paid, label: "Enrollment successful" },
           {
             ok: Boolean(data?.accountCreated || data?.attachedToExisting),
-            label: "Account created",
+            label: data?.attachedToExisting ? "Account linked" : "Account created",
           },
           { ok: Boolean(data?.courseAssigned), label: "Course activated" },
           { ok: Boolean(data?.emailSent), label: "Email sent" },

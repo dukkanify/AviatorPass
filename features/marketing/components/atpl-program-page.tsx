@@ -46,7 +46,7 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
           <div className="mt-12 flex flex-wrap items-center gap-4">
             <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
               <Link href={enrollHref}>
-                Enroll Now
+                Enrol in ATPL PASS
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -153,7 +153,7 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
               <Link href={enrollHref}>
-                Enroll in ATPL Program
+                Enrol in ATPL PASS
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>

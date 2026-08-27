@@ -1,17 +1,27 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { CheckoutSuccessView } from "@/features/payments/components/checkout-success-view";
-import { LoadingState } from "@/components/shared/loading-state";
+import { routes } from "@/constants/routes";
 
-export const metadata: Metadata = {
-  title: "Payment confirmation",
+type SuccessSearch = {
+  session_id?: string;
+  sessionId?: string;
+  orderId?: string;
 };
 
-export default function CheckoutSuccessPage() {
-  return (
-    <Suspense fallback={<LoadingState label="Confirming payment..." />}>
-      <CheckoutSuccessView />
-    </Suspense>
-  );
+type PageProps = {
+  searchParams?: Promise<SuccessSearch>;
+};
+
+async function readSearch(searchParams: PageProps["searchParams"]): Promise<SuccessSearch> {
+  return (await searchParams) ?? {};
+}
+
+export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
+  const params = await readSearch(searchParams);
+  const qs = new URLSearchParams();
+  const sessionId = params.session_id ?? params.sessionId;
+  if (sessionId) qs.set("session_id", sessionId);
+  if (params.orderId) qs.set("orderId", params.orderId);
+  const suffix = qs.toString();
+  redirect(suffix ? `${routes.welcome}?${suffix}` : routes.welcome);
 }

@@ -86,23 +86,34 @@ function GuestCheckoutView() {
     const params = new URLSearchParams();
     if (productId) params.set("productId", productId);
     params.set("country", form.country);
-    const q = await authFetch<Quote>(`/api/public/checkout?${params.toString()}`);
-    if (!q.success || !q.data) {
-      setLoadError(q.error ?? "Checkout is unavailable");
+    try {
+      const res = await fetch(`/api/public/checkout?${params.toString()}`, {
+        credentials: "include",
+      });
+      const json = (await res.json().catch(() => null)) as {
+        success?: boolean;
+        data?: Quote;
+        error?: string | null;
+      } | null;
+      if (!json?.success || !json.data) {
+        setLoadError(json?.error ?? "Checkout is unavailable");
+        return;
+      }
+      setQuote(json.data);
+      setLoadError(null);
+      const data = json.data;
+      const firstAvailable = data.methods.find((m) => m.available)?.id ?? "card";
+      setForm((prev) => ({
+        ...prev,
+        methodBrand: data.methods.some((m) => m.id === prev.methodBrand && m.available)
+          ? prev.methodBrand
+          : firstAvailable,
+      }));
+    } catch {
+      setLoadError("Checkout is unavailable");
+    } finally {
       setLoadingQuote(false);
-      return;
     }
-    setQuote(q.data);
-    setLoadError(null);
-    const data = q.data;
-    const firstAvailable = data.methods.find((m) => m.available)?.id ?? "card";
-    setForm((prev) => ({
-      ...prev,
-      methodBrand: data.methods.some((m) => m.id === prev.methodBrand && m.available)
-        ? prev.methodBrand
-        : firstAvailable,
-    }));
-    setLoadingQuote(false);
   }, [productId, form.country]);
 
   React.useEffect(() => {

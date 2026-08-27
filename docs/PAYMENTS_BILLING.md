@@ -81,7 +81,7 @@ SQL: `database/migrations/020_installments_regional_payments.sql`
 
 Marketing CTAs (`Enrol in ATPL PASS`) open public `/checkout`.
 
-When `STRIPE_SECRET_KEY` is set, `/checkout` **immediately redirects to Stripe-hosted Checkout** (no account, no local card form). Stripe collects full name, email, billing address, country, and optional phone. Dynamic payment methods (Apple Pay, Google Pay, cards, Link, local methods) are configured in the Stripe Dashboard — the API never sends `payment_method_types`.
+When `STRIPE_SECRET_KEY` is set, `/checkout` **server-side redirects immediately to Stripe-hosted Checkout** (no account form, no client JavaScript hop). Stripe collects full name, email, billing address, country, and optional phone. Dynamic payment methods (Apple Pay, Google Pay, cards, Link, local methods) are configured in the Stripe Dashboard — the API never sends `payment_method_types`. Crawlers see a continue button so they do not mint Checkout Sessions. `/checkout/success` redirects to `/welcome`.
 
 Currency is detected from billing country, CDN geo (`x-vercel-ip-country` / `cf-ipcountry`), then `Accept-Language`. Mapped catalogs: USD, GBP, EUR, AED, SAR, KWD, BHD, QAR, OMR, EGP, JOD, CAD, AUD, NZD, SGD, MYR, JPY, INR, TRY, ZAR. Unknown country → **USD**. Amounts always come from Stripe Prices (`STRIPE_PRODUCT_ID` / `STRIPE_PRICE_*` or listed Prices on the ATPL PASS Product). The app never converts FX.
 

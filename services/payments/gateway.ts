@@ -183,6 +183,7 @@ class StripeGateway implements PaymentGateway {
         customer_email: email || undefined,
         billing_address_collection: "required",
         phone_number_collection: { enabled: true },
+        name_collection: { individual: { enabled: true, optional: false } },
         customer_creation: "always",
         invoice_creation: { enabled: true },
         adaptive_pricing: { enabled: false },
