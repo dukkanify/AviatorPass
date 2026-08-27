@@ -234,7 +234,7 @@ class StripeGateway implements PaymentGateway {
   async confirmWebhook(payload: string, signature: string | null) {
     const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
     if (!secret) {
-      throw new PaymentError("Stripe webhook secret not configured", 500);
+      throw new PaymentError("Stripe webhook secret not configured", 503);
     }
     const stripe = getStripeClient();
     const event = stripe.webhooks.constructEvent(payload, signature ?? "", secret);
