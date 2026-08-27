@@ -96,7 +96,17 @@ function enrollPrimaryStudentInAtplProgram(): void {
           e.studentId === student.id &&
           !["dropped", "rejected"].includes(e.status),
       );
-      if (existing) continue;
+      if (existing) {
+        // Demo reset must restore ATPL access even if CGI/journey tests left
+        // enrollments suspended.
+        if (existing.status !== "approved") {
+          existing.status = "approved";
+          existing.approvedAt = existing.approvedAt ?? ts;
+          existing.suspendedAt = null;
+          existing.updatedAt = ts;
+        }
+        continue;
+      }
 
       const enrollment: Enrollment = {
         id: generateId(),
