@@ -19,12 +19,7 @@ function nowIso() {
 }
 
 export type JourneySku =
-  | "PPL-RECORDED"
-  | "PPL-LIVE"
-  | "BASICS-RECORDED"
-  | "BASICS-LIVE"
-  | "ATPL-PACKAGE"
-  | "ELP-MOCK";
+  "PPL-RECORDED" | "PPL-LIVE" | "BASICS-RECORDED" | "BASICS-LIVE" | "ATPL-PACKAGE" | "ELP-MOCK";
 
 /** Canonical paths for the four official customer-journey PDFs. */
 export const JOURNEY_SOURCE_PDFS = {
@@ -246,6 +241,14 @@ function ensureSyllabus(courseId: string, def: JourneyCourseDef, ts: string) {
 
 /** Ensure journey courses exist and stay aligned with PDF specs. */
 export function ensureCustomerJourneyCourses(): void {
+  const snapshot = readCoursesDb();
+  const existingCodes = new Set(snapshot.courses.map((c) => c.code));
+  // Idempotent fast path: once every journey code is present, do not rewrite
+  // aep-courses.json on every dashboard/read request (that was ~250ms × N).
+  if (JOURNEY_COURSES.every((def) => existingCodes.has(def.code))) {
+    return;
+  }
+
   ensureDemoUsersSeeded();
   const instructorId = primaryInstructorId();
   const actor = readAuthDb().users.find((u) => u.role === ROLES.SUPER_ADMIN)?.id ?? instructorId;

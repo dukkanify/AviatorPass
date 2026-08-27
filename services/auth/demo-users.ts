@@ -13,10 +13,19 @@ import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
 import { generateId, hashPassword } from "@/lib/security/crypto";
 import { ensureSuperAdminSeeded } from "@/services/auth/seed";
-import { isStudentProfileComplete, writeAuthDb, type StoredUser } from "@/services/auth/store";
+import {
+  isStudentProfileComplete,
+  readAuthDb,
+  writeAuthDb,
+  type StoredUser,
+} from "@/services/auth/store";
 
 export function ensureDemoUsersSeeded(): void {
   ensureSuperAdminSeeded();
+  const emails = new Set(readAuthDb().users.map((u) => u.email.toLowerCase()));
+  if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
+    return;
+  }
   upsertDemoCatalogUsers({ reactivatePermanent: false });
 }
 
