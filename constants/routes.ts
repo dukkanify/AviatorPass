@@ -25,6 +25,8 @@ export const routes = {
   /** Public purchase-first checkout — no registration before payment. */
   checkout: "/checkout",
   checkoutSuccess: "/checkout/success",
+  welcome: "/welcome",
+  setupPassword: "/setup-password",
 
   // System auth states
   accessDenied: "/access-denied",
@@ -53,6 +55,7 @@ export const routes = {
       verifyOtp: "/api/auth/otp/verify",
       forgotPassword: "/api/auth/forgot-password",
       resetPassword: "/api/auth/reset-password",
+      setupPassword: "/api/auth/setup-password",
       login: "/api/auth/login",
       changePassword: "/api/auth/change-password",
       completeProfile: "/api/auth/complete-profile",
@@ -86,6 +89,7 @@ export const authRoutes = [
   "/verify-otp",
   "/forgot-password",
   "/reset-password",
+  "/setup-password",
   "/splash",
   "/instructor-pending",
 ] as const;

@@ -120,6 +120,25 @@ export const guestCheckoutSchema = z.object({
   idempotencyKey: z.string().min(8).max(80).optional(),
 });
 
+export const checkoutSessionSchema = z.object({
+  productId: z.string().min(1).optional(),
+  country: z.string().length(2).optional().or(z.literal("")),
+  locale: z.string().max(80).optional().or(z.literal("")),
+  email: z.union([emailSchema, z.literal("")]).optional(),
+});
+
+export const setupPasswordSchema = z
+  .object({
+    email: emailSchema,
+    token: z.string().min(10),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 /** Enterprise registration — student by default; instructor only when explicitly chosen / invited. */
 export const registerSchema = z
   .object({
@@ -240,6 +259,8 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;
+export type CheckoutSessionInput = z.infer<typeof checkoutSessionSchema>;
+export type SetupPasswordInput = z.infer<typeof setupPasswordSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

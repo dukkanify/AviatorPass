@@ -1,12 +1,21 @@
 /**
- * Payment gateway adapters — mock (default) + Stripe Checkout-ready.
- * Never stores raw card data (PCI-aware).
+ * Payment gateway adapters — mock (default) + Stripe Checkout with catalog Prices.
+ * Never stores raw card data (PCI-aware). Never passes payment_method_types.
  */
+
+import Stripe from "stripe";
 
 import { generateId, generateToken } from "@/lib/security/crypto";
 import type { PaymentMethodBrand, PaymentProvider, PaymentRecord } from "@/types/payments";
-import { readPaymentsDb } from "@/services/payments/store";
 import { PaymentError } from "@/services/payments/access";
+import { coerceCheckoutCurrency } from "@/services/payments/currency-detection";
+import {
+  getStripeClient,
+  isStripeConfigured,
+  STRIPE_API_VERSION,
+} from "@/services/payments/stripe-client";
+import { resolveStripePrice } from "@/services/payments/stripe-catalog";
+import { routes } from "@/constants/routes";
 
 export interface GatewayChargeInput {
   orderId: string;
@@ -20,6 +29,9 @@ export interface GatewayChargeInput {
   cancelUrl?: string;
   idempotencyKey: string;
   simulateFailure?: boolean;
+  stripePriceId?: string;
+  country?: string;
+  locale?: string;
 }
 
 export interface GatewayChargeResult {
@@ -33,6 +45,8 @@ export interface GatewayChargeResult {
   rawProviderPayload: Record<string, unknown>;
   failureCode: string | null;
   failureMessage: string | null;
+  checkoutSessionId: string | null;
+  stripeCustomerId: string | null;
 }
 
 export interface PaymentGateway {
@@ -45,12 +59,26 @@ export interface PaymentGateway {
     providerPaymentId: string;
     status: PaymentRecord["status"];
     raw: Record<string, unknown>;
+    eventType?: string;
+    eventId?: string;
   }>;
 }
 
 function maskToken(token?: string): string {
   if (!token) return "••••";
   return `•••• ${token.slice(-4).toUpperCase()}`;
+}
+
+function appOrigin(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+function integrationIdentifier(): string {
+  const suffix = generateToken(6)
+    .replace(/[^a-zA-Z]/g, "x")
+    .slice(0, 8)
+    .padEnd(8, "a");
+  return `atplpass${suffix}`;
 }
 
 class MockGateway implements PaymentGateway {
@@ -69,6 +97,8 @@ class MockGateway implements PaymentGateway {
         rawProviderPayload: { simulated: true, failed: true },
         failureCode: "card_declined",
         failureMessage: "The payment method was declined (simulated).",
+        checkoutSessionId: null,
+        stripeCustomerId: null,
       };
     }
 
@@ -101,6 +131,8 @@ class MockGateway implements PaymentGateway {
       },
       failureCode: null,
       failureMessage: null,
+      checkoutSessionId: null,
+      stripeCustomerId: null,
     };
   }
 
@@ -111,11 +143,15 @@ class MockGateway implements PaymentGateway {
     const data = JSON.parse(payload) as {
       providerPaymentId?: string;
       status?: PaymentRecord["status"];
+      type?: string;
+      id?: string;
     };
     return {
       providerPaymentId: data.providerPaymentId ?? "",
       status: data.status ?? "succeeded",
       raw: data as Record<string, unknown>,
+      eventType: data.type,
+      eventId: data.id,
     };
   }
 }
@@ -124,58 +160,52 @@ class StripeGateway implements PaymentGateway {
   readonly provider = "stripe" as const;
 
   async createPayment(input: GatewayChargeInput): Promise<GatewayChargeResult> {
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) {
-      const stubId = `cs_test_${generateId().slice(0, 14)}`;
-      return {
-        provider: "stripe",
-        providerPaymentId: stubId,
-        status: "requires_payment",
-        clientSecret: null,
-        checkoutUrl: `/checkout/success?session=${stubId}&order=${input.orderId}`,
-        methodBrand: input.methodBrand,
-        paymentMethodSummary: "Stripe Checkout (test stub)",
-        rawProviderPayload: {
-          mode: "stub",
-          note: "Set STRIPE_SECRET_KEY to create live Checkout Sessions",
-          orderId: input.orderId,
-        },
-        failureCode: null,
-        failureMessage: null,
-      };
+    if (!isStripeConfigured()) {
+      throw new PaymentError(
+        "Stripe secret key is not configured. Set STRIPE_SECRET_KEY to enable Checkout.",
+        503,
+      );
     }
 
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(secret);
+    const currency = coerceCheckoutCurrency(input.currency);
+    const price = input.stripePriceId
+      ? { stripePriceId: input.stripePriceId, currency, unitAmount: input.amount }
+      : await resolveStripePrice(currency);
 
-    // Dynamic payment methods — omit payment_method_types (Apple Pay / Google Pay / cards via Dashboard)
+    const stripe = getStripeClient();
+    const origin = appOrigin();
+    const email = input.customerEmail.includes("@invalid.") ? undefined : input.customerEmail;
+
     const session = await stripe.checkout.sessions.create(
       {
         mode: "payment",
-        customer_email: input.customerEmail,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: input.currency.toLowerCase(),
-              unit_amount: input.amount,
-              product_data: {
-                name: `Order ${input.orderId}`,
-              },
-            },
-          },
-        ],
+        line_items: [{ price: price.stripePriceId, quantity: 1 }],
+        customer_email: email || undefined,
+        billing_address_collection: "required",
+        phone_number_collection: { enabled: true },
+        customer_creation: "always",
+        invoice_creation: { enabled: true },
+        adaptive_pricing: { enabled: false },
+        client_reference_id: input.orderId,
         success_url:
-          input.successUrl ??
-          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/checkout/success?paid=1`,
-        cancel_url:
-          input.cancelUrl ??
-          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/checkout?canceled=1`,
+          input.successUrl ?? `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: input.cancelUrl ?? `${origin}${routes.checkout}?canceled=1`,
         metadata: {
           orderId: input.orderId,
           idempotencyKey: input.idempotencyKey,
+          purchaseFirst: "true",
+          detectedCurrency: currency,
+          detectedCountry: input.country ?? "",
         },
-      },
+        payment_intent_data: {
+          metadata: {
+            orderId: input.orderId,
+            purchaseFirst: "true",
+          },
+        },
+        integration_identifier: integrationIdentifier(),
+        locale: "auto",
+      } as Stripe.Checkout.SessionCreateParams,
       { idempotencyKey: input.idempotencyKey },
     );
 
@@ -187,35 +217,44 @@ class StripeGateway implements PaymentGateway {
       checkoutUrl: session.url,
       methodBrand: input.methodBrand,
       paymentMethodSummary: "Stripe Checkout",
-      rawProviderPayload: { sessionId: session.id, status: session.status },
+      rawProviderPayload: {
+        sessionId: session.id,
+        status: session.status,
+        priceId: price.stripePriceId,
+        apiVersion: STRIPE_API_VERSION,
+      },
       failureCode: null,
       failureMessage: null,
+      checkoutSessionId: session.id,
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : null,
     };
   }
 
   async confirmWebhook(payload: string, signature: string | null) {
-    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
     if (!secret) {
       throw new PaymentError("Stripe webhook secret not configured", 500);
     }
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder");
+    const stripe = getStripeClient();
     const event = stripe.webhooks.constructEvent(payload, signature ?? "", secret);
-    const obj = event.data.object as { id?: string; payment_status?: string };
-    const status =
-      obj.payment_status === "paid" || event.type === "checkout.session.completed"
-        ? "succeeded"
-        : "processing";
     return {
-      providerPaymentId: obj.id ?? event.id,
-      status: status as PaymentRecord["status"],
+      providerPaymentId: stripeObjectId(event.data.object),
+      status: "processing" as PaymentRecord["status"],
       raw: event as unknown as Record<string, unknown>,
+      eventType: event.type,
+      eventId: event.id,
     };
   }
 }
 
+function stripeObjectId(object: unknown): string {
+  if (object && typeof object === "object" && "id" in object && typeof object.id === "string") {
+    return object.id;
+  }
+  return "";
+}
+
 export function getPaymentGateway(): PaymentGateway {
-  const provider = readPaymentsDb().settings.provider;
-  if (provider === "stripe") return new StripeGateway();
+  if (isStripeConfigured()) return new StripeGateway();
   return new MockGateway();
 }

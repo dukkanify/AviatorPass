@@ -45,20 +45,23 @@ Platform collects payments centrally; instructor share is credited to internal w
 
 ## API
 
-| Path                                 | Purpose                                    |
-| ------------------------------------ | ------------------------------------------ |
-| `/api/public/checkout`               | Guest purchase-first quote + pay (no auth) |
-| `/api/payments/catalog`              | Products, coupons, settings                |
-| `/api/payments/orders`               | Checkout, pay, retry, cancel, ledger       |
-| `/api/payments/invoices`             | List / printable HTML                      |
-| `/api/payments/wallet`               | Wallet, transactions, payouts              |
-| `/api/payments/refunds`              | Request / review                           |
-| `/api/payments/reports`              | Dashboard + CSV                            |
-| `/api/payments/webhooks`             | Provider webhooks                          |
-| `/api/payments/regional-rules`       | Country BNPL / installment eligibility     |
-| `/api/payments/installments`         | Plans, schedule, suspend/resume            |
-| `/api/payments/installments/process` | Cron: overdue + reminder emails            |
-| `/api/payments/kyc`                  | Passport upload / verification             |
+| Path                                 | Purpose                                         |
+| ------------------------------------ | ----------------------------------------------- |
+| `/api/public/checkout`               | Guest purchase-first quote + mock pay (no auth) |
+| `/api/public/checkout/session`       | Start Stripe Checkout Session (geo currency)    |
+| `/api/public/checkout/welcome`       | Post-pay `/welcome` snapshot by session id      |
+| `/api/public/checkout/invoice`       | Printable invoice after Stripe payment          |
+| `/api/payments/catalog`              | Products, coupons, settings                     |
+| `/api/payments/orders`               | Checkout, pay, retry, cancel, ledger            |
+| `/api/payments/invoices`             | List / printable HTML                           |
+| `/api/payments/wallet`               | Wallet, transactions, payouts                   |
+| `/api/payments/refunds`              | Request / review                                |
+| `/api/payments/reports`              | Dashboard + CSV                                 |
+| `/api/payments/webhooks`             | Provider webhooks                               |
+| `/api/payments/regional-rules`       | Country BNPL / installment eligibility          |
+| `/api/payments/installments`         | Plans, schedule, suspend/resume                 |
+| `/api/payments/installments/process` | Cron: overdue + reminder emails                 |
+| `/api/payments/kyc`                  | Passport upload / verification                  |
 
 ## CR003 — Installments & regional payment rules (ATPL package)
 
@@ -76,14 +79,32 @@ SQL: `database/migrations/020_installments_regional_payments.sql`
 
 ## Purchase-first ATPL enrolment
 
-Marketing CTAs (`Enrol in ATPL PASS`) open public `/checkout`. Visitors pay before an account exists. On **successful** payment AviatorPass:
+Marketing CTAs (`Enrol in ATPL PASS`) open public `/checkout`.
 
-1. Creates a student (or attaches the order to an existing email)
-2. Generates a one-time password (emailed once) and forces a password change on first login
-3. Enrolls ATPL package courses immediately
-4. Sends branded welcome, receipt, and invoice emails
+When `STRIPE_SECRET_KEY` is set, `/checkout` **immediately redirects to Stripe-hosted Checkout** (no account, no local card form). Stripe collects full name, email, billing address, country, and optional phone. Dynamic payment methods (Apple Pay, Google Pay, cards, Link, local methods) are configured in the Stripe Dashboard — the API never sends `payment_method_types`.
 
-Failed charges create **no** user and reserve **no** seat. OTP `/register` remains for free accounts. Logged-in `/student/checkout` is unchanged.
+Currency is detected from billing country, CDN geo (`x-vercel-ip-country` / `cf-ipcountry`), then `Accept-Language`. Mapped catalogs: USD, GBP, EUR, AED, SAR, KWD, BHD, QAR, OMR, EGP, JOD, CAD, AUD, NZD, SGD, MYR, JPY, INR, TRY, ZAR. Unknown country → **USD**. Amounts always come from Stripe Prices (`STRIPE_PRODUCT_ID` / `STRIPE_PRICE_*` or listed Prices on the ATPL PASS Product). The app never converts FX.
+
+On **`checkout.session.completed`** (signature verified, idempotent by event id) AviatorPass:
+
+1. Creates a student (or attaches the order to an existing email — no duplicate users)
+2. Emails a one-time **password setup link** (`/setup-password`) plus login URL and support contact
+3. Enrolls ATPL package courses, creates order / invoice / notification / audit log
+4. Redirects the browser to **`/welcome?session_id=…`**
+
+Failed charges create **no** user and reserve **no** seat. OTP `/register` remains for free accounts. Logged-in `/student/checkout` is unchanged. Without Stripe keys the mock guest form stays available for local tests.
+
+### Stripe webhooks
+
+`POST /api/payments/webhooks` verifies `Stripe-Signature` and handles:
+
+- `checkout.session.completed`
+- `payment_intent.succeeded` / `payment_intent.payment_failed`
+- `charge.refunded`
+- `invoice.paid` / `invoice.payment_failed`
+- `customer.subscription.created` / `updated` / `deleted`
+
+Configure the endpoint in Stripe Dashboard → Developers → Webhooks. Sync catalog: `npm run stripe:sync` (requires operator-supplied `STRIPE_UNIT_AMOUNT_<CCY>` integers — never computed).
 
 ## Permissions
 

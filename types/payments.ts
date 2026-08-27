@@ -182,6 +182,15 @@ export interface PaymentRecord {
   currency: string;
   clientSecret: string | null;
   checkoutUrl: string | null;
+  stripeCustomerId: string | null;
+  checkoutSessionId: string | null;
+  paymentIntentId: string | null;
+  stripeInvoiceId: string | null;
+  receiptUrl: string | null;
+  stripeFeeMinor: number | null;
+  netAmountMinor: number | null;
+  country: string | null;
+  billingAddressSnapshot: string | null;
   webhookVerified: boolean;
   failureCode: string | null;
   failureMessage: string | null;
@@ -235,6 +244,7 @@ export interface Subscription {
   cancelAtPeriodEnd: boolean;
   canceledAt: string | null;
   orderId: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -338,6 +348,16 @@ export interface PaymentSettings {
   agreementVersion: string;
   agreementText: string;
   defaultInstallmentCount: number;
+}
+
+export interface ProcessedProviderEvent {
+  id: string;
+  provider: PaymentProvider;
+  type: string;
+  processedAt: string;
+  paymentId: string | null;
+  orderId: string | null;
+  result: string;
 }
 
 /** Country-specific payment options (Tamara / Tabby / installments). */

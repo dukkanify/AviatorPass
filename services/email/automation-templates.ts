@@ -38,19 +38,25 @@ export function renderAutomationTemplate(
     case "registration":
       payload = {
         title: subjectOverride ?? "Welcome to ATPL PASS",
-        preheader: str(data, "temporaryPassword")
-          ? "Your account, course access, and temporary password."
-          : "Your account is ready.",
+        preheader: str(data, "passwordSetupUrl")
+          ? "Set your password and start ATPL PASS."
+          : str(data, "temporaryPassword")
+            ? "Your account, course access, and temporary password."
+            : "Your account is ready.",
         bodyHtml: `<p>Hello ${name},</p>
           <p>Welcome aboard. Your AviatorPass account is ready.</p>
           <p>${detail || "Open your dashboard to view courses, live sessions, and study progress."}</p>
           ${
-            str(data, "temporaryPassword")
-              ? `<p><strong>Account details</strong></p>
+            str(data, "passwordSetupUrl")
+              ? `<p><strong>Set your password</strong></p>
+          <p>Email: ${escapeHtml(str(data, "accountEmail"))}</p>
+          <p><a href="${escapeHtml(str(data, "passwordSetupUrl"))}">Create your password</a> (this one-time link expires in 48 hours).</p>`
+              : str(data, "temporaryPassword")
+                ? `<p><strong>Account details</strong></p>
           <p>Email: ${escapeHtml(str(data, "accountEmail"))}</p>
           <p>Temporary password: <strong>${escapeHtml(str(data, "temporaryPassword"))}</strong></p>
           <p>You will be asked to choose a new password on first login. This password is only sent once — do not share it.</p>`
-              : ""
+                : ""
           }
           ${str(data, "loginUrl") ? `<p><a href="${escapeHtml(str(data, "loginUrl"))}">Sign in to AviatorPass</a></p>` : ""}
           ${str(data, "courseUrl") ? `<p><a href="${escapeHtml(str(data, "courseUrl"))}">Open your ATPL course</a></p>` : ""}

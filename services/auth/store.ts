@@ -46,6 +46,16 @@ export interface StoredUser {
   updatedAt: string;
 }
 
+export interface PasswordSetupToken {
+  id: string;
+  userId: string;
+  email: string;
+  tokenHash: string;
+  expiresAt: string;
+  consumedAt: string | null;
+  createdAt: string;
+}
+
 export interface OtpChallenge {
   id: string;
   email: string;
@@ -134,6 +144,7 @@ interface AuthDatabase {
   users: StoredUser[];
   sessions: SessionRecord[];
   otps: OtpChallenge[];
+  passwordSetupTokens: PasswordSetupToken[];
   pendingRegistrations: PendingRegistration[];
   notificationPreferences: NotificationPreferences[];
   securitySettings: UserSecuritySettings[];
@@ -149,6 +160,7 @@ const emptyDb = (): AuthDatabase => ({
   users: [],
   sessions: [],
   otps: [],
+  passwordSetupTokens: [],
   pendingRegistrations: [],
   notificationPreferences: [],
   securitySettings: [],
@@ -166,6 +178,7 @@ function ensureStore(): AuthDatabase {
   parsed.users = (parsed.users ?? []).map(normalizeStoredUser);
   parsed.sessions = (parsed.sessions ?? []).map(normalizeSession);
   parsed.otps = (parsed.otps ?? []).map(normalizeOtp);
+  parsed.passwordSetupTokens = parsed.passwordSetupTokens ?? [];
   parsed.pendingRegistrations = parsed.pendingRegistrations ?? [];
   parsed.notificationPreferences = parsed.notificationPreferences ?? [];
   parsed.securitySettings = parsed.securitySettings ?? [];

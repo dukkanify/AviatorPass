@@ -23,7 +23,11 @@ import {
 import { issueInvoiceForOrder } from "@/services/payments/invoice-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import {
+  blankStripePaymentFields,
+  readPaymentsDb,
+  writePaymentsDb,
+} from "@/services/payments/store";
 import { creditInstructorEarnings } from "@/services/payments/wallet-service";
 import type {
   CheckoutPaymentMode,
@@ -323,6 +327,7 @@ async function payScheduleItem(input: {
     rawProviderPayload: { ...charge.rawProviderPayload, scheduleItemId: item.id },
     createdAt: stamp,
     updatedAt: stamp,
+    ...blankStripePaymentFields(),
   };
 
   writePaymentsDb((db) => {
@@ -449,6 +454,7 @@ async function finalizeSuccessfulPayment(input: {
     },
     createdAt: stamp,
     updatedAt: stamp,
+    ...blankStripePaymentFields(),
   };
 
   writePaymentsDb((db) => {
@@ -736,6 +742,17 @@ export function cancelOrder(user: UserProfile, orderId: string): Order {
 }
 
 export async function handleProviderWebhook(input: { payload: string; signature: string | null }) {
+  const looksStripe =
+    Boolean(input.signature && input.signature.includes("t=")) ||
+    (input.payload.includes('"object":"event"') && input.payload.includes("livemode"));
+  if (
+    looksStripe ||
+    (process.env.STRIPE_WEBHOOK_SECRET && input.signature && !input.signature.startsWith("mock"))
+  ) {
+    const { handleStripeWebhook } = await import("@/services/payments/stripe-webhook-service");
+    return handleStripeWebhook(input.payload, input.signature);
+  }
+
   const gateway = getPaymentGateway();
   const result = await gateway.confirmWebhook(input.payload, input.signature);
   const payment = readPaymentsDb().payments.find(

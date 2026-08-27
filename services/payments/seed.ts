@@ -270,6 +270,15 @@ export function ensurePaymentsSeeded(): void {
     rawProviderPayload: { seeded: true },
     createdAt: stamp,
     updatedAt: stamp,
+    stripeCustomerId: null,
+    checkoutSessionId: null,
+    paymentIntentId: null,
+    stripeInvoiceId: null,
+    receiptUrl: null,
+    stripeFeeMinor: null,
+    netAmountMinor: null,
+    country: null,
+    billingAddressSnapshot: null,
   };
 
   const invoice: Invoice = {
