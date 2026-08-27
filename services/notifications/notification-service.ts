@@ -19,6 +19,7 @@ import {
 } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { emailPaymentUpdate } from "@/services/email/automation-service";
+import { writeOpsLog } from "@/services/ops/logging-service";
 
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -172,7 +173,19 @@ async function maybeSendEmail(input: {
       reference: input.reference ?? input.type,
     });
     return true;
-  } catch {
+  } catch (error) {
+    writeOpsLog({
+      level: "error",
+      category: "error",
+      message: "Notification email delivery failed",
+      details: {
+        userId: input.userId,
+        type: input.type,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      path: "services/notifications/notification-service",
+      userId: input.userId,
+    });
     return false;
   }
 }

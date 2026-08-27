@@ -121,6 +121,10 @@ describe("enterprise registration", () => {
     const started = await startEnterpriseRegistration(payload);
     expect(started.success).toBe(true);
     expect(started.data?.email).toBe(email);
+    expect(started.data?.emailDelivery === "outbox" || started.data?.emailDelivery === "smtp").toBe(
+      true,
+    );
+    expect(started.data?.emailOutboxId || started.data?.emailDelivery === "smtp").toBeTruthy();
     expect(findUserByEmail(email)).toBeNull();
 
     const restart = await startEnterpriseRegistration({

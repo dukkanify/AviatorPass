@@ -80,6 +80,7 @@ export async function startEnterpriseRegistration(
     expiresInMinutes: number;
     resendAvailableInSeconds: number;
     emailDelivery?: "smtp" | "outbox" | "failed";
+    emailOutboxId?: string;
   }>
 > {
   const email = sanitizeEmail(input.email);
@@ -203,6 +204,7 @@ export async function startEnterpriseRegistration(
       expiresInMinutes: issued.data.expiresInMinutes,
       resendAvailableInSeconds: issued.data.resendAvailableInSeconds,
       emailDelivery: issued.data.emailDelivery,
+      emailOutboxId: issued.data.emailOutboxId,
       ...(issued.data.demoOtp ? { demoOtp: issued.data.demoOtp } : {}),
     },
     error: null,
@@ -218,6 +220,8 @@ export async function resendRegistrationOtp(
     demoOtp?: string;
     expiresInMinutes: number;
     resendAvailableInSeconds: number;
+    emailDelivery?: "smtp" | "outbox" | "failed";
+    emailOutboxId?: string;
   }>
 > {
   const email = sanitizeEmail(emailRaw);
@@ -256,6 +260,8 @@ export async function resendRegistrationOtp(
       email,
       expiresInMinutes: issued.data.expiresInMinutes,
       resendAvailableInSeconds: issued.data.resendAvailableInSeconds,
+      emailDelivery: issued.data.emailDelivery,
+      emailOutboxId: issued.data.emailOutboxId,
       ...(issued.data.demoOtp ? { demoOtp: issued.data.demoOtp } : {}),
     },
     error: null,
