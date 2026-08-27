@@ -48,7 +48,9 @@ describe("crypto helpers", () => {
   it("generates passwords that satisfy complexity rules", async () => {
     const { passwordSchema } = await import("@/utils/validation");
     for (let i = 0; i < 8; i += 1) {
-      expect(passwordSchema.parse(generateSecurePassword(16))).toHaveLength(16);
+      const password = generateSecurePassword(16);
+      expect(passwordSchema.parse(password)).toHaveLength(16);
+      expect(password).not.toMatch(/[%*?ILO01il]/);
     }
   });
 

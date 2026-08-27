@@ -168,9 +168,24 @@ function GuestCheckoutView() {
         {result.temporaryPassword ? (
           <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-left text-sm">
             <p className="font-medium">Temporary password (shown once)</p>
-            <p className="mt-1 font-mono text-base tracking-wide">{result.temporaryPassword}</p>
+            <p className="mt-1 select-all font-mono text-base tracking-wide">
+              {result.temporaryPassword}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              onClick={() => {
+                void navigator.clipboard.writeText(result.temporaryPassword!);
+                toast.success("Password copied");
+              }}
+            >
+              Copy password
+            </Button>
             <p className="mt-2 text-xs text-muted-foreground">
-              Sign in with this password, then choose a new one. We will never email it again.
+              Sign in with this password (not OTP), then choose a new one. We will never email it
+              again.
             </p>
           </div>
         ) : null}

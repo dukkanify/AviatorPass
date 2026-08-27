@@ -129,15 +129,19 @@ function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password (purchased accounts)</Label>
+        <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           type="password"
           autoComplete="current-password"
-          placeholder="Leave blank to use email OTP"
+          placeholder="From your purchase email, or leave blank for OTP"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        <p className="text-xs text-muted-foreground">
+          Just bought ATPL PASS? Paste the temporary password here. Leave blank only if you want a
+          one-time email code instead.
+        </p>
       </div>
 
       <label className="flex items-center gap-2 text-sm text-muted-foreground">

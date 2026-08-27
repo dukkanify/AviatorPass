@@ -24,10 +24,11 @@ export function generateToken(bytes = 32): string {
  */
 export function generateSecurePassword(length = 16): string {
   const size = Math.max(12, Math.min(64, length));
+  // Unambiguous alphabet — no I/O/l/1/0/% so checkout copy and email stay typeable.
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
   const digits = "23456789";
-  const special = "!@#$%&*?";
+  const special = "!@#$&";
   const all = upper + lower + digits + special;
   const pick = (alphabet: string) => alphabet[randomBytes(1)[0]! % alphabet.length]!;
   const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
