@@ -1,43 +1,23 @@
 "use client";
 
-import * as React from "react";
+import { Lock, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Lock, ShieldCheck } from "lucide-react";
 import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
-import { authFetch } from "@/features/auth/services/auth-api";
 
-function StripeCheckoutRedirect() {
+type StripeCheckoutRedirectProps = {
+  initialError?: string | null;
+};
+
+function StripeCheckoutRedirect({ initialError }: StripeCheckoutRedirectProps) {
   const search = useSearchParams();
-  const [error, setError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
   const canceled = search.get("canceled") === "1";
   const productId = search.get("productId") ?? "";
-
-  const start = React.useCallback(async () => {
-    setPending(true);
-    setError(null);
-    const result = await authFetch<{ checkoutUrl: string }>("/api/public/checkout/session", {
-      method: "POST",
-      body: JSON.stringify({
-        productId: productId || undefined,
-        locale: typeof navigator !== "undefined" ? navigator.language : undefined,
-      }),
-    });
-    if (!result.success || !result.data?.checkoutUrl) {
-      setError(result.error ?? "Unable to open Stripe Checkout.");
-      setPending(false);
-      return;
-    }
-    window.location.assign(result.data.checkoutUrl);
-  }, [productId]);
-
-  React.useEffect(() => {
-    if (canceled) return;
-    void start();
-  }, [canceled, start]);
+  const retryHref = productId
+    ? `${routes.checkout}?start=1&productId=${encodeURIComponent(productId)}`
+    : `${routes.checkout}?start=1`;
 
   return (
     <div className="container-app mx-auto max-w-lg py-16 text-center">
@@ -45,30 +25,17 @@ function StripeCheckoutRedirect() {
         Secure checkout
       </p>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-        {canceled ? "Checkout cancelled" : "Redirecting to Stripe"}
+        {canceled ? "Checkout cancelled" : "Continue to Stripe Checkout"}
       </h1>
       <p className="mt-3 text-muted-foreground">
         {canceled
           ? "No charge was made. Continue when you are ready — Stripe collects your name, email, billing address, and country."
-          : "Opening Stripe Checkout. Apple Pay, Google Pay, cards, Link, and local methods appear automatically for your country."}
+          : "Enrol in ATPL PASS opens Stripe Checkout immediately. Apple Pay, Google Pay, cards, Link, and local methods appear automatically for your country."}
       </p>
-      {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
+      {initialError ? <p className="mt-4 text-sm text-destructive">{initialError}</p> : null}
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button
-          variant="accent"
-          disabled={pending}
-          onClick={() => {
-            void start();
-          }}
-        >
-          {pending ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Opening Stripe…
-            </>
-          ) : (
-            "Continue to Stripe Checkout"
-          )}
+        <Button variant="accent" asChild>
+          <Link href={retryHref}>Continue to Stripe Checkout</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href={routes.home}>Back to home</Link>
@@ -84,14 +51,12 @@ function StripeCheckoutRedirect() {
           Currency is selected from your country. Amounts come from Stripe Prices, never in-app FX.
         </li>
       </ul>
-      {error ? (
-        <p className="mt-6 text-xs text-muted-foreground">
-          Already have an account?{" "}
-          <Link href={routes.login} className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
-      ) : null}
+      <p className="mt-6 text-xs text-muted-foreground">
+        Already have an account?{" "}
+        <Link href={routes.login} className="text-primary hover:underline">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

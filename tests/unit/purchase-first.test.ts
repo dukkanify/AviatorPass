@@ -21,7 +21,12 @@ import { findUserByEmail, readAuthDb, writeAuthDb } from "@/services/auth/store"
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
-import { payGuestCheckout, quoteGuestCheckout } from "@/services/payments/purchase-first-service";
+import {
+  getWelcomeByOrderId,
+  payGuestCheckout,
+  quoteGuestCheckout,
+  startHostedCheckout,
+} from "@/services/payments/purchase-first-service";
 import { passwordSchema } from "@/utils/validation";
 
 describe("purchase-first ATPL enrollment", () => {
@@ -178,5 +183,46 @@ describe("purchase-first ATPL enrollment", () => {
     expect(readAuthDb().users.filter((u) => u.email.toLowerCase() === email).length).toBe(1);
     const user = findUserByEmail(email)!;
     expect(listStudentEnrollments(user.id).some((e) => e.status === "approved")).toBe(true);
+    const welcome = getWelcomeByOrderId(result.order.id);
+    expect(welcome?.accountCreated).toBe(false);
+    expect(welcome?.attachedToExisting).toBe(true);
+    expect(welcome?.courseAssigned).toBe(true);
+    expect(welcome?.invoicePrintUrl).toBeTruthy();
+  });
+
+  it("exposes a welcome snapshot after a new guest purchase", async () => {
+    const email = `welcome.guest.${Date.now()}@aviatorpass.test`;
+    const result = await payGuestCheckout({
+      firstName: "Nora",
+      lastName: "Rivera",
+      email,
+      phone: "+96550004444",
+      country: "KW",
+      billingName: "Nora Rivera",
+      billingAddress: "Kuwait City",
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `welcome-${Date.now()}`,
+    });
+    const welcome = getWelcomeByOrderId(result.order.id);
+    expect(welcome).toBeTruthy();
+    expect(welcome?.accountCreated).toBe(true);
+    expect(welcome?.courseAssigned).toBe(true);
+    expect(welcome?.emailSent).toBe(true);
+    expect(welcome?.invoicePrintUrl).toContain(result.order.id);
+  });
+
+  it("refuses Stripe hosted checkout when the secret key is not configured", async () => {
+    const previous = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    try {
+      await expect(startHostedCheckout({})).rejects.toMatchObject({
+        name: "PaymentError",
+        status: 503,
+      });
+    } finally {
+      if (previous === undefined) delete process.env.STRIPE_SECRET_KEY;
+      else process.env.STRIPE_SECRET_KEY = previous;
+    }
   });
 });

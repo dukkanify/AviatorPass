@@ -7,12 +7,15 @@ import type Stripe from "stripe";
 
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { findUserByEmail, readAuthDb } from "@/services/auth/store";
+import { findUserByEmail, readAuthDb, writeAuthDb } from "@/services/auth/store";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { processVerifiedStripeEvent } from "@/services/payments/stripe-webhook-service";
-import { getAtplPackageProduct } from "@/services/payments/purchase-first-service";
+import {
+  getAtplPackageProduct,
+  getWelcomeBySessionId,
+} from "@/services/payments/purchase-first-service";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
@@ -192,6 +195,149 @@ describe("Stripe purchase-first webhooks", () => {
     expect(payment.stripeCustomerId).toBe("cus_test_1");
     expect(payment.paymentIntentId).toBe("pi_test_1");
     expect(payment.country).toBe("US");
+
+    const welcome = getWelcomeBySessionId(sessionId);
+    expect(welcome?.accountCreated).toBe(true);
+    expect(welcome?.courseAssigned).toBe(true);
+    expect(welcome?.invoicePrintUrl).toContain(sessionId);
+  });
+
+  it("attaches checkout.session.completed to an existing email without a second user", async () => {
+    const product = getAtplPackageProduct();
+    const email = `stripe.existing.${Date.now()}@aviatorpass.test`;
+    const now = new Date().toISOString();
+    writeAuthDb((db) => {
+      db.users.push({
+        id: `exist-stripe-${Date.now()}`,
+        email,
+        firstName: "Existing",
+        lastName: "Buyer",
+        phone: "+12025550999",
+        countryCode: "US",
+        nationality: "United States",
+        dateOfBirth: null,
+        gender: null,
+        city: null,
+        bio: null,
+        emergencyContactName: null,
+        emergencyContactPhone: null,
+        avatarUrl: null,
+        timezone: "UTC",
+        language: "en",
+        role: ROLES.STUDENT,
+        status: "active",
+        emailVerified: true,
+        profileComplete: true,
+        mustChangePassword: false,
+        passwordHash: null,
+        passwordSalt: null,
+        lastLoginAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+    const orderId = generateId();
+    const paymentId = generateId();
+    const sessionId = `cs_test_${generateId().slice(0, 10)}`;
+    writePaymentsDb((db) => {
+      db.orders.unshift({
+        id: orderId,
+        orderNumber: `ORD-EXIST-${Date.now()}`,
+        studentId: "guest",
+        studentName: "Checkout guest",
+        studentEmail: "pending@checkout.invalid",
+        status: "pending",
+        currency: "USD",
+        subtotalAmount: 129900,
+        discountAmount: 0,
+        taxAmount: 0,
+        taxRatePercent: 0,
+        totalAmount: 129900,
+        couponId: null,
+        couponCode: null,
+        billingName: "Checkout guest",
+        billingEmail: "pending@checkout.invalid",
+        billingCountry: "US",
+        billingAddress: "",
+        items: [
+          {
+            id: generateId(),
+            productId: product!.id,
+            productName: product!.name,
+            courseId: product!.courseId,
+            instructorId: product!.instructorId,
+            pricingModel: product!.pricingModel,
+            unitAmount: 129900,
+            quantity: 1,
+            discountAmount: 0,
+            taxAmount: 0,
+            totalAmount: 129900,
+          },
+        ],
+        paymentId,
+        invoiceId: null,
+        idempotencyKey: `stripe-exist-${orderId}`,
+        failureReason: null,
+        paidAt: null,
+        cancelledAt: null,
+        expiresAt: null,
+        metadata: { purchaseFirst: true, hostedCheckout: true, guestCountry: "US" },
+        createdAt: now,
+        updatedAt: now,
+      });
+      db.payments.unshift({
+        id: paymentId,
+        orderId,
+        provider: "stripe",
+        providerPaymentId: sessionId,
+        status: "requires_payment",
+        methodBrand: "card",
+        paymentMethodSummary: "Stripe Checkout",
+        amount: 129900,
+        currency: "USD",
+        clientSecret: null,
+        checkoutUrl: "https://checkout.stripe.com/c/pay/test",
+        webhookVerified: false,
+        failureCode: null,
+        failureMessage: null,
+        rawProviderPayload: { sessionId },
+        createdAt: now,
+        updatedAt: now,
+        ...blankStripePaymentFields(),
+        checkoutSessionId: sessionId,
+      });
+    });
+
+    await processVerifiedStripeEvent(
+      sessionEvent({
+        id: sessionId,
+        client_reference_id: orderId,
+        metadata: { orderId, purchaseFirst: "true" },
+        customer_details: {
+          email,
+          name: "Existing Buyer",
+          phone: "+12025550999",
+          address: {
+            line1: "9 Hangar Rd",
+            city: "Dallas",
+            country: "US",
+            line2: null,
+            state: "TX",
+            postal_code: "75201",
+          },
+          tax_exempt: "none",
+          tax_ids: [],
+        } as Stripe.Checkout.Session.CustomerDetails,
+      }),
+    );
+
+    expect(readAuthDb().users.filter((u) => u.email.toLowerCase() === email).length).toBe(1);
+    const user = findUserByEmail(email)!;
+    expect(listStudentEnrollments(user.id).some((e) => e.status === "approved")).toBe(true);
+    const welcome = getWelcomeBySessionId(sessionId);
+    expect(welcome?.accountCreated).toBe(false);
+    expect(welcome?.attachedToExisting).toBe(true);
+    expect(welcome?.courseAssigned).toBe(true);
   });
 
   it("does not create a user on payment_intent.payment_failed", async () => {
