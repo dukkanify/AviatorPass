@@ -65,6 +65,7 @@ function GuestCheckoutView() {
   const search = useSearchParams();
   const [quote, setQuote] = React.useState<Quote | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [loadingQuote, setLoadingQuote] = React.useState(true);
   const [pending, setPending] = React.useState(false);
   const [result, setResult] = React.useState<PayResult | null>(null);
   const [form, setForm] = React.useState({
@@ -81,12 +82,14 @@ function GuestCheckoutView() {
   const canceled = search.get("canceled") === "1";
 
   const load = React.useCallback(async () => {
+    setLoadingQuote(true);
     const params = new URLSearchParams();
     if (productId) params.set("productId", productId);
     params.set("country", form.country);
     const q = await authFetch<Quote>(`/api/public/checkout?${params.toString()}`);
     if (!q.success || !q.data) {
       setLoadError(q.error ?? "Checkout is unavailable");
+      setLoadingQuote(false);
       return;
     }
     setQuote(q.data);
@@ -99,6 +102,7 @@ function GuestCheckoutView() {
         ? prev.methodBrand
         : firstAvailable,
     }));
+    setLoadingQuote(false);
   }, [productId, form.country]);
 
   React.useEffect(() => {
@@ -321,9 +325,13 @@ function GuestCheckoutView() {
             type="submit"
             variant="accent"
             className="h-12 w-full"
-            disabled={pending || !quote}
+            disabled={pending || !quote || loadingQuote}
           >
-            {pending ? "Processing…" : `Pay ${quote?.totalLabel ?? ""} securely`}
+            {loadingQuote
+              ? "Loading checkout…"
+              : pending
+                ? "Processing…"
+                : `Pay ${quote?.totalLabel ?? ""} securely`}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Want a free account without buying?{" "}
