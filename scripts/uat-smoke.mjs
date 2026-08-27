@@ -39,7 +39,7 @@ function cookieJar() {
 
 async function login(email) {
   const jar = cookieJar();
-  let res = await fetch(`${BASE}/login`);
+  let res = await fetch(`${BASE}/api/auth/me`);
   jar.store(res);
   res = await fetch(`${BASE}/api/auth/otp/request`, {
     method: "POST",

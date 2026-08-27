@@ -50,7 +50,7 @@ async function main() {
     const cookieHeader = () =>
       [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 
-    let res = await fetch(`${BASE}/login`);
+    let res = await fetch(`${BASE}/api/auth/me`);
     storeCookies(res);
     const csrf = jar.get("aep_csrf");
     res = await fetch(`${BASE}/api/auth/otp/request`, {
@@ -109,7 +109,7 @@ async function main() {
     const cookieHeader = () =>
       [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 
-    let res = await fetch(`${BASE}/login`);
+    let res = await fetch(`${BASE}/api/auth/me`);
     storeCookies(res);
     let csrf = jar.get("aep_csrf");
     res = await fetch(`${BASE}/api/auth/otp/request`, {
