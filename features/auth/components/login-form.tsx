@@ -134,7 +134,7 @@ function LoginForm() {
           id="password"
           type="password"
           autoComplete="current-password"
-          placeholder="From your purchase email, or leave blank for OTP"
+          placeholder="Temporary password, or blank for OTP"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

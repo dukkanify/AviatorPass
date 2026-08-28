@@ -15,7 +15,7 @@ function PageHeader({ title, description, breadcrumbs, actions, className }: Pag
     <div className={cn("mb-8", className)}>
       {breadcrumbs ? <Breadcrumb items={breadcrumbs} /> : null}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
             {title}
           </h1>
