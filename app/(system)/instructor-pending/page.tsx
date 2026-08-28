@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function InstructorPendingPage() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+    <div className="relative flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="hero-aviation absolute inset-0" />
       <div className="absolute inset-0 bg-[#0B1A24]/60 backdrop-blur-[2px]" />
       <div className="relative z-10 w-full max-w-lg rounded-3xl border border-white/10 bg-[var(--surface-ink)]/80 p-8 text-center text-white shadow-medium backdrop-blur-xl">

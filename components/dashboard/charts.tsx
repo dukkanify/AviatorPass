@@ -62,7 +62,7 @@ export function ChartCard({
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent>
-        <div className={cn("w-full min-h-[18rem]", heightClassName)}>
+        <div className={cn("w-full min-w-0 min-h-[18rem]", heightClassName)}>
           {ready ? (
             <ResponsiveContainer width="100%" height="100%" minHeight={288}>
               {children as React.ReactElement}

@@ -84,7 +84,7 @@ function CalendarWidget({ events = [], className, title = "Calendar" }: Calendar
                 type="button"
                 onClick={() => setView("month")}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "min-h-11 rounded-md px-3 text-[11px] font-medium transition-colors",
                   view === "month"
                     ? "bg-accent text-accent-foreground"
                     : "text-white/60 hover:text-white",
@@ -96,7 +96,7 @@ function CalendarWidget({ events = [], className, title = "Calendar" }: Calendar
                 type="button"
                 onClick={() => setView("week")}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "min-h-11 rounded-md px-3 text-[11px] font-medium transition-colors",
                   view === "week"
                     ? "bg-accent text-accent-foreground"
                     : "text-white/60 hover:text-white",
@@ -118,7 +118,7 @@ function CalendarWidget({ events = [], className, title = "Calendar" }: Calendar
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <p className="font-display text-sm font-semibold">
+            <p className="min-w-0 flex-1 px-2 text-center font-display text-sm font-semibold leading-snug">
               {format(cursor, view === "month" ? "MMMM yyyy" : "'Week of' MMM d, yyyy")}
             </p>
             <Button

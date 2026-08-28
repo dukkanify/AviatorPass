@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function SetupPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-12">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent)_0%,_transparent_50%)] opacity-[0.07]" />
       <Card className="relative z-10 w-full max-w-md">
         <CardHeader className="space-y-1 text-center">

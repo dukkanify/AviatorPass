@@ -183,7 +183,8 @@ function GuestCheckoutView() {
             {result.accountCreated
               ? "We created your student account automatically."
               : "This purchase is attached to your existing AviatorPass account."}{" "}
-            Check {result.order.billingEmail} for your receipt and login details.
+            Check <span className="break-email">{result.order.billingEmail}</span> for your receipt
+            and login details.
           </p>
         </div>
         {result.temporaryPassword ? (
@@ -210,11 +211,11 @@ function GuestCheckoutView() {
             </p>
           </div>
         ) : null}
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button variant="accent" asChild>
+        <div className="flex w-full flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+          <Button variant="accent" className="w-full sm:w-auto" asChild>
             <Link href={routes.login}>Sign in</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href={routes.home}>Back to home</Link>
           </Button>
         </div>
@@ -245,9 +246,9 @@ function GuestCheckoutView() {
 
       <form
         onSubmit={(e) => void onPay(e)}
-        className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]"
+        className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]"
       >
-        <div className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="min-w-0 space-y-6 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Lock className="size-4 text-accent" />
             Customer details
@@ -300,7 +301,7 @@ function GuestCheckoutView() {
               <Label htmlFor="country">Country</Label>
               <select
                 id="country"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base sm:h-10 sm:text-sm"
                 value={form.country}
                 onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
               >
@@ -335,7 +336,7 @@ function GuestCheckoutView() {
                     type="button"
                     disabled={disabled}
                     onClick={() => setForm((f) => ({ ...f, methodBrand: method.id }))}
-                    className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                    className={`flex min-h-11 items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                       form.methodBrand === method.id && !disabled
                         ? "border-accent bg-accent/10"
                         : "border-border"
@@ -377,7 +378,7 @@ function GuestCheckoutView() {
           </p>
         </div>
 
-        <aside className="h-fit space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <aside className="h-fit min-w-0 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold">Order summary</p>
           <div>
             <p className="font-display text-lg">{quote?.product.name ?? "ATPL PASS"}</p>
@@ -402,7 +403,9 @@ function GuestCheckoutView() {
             </li>
           </ul>
           {quote?.supportEmail ? (
-            <p className="text-xs text-muted-foreground">Support: {quote.supportEmail}</p>
+            <p className="break-email text-xs text-muted-foreground">
+              Support: {quote.supportEmail}
+            </p>
           ) : null}
         </aside>
       </form>

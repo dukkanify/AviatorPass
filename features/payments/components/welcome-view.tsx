@@ -103,11 +103,11 @@ function WelcomeView() {
     return (
       <div className="container-app mx-auto max-w-lg py-16 text-center">
         <p className="text-destructive">{error}</p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button variant="accent" asChild>
+        <div className="mt-6 flex w-full flex-col justify-center gap-3 sm:flex-row">
+          <Button variant="accent" className="w-full sm:w-auto" asChild>
             <Link href={routes.login}>Sign in</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href={routes.checkout}>Return to checkout</Link>
           </Button>
         </div>
@@ -164,40 +164,45 @@ function WelcomeView() {
         ))}
       </ul>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 break-words text-center text-sm text-muted-foreground">
         {data?.productName} · {data?.amountLabel} · Order {data?.orderNumber}
-        {data?.billingEmail ? ` · ${data.billingEmail}` : ""}
+        {data?.billingEmail ? (
+          <>
+            {" · "}
+            <span className="break-email">{data.billingEmail}</span>
+          </>
+        ) : null}
       </p>
 
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button variant="accent" asChild>
+      <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+        <Button variant="accent" className="w-full sm:w-auto" asChild>
           <Link href={routes.studentDashboard}>
             <LayoutDashboard className="mr-2 size-4" />
             Continue to Dashboard
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" className="w-full sm:w-auto" asChild>
           <Link href="/student/courses">
             <BookOpen className="mr-2 size-4" />
             Access Course
           </Link>
         </Button>
         {data?.invoicePrintUrl ? (
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <a href={data.invoicePrintUrl} target="_blank" rel="noreferrer">
               <Download className="mr-2 size-4" />
               Download Invoice
             </a>
           </Button>
         ) : data?.receiptUrl ? (
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <a href={data.receiptUrl} target="_blank" rel="noreferrer">
               <Download className="mr-2 size-4" />
               Download Invoice
             </a>
           </Button>
         ) : null}
-        <Button variant="ghost" asChild>
+        <Button variant="ghost" className="w-full sm:w-auto" asChild>
           <a href={`mailto:${data?.supportEmail || siteStatic.supportEmail}`}>
             <LifeBuoy className="mr-2 size-4" />
             Support

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function SplashPage() {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4">
       <div className="hero-aviation absolute inset-0" />
       <div className="absolute inset-0 bg-[var(--surface-ink)]/45" />
       <div className="relative z-10 flex max-w-lg flex-col items-center text-center">

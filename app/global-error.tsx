@@ -9,7 +9,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen items-center justify-center bg-background px-6 font-sans text-foreground">
+      <body className="flex min-h-dvh items-center justify-center bg-background px-6 font-sans text-foreground">
         <div className="max-w-md text-center">
           <h1 className="font-display text-2xl font-semibold">Critical error</h1>
           <p className="mt-3 text-muted-foreground">

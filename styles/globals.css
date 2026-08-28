@@ -201,6 +201,24 @@
   h5,
   h6 {
     @apply font-display tracking-tight text-foreground;
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  td,
+  th,
+  dd,
+  dt,
+  label {
+    overflow-wrap: break-word;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
   }
 
   :focus-visible {
@@ -227,8 +245,8 @@
 
   .container-app {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
-    padding-left: max(1rem, env(safe-area-inset-left, 0px));
-    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    padding-left: max(1.125rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.125rem, env(safe-area-inset-right, 0px));
   }
 
   @media (min-width: 640px) {
@@ -354,9 +372,34 @@
   }
 }
 
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(
+      [type="hidden"]
+    ),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+a[href^="mailto:"],
+.break-email {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   .animate-in-fade,

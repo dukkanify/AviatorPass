@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
+import { cn } from "@/lib/utils";
 import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
 import {
@@ -62,7 +63,7 @@ function EnrolButton({
   size?: "lg" | "sm";
 }) {
   return (
-    <Button size={size} variant="accent" className={className} asChild>
+    <Button size={size} variant="accent" className={cn("w-full sm:w-auto", className)} asChild>
       <Link href={enrollHref}>
         Enrol in ATPL PASS
         <ArrowUpRight className="h-4 w-4" />
@@ -104,12 +105,12 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
               </li>
             ))}
           </ul>
-          <div className="mt-12 flex flex-wrap items-center gap-4">
+          <div className="mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
             <Button
               size="lg"
               variant="outline"
-              className="border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
+              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               asChild
             >
               <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
@@ -406,12 +407,12 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
           <p className="mx-auto mt-5 max-w-md text-white/55">
             Continue to secure checkout. No registration until payment succeeds.
           </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <div className="mt-10 flex w-full max-w-sm flex-col justify-center gap-3 sm:mx-auto sm:max-w-none sm:flex-row sm:flex-wrap">
             <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
             <Button
               size="lg"
               variant="outline"
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+              className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 sm:w-auto"
               asChild
             >
               <Link href={routes.home}>Back to Home</Link>
