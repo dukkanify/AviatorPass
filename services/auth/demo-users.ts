@@ -90,15 +90,27 @@ function migrateLegacyDemoEmails(): void {
   }
 
   writeAuthDb((d) => {
-    const taken = new Set(d.users.map((u) => u.email.toLowerCase()));
+    const removeIds = new Set<string>();
     for (const user of d.users) {
+      if (removeIds.has(user.id)) continue;
       const next = remapLegacyDemoEmail(user.email);
       if (next.toLowerCase() === user.email.toLowerCase()) continue;
-      if (taken.has(next.toLowerCase())) continue;
-      taken.delete(user.email.toLowerCase());
+      const occupant = d.users.find(
+        (other) =>
+          other.id !== user.id &&
+          !removeIds.has(other.id) &&
+          other.email.toLowerCase() === next.toLowerCase(),
+      );
+      if (occupant) {
+        const isDemoMailbox = DEMO_ACCOUNTS.some((account) => account.email === next.toLowerCase());
+        if (!isDemoMailbox) continue;
+        removeIds.add(occupant.id);
+      }
       user.email = next;
-      taken.add(next.toLowerCase());
       user.updatedAt = new Date().toISOString();
+    }
+    if (removeIds.size > 0) {
+      d.users = d.users.filter((user) => !removeIds.has(user.id));
     }
     for (const otp of d.otps) {
       otp.email = remapLegacyDemoEmail(otp.email);
