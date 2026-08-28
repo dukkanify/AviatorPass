@@ -14,6 +14,7 @@ import {
 import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
+import { siteStatic } from "@/config/site-static";
 import { routes } from "@/constants/routes";
 
 type WelcomeSnapshot = {
@@ -197,7 +198,7 @@ function WelcomeView() {
           </Button>
         ) : null}
         <Button variant="ghost" asChild>
-          <a href={`mailto:${data?.supportEmail || "support@aviatorpass.com"}`}>
+          <a href={`mailto:${data?.supportEmail || siteStatic.supportEmail}`}>
             <LifeBuoy className="mr-2 size-4" />
             Support
           </a>

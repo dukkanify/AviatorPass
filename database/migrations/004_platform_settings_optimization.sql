@@ -37,10 +37,10 @@ CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at
 INSERT INTO public.settings (key, value, category, description) VALUES
   ('platform.name', '"AviatorPass"', 'general', 'Platform display name'),
   ('platform.company_name', '"AviatorPass"', 'general', 'Legal company name'),
-  ('platform.contact_email', '"ME@ABDULAZIZALSHOAIL.COM"', 'general', 'Primary contact email'),
-  ('platform.support_email', '"ME@ABDULAZIZALSHOAIL.COM"', 'general', 'Support email'),
+  ('platform.contact_email', '"me@abdulazizalshoail.com"', 'general', 'Primary contact email'),
+  ('platform.support_email', '"me@abdulazizalshoail.com"', 'general', 'Support email'),
   ('platform.locations', '["Kuwait","Dubai"]', 'general', 'Primary locations'),
-  ('platform.social_handle', '"@ABDULAZIZ_ALSHOAIL"', 'general', 'Official social handle'),
+  ('platform.social_handle', '""', 'general', 'Official social handle'),
   ('platform.maintenance', 'false', 'general', 'Maintenance mode flag'),
   ('platform.language', '"en"', 'localization', 'Default language (English only in V1)'),
   ('branding.logo_url', '"/brand/logo.svg"', 'branding', 'Primary logo path'),
@@ -56,7 +56,7 @@ INSERT INTO public.settings (key, value, category, description) VALUES
   ('features.advertisements', 'false', 'features', 'Ads module flag'),
   ('features.courses', 'false', 'features', 'Courses module flag'),
   ('features.calendar', 'false', 'features', 'Calendar module flag'),
-  ('email.sender_email', '"ME@ABDULAZIZALSHOAIL.COM"', 'email', 'Default sender email'),
+  ('email.sender_email', '"me@abdulazizalshoail.com"', 'email', 'Default sender email'),
   ('security.max_upload_mb', '10', 'security', 'Max upload size in MB'),
   ('storage.provider', '"local"', 'storage', 'Storage provider')
 ON CONFLICT (key) DO UPDATE

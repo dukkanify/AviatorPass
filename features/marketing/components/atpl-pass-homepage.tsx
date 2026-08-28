@@ -401,9 +401,18 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-white/60">
             {CONTACT.body}
           </p>
-          <a href={`mailto:${siteStatic.supportEmail}`} className="atpl-contact-email">
+          <a
+            href={`mailto:${siteStatic.supportEmail}`}
+            className="atpl-contact-email"
+            aria-label={`Support ${siteStatic.supportEmail}`}
+          >
             <Mail className="h-5 w-5 text-accent" aria-hidden />
-            <span>{siteStatic.supportEmail}</span>
+            <span className="flex flex-col items-start text-left leading-tight sm:items-center sm:text-center">
+              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
+                Support
+              </span>
+              <span>{siteStatic.supportEmail}</span>
+            </span>
           </a>
         </div>
       </section>

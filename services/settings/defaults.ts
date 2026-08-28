@@ -4,6 +4,7 @@
  * Typography: Stimulatio Flat pending licensed files (Exo 2 substitute) + IBM Plex Sans.
  */
 
+import { siteStatic } from "@/config/site-static";
 import type { PlatformSettings } from "@/types/settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
@@ -11,9 +12,9 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     platformName: "AviatorPass",
     companyName: "AviatorPass",
     websiteUrl: "https://dubai-test.blog",
-    contactEmail: "ME@ABDULAZIZALSHOAIL.COM",
+    contactEmail: siteStatic.contactEmail,
     contactPhone: "",
-    supportEmail: "ME@ABDULAZIZALSHOAIL.COM",
+    supportEmail: siteStatic.supportEmail,
     defaultTimezone: "Asia/Kuwait",
     defaultLanguage: "en",
     dateFormat: "MMM d, yyyy",
@@ -24,12 +25,12 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     platformStatus: "online",
     primaryLocations: ["Kuwait", "Dubai"],
     footerText: "Professional Aviation Education Platform for ATPL Training.",
-    socialHandle: "@ABDULAZIZ_ALSHOAIL",
+    socialHandle: siteStatic.socialHandle,
     socialLinks: {
-      instagram: "https://instagram.com/ABDULAZIZ_ALSHOAIL",
-      twitter: "https://x.com/ABDULAZIZ_ALSHOAIL",
-      linkedin: "",
-      youtube: "",
+      instagram: siteStatic.social.instagram,
+      twitter: siteStatic.social.twitter,
+      linkedin: siteStatic.social.linkedin,
+      youtube: siteStatic.social.youtube,
     },
   },
   branding: {
@@ -59,8 +60,8 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     smtpPassword: "",
     encryption: "tls",
     senderName: "AviatorPass",
-    senderEmail: "ME@ABDULAZIZALSHOAIL.COM",
-    replyToEmail: "ME@ABDULAZIZALSHOAIL.COM",
+    senderEmail: siteStatic.supportEmail,
+    replyToEmail: siteStatic.supportEmail,
   },
   notifications: {
     emailNotifications: true,
@@ -164,7 +165,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   },
   zoom: {
     enabled: true,
-    accountEmail: "ME@ABDULAZIZALSHOAIL.COM",
+    accountEmail: siteStatic.supportEmail,
     defaultWaitingRoom: true,
     defaultPasscode: true,
     defaultMeetingType: "meeting",

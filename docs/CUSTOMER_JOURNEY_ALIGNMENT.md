@@ -4,12 +4,12 @@ Audit + implementation map for the four AviatorPass customer-journey PDFs.
 
 ## Source PDFs (byte-matched to client uploads)
 
-| Journey PDF (repo) | Original client filename | Public path |
-| ------------------ | ------------------------ | ----------- |
-| `Basics_Customer_Journey_AR.pdf` | Aviator_Pass_Basics of Aviation_Customer_Journey_AR.pdf | `/brand/source/journeys/Basics_Customer_Journey_AR.pdf` |
-| `PPL_Customer_Journey_AR.pdf` | Aviator_Pass_Private Pilot License_Customer_Journey_AR.pdf | `/brand/source/journeys/PPL_Customer_Journey_AR.pdf` |
-| `ATPL_Package_Customer_Journey_AR.pdf` | Aviator_Pass_ِِATPL Package_Exam_Customer_Journey_AR.pdf | `/brand/source/journeys/ATPL_Package_Customer_Journey_AR.pdf` |
-| `ELP_Mock_Customer_Journey_AR.pdf` | Aviator_Pass_ELP Mock_Exam_Customer_Journey_AR.pdf | `/brand/source/journeys/ELP_Mock_Customer_Journey_AR.pdf` |
+| Journey PDF (repo)                     | Original client filename                                   | Public path                                                   |
+| -------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `Basics_Customer_Journey_AR.pdf`       | Aviator_Pass_Basics of Aviation_Customer_Journey_AR.pdf    | `/brand/source/journeys/Basics_Customer_Journey_AR.pdf`       |
+| `PPL_Customer_Journey_AR.pdf`          | Aviator_Pass_Private Pilot License_Customer_Journey_AR.pdf | `/brand/source/journeys/PPL_Customer_Journey_AR.pdf`          |
+| `ATPL_Package_Customer_Journey_AR.pdf` | Aviator_Pass_ِِATPL Package_Exam_Customer_Journey_AR.pdf   | `/brand/source/journeys/ATPL_Package_Customer_Journey_AR.pdf` |
+| `ELP_Mock_Customer_Journey_AR.pdf`     | Aviator_Pass_ELP Mock_Exam_Customer_Journey_AR.pdf         | `/brand/source/journeys/ELP_Mock_Customer_Journey_AR.pdf`     |
 
 Folder: `public/brand/source/journeys/` (see README there).
 
@@ -31,7 +31,7 @@ Folder: `public/brand/source/journeys/` (see README there).
 | Publish live XOR recorded        | Super Admin publishing filter + per-course hide (`services/courses/publishing.ts`) |
 | Single-session / anti-share      | `singleDeviceLogin` + max concurrent sessions + watermark deterrents               |
 | No screenshot/recording          | UI deterrents in learning player (browser cannot fully block capture)              |
-| Course detail fields             | Objectives, hours, language AR/EN, Captain Abdulaziz, price, enroll CTA            |
+| Course detail fields             | Objectives, hours, language AR/EN, AviatorPass instructor, price, enroll CTA       |
 | Tabby KW / Tamara UAE            | `regional-rules-service` exclusivity + installments 4/5/6                          |
 | Invoice to student + Super Admin | Invoice/receipt emails + `admin_alert` on paid checkout                            |
 | Course available email           | Payment automation event after successful checkout                                 |

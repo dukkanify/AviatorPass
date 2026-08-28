@@ -157,7 +157,7 @@ function seedDemoNotifications(): void {
       {
         userId: student.id,
         title: "New message from your instructor",
-        body: "Captain Abdulaziz replied about the NOTAM interpretation question.",
+        body: "Your AviatorPass instructor replied about the NOTAM interpretation question.",
         channel: "in_app",
         type: "message",
         category: "messaging",

@@ -10,9 +10,9 @@
 | ---------------- | ----------------------------------------------------------- |
 | Platform name    | AviatorPass                                                 |
 | Language         | English only                                                |
-| Official email   | ME@ABDULAZIZALSHOAIL.COM                                    |
+| Official email   | me@abdulazizalshoail.com                                    |
 | Locations        | Kuwait · Dubai                                              |
-| Social           | @ABDULAZIZ_ALSHOAIL                                         |
+| Social           | AviatorPass (no personal client handles)                    |
 | Meta description | Professional Aviation Education Platform for ATPL Training. |
 
 Sources of truth:
