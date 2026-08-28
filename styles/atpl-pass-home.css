@@ -434,6 +434,57 @@
   color: white;
 }
 
+.atpl-landing-page {
+  padding-bottom: 4.5rem;
+}
+
+.atpl-stat-card {
+  padding: 1.25rem 1.35rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(20, 48, 72, 0.07);
+  background: white;
+  box-shadow: 0 4px 24px -14px rgba(20, 48, 72, 0.1);
+}
+
+.atpl-phase-card {
+  padding: 1.5rem;
+  border-radius: 1.125rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.atpl-review-card {
+  padding: 1.75rem;
+  border-radius: 1.125rem;
+  border: 1px solid rgba(20, 48, 72, 0.07);
+  background: white;
+  box-shadow: 0 4px 28px -14px rgba(20, 48, 72, 0.1);
+}
+
+.atpl-pricing-card {
+  padding: 2rem 1.75rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(204, 160, 76, 0.28);
+  background: white;
+  box-shadow: 0 16px 48px -24px rgba(20, 48, 72, 0.2);
+}
+
+.atpl-faq-item {
+  border-color: rgba(20, 48, 72, 0.08);
+}
+
+.atpl-sticky-enrol {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 35;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 42, 61, 0.94);
+  backdrop-filter: blur(18px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .atpl-program-detail-item {
   display: flex;
   align-items: flex-start;
@@ -462,10 +513,7 @@
    `cover` fill behind it so the hero never letterboxes to empty space. */
 @media (max-width: 768px) {
   .atpl-hero-bg {
-    background-size:
-      contain,
-      cover,
-      cover;
+    background-size: contain, cover, cover;
     background-position:
       center 15%,
       center 62%,

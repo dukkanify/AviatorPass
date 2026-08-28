@@ -8,6 +8,7 @@ import { listProducts } from "@/services/payments/catalog-service";
 import { formatMinor } from "@/services/payments/money";
 
 export type AtplProgramMarketing = {
+  landingHref: string;
   enrollHref: string;
   priceLabel: string | null;
 };
@@ -19,6 +20,7 @@ export function getAtplProgramMarketing(): AtplProgramMarketing {
       listProducts({ activeOnly: true }).find((p) => p.metadata?.sku === "ATPL-PACKAGE") ?? null;
     if (product) {
       return {
+        landingHref: routes.atpl,
         enrollHref: `${routes.checkout}?productId=${product.id}`,
         priceLabel: formatMinor(product.priceAmount, product.currency),
       };
@@ -26,5 +28,5 @@ export function getAtplProgramMarketing(): AtplProgramMarketing {
   } catch (error) {
     console.error("[atpl-program-marketing]", error);
   }
-  return { enrollHref: routes.checkout, priceLabel: null };
+  return { landingHref: routes.atpl, enrollHref: routes.checkout, priceLabel: null };
 }

@@ -1,17 +1,77 @@
 import Link from "@/components/ui/app-link";
-import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  Award,
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
+  GraduationCap,
+  Layers3,
+  MonitorPlay,
+  Shield,
+  Star,
+  Users,
+  Video,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { LEARNING_METHOD, PAYMENTS, PROGRAM } from "@/features/marketing/content/atpl-pass-home";
 import { routes } from "@/constants/routes";
+import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
+import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
+import {
+  ATPL_LANDING_HERO,
+  ATPL_SUBJECTS_14,
+  COURSE_BENEFITS,
+  COURSE_OVERVIEW,
+  COURSE_STRUCTURE,
+  LEARNING_OUTCOMES,
+  PRICING,
+  STUDENT_REVIEWS,
+  WHO_SHOULD_JOIN,
+} from "@/features/marketing/content/atpl-course-landing";
+import {
+  INSTRUCTORS,
+  LEARNING_METHOD,
+  PLATFORM_FEATURES,
+} from "@/features/marketing/content/atpl-pass-home";
+
+const PLATFORM_ICONS = [
+  Video,
+  MonitorPlay,
+  BarChart3,
+  Award,
+  GraduationCap,
+  BookOpen,
+  BookOpen,
+  Shield,
+  MonitorPlay,
+] as const;
 
 type AtplProgramPageProps = {
-  subjects: Array<{ code: string; title: string; shortDescription: string }>;
   enrollHref: string;
   priceLabel: string | null;
 };
 
-function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgramPageProps) {
+function EnrolButton({
+  enrollHref,
+  className,
+  size = "lg",
+}: {
+  enrollHref: string;
+  className?: string;
+  size?: "lg" | "sm";
+}) {
+  return (
+    <Button size={size} variant="accent" className={className} asChild>
+      <Link href={enrollHref}>
+        Enrol in ATPL PASS
+        <ArrowUpRight className="h-4 w-4" />
+      </Link>
+    </Button>
+  );
+}
+
+function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps) {
   return (
     <>
       <section className="atpl-program-hero relative isolate overflow-hidden">
@@ -29,26 +89,30 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
           aria-hidden
         />
         <div className="container-app relative z-10 py-20 sm:py-28 lg:py-32">
-          <p className="atpl-kicker atpl-kicker-hero">ATPL Program</p>
-          <h1 className="mt-6 max-w-[16ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-bold leading-[1.06] tracking-[-0.035em] text-white">
-            One program. Complete ATPL preparation.
+          <p className="atpl-kicker atpl-kicker-hero">{ATPL_LANDING_HERO.kicker}</p>
+          <h1 className="mt-6 max-w-[18ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-bold leading-[1.06] tracking-[-0.035em] text-white">
+            {ATPL_LANDING_HERO.headline}
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/68 sm:text-lg">
-            {PROGRAM.description}
+            {ATPL_LANDING_HERO.subheadline}
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            {PROGRAM.badges.map((badge) => (
-              <span key={badge} className="atpl-badge">
-                {badge}
-              </span>
+          <ul className="mt-8 flex flex-col gap-2 text-sm text-white/75 sm:text-base">
+            {ATPL_LANDING_HERO.proof.map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                {line}
+              </li>
             ))}
-          </div>
+          </ul>
           <div className="mt-12 flex flex-wrap items-center gap-4">
-            <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
-              <Link href={enrollHref}>
-                Enrol in ATPL PASS
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
+              asChild
+            >
+              <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
             </Button>
             {priceLabel ? (
               <p className="text-sm font-medium text-white/70">
@@ -59,48 +123,80 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
         </div>
       </section>
 
-      <section className="atpl-section atpl-section-light">
+      <section className="atpl-section atpl-section-light" aria-labelledby="overview-heading">
         <div className="container-app">
-          <h2 className="atpl-heading max-w-[20ch]">What you receive</h2>
-          <p className="mt-4 max-w-2xl text-muted-foreground">
-            Competency-based training — no fixed timelines. Progress at the pace your instructor
-            guides, with continuous assessment and live instruction throughout.
-          </p>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PROGRAM.includes.map((item) => (
-              <div key={item} className="atpl-program-detail-item">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" aria-hidden />
-                <span>{item}</span>
+          <p className="atpl-kicker">{COURSE_OVERVIEW.kicker}</p>
+          <h2 id="overview-heading" className="atpl-heading mt-4 max-w-[20ch]">
+            {COURSE_OVERVIEW.title}
+          </h2>
+          <p className="mt-5 max-w-2xl text-muted-foreground">{COURSE_OVERVIEW.body}</p>
+          <div className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {COURSE_OVERVIEW.stats.map((stat) => (
+              <div key={stat.label} className="atpl-stat-card">
+                <p className="font-display text-3xl font-semibold text-[var(--landing-ink-soft)]">
+                  {stat.value}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="atpl-section atpl-section-accent">
+      <section className="atpl-section atpl-section-accent" aria-labelledby="who-heading">
         <div className="container-app">
-          <h2 className="atpl-heading">{LEARNING_METHOD.title}</h2>
-          <p className="mt-5 max-w-2xl text-muted-foreground">{LEARNING_METHOD.body}</p>
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-            {LEARNING_METHOD.points.map((point) => (
-              <li key={point} className="atpl-learning-point">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-                <span className="text-sm font-medium leading-relaxed">{point}</span>
+          <p className="atpl-kicker">{WHO_SHOULD_JOIN.kicker}</p>
+          <h2 id="who-heading" className="atpl-heading mt-4 max-w-[18ch]">
+            {WHO_SHOULD_JOIN.title}
+          </h2>
+          <p className="mt-5 max-w-2xl text-muted-foreground">{WHO_SHOULD_JOIN.intro}</p>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2">
+            {WHO_SHOULD_JOIN.profiles.map((profile) => (
+              <article key={profile.title} className="atpl-platform-card">
+                <Users className="size-5 text-accent" aria-hidden />
+                <h3 className="mt-4 font-display text-lg font-semibold text-[var(--landing-ink-soft)]">
+                  {profile.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{profile.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-light" aria-labelledby="outcomes-heading">
+        <div className="container-app">
+          <p className="atpl-kicker">{LEARNING_OUTCOMES.kicker}</p>
+          <h2 id="outcomes-heading" className="atpl-heading mt-4 max-w-[18ch]">
+            {LEARNING_OUTCOMES.title}
+          </h2>
+          <ul className="mt-10 grid gap-3 sm:grid-cols-2">
+            {LEARNING_OUTCOMES.items.map((item) => (
+              <li key={item} className="atpl-program-detail-item">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                <span>{item}</span>
               </li>
             ))}
           </ul>
         </div>
       </section>
 
-      <section className="atpl-section atpl-section-light">
+      <section
+        id="subjects"
+        className="atpl-section atpl-section-light scroll-mt-28"
+        aria-labelledby="subjects-heading"
+      >
         <div className="container-app">
-          <h2 className="atpl-heading max-w-[22ch]">ATPL subjects included in your enrollment</h2>
+          <p className="atpl-kicker">14 ATPL subjects</p>
+          <h2 id="subjects-heading" className="atpl-heading mt-4 max-w-[22ch]">
+            Every theory paper in one enrolment
+          </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            Every subject below is a module within the ATPL Program. One enrollment unlocks all
-            modules — no separate purchases required.
+            Fourteen Airline Transport Pilot License theory subjects. Included with ATPL PASS — no
+            separate purchases.
           </p>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {subjects.map((subject) => (
+            {ATPL_SUBJECTS_14.map((subject) => (
               <article key={subject.code} className="atpl-subject-card">
                 <span className="atpl-subject-code">{subject.code}</span>
                 <h3 className="mt-3 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
@@ -113,50 +209,205 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
               </article>
             ))}
           </div>
+          <div className="mt-12">
+            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
+          </div>
         </div>
       </section>
 
-      <section className="atpl-section atpl-section-light">
+      <section className="atpl-section atpl-section-dark" aria-labelledby="structure-heading">
         <div className="container-app">
-          <h2 className="atpl-heading">{PAYMENTS.title}</h2>
-          <p className="mt-4 max-w-2xl text-muted-foreground">{PAYMENTS.intro}</p>
-          <div className="mt-10 grid gap-8 lg:grid-cols-2">
-            {PAYMENTS.regions.map((region) => (
-              <div key={region.country} className="atpl-payment-region">
-                <h3 className="font-display text-xl font-semibold text-[var(--landing-ink-soft)]">
-                  {region.country}
+          <p className="atpl-kicker">{COURSE_STRUCTURE.kicker}</p>
+          <h2 id="structure-heading" className="atpl-heading-light mt-4 max-w-[18ch]">
+            {COURSE_STRUCTURE.title}
+          </h2>
+          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {COURSE_STRUCTURE.phases.map((phase) => (
+              <article key={phase.step} className="atpl-phase-card">
+                <p className="font-display text-sm font-semibold tracking-[0.2em] text-accent">
+                  {phase.step}
+                </p>
+                <h3 className="mt-3 font-display text-xl font-semibold text-white">
+                  {phase.title}
                 </h3>
-                <div className="mt-6 space-y-4">
-                  {region.methods.map((method) => (
-                    <div key={method.name} className="atpl-payment-method">
-                      <span className="atpl-payment-badge">{method.name}</span>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {method.description}
-                      </p>
-                    </div>
+                <p className="mt-3 text-sm leading-relaxed text-white/60">{phase.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-accent" aria-labelledby="method-heading">
+        <div className="container-app">
+          <p className="atpl-kicker">{LEARNING_METHOD.kicker}</p>
+          <h2 id="method-heading" className="atpl-heading mt-4">
+            {LEARNING_METHOD.title}
+          </h2>
+          <p className="mt-5 max-w-2xl text-muted-foreground">{LEARNING_METHOD.body}</p>
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2">
+            {LEARNING_METHOD.points.map((point) => (
+              <li key={point} className="atpl-learning-point">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                <span className="text-sm font-medium leading-relaxed">{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section
+        id="instructors"
+        className="atpl-section atpl-section-instructors scroll-mt-28"
+        aria-labelledby="instructors-heading"
+      >
+        <div className="container-app">
+          <p className="atpl-kicker">{INSTRUCTORS.kicker}</p>
+          <h2 id="instructors-heading" className="atpl-heading-light mt-4 max-w-[20ch]">
+            {INSTRUCTORS.title}
+          </h2>
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/62">
+            {INSTRUCTORS.intro}
+          </p>
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {INSTRUCTORS.highlights.map((h) => (
+              <article key={h.title} className="atpl-instructor-card">
+                <h3 className="font-display text-base font-semibold text-white">{h.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/55">{h.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-light" aria-labelledby="platform-heading">
+        <div className="container-app">
+          <p className="atpl-kicker">{PLATFORM_FEATURES.kicker}</p>
+          <h2 id="platform-heading" className="atpl-heading mt-4 max-w-[20ch]">
+            {PLATFORM_FEATURES.title}
+          </h2>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PLATFORM_FEATURES.items.map((item, index) => {
+              const Icon = PLATFORM_ICONS[index] ?? Layers3;
+              return (
+                <article key={item.title} className="atpl-platform-card">
+                  <Icon className="size-5 text-accent" aria-hidden />
+                  <h3 className="mt-4 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-light" aria-labelledby="benefits-heading">
+        <div className="container-app">
+          <p className="atpl-kicker">{COURSE_BENEFITS.kicker}</p>
+          <h2 id="benefits-heading" className="atpl-heading mt-4 max-w-[18ch]">
+            {COURSE_BENEFITS.title}
+          </h2>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {COURSE_BENEFITS.items.map((item) => (
+              <article key={item.title} className="atpl-platform-card">
+                <CheckCircle2 className="size-5 text-accent" aria-hidden />
+                <h3 className="mt-4 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-accent" aria-labelledby="reviews-heading">
+        <div className="container-app">
+          <p className="atpl-kicker">{STUDENT_REVIEWS.kicker}</p>
+          <h2 id="reviews-heading" className="atpl-heading mt-4 max-w-[18ch]">
+            {STUDENT_REVIEWS.title}
+          </h2>
+          <div className="mt-12 grid gap-4 md:grid-cols-2">
+            {STUDENT_REVIEWS.items.map((review) => (
+              <blockquote key={review.name} className="atpl-review-card">
+                <div className="flex gap-1 text-accent" aria-label="5 star rating">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="size-4 fill-current" aria-hidden />
                   ))}
                 </div>
-              </div>
+                <p className="mt-4 text-sm leading-relaxed text-[var(--landing-ink-soft)]">
+                  “{review.quote}”
+                </p>
+                <footer className="mt-5 text-sm">
+                  <cite className="not-italic font-semibold text-[var(--landing-ink-soft)]">
+                    {review.name}
+                  </cite>
+                  <p className="text-muted-foreground">{review.role}</p>
+                </footer>
+              </blockquote>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-light" aria-labelledby="faq-heading">
+        <div className="container-app max-w-3xl">
+          <p className="atpl-kicker">Frequently asked questions</p>
+          <h2 id="faq-heading" className="atpl-heading mt-4">
+            Before you enrol
+          </h2>
+          <div className="mt-10">
+            <AtplCourseFaq />
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="pricing"
+        className="atpl-section atpl-section-light scroll-mt-28"
+        aria-labelledby="pricing-heading"
+      >
+        <div className="container-app">
+          <p className="atpl-kicker">{PRICING.kicker}</p>
+          <h2 id="pricing-heading" className="atpl-heading mt-4 max-w-[16ch]">
+            {PRICING.title}
+          </h2>
+          <div className="atpl-pricing-card mx-auto mt-12 max-w-xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent">
+              {PRICING.name}
+            </p>
+            <p className="mt-3 font-display text-4xl font-semibold tracking-tight text-[var(--landing-ink-soft)]">
+              {priceLabel ?? "Stripe Checkout"}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{PRICING.blurb}</p>
+            <ul className="mt-8 space-y-3">
+              {PRICING.bullets.map((bullet) => (
+                <li key={bullet} className="flex gap-2 text-sm">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8">
+              <EnrolButton
+                enrollHref={enrollHref}
+                className="hero-cta-primary w-full px-10 sm:w-auto"
+              />
+            </div>
+            <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{PRICING.note}</p>
           </div>
         </div>
       </section>
 
       <section className="atpl-section atpl-section-final">
         <div className="container-app text-center">
-          <h2 className="atpl-heading-light mx-auto max-w-[18ch]">
-            Ready to enroll in the ATPL Program?
-          </h2>
+          <h2 className="atpl-heading-light mx-auto max-w-[18ch]">Ready to enrol in ATPL PASS?</h2>
           <p className="mx-auto mt-5 max-w-md text-white/55">
-            Begin with live instructor-led training and access to every ATPL subject.
+            Continue to secure checkout. No registration until payment succeeds.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
-              <Link href={enrollHref}>
-                Enrol in ATPL PASS
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
             <Button
               size="lg"
               variant="outline"
@@ -168,6 +419,8 @@ function AtplProgramPageContent({ subjects, enrollHref, priceLabel }: AtplProgra
           </div>
         </div>
       </section>
+
+      <AtplStickyEnrol enrollHref={enrollHref} priceLabel={priceLabel} />
     </>
   );
 }

@@ -38,6 +38,7 @@ describe("purchase-first ATPL enrollment", () => {
 
   it("points marketing Enrol CTAs at public checkout, not register", () => {
     const marketing = getAtplProgramMarketing();
+    expect(marketing.landingHref).toBe(routes.atpl);
     expect(marketing.enrollHref.startsWith(routes.checkout)).toBe(true);
     expect(marketing.enrollHref).not.toContain("/register");
     expect(marketing.enrollHref).not.toContain("/student/checkout");

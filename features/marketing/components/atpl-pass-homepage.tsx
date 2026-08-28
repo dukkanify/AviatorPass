@@ -63,14 +63,14 @@ const PLATFORM_ICONS = [
 
 type AtplPassHomepageProps = {
   subjects: Array<{ code: string; title: string; shortDescription: string }>;
-  enrollHref: string;
+  courseHref: string;
 };
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
   return <p className="atpl-kicker">{children}</p>;
 }
 
-function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
+function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
   return (
     <>
       {/* —— Hero —— */}
@@ -108,7 +108,7 @@ function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
 
           <div className="animate-in-up-delay-3 mt-12 flex flex-wrap items-center gap-3">
             <Button size="lg" variant="accent" className="hero-cta-primary px-9" asChild>
-              <Link href={enrollHref}>
+              <Link href={courseHref}>
                 {HERO.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
@@ -119,7 +119,7 @@ function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
               className="hero-cta-secondary border-white/25 bg-white/[0.06] px-8 text-white hover:bg-white/12 hover:text-white"
               asChild
             >
-              <Link href={routes.courses}>{HERO.secondaryCta}</Link>
+              <Link href={routes.atpl}>{HERO.secondaryCta}</Link>
             </Button>
           </div>
 
@@ -270,8 +270,8 @@ function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
 
           <div className="mt-12 flex flex-wrap gap-3">
             <Button size="lg" variant="accent" className="hero-cta-primary" asChild>
-              <Link href={enrollHref}>
-                Enroll in the ATPL Program
+              <Link href={courseHref}>
+                View the ATPL Course
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -281,7 +281,7 @@ function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
               className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
               asChild
             >
-              <Link href={routes.courses}>View Full Program Details</Link>
+              <Link href={routes.atpl}>View full course details</Link>
             </Button>
           </div>
         </div>
@@ -418,7 +418,7 @@ function AtplPassHomepage({ subjects, enrollHref }: AtplPassHomepageProps) {
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
-              <Link href={enrollHref}>
+              <Link href={courseHref}>
                 {FINAL_CTA.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>

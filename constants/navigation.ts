@@ -3,7 +3,7 @@ import type { Permission } from "@/constants/permissions";
 import type { Role } from "@/constants/roles";
 
 export const NAV_ITEMS = [
-  { label: "Program", href: "/courses" },
+  { label: "ATPL Course", href: "/atpl" },
   { label: "About", href: "/#about" },
   { label: "Instructors", href: "/#instructors" },
   { label: "Private Session", href: "/book" },
