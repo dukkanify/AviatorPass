@@ -46,6 +46,7 @@ type PayResult = {
     failureReason: string | null;
   };
   checkoutUrl: string | null;
+  redirectTo?: string | null;
   accountCreated: boolean;
   attachedToExisting: boolean;
   emailSent: boolean;
@@ -151,9 +152,12 @@ function GuestCheckoutView() {
         return;
       }
       if (paid.data.order.status === "paid") {
-        window.location.assign(
-          `${routes.welcome}?orderId=${encodeURIComponent(paid.data.order.id)}`,
-        );
+        const orderId = paid.data.order.id;
+        const redirectTo =
+          typeof paid.data.redirectTo === "string" && paid.data.redirectTo.startsWith("/")
+            ? paid.data.redirectTo
+            : `/welcome?orderId=${encodeURIComponent(orderId)}`;
+        window.location.assign(redirectTo);
         return;
       }
       setResult(paid.data);
