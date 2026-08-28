@@ -11,7 +11,7 @@ describe("sanitize", () => {
   });
 
   it("normalizes email", () => {
-    expect(sanitizeEmail("  Pilot@EagerPilots.COM ")).toBe("pilot@eagerpilots.com");
+    expect(sanitizeEmail("  Pilot@AviatorPass.COM ")).toBe("pilot@aviatorpass.com");
   });
 
   it("truncates with ellipsis", () => {

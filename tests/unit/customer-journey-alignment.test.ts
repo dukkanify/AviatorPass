@@ -44,7 +44,7 @@ describe("customer journey alignment", () => {
     expect(pplRec.deliveryType).toBe("recorded");
     const pplLive = courses.find((c) => c.code === "PPL-LIVE-01")!;
     expect(pplLive.deliveryType).toBe("live");
-    const instructor = readAuthDb().users.find((u) => u.email === "instructor.one@eagerpilots.com");
+    const instructor = readAuthDb().users.find((u) => u.email === "instructor@aviatorpass.com");
     expect(instructor?.role).toBe(ROLES.INSTRUCTOR);
     expect(`${instructor?.firstName} ${instructor?.lastName}`).toBe("Khalid Al Rashid");
   });

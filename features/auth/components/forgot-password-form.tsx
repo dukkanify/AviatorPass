@@ -44,7 +44,7 @@ function ForgotPasswordForm() {
       }
 
       const params = new URLSearchParams({
-        email: parsed.data.email,
+        email: result.data?.email ?? parsed.data.email,
         purpose: "reset_password",
       });
       router.push(`${routes.verifyOtp}?${params.toString()}`);
@@ -60,6 +60,8 @@ function ForgotPasswordForm() {
         <Input
           id="email"
           type="email"
+          autoComplete="email"
+          placeholder="student@aviatorpass.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

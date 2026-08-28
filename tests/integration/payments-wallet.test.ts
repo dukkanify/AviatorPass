@@ -22,7 +22,7 @@ describe("payments ↔ wallet", () => {
   });
 
   it("creates instructor wallet ledger entry point", () => {
-    const instructor = findUserByEmail("instructor.one@eagerpilots.com");
+    const instructor = findUserByEmail("instructor@aviatorpass.com");
     expect(instructor).toBeTruthy();
     const wallet = ensureWallet(instructor!.id);
     expect(wallet.instructorId).toBe(instructor!.id);

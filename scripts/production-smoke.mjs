@@ -5,9 +5,9 @@
  */
 const BASE = (process.argv[2] || "https://www.aviatorpass.com").replace(/\/$/, "");
 const DEMO = {
-  student: "student.one@eagerpilots.com",
-  instructor: "instructor.one@eagerpilots.com",
-  superadmin: "superadmin@eagerpilots.com",
+  student: "student@aviatorpass.com",
+  instructor: "instructor@aviatorpass.com",
+  superadmin: "superadmin@aviatorpass.com",
   password: "DemoPass123!",
 };
 
@@ -114,7 +114,7 @@ async function main() {
     if (page.status !== 200) throw new Error(`/register ${page.status}`);
     const jar = await boot();
     const stamp = `${Date.now()}`.slice(-7);
-    const email = `smoke.${Date.now()}@eagerpilots.com`;
+    const email = `smoke.${Date.now()}@aviatorpass.com`;
     const otp = await send(jar, "POST", "/api/auth/otp/request", {
       email,
       firstName: "Smoke",
@@ -144,7 +144,7 @@ async function main() {
       productId,
       firstName: "Smoke",
       lastName: "Buyer",
-      email: `buyer.smoke.${Date.now()}@eagerpilots.com`,
+      email: `buyer.smoke.${Date.now()}@aviatorpass.com`,
       phone: "+96550999222",
       country: "KW",
       methodBrand: "card",

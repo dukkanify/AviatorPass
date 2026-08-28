@@ -1,6 +1,7 @@
 import { getServerEnv } from "@/config/env";
 import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-status";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { getPermissionsForRole, ROLE_DASHBOARD, ROLES, type Role } from "@/constants/roles";
 import {
   clearSessionCookies,
@@ -292,7 +293,7 @@ export async function requestOtp(input: {
     ensurePlatformDemoEnvironment();
   }
 
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const existing = findUserByEmail(email);
 
   if (input.purpose === "login" && !existing) {
@@ -431,7 +432,7 @@ export async function verifyOtp(input: {
 > {
   ensureSuperAdminSeeded();
 
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const validated = await validateOtpToken({
     email,
     purpose: input.purpose,
@@ -629,7 +630,8 @@ export async function verifyOtp(input: {
 
   if (input.purpose === "reset_password") {
     const resetChallenge = readAuthDb().otps.find(
-      (o) => o.email === email && o.purpose === "reset_password" && o.meta.verified,
+      (o) =>
+        demoEmailsEquivalent(o.email, email) && o.purpose === "reset_password" && o.meta.verified,
     );
     return {
       success: true,
@@ -711,11 +713,11 @@ export async function resetPassword(input: {
   password: string;
   ctx?: RequestContext;
 }): Promise<ApiResponse<{ email: string }>> {
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const db = readAuthDb();
   const challenge = db.otps.find(
     (o) =>
-      o.email === email &&
+      demoEmailsEquivalent(o.email, email) &&
       o.purpose === "reset_password" &&
       o.meta.verified &&
       o.meta.resetToken === input.resetToken,
@@ -994,7 +996,10 @@ export async function passwordLogin(input: {
   }>
 > {
   ensureSuperAdminSeeded();
-  const email = sanitizeEmail(input.email);
+  if (demoOtpEnabled()) {
+    ensureDemoUsersSeeded();
+  }
+  const email = canonicalDemoEmail(input.email);
   const user = findUserByEmail(email);
 
   if (!user) {

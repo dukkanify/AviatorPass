@@ -65,7 +65,7 @@ describe("chief ground instructor (CR004)", () => {
 
   it("seeds a CGI demo user", () => {
     const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR);
-    expect(cgi?.email).toBe("cgi@eagerpilots.com");
+    expect(cgi?.email).toBe("cgi@aviatorpass.com");
   });
 
   it("distributes subjects, chooses first subject, and assigns lectures", async () => {

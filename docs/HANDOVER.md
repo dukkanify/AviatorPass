@@ -45,7 +45,7 @@ Remaining client actions:
 | Production URL    | _fill after Vercel promote_              |
 | Staging URL       | _fill after preview deploy_              |
 | Source repository | GitHub — access per contract             |
-| Super Admin       | rotate demo `superadmin@eagerpilots.com` |
+| Super Admin       | rotate demo `superadmin@aviatorpass.com` |
 | Demo OTP          | **Disable** (`ENABLE_DEMO_OTP=false`)    |
 
 ## Training

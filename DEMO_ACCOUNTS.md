@@ -12,11 +12,12 @@
    ```bash
    ENABLE_DEMO_OTP=true
    DEMO_OTP_CODE=123456
-   SUPER_ADMIN_EMAIL=superadmin@eagerpilots.com
+   SUPER_ADMIN_EMAIL=superadmin@aviatorpass.com
    ```
 2. Start the app: `npm run dev`
-3. Open `/login`, enter a demo email, request OTP, enter **`123456`**.
-4. Or reset everything via Super Admin API: `POST /api/admin/demo/reset`
+3. Open `/login`, enter a demo email, request OTP, enter **`123456`**. Non-production login and forgot-password pages list the four primary AviatorPass demo addresses plus `DemoPass123!`.
+4. Or sign in with the temporary password **`DemoPass123!`**.
+5. Reset everything via Super Admin API: `POST /api/admin/demo/reset`
 
 ---
 
@@ -24,16 +25,16 @@
 
 | Role                        | Email                             | Status    | Verified | Permanent |
 | --------------------------- | --------------------------------- | --------- | -------- | --------- |
-| **Super Admin**             | `superadmin@eagerpilots.com`      | Active    | Yes      | Yes       |
-| **Administrator**           | `admin@eagerpilots.com`           | Active    | Yes      | Yes       |
-| **Chief Ground Instructor** | `cgi@eagerpilots.com`             | Active    | Yes      | Yes       |
-| **Instructor (primary)**    | `instructor.one@eagerpilots.com`  | Active    | Yes      | Yes       |
-| **Instructor (secondary)**  | `instructor.two@eagerpilots.com`  | Active    | Yes      | No        |
-| **Student (primary demo)**  | `student.one@eagerpilots.com`     | Active    | Yes      | Yes       |
-| **Student**                 | `student.two@eagerpilots.com`     | Active    | Yes      | No        |
-| **Student (pending)**       | `student.three@eagerpilots.com`   | Pending   | Yes      | No        |
-| **Student (suspended)**     | `student.four@eagerpilots.com`    | Suspended | Yes      | No        |
-| **Student (journey)**       | `student.journey@eagerpilots.com` | Active    | Yes      | No        |
+| **Super Admin**             | `superadmin@aviatorpass.com`      | Active    | Yes      | Yes       |
+| **Administrator**           | `admin@aviatorpass.com`           | Active    | Yes      | Yes       |
+| **Chief Ground Instructor** | `cgi@aviatorpass.com`             | Active    | Yes      | Yes       |
+| **Instructor (primary)**    | `instructor@aviatorpass.com`      | Active    | Yes      | Yes       |
+| **Instructor (secondary)**  | `instructor.two@aviatorpass.com`  | Active    | Yes      | No        |
+| **Student (primary demo)**  | `student@aviatorpass.com`         | Active    | Yes      | Yes       |
+| **Student**                 | `student.two@aviatorpass.com`     | Active    | Yes      | No        |
+| **Student (pending)**       | `student.three@aviatorpass.com`   | Pending   | Yes      | No        |
+| **Student (suspended)**     | `student.four@aviatorpass.com`    | Suspended | Yes      | No        |
+| **Student (journey)**       | `student.journey@aviatorpass.com` | Active    | Yes      | No        |
 
 ---
 
@@ -50,25 +51,25 @@ Login UI is OTP-first. The temporary password is hashed onto demo accounts so **
 
 ## Assigned permissions
 
-### Super Admin (`superadmin@eagerpilots.com`)
+### Super Admin (`superadmin@aviatorpass.com`)
 
 Full system access — no restrictions. Includes:
 
 Dashboard · User Management · Role Management · Course / Subject Management · Student / Instructor / CGI Management · Booking · Payments · Reports · Certificates · Notifications · Messaging · Blog · Community · Zoom · Email Templates · Platform Settings · Branding · Analytics · Security · Audit Logs
 
-### Administrator (`admin@eagerpilots.com`)
+### Administrator (`admin@aviatorpass.com`)
 
 Admin dashboard permissions: students, instructors, courses, classes, communities, reports, blog, messaging, announcements, support, calendar, bookings.
 
-### Chief Ground Instructor (`cgi@eagerpilots.com`)
+### Chief Ground Instructor (`cgi@aviatorpass.com`)
 
 CGI dashboard: subject / lecture distribution, instructor assignment, schedule oversight, student monitoring, ATPL first-subject control.
 
-### Instructor (`instructor.one@eagerpilots.com`)
+### Instructor (`instructor@aviatorpass.com`)
 
 Instructor dashboard: own courses, students, schedule, Zoom sessions, attendance, quizzes, assignments, certificates, earnings, reports.
 
-### Student (`student.one@eagerpilots.com`)
+### Student (`student@aviatorpass.com`)
 
 Student dashboard: enrolled courses, calendar, bookings, live classes, assignments, quizzes, certificates, notifications, messaging, billing.
 

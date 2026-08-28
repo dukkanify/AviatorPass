@@ -3,9 +3,10 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { PRIMARY_DEMO_EMAILS, remapLegacyDemoEmail } from "@/constants/demo-accounts";
 import { ensureSupportOpsStore, writeSupportOpsStore } from "@/services/support-ops/store";
 
-const TARGET_SEED_VERSION = 2;
+const TARGET_SEED_VERSION = 3;
 
 function applyV1Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: number) => string) {
   db.releases = [
@@ -113,8 +114,8 @@ function applyV1Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
       channel: "ticket",
       priority: "high",
       status: "in_progress",
-      requesterEmail: "student.one@eagerpilots.com",
-      requesterName: "Student One",
+      requesterEmail: PRIMARY_DEMO_EMAILS.student,
+      requesterName: "Omar Khalil",
       assigneeId: null,
       firstResponseAt: iso(1),
       resolvedAt: null,
@@ -297,7 +298,7 @@ function applyV2Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
         rating: 5,
         title: "Smooth onboarding",
         comment: "Student dashboard and course enroll flow felt clear.",
-        submitterEmail: "student.one@eagerpilots.com",
+        submitterEmail: PRIMARY_DEMO_EMAILS.student,
         submitterRole: "student",
         linkedFeatureId: null,
         linkedBugId: null,
@@ -311,7 +312,7 @@ function applyV2Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
         rating: 4,
         title: "Calendar filters",
         comment: "Would like filters by subject on the live class calendar.",
-        submitterEmail: "instructor.one@eagerpilots.com",
+        submitterEmail: PRIMARY_DEMO_EMAILS.instructor,
         submitterRole: "instructor",
         linkedFeatureId: null,
         linkedBugId: null,
@@ -408,8 +409,20 @@ function applyV2Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
     db.counters.incident = Math.max(db.counters.incident, 1);
   }
 
-  db.seedVersion = TARGET_SEED_VERSION;
+  db.seedVersion = Math.max(db.seedVersion ?? 0, 2);
   db.seeded = true;
+}
+
+function applyV3Seed(db: ReturnType<typeof ensureSupportOpsStore>) {
+  for (const request of db.supportRequests) {
+    request.requesterEmail = remapLegacyDemoEmail(request.requesterEmail);
+  }
+  for (const item of db.feedback) {
+    if (item.submitterEmail) {
+      item.submitterEmail = remapLegacyDemoEmail(item.submitterEmail);
+    }
+  }
+  db.seedVersion = TARGET_SEED_VERSION;
 }
 
 export function ensureSupportOpsSeeded() {
@@ -420,9 +433,10 @@ export function ensureSupportOpsSeeded() {
   if (!db.seeded) {
     applyV1Seed(db, iso);
   }
-  if ((db.seedVersion ?? 0) < TARGET_SEED_VERSION) {
+  if ((db.seedVersion ?? 0) < 2) {
     applyV2Seed(db, iso);
   }
+  applyV3Seed(db);
   writeSupportOpsStore(db);
   return db;
 }

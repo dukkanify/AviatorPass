@@ -52,7 +52,7 @@ export type DemoAccountDefinition = {
 export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   {
     key: "super_admin",
-    email: "superadmin@eagerpilots.com",
+    email: "superadmin@aviatorpass.com",
     role: ROLES.SUPER_ADMIN,
     firstName: "Super",
     lastName: "Admin",
@@ -74,7 +74,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "admin",
-    email: "admin@eagerpilots.com",
+    email: "admin@aviatorpass.com",
     role: ROLES.ADMIN,
     firstName: "Amina",
     lastName: "Hassan",
@@ -96,7 +96,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "cgi",
-    email: "cgi@eagerpilots.com",
+    email: "cgi@aviatorpass.com",
     role: ROLES.CHIEF_GROUND_INSTRUCTOR,
     firstName: "Nadia",
     lastName: "Al Fahad",
@@ -118,7 +118,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "instructor",
-    email: "instructor.one@eagerpilots.com",
+    email: "instructor@aviatorpass.com",
     role: ROLES.INSTRUCTOR,
     firstName: "Khalid",
     lastName: "Al Rashid",
@@ -140,7 +140,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "instructor_secondary",
-    email: "instructor.two@eagerpilots.com",
+    email: "instructor.two@aviatorpass.com",
     role: ROLES.INSTRUCTOR,
     firstName: "Sara",
     lastName: "Al Mansoori",
@@ -162,7 +162,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "student",
-    email: "student.one@eagerpilots.com",
+    email: "student@aviatorpass.com",
     role: ROLES.STUDENT,
     firstName: "Omar",
     lastName: "Khalil",
@@ -184,7 +184,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "student_secondary",
-    email: "student.two@eagerpilots.com",
+    email: "student.two@aviatorpass.com",
     role: ROLES.STUDENT,
     firstName: "Layla",
     lastName: "Nasser",
@@ -206,7 +206,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "student_pending",
-    email: "student.three@eagerpilots.com",
+    email: "student.three@aviatorpass.com",
     role: ROLES.STUDENT,
     firstName: "Noah",
     lastName: "Brooks",
@@ -228,7 +228,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "student_suspended",
-    email: "student.four@eagerpilots.com",
+    email: "student.four@aviatorpass.com",
     role: ROLES.STUDENT,
     firstName: "Mia",
     lastName: "Chen",
@@ -250,7 +250,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
   },
   {
     key: "student_journey",
-    email: "student.journey@eagerpilots.com",
+    email: "student.journey@aviatorpass.com",
     role: ROLES.STUDENT,
     firstName: "Karim",
     lastName: "Nasser",
@@ -273,12 +273,49 @@ export const DEMO_ACCOUNTS: readonly DemoAccountDefinition[] = [
 ] as const;
 
 export const PRIMARY_DEMO_EMAILS = {
-  superAdmin: "superadmin@eagerpilots.com",
-  admin: "admin@eagerpilots.com",
-  cgi: "cgi@eagerpilots.com",
-  instructor: "instructor.one@eagerpilots.com",
-  student: "student.one@eagerpilots.com",
+  superAdmin: "superadmin@aviatorpass.com",
+  admin: "admin@aviatorpass.com",
+  cgi: "cgi@aviatorpass.com",
+  instructor: "instructor@aviatorpass.com",
+  student: "student@aviatorpass.com",
 } as const;
+
+/** Old EagerPilots demo mailboxes → current AviatorPass catalog emails. */
+export const LEGACY_DEMO_EMAIL_MAP: Readonly<Record<string, string>> = {
+  "superadmin@eagerpilots.com": PRIMARY_DEMO_EMAILS.superAdmin,
+  "admin@eagerpilots.com": PRIMARY_DEMO_EMAILS.admin,
+  "cgi@eagerpilots.com": PRIMARY_DEMO_EMAILS.cgi,
+  "instructor.one@eagerpilots.com": PRIMARY_DEMO_EMAILS.instructor,
+  "instructor@eagerpilots.com": PRIMARY_DEMO_EMAILS.instructor,
+  "instructor.two@eagerpilots.com": "instructor.two@aviatorpass.com",
+  "student.one@eagerpilots.com": PRIMARY_DEMO_EMAILS.student,
+  "student.two@eagerpilots.com": "student.two@aviatorpass.com",
+  "student.three@eagerpilots.com": "student.three@aviatorpass.com",
+  "student.four@eagerpilots.com": "student.four@aviatorpass.com",
+  "student.journey@eagerpilots.com": "student.journey@aviatorpass.com",
+};
+
+export function remapLegacyDemoEmail(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  return LEGACY_DEMO_EMAIL_MAP[normalized] ?? email.trim();
+}
+
+/** Canonical catalog email for demo aliases (EagerPilots → AviatorPass). */
+export function canonicalDemoEmail(email: string): string {
+  return remapLegacyDemoEmail(email).trim().toLowerCase();
+}
+
+export function demoEmailsEquivalent(a: string, b: string): boolean {
+  return canonicalDemoEmail(a) === canonicalDemoEmail(b);
+}
+
+export function rewriteLegacyDemoEmailsInText(value: string): string {
+  let next = value;
+  for (const [legacy, modern] of Object.entries(LEGACY_DEMO_EMAIL_MAP)) {
+    next = next.replaceAll(legacy, modern);
+  }
+  return next;
+}
 
 export function getDemoAccount(key: DemoAccountKey): DemoAccountDefinition {
   const found = DEMO_ACCOUNTS.find((a) => a.key === key);
@@ -287,13 +324,13 @@ export function getDemoAccount(key: DemoAccountKey): DemoAccountDefinition {
 }
 
 export function isPermanentDemoEmail(email: string): boolean {
-  const normalized = email.trim().toLowerCase();
-  return DEMO_ACCOUNTS.some((a) => a.permanent && a.email === normalized);
+  const canonical = canonicalDemoEmail(email);
+  return DEMO_ACCOUNTS.some((a) => a.permanent && a.email === canonical);
 }
 
 export function isDemoAccountEmail(email: string): boolean {
-  const normalized = email.trim().toLowerCase();
-  return DEMO_ACCOUNTS.some((a) => a.email === normalized);
+  const canonical = canonicalDemoEmail(email);
+  return DEMO_ACCOUNTS.some((a) => a.email === canonical);
 }
 
 export function listDemoAccountPermissions(role: Role): readonly string[] {

@@ -37,7 +37,7 @@ describe("getCurrentSession in RSC (no cookie writes)", () => {
 
   it("resolves a student from a signed JWT even when the session row is missing", async () => {
     const { getCurrentSession } = await import("@/services/auth/auth-service");
-    const student = findUserByEmail("student.one@eagerpilots.com");
+    const student = findUserByEmail("student@aviatorpass.com");
     expect(student).toBeTruthy();
 
     const rawToken = generateToken(24);
@@ -58,7 +58,7 @@ describe("getCurrentSession in RSC (no cookie writes)", () => {
     const result = await getCurrentSession();
 
     expect(setCalls).toHaveLength(0);
-    expect(result.user?.email).toBe("student.one@eagerpilots.com");
+    expect(result.user?.email).toBe("student@aviatorpass.com");
     expect(result.user?.role).toBe(ROLES.STUDENT);
   });
 });

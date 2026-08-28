@@ -45,7 +45,7 @@ describe("courses by instructor", () => {
     // Re-seed + re-read immediately so parallel suites cannot leave a stale id.
     ensureDemoUsersSeeded();
     const instructor =
-      readAuthDb().users.find((u) => u.email === "instructor@eagerpilots.com") ??
+      readAuthDb().users.find((u) => u.email === "instructor@aviatorpass.com") ??
       readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR);
     expect(instructor).toBeTruthy();
 

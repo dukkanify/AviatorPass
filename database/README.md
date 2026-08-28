@@ -44,7 +44,7 @@ When Supabase env vars are unset, the app uses `.data/aep-*.json` domains (auth,
 
 On first boot, a Super Admin is created from:
 
-- `SUPER_ADMIN_EMAIL` (default `superadmin@eagerpilots.com`)
+- `SUPER_ADMIN_EMAIL` (default `superadmin@aviatorpass.com`)
 - `SUPER_ADMIN_FIRST_NAME` / `SUPER_ADMIN_LAST_NAME`
 
 Sign in with that email and demo OTP `123456` (when `ENABLE_DEMO_OTP=true`). Production must set `ENABLE_DEMO_OTP=false`.

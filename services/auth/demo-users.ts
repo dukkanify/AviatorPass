@@ -7,6 +7,8 @@ import {
   DEMO_ACCOUNT_PASSWORD,
   DEMO_ACCOUNTS,
   demoAvatarDataUri,
+  remapLegacyDemoEmail,
+  rewriteLegacyDemoEmailsInText,
   type DemoAccountDefinition,
 } from "@/constants/demo-accounts";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
@@ -40,7 +42,7 @@ function migrateLegacyClientIdentities(): void {
   writeAuthDb((d) => {
     for (const user of d.users) {
       if (user.email.toLowerCase() === LEGACY_JOURNEY_STUDENT_EMAIL) {
-        user.email = "student.journey@eagerpilots.com";
+        user.email = "student.journey@aviatorpass.com";
       }
       const def = DEMO_ACCOUNTS.find((a) => a.email.toLowerCase() === user.email.toLowerCase());
       const blob = `${user.firstName} ${user.lastName} ${user.bio ?? ""}`;
@@ -59,9 +61,77 @@ function migrateLegacyClientIdentities(): void {
   });
 }
 
+function migrateLegacyDemoEmails(): void {
+  const snapshot = readAuthDb();
+  const userNeedsRewrite = snapshot.users.some(
+    (user) => remapLegacyDemoEmail(user.email).toLowerCase() !== user.email.toLowerCase(),
+  );
+  const otpNeedsRewrite = snapshot.otps.some(
+    (otp) => remapLegacyDemoEmail(otp.email).toLowerCase() !== otp.email.toLowerCase(),
+  );
+  const tokenNeedsRewrite = snapshot.passwordSetupTokens.some(
+    (token) => remapLegacyDemoEmail(token.email).toLowerCase() !== token.email.toLowerCase(),
+  );
+  const pendingNeedsRewrite = snapshot.pendingRegistrations.some(
+    (pending) => remapLegacyDemoEmail(pending.email).toLowerCase() !== pending.email.toLowerCase(),
+  );
+  const noteNeedsRewrite = snapshot.notifications.some((note) => {
+    const text = `${note.title} ${note.body}`;
+    return rewriteLegacyDemoEmailsInText(text) !== text;
+  });
+  if (
+    !userNeedsRewrite &&
+    !otpNeedsRewrite &&
+    !tokenNeedsRewrite &&
+    !pendingNeedsRewrite &&
+    !noteNeedsRewrite
+  ) {
+    return;
+  }
+
+  writeAuthDb((d) => {
+    const removeIds = new Set<string>();
+    for (const user of d.users) {
+      if (removeIds.has(user.id)) continue;
+      const next = remapLegacyDemoEmail(user.email);
+      if (next.toLowerCase() === user.email.toLowerCase()) continue;
+      const occupant = d.users.find(
+        (other) =>
+          other.id !== user.id &&
+          !removeIds.has(other.id) &&
+          other.email.toLowerCase() === next.toLowerCase(),
+      );
+      if (occupant) {
+        const isDemoMailbox = DEMO_ACCOUNTS.some((account) => account.email === next.toLowerCase());
+        if (!isDemoMailbox) continue;
+        removeIds.add(occupant.id);
+      }
+      user.email = next;
+      user.updatedAt = new Date().toISOString();
+    }
+    if (removeIds.size > 0) {
+      d.users = d.users.filter((user) => !removeIds.has(user.id));
+    }
+    for (const otp of d.otps) {
+      otp.email = remapLegacyDemoEmail(otp.email);
+    }
+    for (const token of d.passwordSetupTokens) {
+      token.email = remapLegacyDemoEmail(token.email);
+    }
+    for (const pending of d.pendingRegistrations) {
+      pending.email = remapLegacyDemoEmail(pending.email);
+    }
+    for (const note of d.notifications) {
+      note.title = rewriteLegacyDemoEmailsInText(note.title);
+      note.body = rewriteLegacyDemoEmailsInText(note.body);
+    }
+  });
+}
+
 export function ensureDemoUsersSeeded(): void {
   ensureSuperAdminSeeded();
   migrateLegacyClientIdentities();
+  migrateLegacyDemoEmails();
   const emails = new Set(readAuthDb().users.map((u) => u.email.toLowerCase()));
   if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
     return;

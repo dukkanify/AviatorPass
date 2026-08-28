@@ -48,12 +48,13 @@ Suggested live session: **~90 minutes**. Pair with hands-on walkthrough on stagi
 
 ## Demo accounts (non-production only)
 
-| Role        | Email                            |
-| ----------- | -------------------------------- |
-| Super Admin | `superadmin@eagerpilots.com`     |
-| Admin       | `admin@eagerpilots.com`          |
-| Instructor  | `instructor.one@eagerpilots.com` |
-| Student     | `student.one@eagerpilots.com`    |
+| Role        | Email                        |
+| ----------- | ---------------------------- |
+| Super Admin | `superadmin@aviatorpass.com` |
+| Admin       | `admin@aviatorpass.com`      |
+| Instructor  | `instructor@aviatorpass.com` |
+| CGI         | `cgi@aviatorpass.com`        |
+| Student     | `student@aviatorpass.com`    |
 
 Demo OTP `123456` — **must be disabled** in production (`ENABLE_DEMO_OTP=false`).
 

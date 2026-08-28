@@ -21,10 +21,10 @@ describe("crypto helpers", () => {
   });
 
   it("builds stable ids that match across isolates", () => {
-    expect(stableId("user", "Student.One@eagerpilots.com")).toBe(
-      stableId("user", "student.one@eagerpilots.com"),
+    expect(stableId("user", "Student@aviatorpass.com")).toBe(
+      stableId("user", "student@aviatorpass.com"),
     );
-    expect(stableId("user", "student.one@eagerpilots.com")).toMatch(/^[a-f0-9]{32}$/);
+    expect(stableId("user", "student@aviatorpass.com")).toMatch(/^[a-f0-9]{32}$/);
     expect(stableId("user", "a@b.c")).not.toBe(stableId("user", "d@e.f"));
   });
 

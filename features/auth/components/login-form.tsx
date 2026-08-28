@@ -99,7 +99,7 @@ function LoginForm() {
       }
 
       const params = new URLSearchParams({
-        email: parsed.data.email,
+        email: result.data?.email ?? parsed.data.email,
         purpose: "login",
       });
       router.push(`${routes.verifyOtp}?${params.toString()}`);
@@ -121,7 +121,7 @@ function LoginForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder="student@aviatorpass.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

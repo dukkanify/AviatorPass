@@ -6,6 +6,7 @@
 
 import path from "path";
 
+import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import type {
   ActivityLogRecord,
@@ -307,7 +308,15 @@ export function isStudentProfileComplete(
 
 export function findUserByEmail(email: string): StoredUser | null {
   const db = readAuthDb();
-  return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null;
+  const normalized = email.trim().toLowerCase();
+  const exact = db.users.find((u) => u.email.toLowerCase() === normalized);
+  if (exact) return exact;
+  const canonical = canonicalDemoEmail(email);
+  return (
+    db.users.find((u) => u.email.toLowerCase() === canonical) ??
+    db.users.find((u) => demoEmailsEquivalent(u.email, email)) ??
+    null
+  );
 }
 
 export function findUserByPhone(phone: string): StoredUser | null {

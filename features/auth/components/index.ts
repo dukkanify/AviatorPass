@@ -1,4 +1,5 @@
 export { LoginForm } from "./login-form";
+export { DemoAccountCredentials } from "./demo-account-credentials";
 export { RegisterForm } from "./register-form";
 export { RegisterShell } from "./register-shell";
 export { VerifyOtpForm } from "./verify-otp-form";

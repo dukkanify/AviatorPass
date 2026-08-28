@@ -47,8 +47,7 @@ async function main() {
         jar.set(k, v);
       }
     };
-    const cookieHeader = () =>
-      [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+    const cookieHeader = () => [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 
     let res = await fetch(`${BASE}/api/auth/me`);
     storeCookies(res);
@@ -61,7 +60,7 @@ async function main() {
         ...(csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : {}),
       },
       body: JSON.stringify({
-        email: "student.one@eagerpilots.com",
+        email: "student@aviatorpass.com",
         purpose: "login",
         rememberMe: true,
       }),
@@ -76,7 +75,7 @@ async function main() {
         ...(csrf2 ? { "x-csrf-token": decodeURIComponent(csrf2) } : {}),
       },
       body: JSON.stringify({
-        email: "student.one@eagerpilots.com",
+        email: "student@aviatorpass.com",
         token: "123456",
         purpose: "login",
       }),
@@ -106,8 +105,7 @@ async function main() {
         jar.set(k, v);
       }
     };
-    const cookieHeader = () =>
-      [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+    const cookieHeader = () => [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 
     let res = await fetch(`${BASE}/api/auth/me`);
     storeCookies(res);
@@ -120,7 +118,7 @@ async function main() {
         ...(csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : {}),
       },
       body: JSON.stringify({
-        email: "superadmin@eagerpilots.com",
+        email: "superadmin@aviatorpass.com",
         purpose: "login",
         rememberMe: true,
       }),
@@ -135,7 +133,7 @@ async function main() {
         ...(csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : {}),
       },
       body: JSON.stringify({
-        email: "superadmin@eagerpilots.com",
+        email: "superadmin@aviatorpass.com",
         token: "123456",
         purpose: "login",
       }),

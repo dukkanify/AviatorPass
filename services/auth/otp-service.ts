@@ -7,6 +7,7 @@
 
 import { getServerEnv } from "@/config/env";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import {
   constantTimeEqual,
   generateId,
@@ -16,7 +17,6 @@ import {
 } from "@/lib/security/crypto";
 import { rateLimit } from "@/lib/security/rate-limit";
 import type { ApiResponse } from "@/types";
-import { sanitizeEmail } from "@/utils/sanitize";
 import { logActivity } from "@/services/auth/activity-log";
 import { readAuthDb, writeAuthDb, type OtpChallenge } from "@/services/auth/store";
 import { sendEmail } from "@/services/email/mailer";
@@ -164,12 +164,11 @@ export function cleanupExpiredOtps(): number {
 
 export function findActiveOtp(email: string, purpose: OtpPurpose): OtpChallenge | null {
   cleanupExpiredOtps();
-  const normalized = sanitizeEmail(email);
   const now = Date.now();
   return (
     readAuthDb().otps.find(
       (o) =>
-        o.email === normalized &&
+        demoEmailsEquivalent(o.email, email) &&
         o.purpose === purpose &&
         o.status === "pending" &&
         new Date(o.expiresAt).getTime() > now &&
@@ -180,12 +179,14 @@ export function findActiveOtp(email: string, purpose: OtpPurpose): OtpChallenge 
 
 export function findOtpChallenge(email: string, purpose: OtpPurpose): OtpChallenge | null {
   cleanupExpiredOtps();
-  const normalized = sanitizeEmail(email);
-  return readAuthDb().otps.find((o) => o.email === normalized && o.purpose === purpose) ?? null;
+  return (
+    readAuthDb().otps.find((o) => demoEmailsEquivalent(o.email, email) && o.purpose === purpose) ??
+    null
+  );
 }
 
 export async function issueAndSendOtp(input: IssueOtpInput): Promise<ApiResponse<IssueOtpResult>> {
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const purpose = input.purpose;
   const policy = getOtpPolicy();
   const failClosed = input.failClosed !== false;
@@ -265,7 +266,9 @@ export async function issueAndSendOtp(input: IssueOtpInput): Promise<ApiResponse
   };
 
   writeAuthDb((db) => {
-    db.otps = db.otps.filter((o) => !(o.email === email && o.purpose === purpose));
+    db.otps = db.otps.filter(
+      (o) => !(demoEmailsEquivalent(o.email, email) && o.purpose === purpose),
+    );
     db.otps.push(challenge);
   });
 
@@ -329,7 +332,7 @@ export async function issueAndSendOtp(input: IssueOtpInput): Promise<ApiResponse
 export async function resendOtp(
   input: Omit<IssueOtpInput, "isResend"> & { requireExisting?: boolean },
 ): Promise<ApiResponse<IssueOtpResult>> {
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const existing = findOtpChallenge(email, input.purpose);
   if (input.requireExisting !== false && !existing) {
     return {
@@ -365,9 +368,10 @@ export function consumeOtp(challengeId: string): void {
 }
 
 export function invalidatePurposeOtps(email: string, purpose: OtpPurpose): void {
-  const normalized = sanitizeEmail(email);
   writeAuthDb((db) => {
-    db.otps = db.otps.filter((o) => !(o.email === normalized && o.purpose === purpose));
+    db.otps = db.otps.filter(
+      (o) => !(demoEmailsEquivalent(o.email, email) && o.purpose === purpose),
+    );
   });
 }
 
@@ -384,7 +388,7 @@ export async function validateOtpToken(input: {
   | { ok: true; challenge: OtpChallenge }
   | { ok: false; error: string; reason: VerifyOtpFailureReason; challenge: OtpChallenge | null }
 > {
-  const email = sanitizeEmail(input.email);
+  const email = canonicalDemoEmail(input.email);
   const token = input.token.trim();
   const policy = getOtpPolicy();
 
@@ -399,7 +403,9 @@ export async function validateOtpToken(input: {
   }
 
   // Do not purge before lookup — expired challenges must return an "expired" reason.
-  const challenge = readAuthDb().otps.find((o) => o.email === email && o.purpose === input.purpose);
+  const challenge = readAuthDb().otps.find(
+    (o) => demoEmailsEquivalent(o.email, email) && o.purpose === input.purpose,
+  );
 
   if (!challenge) {
     return {

@@ -39,7 +39,7 @@ const serverEnvSchema = z.object({
     .string()
     .regex(/^\d{6}$/)
     .default("123456"),
-  SUPER_ADMIN_EMAIL: z.string().email().default("superadmin@eagerpilots.com"),
+  SUPER_ADMIN_EMAIL: z.string().email().default("superadmin@aviatorpass.com"),
   SUPER_ADMIN_FIRST_NAME: z.string().default("Super"),
   SUPER_ADMIN_LAST_NAME: z.string().default("Admin"),
   /** Zoom Server-to-Server OAuth — never expose to client */

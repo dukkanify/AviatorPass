@@ -9,10 +9,10 @@
 const BASE = process.argv[2] || "http://localhost:3000";
 
 const DEMO = {
-  student: "student.one@eagerpilots.com",
-  instructor: "instructor.one@eagerpilots.com",
-  admin: "admin@eagerpilots.com",
-  superadmin: "superadmin@eagerpilots.com",
+  student: "student@aviatorpass.com",
+  instructor: "instructor@aviatorpass.com",
+  admin: "admin@aviatorpass.com",
+  superadmin: "superadmin@aviatorpass.com",
   otp: "123456",
 };
 
