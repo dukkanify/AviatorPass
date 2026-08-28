@@ -53,7 +53,7 @@ describe("email notifications", () => {
   });
 
   it("records OTP email in the outbox on login request", async () => {
-    const email = "student.one@eagerpilots.com";
+    const email = "student@aviatorpass.com";
     const beforeIds = new Set(listOutboundEmails(100).map((m) => m.id));
     const req = await requestOtp({ email, purpose: "login", rememberMe: true });
     expect(req.success).toBe(true);
@@ -92,7 +92,7 @@ describe("email notifications", () => {
   });
 
   it("delivers class reminder emails through the outbox", async () => {
-    const student = findUserByEmail("student.one@eagerpilots.com");
+    const student = findUserByEmail("student@aviatorpass.com");
     expect(student).toBeTruthy();
 
     const classId = generateId();

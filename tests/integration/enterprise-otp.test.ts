@@ -46,7 +46,7 @@ describe("enterprise OTP service", () => {
   });
 
   it("issues, verifies, and single-uses a login OTP", async () => {
-    const email = "student.one@eagerpilots.com";
+    const email = "student@aviatorpass.com";
     const user = findUserByEmail(email);
     expect(user).toBeTruthy();
 
@@ -78,7 +78,7 @@ describe("enterprise OTP service", () => {
   });
 
   it("enforces resend cooldown and invalidates the previous challenge", async () => {
-    const email = "student.one@eagerpilots.com";
+    const email = "student@aviatorpass.com";
     const first = await requestOtp({ email, purpose: "login", rememberMe: true });
     expect(first.success).toBe(true);
     const firstId = readAuthDb().otps.find((o) => o.email === email && o.purpose === "login")!.id;

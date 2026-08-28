@@ -4,16 +4,16 @@ Task 013 delivers a read-only BI layer over existing AEP modules (auth, courses,
 
 ## Architecture
 
-| Service | Path | Responsibility |
-|---------|------|----------------|
-| Aggregator | `services/analytics/aggregator.ts` | Cross-module KPI + chart snapshots |
-| KPI Service | `services/analytics/kpi-service.ts` | Scope resolution + RBAC + cache |
-| Chart Service | `services/analytics/chart-service.ts` | Chart series extraction |
-| Dashboard Service | `services/analytics/dashboard-service.ts` | Widgets, saved filters, favorites, schedules |
-| Report Service | `services/analytics/report-service.ts` | Report bundles + export orchestration |
-| Export Service | `services/analytics/export-service.ts` | CSV / print-HTML (PDF via print) |
-| Cache Service | `services/analytics/cache-service.ts` | Short-TTL analytics cache |
-| Monitoring Service | `services/analytics/monitoring-service.ts` | Platform health facade |
+| Service            | Path                                       | Responsibility                               |
+| ------------------ | ------------------------------------------ | -------------------------------------------- |
+| Aggregator         | `services/analytics/aggregator.ts`         | Cross-module KPI + chart snapshots           |
+| KPI Service        | `services/analytics/kpi-service.ts`        | Scope resolution + RBAC + cache              |
+| Chart Service      | `services/analytics/chart-service.ts`      | Chart series extraction                      |
+| Dashboard Service  | `services/analytics/dashboard-service.ts`  | Widgets, saved filters, favorites, schedules |
+| Report Service     | `services/analytics/report-service.ts`     | Report bundles + export orchestration        |
+| Export Service     | `services/analytics/export-service.ts`     | CSV / print-HTML (PDF via print)             |
+| Cache Service      | `services/analytics/cache-service.ts`      | Short-TTL analytics cache                    |
+| Monitoring Service | `services/analytics/monitoring-service.ts` | Platform health facade                       |
 
 Facts stay in module stores (`.data/aep-*.json`). Analytics persistence (`.data/aep-analytics.json`) holds prefs, saved/scheduled reports, history, and cache only.
 
@@ -33,13 +33,13 @@ SQL twin: `database/migrations/012_analytics_bi.sql`.
 
 ## APIs
 
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | `/api/analytics/overview?scope=` | Snapshot + filters; `view=scopes\|charts` |
-| GET/PATCH/POST | `/api/analytics/dashboard` | Prefs, save report, toggle/reorder widgets |
-| GET/POST | `/api/analytics/reports` | Scheduled reports + history (`view=history\|run_due`) |
-| GET | `/api/analytics/export?scope=&format=` | `csv` \| `xlsx` \| `print` \| `pdf` |
-| GET | `/api/analytics/health` | Platform health (Super Admin) |
+| Method         | Path                                   | Notes                                                 |
+| -------------- | -------------------------------------- | ----------------------------------------------------- |
+| GET            | `/api/analytics/overview?scope=`       | Snapshot + filters; `view=scopes\|charts`             |
+| GET/PATCH/POST | `/api/analytics/dashboard`             | Prefs, save report, toggle/reorder widgets            |
+| GET/POST       | `/api/analytics/reports`               | Scheduled reports + history (`view=history\|run_due`) |
+| GET            | `/api/analytics/export?scope=&format=` | `csv` \| `xlsx` \| `print` \| `pdf`                   |
+| GET            | `/api/analytics/health`                | Platform health (Super Admin)                         |
 
 ## UI
 
@@ -57,4 +57,4 @@ SQL twin: `database/migrations/012_analytics_bi.sql`.
 
 ## Demo
 
-OTP `123456` for `superadmin@eagerpilots.com`, `admin@`, `instructor.one@`, `student.one@`.
+OTP `123456` for `superadmin@aviatorpass.com`, `admin@aviatorpass.com`, `instructor@aviatorpass.com`, `student@aviatorpass.com`.

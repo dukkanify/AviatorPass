@@ -19,8 +19,8 @@ describe("demo OTP under production NODE_ENV (CI e2e)", () => {
     ensureDemoUsersSeeded();
   });
 
-  it("issues the fixed demo OTP code for student.one", async () => {
-    const email = "student.one@eagerpilots.com";
+  it("issues the fixed demo OTP code for the primary student", async () => {
+    const email = "student@aviatorpass.com";
     const req = await requestOtp({ email, purpose: "login", rememberMe: true });
     expect(req.success).toBe(true);
     expect(req.data?.demoOtp).toBe("123456");

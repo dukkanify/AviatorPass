@@ -32,7 +32,7 @@ Do not POST retired deploy hooks. Do not embed deploy-hook URLs in scripts, work
 Standard commands live in `package.json` (`dev`, `build`, `start`, `lint`, `typecheck`); see `README.md`. Notes:
 
 - Dev server: `npm run dev` serves the app on `http://localhost:3000` (Turbopack, hot reload).
-- Super Admin auto-seeded from `SUPER_ADMIN_EMAIL` (default `superadmin@eagerpilots.com`)
+- Super Admin auto-seeded from `SUPER_ADMIN_EMAIL` (default `superadmin@aviatorpass.com`)
 - Demo OTP: `ENABLE_DEMO_OTP=true`, code `123456`
 - Permanent demo accounts (Super Admin, Student, Instructor, CGI): see `DEMO_ACCOUNTS.md` — temporary password `DemoPass123!`; reset via `POST /api/admin/demo/reset` or `npm run demo:seed`
 - Auth works without Supabase via local store `.data/aep-auth.json`

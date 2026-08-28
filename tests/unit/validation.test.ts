@@ -11,7 +11,7 @@ import {
 
 describe("validators", () => {
   it("accepts valid emails", () => {
-    expect(emailSchema.parse("pilot@eagerpilots.com")).toBe("pilot@eagerpilots.com");
+    expect(emailSchema.parse("pilot@aviatorpass.com")).toBe("pilot@aviatorpass.com");
   });
 
   it("rejects invalid emails", () => {
@@ -34,7 +34,7 @@ describe("validators", () => {
     const parsed = registerSchema.parse({
       firstName: "Amira",
       lastName: "Hassan",
-      email: "amira@eagerpilots.com",
+      email: "amira@aviatorpass.com",
       phone: "+971501234567",
       countryCode: "AE",
       nationality: "Emirati",
@@ -45,7 +45,7 @@ describe("validators", () => {
       marketingConsent: false,
       role: "student",
     });
-    expect(parsed.email).toBe("amira@eagerpilots.com");
+    expect(parsed.email).toBe("amira@aviatorpass.com");
     expect(parsed.phone).toBe("+971501234567");
   });
 

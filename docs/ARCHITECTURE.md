@@ -32,7 +32,7 @@ scripts/                 Backup + acceptance harness
 | admin                   | `/admin`       | Operations                                                                                                              |
 | super_admin             | `/super-admin` | Full platform                                                                                                           |
 
-CGI demo account: `cgi@eagerpilots.com`.
+CGI demo account: `cgi@aviatorpass.com`.
 
 ## Request path
 

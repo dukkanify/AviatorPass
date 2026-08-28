@@ -101,21 +101,21 @@ Exports and JSON filenames unchanged.
 | `GET /api/learning/dashboard`                                        | **200** with overview JSON                  |
 | Same under **read-only `.data`** (files removed to force seed write) | **200** page + API                          |
 | Instructor `/instructor/dashboard`                                   | **200**                                     |
-| CGI `/cgi/dashboard` (`cgi@eagerpilots.com`)                         | **200**                                     |
+| CGI `/cgi/dashboard` (`cgi@aviatorpass.com`)                         | **200**                                     |
 | Admin `/admin/dashboard`                                             | **200**                                     |
 | Super Admin `/super-admin/dashboard`                                 | **200**                                     |
 | Incomplete profile (`student.three@…`)                               | **307** to profile flow (expected, not 500) |
 
 ### Test accounts used
 
-| Role                 | Email                            | OTP (demo) |
-| -------------------- | -------------------------------- | ---------- |
-| Student              | `student.one@eagerpilots.com`    | `123456`   |
-| Student (incomplete) | `student.three@eagerpilots.com`  | `123456`   |
-| Instructor           | `instructor.one@eagerpilots.com` | `123456`   |
-| CGI                  | `cgi@eagerpilots.com`            | `123456`   |
-| Admin                | `admin@eagerpilots.com`          | `123456`   |
-| Super Admin          | `superadmin@eagerpilots.com`     | `123456`   |
+| Role                 | Email                           | OTP (demo) |
+| -------------------- | ------------------------------- | ---------- |
+| Student              | `student@aviatorpass.com`       | `123456`   |
+| Student (incomplete) | `student.three@aviatorpass.com` | `123456`   |
+| Instructor           | `instructor@aviatorpass.com`    | `123456`   |
+| CGI                  | `cgi@aviatorpass.com`           | `123456`   |
+| Admin                | `admin@aviatorpass.com`         | `123456`   |
+| Super Admin          | `superadmin@aviatorpass.com`    | `123456`   |
 
 Requires `ENABLE_DEMO_OTP=true` / `DEMO_OTP_CODE=123456` (local).
 

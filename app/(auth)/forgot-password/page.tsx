@@ -1,6 +1,7 @@
 import Link from "@/components/ui/app-link";
 import type { Metadata } from "next";
 
+import { DemoAccountCredentials } from "@/features/auth/components/demo-account-credentials";
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
 import {
   Card,
@@ -38,8 +39,9 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <ForgotPasswordForm />
+          <DemoAccountCredentials />
         </CardContent>
         <CardFooter className="justify-center text-sm text-muted-foreground">
           <Link href={routes.login} className="font-medium text-primary hover:underline">

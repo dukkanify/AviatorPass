@@ -57,7 +57,7 @@ describe("registerSchema phone validation", () => {
   const base = {
     firstName: "Amira",
     lastName: "Hassan",
-    email: "amira@eagerpilots.com",
+    email: "amira@aviatorpass.com",
     nationality: "Kuwaiti",
     password: "Secret12!",
     confirmPassword: "Secret12!",

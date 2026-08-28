@@ -6,12 +6,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   DEMO_ACCOUNT_PASSWORD,
+  DEMO_ACCOUNTS,
   PRIMARY_DEMO_EMAILS,
+  canonicalDemoEmail,
   isPermanentDemoEmail,
+  remapLegacyDemoEmail,
 } from "@/constants/demo-accounts";
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { findUserByEmail, readAuthDb } from "@/services/auth/store";
+import { findUserByEmail, readAuthDb, writeAuthDb } from "@/services/auth/store";
 import { ensurePlatformDemoEnvironment } from "@/services/demo/platform-demo-seed";
 import { resetDemoEnvironment } from "@/services/demo/reset-demo-environment";
 import { readCoursesDb } from "@/services/courses/store";
@@ -94,5 +97,88 @@ describe("permanent demo accounts", () => {
     ensureDemoUsersSeeded();
     ensurePlatformDemoEnvironment();
     expect(readCoursesDb().enrollments.length).toBe(before);
+  });
+
+  it("remaps EagerPilots demo emails without changing user ids", () => {
+    const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
+    const previousId = student.id;
+    writeAuthDb((d) => {
+      const row = d.users.find((u) => u.id === previousId);
+      if (row) row.email = "student.one@eagerpilots.com";
+      d.otps.push({
+        id: "legacy-demo-otp",
+        email: "student.one@eagerpilots.com",
+        userId: previousId,
+        purpose: "login",
+        codeHash: "x",
+        status: "pending",
+        attempts: 0,
+        maxAttempts: 5,
+        resendCount: 0,
+        rememberMe: false,
+        lockedUntil: null,
+        resendAvailableAt: null,
+        pendingRegistrationId: null,
+        meta: {},
+        ipAddress: null,
+        userAgent: null,
+        deviceFingerprint: null,
+        deviceLabel: null,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        verifiedAt: null,
+        createdAt: new Date().toISOString(),
+      });
+      d.notifications.push({
+        id: "legacy-demo-note",
+        userId: previousId,
+        title: "Welcome student.one@eagerpilots.com",
+        body: "Sign in as student.one@eagerpilots.com",
+        channel: "in_app",
+        type: "system",
+        data: {},
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    ensureDemoUsersSeeded();
+
+    const remapped = findUserByEmail("student.one@eagerpilots.com")!;
+    expect(remapped.id).toBe(previousId);
+    expect(remapped.email).toBe(PRIMARY_DEMO_EMAILS.student);
+    expect(findUserByEmail(PRIMARY_DEMO_EMAILS.student)?.id).toBe(previousId);
+    expect(readAuthDb().users.some((u) => u.email.toLowerCase().endsWith("@eagerpilots.com"))).toBe(
+      false,
+    );
+    expect(readAuthDb().otps.find((o) => o.id === "legacy-demo-otp")?.email).toBe(
+      PRIMARY_DEMO_EMAILS.student,
+    );
+    const note = readAuthDb().notifications.find((n) => n.id === "legacy-demo-note");
+    expect(note?.title).toContain(PRIMARY_DEMO_EMAILS.student);
+    expect(note?.body).not.toContain("eagerpilots.com");
+  });
+});
+
+describe("demo email aliases", () => {
+  it("keeps every catalog mailbox on aviatorpass.com", () => {
+    for (const account of DEMO_ACCOUNTS) {
+      expect(account.email.endsWith("@aviatorpass.com")).toBe(true);
+      expect(account.email.toLowerCase()).not.toContain("eagerpilots.com");
+    }
+    expect(PRIMARY_DEMO_EMAILS.superAdmin).toBe("superadmin@aviatorpass.com");
+    expect(PRIMARY_DEMO_EMAILS.student).toBe("student@aviatorpass.com");
+    expect(PRIMARY_DEMO_EMAILS.instructor).toBe("instructor@aviatorpass.com");
+    expect(PRIMARY_DEMO_EMAILS.cgi).toBe("cgi@aviatorpass.com");
+  });
+
+  it("maps the four primary EagerPilots mailboxes to AviatorPass", () => {
+    expect(remapLegacyDemoEmail("superadmin@eagerpilots.com")).toBe(PRIMARY_DEMO_EMAILS.superAdmin);
+    expect(remapLegacyDemoEmail("student.one@eagerpilots.com")).toBe(PRIMARY_DEMO_EMAILS.student);
+    expect(remapLegacyDemoEmail("instructor.one@eagerpilots.com")).toBe(
+      PRIMARY_DEMO_EMAILS.instructor,
+    );
+    expect(remapLegacyDemoEmail("cgi@eagerpilots.com")).toBe(PRIMARY_DEMO_EMAILS.cgi);
+    expect(canonicalDemoEmail("Student.One@EagerPilots.com")).toBe(PRIMARY_DEMO_EMAILS.student);
+    expect(isPermanentDemoEmail("instructor.one@eagerpilots.com")).toBe(true);
   });
 });

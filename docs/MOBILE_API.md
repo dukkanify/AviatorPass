@@ -6,10 +6,10 @@ Versioned REST API (`/api/v1`) for iOS, Android, React Native, and third-party i
 
 ```http
 POST /api/v1/auth/otp/request
-{ "email": "student.one@eagerpilots.com", "purpose": "login" }
+{ "email": "student@aviatorpass.com", "purpose": "login" }
 
 POST /api/v1/auth/otp/verify
-{ "email": "student.one@eagerpilots.com", "token": "123456", "purpose": "login" }
+{ "email": "student@aviatorpass.com", "token": "123456", "purpose": "login" }
 → { accessToken, refreshToken, tokenType: "Bearer", user }
 
 Authorization: Bearer <accessToken>
@@ -21,14 +21,14 @@ Revoke: `POST /api/v1/auth/revoke`
 
 ## Standards
 
-| Concern | Behavior |
-|---------|----------|
-| Versioning | `/api/v1/*` (legacy web cookie APIs remain under `/api/*`) |
-| Envelope | `{ success, data, error, meta.version }` |
-| Auth | Bearer JWT · `x-api-key` · session cookie (web) |
-| Pagination | `page`, `pageSize`, `sortBy`, `sortDir`, `q` |
-| Rate limits | Public 60/min/IP · Bearer 300/min · API key configurable |
-| Errors | `{ code, message, details }` |
+| Concern     | Behavior                                                   |
+| ----------- | ---------------------------------------------------------- |
+| Versioning  | `/api/v1/*` (legacy web cookie APIs remain under `/api/*`) |
+| Envelope    | `{ success, data, error, meta.version }`                   |
+| Auth        | Bearer JWT · `x-api-key` · session cookie (web)            |
+| Pagination  | `page`, `pageSize`, `sortBy`, `sortDir`, `q`               |
+| Rate limits | Public 60/min/IP · Bearer 300/min · API key configurable   |
+| Errors      | `{ code, message, details }`                               |
 
 ## Public APIs (abuse-protected)
 
@@ -49,7 +49,7 @@ Routes under `/api/v1/platform/{keys,webhooks,integrations,queue,import,export,m
 ## Webhooks
 
 Outbound: create endpoints, HMAC `X-AEP-Signature` over `{timestamp}.{body}`  
-Events: payment.*, zoom.*, user.registered, course.enrolled, certificate.issued, notification.created, support.ticket.updated, integration.test  
+Events: payment._, zoom._, user.registered, course.enrolled, certificate.issued, notification.created, support.ticket.updated, integration.test
 
 Inbound Zoom: `POST /api/v1/webhooks/inbound/zoom` (optional `ZOOM_WEBHOOK_SECRET`)
 
@@ -61,17 +61,17 @@ OAuth-ready mobile client placeholder: `aep_mobile_dev`
 
 ## Jobs / cache / import-export
 
-- Queue: email, notification, report, certificate, import, export, webhook  
-- Cache: TTL + tag invalidation (`courses`, `blog`, `analytics`, …)  
-- Import: students, instructors, courses, questions, communities  
+- Queue: email, notification, report, certificate, import, export, webhook
+- Cache: TTL + tag invalidation (`courses`, `blog`, `analytics`, …)
+- Import: students, instructors, courses, questions, communities
 - Export: csv, json, xlsx/pdf placeholders under `/exports/`
 
 ## Documentation
 
-- Machine: `GET /api/v1/openapi` (OpenAPI 3.1)  
+- Machine: `GET /api/v1/openapi` (OpenAPI 3.1)
 - Human: this file + updated `docs/API_OVERVIEW.md`
 
 ## Storage
 
-- Runtime: `.data/aep-api-platform.json`  
+- Runtime: `.data/aep-api-platform.json`
 - SQL twin: `database/migrations/016_api_platform.sql`

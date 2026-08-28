@@ -87,9 +87,9 @@ function walkFiles(dir, acc = []) {
   return acc;
 }
 
-const studentEmail = `audit.student.${stamp}@eagerpilots.com`;
-const instructorEmail = `audit.instructor.${stamp}@eagerpilots.com`;
-const resetEmail = `audit.reset.${stamp}@eagerpilots.com`;
+const studentEmail = `audit.student.${stamp}@aviatorpass.com`;
+const instructorEmail = `audit.instructor.${stamp}@aviatorpass.com`;
+const resetEmail = `audit.reset.${stamp}@aviatorpass.com`;
 const studentPhone = `+97150${String(1000000 + (Date.now() % 8999999)).slice(0, 7)}`;
 const instructorPhone = `+97152${String(1000000 + ((Date.now() + 17) % 8999999)).slice(0, 7)}`;
 const resetPhone = `+97154${String(1000000 + ((Date.now() + 31) % 8999999)).slice(0, 7)}`;
@@ -249,7 +249,7 @@ for (const [p, label] of publicPages) {
   const r = await fetch(`${BASE}/api/auth/otp/request`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "student.one@eagerpilots.com", purpose: "login" }),
+    body: JSON.stringify({ email: "student@aviatorpass.com", purpose: "login" }),
   });
   const j = await r.json();
   rec(
@@ -475,7 +475,7 @@ let studentJar = null;
   const jar = await boot();
   const r = await post(jar, "/api/auth/otp/request", {
     ...registerBase,
-    email: "student.one@eagerpilots.com",
+    email: "student@aviatorpass.com",
     phone: `+97155${String(2000000 + (Date.now() % 7999999)).slice(0, 7)}`,
     purpose: "register",
     role: "student",
@@ -495,7 +495,7 @@ let studentJar = null;
   const jar = await boot();
   const r = await post(jar, "/api/auth/otp/request", {
     ...registerBase,
-    email: `dup.phone.${stamp}@eagerpilots.com`,
+    email: `dup.phone.${stamp}@aviatorpass.com`,
     phone: studentPhone,
     purpose: "register",
     role: "student",
@@ -514,12 +514,12 @@ let studentJar = null;
 {
   const jar = await boot();
   await post(jar, "/api/auth/otp/request", {
-    email: "student.one@eagerpilots.com",
+    email: "student@aviatorpass.com",
     purpose: "login",
     rememberMe: true,
   });
   const r = await post(jar, "/api/auth/otp/verify", {
-    email: "student.one@eagerpilots.com",
+    email: "student@aviatorpass.com",
     token: "000000",
     purpose: "login",
   });
@@ -612,11 +612,11 @@ let studentJar = null;
 {
   const jar = await boot();
   await post(jar, "/api/auth/otp/request", {
-    email: "instructor.one@eagerpilots.com",
+    email: "instructor@aviatorpass.com",
     purpose: "login",
   });
   const r = await post(jar, "/api/auth/otp/resend", {
-    email: "instructor.one@eagerpilots.com",
+    email: "instructor@aviatorpass.com",
     purpose: "login",
   });
   rec(
@@ -632,7 +632,7 @@ let studentJar = null;
   console.log("Waiting 61s for OTP resend cooldown to elapse…");
   await new Promise((resolve) => setTimeout(resolve, 61_000));
   const lifted = await post(jar, "/api/auth/otp/resend", {
-    email: "instructor.one@eagerpilots.com",
+    email: "instructor@aviatorpass.com",
     purpose: "login",
   });
   rec(
@@ -652,7 +652,7 @@ async function login(email) {
 }
 
 {
-  const { jar, verify } = await login("student.one@eagerpilots.com");
+  const { jar, verify } = await login("student@aviatorpass.com");
   rec(
     "AUTH",
     "student login",
@@ -676,7 +676,7 @@ async function login(email) {
 }
 
 {
-  const { jar, verify } = await login("instructor.one@eagerpilots.com");
+  const { jar, verify } = await login("instructor@aviatorpass.com");
   rec(
     "AUTH",
     "instructor login",
@@ -693,7 +693,7 @@ async function login(email) {
 }
 
 {
-  const { jar, verify } = await login("admin@eagerpilots.com");
+  const { jar, verify } = await login("admin@aviatorpass.com");
   rec(
     "AUTH",
     "admin login",
@@ -706,7 +706,7 @@ async function login(email) {
 }
 
 {
-  const { jar, verify } = await login("superadmin@eagerpilots.com");
+  const { jar, verify } = await login("superadmin@aviatorpass.com");
   rec(
     "AUTH",
     "superadmin login",

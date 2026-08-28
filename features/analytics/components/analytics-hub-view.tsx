@@ -93,7 +93,7 @@ function AnalyticsHubView({
   const [reportName, setReportName] = React.useState("");
   const [scheduleName, setScheduleName] = React.useState("Weekly Executive");
   const [frequency, setFrequency] = React.useState<ReportFrequency>("weekly");
-  const [recipients, setRecipients] = React.useState("superadmin@eagerpilots.com");
+  const [recipients, setRecipients] = React.useState("superadmin@aviatorpass.com");
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 

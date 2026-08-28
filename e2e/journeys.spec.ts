@@ -32,14 +32,14 @@ test.describe("student journey (OTP demo)", () => {
     await page.goto("/login");
     // Public API path for mobile readiness
     const otpReq = await request.post("/api/v1/auth/otp/request", {
-      data: { email: "student.one@eagerpilots.com", purpose: "login" },
+      data: { email: "student@aviatorpass.com", purpose: "login" },
     });
     const otpJson = await otpReq.json();
     expect(otpJson.success, JSON.stringify(otpJson)).toBeTruthy();
 
     const verify = await request.post("/api/v1/auth/otp/verify", {
       data: {
-        email: "student.one@eagerpilots.com",
+        email: "student@aviatorpass.com",
         token: "123456",
         purpose: "login",
       },

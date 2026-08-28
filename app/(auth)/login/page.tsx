@@ -2,6 +2,7 @@ import Link from "@/components/ui/app-link";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
+import { DemoAccountCredentials } from "@/features/auth/components/demo-account-credentials";
 import { LoginForm } from "@/features/auth/components/login-form";
 import {
   Card,
@@ -42,10 +43,11 @@ export default function LoginPage() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Suspense fallback={<LoadingState label="Loading sign-in..." />}>
             <LoginForm />
           </Suspense>
+          <DemoAccountCredentials />
         </CardContent>
         <CardFooter className="flex flex-wrap justify-center gap-x-1 gap-y-1 text-center text-sm text-muted-foreground">
           New to ATPL PASS?{" "}

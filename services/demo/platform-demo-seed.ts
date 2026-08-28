@@ -74,7 +74,7 @@ function primarySuperAdmin() {
   return findUserByEmail(PRIMARY_DEMO_EMAILS.superAdmin);
 }
 
-/** Enrol Omar (student.one) in every published ATPL subject. */
+/** Enrol Omar (primary student) in every published ATPL subject. */
 function enrollPrimaryStudentInAtplProgram(): void {
   const student = primaryStudent();
   const actor = primarySuperAdmin();

@@ -70,7 +70,7 @@ describe("enterprise registration", () => {
       registerSchema.safeParse({
         firstName: "Amira",
         lastName: "Hassan",
-        email: "amira@eagerpilots.com",
+        email: "amira@aviatorpass.com",
         phone: "+971501234567",
         countryCode: "AE",
         nationality: "Emirati",
@@ -86,7 +86,7 @@ describe("enterprise registration", () => {
       registerSchema.safeParse({
         firstName: "Amira",
         lastName: "Hassan",
-        email: "amira@eagerpilots.com",
+        email: "amira@aviatorpass.com",
         phone: "+971501234567",
         countryCode: "AE",
         nationality: "Emirati",

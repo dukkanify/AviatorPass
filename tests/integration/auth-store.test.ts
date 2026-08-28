@@ -17,13 +17,13 @@ describe("auth ↔ database integration", () => {
   });
 
   it("seeds demo users into auth store", () => {
-    const student = findUserByEmail("student.one@eagerpilots.com");
+    const student = findUserByEmail("student@aviatorpass.com");
     expect(student).toBeTruthy();
     expect(toUserProfile(student!).role).toBe(ROLES.STUDENT);
   });
 
   it("issues OTP challenge into auth store (cookie session issued at HTTP layer)", async () => {
-    const email = "student.one@eagerpilots.com";
+    const email = "student@aviatorpass.com";
     const req = await requestOtp({ email, purpose: "login", rememberMe: true });
     expect(req.success).toBe(true);
     const challenge = readAuthDb().otps.find((o) => o.email === email && o.purpose === "login");

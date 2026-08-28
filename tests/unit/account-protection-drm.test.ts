@@ -115,11 +115,11 @@ describe("account protection & DRM (CR002)", () => {
 
     const config = getContentProtectionConfig({
       fullName: "Student One",
-      email: "student.one@eagerpilots.com",
+      email: "student@aviatorpass.com",
     });
     expect(config.watermarkEnabled).toBe(true);
     expect(config.watermarkText).toContain("Student One");
-    expect(config.watermarkText).toContain("student.one@eagerpilots.com");
+    expect(config.watermarkText).toContain("student@aviatorpass.com");
     expect(config.disableRightClick).toBe(true);
     expect(config.videoDownloadProtection).toBe(true);
   });
