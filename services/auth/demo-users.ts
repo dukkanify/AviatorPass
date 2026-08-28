@@ -19,9 +19,49 @@ import {
   writeAuthDb,
   type StoredUser,
 } from "@/services/auth/store";
+import {
+  LEGACY_CLIENT_NAME_RE,
+  LEGACY_JOURNEY_STUDENT_EMAIL,
+  stripLegacyClientName,
+} from "@/lib/branding/legacy-client-identity";
+
+function migrateLegacyClientIdentities(): void {
+  const snapshot = readAuthDb();
+  const needsUserFix = snapshot.users.some((user) => {
+    const mapped = user.email.toLowerCase() === LEGACY_JOURNEY_STUDENT_EMAIL;
+    const blob = `${user.firstName} ${user.lastName} ${user.bio ?? ""}`;
+    return mapped || LEGACY_CLIENT_NAME_RE.test(blob);
+  });
+  const needsNoteFix = snapshot.notifications.some((n) =>
+    LEGACY_CLIENT_NAME_RE.test(`${n.title} ${n.body}`),
+  );
+  if (!needsUserFix && !needsNoteFix) return;
+
+  writeAuthDb((d) => {
+    for (const user of d.users) {
+      if (user.email.toLowerCase() === LEGACY_JOURNEY_STUDENT_EMAIL) {
+        user.email = "student.journey@eagerpilots.com";
+      }
+      const def = DEMO_ACCOUNTS.find((a) => a.email.toLowerCase() === user.email.toLowerCase());
+      const blob = `${user.firstName} ${user.lastName} ${user.bio ?? ""}`;
+      if (LEGACY_CLIENT_NAME_RE.test(blob) && def) {
+        user.firstName = def.firstName;
+        user.lastName = def.lastName;
+        user.bio = def.bio;
+      }
+    }
+    for (const note of d.notifications) {
+      const text = `${note.title} ${note.body}`;
+      if (!LEGACY_CLIENT_NAME_RE.test(text)) continue;
+      note.body = stripLegacyClientName(note.body, "your AviatorPass instructor");
+      note.title = stripLegacyClientName(note.title, "Instructor");
+    }
+  });
+}
 
 export function ensureDemoUsersSeeded(): void {
   ensureSuperAdminSeeded();
+  migrateLegacyClientIdentities();
   const emails = new Set(readAuthDb().users.map((u) => u.email.toLowerCase()));
   if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
     return;

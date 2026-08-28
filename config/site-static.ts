@@ -14,8 +14,8 @@ export const siteStatic = {
   secondaryTagline: "AIRLINE TRANSPORT PILOT LICENSE",
   locale: "en",
   direction: "ltr" as const,
-  contactEmail: "support@atplpass.com",
-  supportEmail: "support@atplpass.com",
+  contactEmail: "me@abdulazizalshoail.com",
+  supportEmail: "me@abdulazizalshoail.com",
   locations: ["Kuwait", "UAE"] as const,
   socialHandle: "",
   social: {

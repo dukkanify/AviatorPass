@@ -3,10 +3,12 @@
  * No personal founder references; academy-grade messaging only.
  */
 
+import { siteStatic } from "@/config/site-static";
+
 export const ATPL_PASS = {
   brand: "ATPL PASS",
   tagline: "YOUR AVIATION JOURNEY STARTS HERE",
-  supportEmail: "support@atplpass.com",
+  supportEmail: siteStatic.supportEmail,
 } as const;
 
 export const HERO = {
@@ -245,9 +247,9 @@ export const PAYMENTS = {
 } as const;
 
 export const CONTACT = {
-  kicker: "Contact",
-  title: "Academy support",
-  body: "For enrollment inquiries, scheduling assistance, and platform support, reach our academy team directly.",
+  kicker: "Support",
+  title: "Support",
+  body: "For enrolment inquiries, scheduling assistance, and platform support, reach the AviatorPass team directly.",
   cta: "Email Support",
 } as const;
 

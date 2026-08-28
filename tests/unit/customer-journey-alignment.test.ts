@@ -30,14 +30,14 @@ describe("customer journey alignment", () => {
     ensureMockExamsSeeded();
   });
 
-  it("seeds PPL / Basics recorded+live journeys with Captain Abdulaziz", () => {
+  it("seeds PPL / Basics recorded+live journeys with the AviatorPass instructor", () => {
     const courses = readCoursesDb().courses;
     for (const code of ["PPL-REC-01", "PPL-LIVE-01", "BASICS-REC-01", "BASICS-LIVE-01"]) {
       const course = courses.find((c) => c.code === code);
       expect(course, code).toBeTruthy();
       expect(course!.status).toBe("published");
       expect(course!.metadata?.objectives).toBeTruthy();
-      expect(course!.metadata?.instructorDisplayName).toContain("Abdulaziz");
+      expect(course!.metadata?.instructorDisplayName).toBe("AviatorPass Instructor");
     }
     const pplRec = courses.find((c) => c.code === "PPL-REC-01")!;
     expect(pplRec.estimatedDurationMinutes).toBe(100 * 60);
@@ -46,7 +46,7 @@ describe("customer journey alignment", () => {
     expect(pplLive.deliveryType).toBe("live");
     const instructor = readAuthDb().users.find((u) => u.email === "instructor.one@eagerpilots.com");
     expect(instructor?.role).toBe(ROLES.INSTRUCTOR);
-    expect(`${instructor?.firstName} ${instructor?.lastName}`).toContain("Abdulaziz");
+    expect(`${instructor?.firstName} ${instructor?.lastName}`).toBe("Khalid Al Rashid");
   });
 
   it("maps Tabby to Kuwait and Tamara to UAE with installment capacity", () => {

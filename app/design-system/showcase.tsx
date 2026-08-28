@@ -192,7 +192,7 @@ function DesignSystemShowcase() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="ds-name">Name</Label>
-                  <Input id="ds-name" placeholder="Abdulaziz" className="rounded-xl" />
+                  <Input id="ds-name" placeholder="Alex" className="rounded-xl" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ds-bio">Notes</Label>

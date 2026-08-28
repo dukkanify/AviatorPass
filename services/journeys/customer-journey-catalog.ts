@@ -5,17 +5,53 @@
 
 import { generateId } from "@/lib/security/crypto";
 import { stableCourseId } from "@/lib/courses/public-course-path";
+import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { majorToMinor } from "@/services/payments/money";
 import { writePaymentsDb } from "@/services/payments/store";
+import {
+  stripLegacyClientName,
+  LEGACY_CLIENT_NAME_RE,
+} from "@/lib/branding/legacy-client-identity";
 import type { Course, CourseDeliveryType } from "@/types/courses";
 import type { CatalogProduct } from "@/types/payments";
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function scrubClientInstructorBranding(): void {
+  const snapshot = readCoursesDb();
+  const dirty = snapshot.courses.some(
+    (c) =>
+      LEGACY_CLIENT_NAME_RE.test(String(c.metadata?.instructorDisplayName ?? "")) ||
+      LEGACY_CLIENT_NAME_RE.test(c.shortDescription ?? "") ||
+      LEGACY_CLIENT_NAME_RE.test(c.fullDescription ?? ""),
+  );
+  if (!dirty) return;
+  writeCoursesDb((d) => {
+    for (const course of d.courses) {
+      const display = course.metadata?.instructorDisplayName;
+      if (typeof display === "string" && LEGACY_CLIENT_NAME_RE.test(display)) {
+        course.metadata = { ...course.metadata, instructorDisplayName: "AviatorPass Instructor" };
+      }
+      if (course.shortDescription && LEGACY_CLIENT_NAME_RE.test(course.shortDescription)) {
+        course.shortDescription = stripLegacyClientName(
+          course.shortDescription,
+          "AviatorPass instructors",
+        );
+      }
+      if (course.fullDescription && LEGACY_CLIENT_NAME_RE.test(course.fullDescription)) {
+        course.fullDescription = stripLegacyClientName(
+          course.fullDescription,
+          "AviatorPass instructors",
+        );
+      }
+    }
+  });
 }
 
 export type JourneySku =
@@ -48,7 +84,7 @@ type JourneyCourseDef = {
   programWeeks?: number;
 };
 
-const JOURNEY_COURSES: JourneyCourseDef[] = [
+export const JOURNEY_COURSES: JourneyCourseDef[] = [
   {
     code: "PPL-REC-01",
     title: "Private Pilot License — Recorded",
@@ -72,7 +108,7 @@ const JOURNEY_COURSES: JourneyCourseDef[] = [
   {
     code: "PPL-LIVE-01",
     title: "Private Pilot License — Live Online",
-    short: "Live Zoom PPL program by Captain Abdulaziz Alshoail — 8 weeks.",
+    short: "Live Zoom PPL program with AviatorPass instructors — 8 weeks.",
     full: "Private Pilot License live online cohort with scheduled Zoom lectures, attendance, homework, and final assessment. Publish this lane independently from the recorded PPL course.",
     deliveryType: "live",
     hours: 100,
@@ -114,7 +150,7 @@ const JOURNEY_COURSES: JourneyCourseDef[] = [
   {
     code: "BASICS-LIVE-01",
     title: "Basics of Aviation — Live Online",
-    short: "Live Zoom introduction to aviation with Captain Abdulaziz Alshoail.",
+    short: "Live Zoom introduction to aviation with AviatorPass instructors.",
     full: "Basics of Aviation live online cohort with scheduled Zoom sessions. Publish independently from the recorded Basics lane.",
     deliveryType: "live",
     hours: 10,
@@ -138,13 +174,11 @@ const JOURNEY_COURSES: JourneyCourseDef[] = [
 function primaryInstructorId(): string | null {
   ensureDemoUsersSeeded();
   const users = readAuthDb().users;
-  const captain = users.find(
-    (u) =>
-      u.role === ROLES.INSTRUCTOR &&
-      `${u.firstName} ${u.lastName}`.toLowerCase().includes("abdulaziz"),
+  const lead = users.find(
+    (u) => u.role === ROLES.INSTRUCTOR && u.email.toLowerCase() === PRIMARY_DEMO_EMAILS.instructor,
   );
   return (
-    captain?.id ??
+    lead?.id ??
     users.find((u) => u.role === ROLES.INSTRUCTOR)?.id ??
     users.find((u) => u.role === ROLES.SUPER_ADMIN)?.id ??
     null
@@ -241,6 +275,7 @@ function ensureSyllabus(courseId: string, def: JourneyCourseDef, ts: string) {
 
 /** Ensure journey courses exist and stay aligned with PDF specs. */
 export function ensureCustomerJourneyCourses(): void {
+  scrubClientInstructorBranding();
   const snapshot = readCoursesDb();
   const existingCodes = new Set(snapshot.courses.map((c) => c.code));
   // Idempotent fast path: once every journey code is present, do not rewrite
@@ -284,7 +319,7 @@ export function ensureCustomerJourneyCourses(): void {
           lectureCount: def.lectureCount ?? null,
           programWeeks: def.programWeeks ?? null,
           currencyChoice: true,
-          instructorDisplayName: "Captain Abdulaziz Alshoail",
+          instructorDisplayName: "AviatorPass Instructor",
         };
         existing.updatedAt = ts;
         if (instructorId && !d.instructors.some((i) => i.courseId === existing.id)) {
@@ -331,7 +366,7 @@ export function ensureCustomerJourneyCourses(): void {
           lectureCount: def.lectureCount ?? null,
           programWeeks: def.programWeeks ?? null,
           currencyChoice: true,
-          instructorDisplayName: "Captain Abdulaziz Alshoail",
+          instructorDisplayName: "AviatorPass Instructor",
           customerJourney: true,
         },
         createdById: actor,
@@ -366,7 +401,7 @@ export function ensureCustomerJourneyCourses(): void {
           "Prepare for the Private Pilot License theory path",
         ],
         sequentialLock: true,
-        instructorDisplayName: "Captain Abdulaziz Alshoail",
+        instructorDisplayName: "AviatorPass Instructor",
       };
       legacyPpl.updatedAt = ts;
     }

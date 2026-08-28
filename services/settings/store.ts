@@ -9,6 +9,11 @@ import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store
 import type { PlatformSettings, SettingChangeRecord } from "@/types/settings";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
 import { generateId } from "@/lib/security/crypto";
+import {
+  LEGACY_ATPLPASS_SUPPORT_EMAIL,
+  LEGACY_CLIENT_NAME_RE,
+  PROJECT_SUPPORT_EMAIL,
+} from "@/lib/branding/legacy-client-identity";
 
 interface SettingsDatabase {
   settings: PlatformSettings;
@@ -136,13 +141,82 @@ function migrateBrandingAssets(settings: PlatformSettings): PlatformSettings {
   return changed ? { ...settings, branding } : settings;
 }
 
+function remapProjectEmail(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === LEGACY_ATPLPASS_SUPPORT_EMAIL ||
+    normalized === PROJECT_SUPPORT_EMAIL ||
+    LEGACY_CLIENT_NAME_RE.test(normalized)
+  ) {
+    return PROJECT_SUPPORT_EMAIL;
+  }
+  return value;
+}
+
+function isPersonalClientSocial(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === PROJECT_SUPPORT_EMAIL) return false;
+  return LEGACY_CLIENT_NAME_RE.test(normalized);
+}
+
+/** Replace legacy client emails/handles with AviatorPass support branding. */
+function migrateClientSupportBranding(settings: PlatformSettings): PlatformSettings {
+  const general = { ...settings.general, socialLinks: { ...settings.general.socialLinks } };
+  const email = { ...settings.email };
+  const zoom = { ...settings.zoom };
+  let changed = false;
+
+  const nextContact = remapProjectEmail(general.contactEmail);
+  if (nextContact !== general.contactEmail) {
+    general.contactEmail = nextContact;
+    changed = true;
+  }
+  const nextSupport = remapProjectEmail(general.supportEmail);
+  if (nextSupport !== general.supportEmail) {
+    general.supportEmail = nextSupport;
+    changed = true;
+  }
+  const nextSender = remapProjectEmail(email.senderEmail);
+  if (nextSender !== email.senderEmail) {
+    email.senderEmail = nextSender;
+    changed = true;
+  }
+  const nextReply = remapProjectEmail(email.replyToEmail);
+  if (nextReply !== email.replyToEmail) {
+    email.replyToEmail = nextReply;
+    changed = true;
+  }
+  const nextZoom = remapProjectEmail(zoom.accountEmail);
+  if (nextZoom !== zoom.accountEmail) {
+    zoom.accountEmail = nextZoom;
+    changed = true;
+  }
+
+  if (isPersonalClientSocial(general.socialHandle)) {
+    general.socialHandle = DEFAULT_PLATFORM_SETTINGS.general.socialHandle;
+    changed = true;
+  }
+  for (const key of ["instagram", "twitter", "linkedin", "youtube"] as const) {
+    const current = general.socialLinks[key];
+    if (current && isPersonalClientSocial(current)) {
+      general.socialLinks[key] = DEFAULT_PLATFORM_SETTINGS.general.socialLinks[key];
+      changed = true;
+    }
+  }
+
+  return changed ? { ...settings, general, email, zoom } : settings;
+}
+
 function ensureStore(): SettingsDatabase {
   const raw = readJsonFile<Partial<SettingsDatabase>>(DATA_FILE, emptyDb);
-  const settings = migrateBrandingAssets(
-    deepMerge(
-      DEFAULT_PLATFORM_SETTINGS as unknown as Record<string, unknown>,
-      (raw.settings ?? emptyDb().settings) as unknown as Record<string, unknown>,
-    ) as unknown as PlatformSettings,
+  const settings = migrateClientSupportBranding(
+    migrateBrandingAssets(
+      deepMerge(
+        DEFAULT_PLATFORM_SETTINGS as unknown as Record<string, unknown>,
+        (raw.settings ?? emptyDb().settings) as unknown as Record<string, unknown>,
+      ) as unknown as PlatformSettings,
+    ),
   );
   const history = (raw.history ?? []).slice(0, MAX_SETTINGS_HISTORY).map(slimHistoryEntry);
   const db: SettingsDatabase = {

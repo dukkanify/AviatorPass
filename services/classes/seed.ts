@@ -3,6 +3,11 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { siteStatic } from "@/config/site-static";
+import {
+  LEGACY_ATPLPASS_SUPPORT_EMAIL,
+  LEGACY_CLIENT_NAME_RE,
+} from "@/lib/branding/legacy-client-identity";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
@@ -12,9 +17,34 @@ import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import type { LiveClass, MeetingParticipant, ZoomMeetingRecord } from "@/types/classes";
 import { addHours, addDays } from "date-fns";
 
+function remapLegacyHostEmails(): void {
+  const db = readClassesDb();
+  const dirty = db.zoomMeetings.some((m) => {
+    const host = m.hostEmail ?? "";
+    return (
+      (LEGACY_CLIENT_NAME_RE.test(host) || host.toLowerCase() === LEGACY_ATPLPASS_SUPPORT_EMAIL) &&
+      host.toLowerCase() !== siteStatic.supportEmail
+    );
+  });
+  if (!dirty) return;
+  writeClassesDb((d) => {
+    for (const meeting of d.zoomMeetings) {
+      const host = meeting.hostEmail ?? "";
+      if (
+        (LEGACY_CLIENT_NAME_RE.test(host) ||
+          host.toLowerCase() === LEGACY_ATPLPASS_SUPPORT_EMAIL) &&
+        host.toLowerCase() !== siteStatic.supportEmail
+      ) {
+        meeting.hostEmail = siteStatic.supportEmail;
+      }
+    }
+  });
+}
+
 export function ensureClassesSeeded(): void {
   ensureDemoUsersSeeded();
   ensureCoursesSeeded();
+  remapLegacyHostEmails();
   const db = readClassesDb();
   if (db.seeded && db.classes.length > 0) return;
 
@@ -113,7 +143,7 @@ export function ensureClassesSeeded(): void {
       joinUrl: `http://localhost:3000/join/${classId}?mid=${zoomMeetingId}`,
       startUrl: `http://localhost:3000/join/${classId}?host=1&mid=${zoomMeetingId}`,
       password: "AtplLive1",
-      hostEmail: "ME@ABDULAZIZALSHOAIL.COM",
+      hostEmail: siteStatic.supportEmail,
       waitingRoom: true,
       passcodeEnabled: true,
       coHostEmails: [],

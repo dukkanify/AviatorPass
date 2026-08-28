@@ -81,6 +81,7 @@ function Footer() {
                   <a
                     href={`mailto:${siteStatic.supportEmail}`}
                     className="site-footer-contact-link"
+                    aria-label={`Support ${siteStatic.supportEmail}`}
                   >
                     <Mail className="h-3.5 w-3.5 shrink-0 text-accent/80" aria-hidden />
                     <span>{siteStatic.supportEmail}</span>

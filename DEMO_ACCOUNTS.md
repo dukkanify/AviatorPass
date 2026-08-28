@@ -22,18 +22,18 @@
 
 ## Account roles
 
-| Role                        | Email                            | Status    | Verified | Permanent |
-| --------------------------- | -------------------------------- | --------- | -------- | --------- |
-| **Super Admin**             | `superadmin@eagerpilots.com`     | Active    | Yes      | Yes       |
-| **Administrator**           | `admin@eagerpilots.com`          | Active    | Yes      | Yes       |
-| **Chief Ground Instructor** | `cgi@eagerpilots.com`            | Active    | Yes      | Yes       |
-| **Instructor (primary)**    | `instructor.one@eagerpilots.com` | Active    | Yes      | Yes       |
-| **Instructor (secondary)**  | `instructor.two@eagerpilots.com` | Active    | Yes      | No        |
-| **Student (primary demo)**  | `student.one@eagerpilots.com`    | Active    | Yes      | Yes       |
-| **Student**                 | `student.two@eagerpilots.com`    | Active    | Yes      | No        |
-| **Student (pending)**       | `student.three@eagerpilots.com`  | Pending   | Yes      | No        |
-| **Student (suspended)**     | `student.four@eagerpilots.com`   | Suspended | Yes      | No        |
-| **Student (journey)**       | `abdulaziz@aviatorpass.com`      | Active    | Yes      | No        |
+| Role                        | Email                             | Status    | Verified | Permanent |
+| --------------------------- | --------------------------------- | --------- | -------- | --------- |
+| **Super Admin**             | `superadmin@eagerpilots.com`      | Active    | Yes      | Yes       |
+| **Administrator**           | `admin@eagerpilots.com`           | Active    | Yes      | Yes       |
+| **Chief Ground Instructor** | `cgi@eagerpilots.com`             | Active    | Yes      | Yes       |
+| **Instructor (primary)**    | `instructor.one@eagerpilots.com`  | Active    | Yes      | Yes       |
+| **Instructor (secondary)**  | `instructor.two@eagerpilots.com`  | Active    | Yes      | No        |
+| **Student (primary demo)**  | `student.one@eagerpilots.com`     | Active    | Yes      | Yes       |
+| **Student**                 | `student.two@eagerpilots.com`     | Active    | Yes      | No        |
+| **Student (pending)**       | `student.three@eagerpilots.com`   | Pending   | Yes      | No        |
+| **Student (suspended)**     | `student.four@eagerpilots.com`    | Suspended | Yes      | No        |
+| **Student (journey)**       | `student.journey@eagerpilots.com` | Active    | Yes      | No        |
 
 ---
 
