@@ -22,6 +22,7 @@ describe("AviatorPass project branding", () => {
     expect(CONTACT.title).toBe("Support");
     expect(DEFAULT_PLATFORM_SETTINGS.general.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.general.contactEmail).toBe(PROJECT_SUPPORT_EMAIL);
+    expect(DEFAULT_PLATFORM_SETTINGS.general.websiteUrl).toBe("https://www.aviatorpass.com");
     expect(DEFAULT_PLATFORM_SETTINGS.email.senderEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.email.replyToEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.zoom.accountEmail).toBe(PROJECT_SUPPORT_EMAIL);

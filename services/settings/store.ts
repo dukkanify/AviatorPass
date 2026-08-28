@@ -179,6 +179,10 @@ function migrateClientSupportBranding(settings: PlatformSettings): PlatformSetti
     general.supportEmail = nextSupport;
     changed = true;
   }
+  if (/dubai-test\.blog/i.test(general.websiteUrl)) {
+    general.websiteUrl = DEFAULT_PLATFORM_SETTINGS.general.websiteUrl;
+    changed = true;
+  }
   const nextSender = remapProjectEmail(email.senderEmail);
   if (nextSender !== email.senderEmail) {
     email.senderEmail = nextSender;

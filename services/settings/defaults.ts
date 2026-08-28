@@ -11,7 +11,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   general: {
     platformName: "AviatorPass",
     companyName: "AviatorPass",
-    websiteUrl: "https://dubai-test.blog",
+    websiteUrl: "https://www.aviatorpass.com",
     contactEmail: siteStatic.contactEmail,
     contactPhone: "",
     supportEmail: siteStatic.supportEmail,
@@ -100,7 +100,13 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     rateLimitRequestsPerMinute: 60,
     ipBlockingEnabled: false,
     blockedIps: [],
-    trustedDomains: ["localhost", "aviatorpass.com", "dubai-test.blog", "www.dubai-test.blog"],
+    trustedDomains: [
+      "localhost",
+      "aviatorpass.com",
+      "www.aviatorpass.com",
+      "dubai-test.blog",
+      "www.dubai-test.blog",
+    ],
     allowedFileTypes: ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/pdf"],
     maxUploadSizeMb: 10,
     twoFactorAuthEnabled: false,
