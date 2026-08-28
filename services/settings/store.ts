@@ -12,6 +12,7 @@ import { generateId } from "@/lib/security/crypto";
 import {
   LEGACY_ATPLPASS_SUPPORT_EMAIL,
   LEGACY_CLIENT_NAME_RE,
+  LEGACY_PERSONAL_SUPPORT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
 
@@ -145,6 +146,7 @@ function remapProjectEmail(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (
     normalized === LEGACY_ATPLPASS_SUPPORT_EMAIL ||
+    normalized === LEGACY_PERSONAL_SUPPORT_EMAIL ||
     normalized === PROJECT_SUPPORT_EMAIL ||
     LEGACY_CLIENT_NAME_RE.test(normalized)
   ) {

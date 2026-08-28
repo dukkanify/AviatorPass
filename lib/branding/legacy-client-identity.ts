@@ -8,6 +8,12 @@ import { siteStatic } from "@/config/site-static";
 export const PROJECT_SUPPORT_EMAIL = siteStatic.supportEmail;
 
 export const LEGACY_ATPLPASS_SUPPORT_EMAIL = ["support@", "atplpass.com"].join("");
+/** Retired personal mailbox — remap persisted settings only; never show in UI. */
+export const LEGACY_PERSONAL_SUPPORT_EMAIL = [
+  "me@",
+  `${["abdulaziz", "alshoail"].join("")}`,
+  ".com",
+].join("");
 
 export const LEGACY_CLIENT_GIVEN = ["Abd", "ulaziz"].join("");
 export const LEGACY_CLIENT_ALT_GIVEN = ["Abdul", "lah"].join("");
