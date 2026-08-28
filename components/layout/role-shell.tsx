@@ -236,10 +236,10 @@ function ProfileMenu() {
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-1.25rem)]">
+        <DropdownMenuLabel className="min-w-0">
           <p className="truncate font-medium">{user?.fullName || "Account"}</p>
-          <p className="truncate text-xs font-normal text-muted-foreground">{user?.email}</p>
+          <p className="break-email text-xs font-normal text-muted-foreground">{user?.email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

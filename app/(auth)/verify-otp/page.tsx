@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function VerifyOtpPage() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+    <div className="relative flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="hero-aviation absolute inset-0" />
       <div className="absolute inset-0 bg-[#0B1A24]/55 backdrop-blur-[2px]" />
       <Card className="relative z-10 w-full max-w-md border-border/60 shadow-medium">

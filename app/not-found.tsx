@@ -19,7 +19,7 @@ export default function NotFound() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--surface-ink,#0f2a3d)] px-4 text-white">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--surface-ink,#0f2a3d)] px-4 text-white">
       <BrandLogo variant="dark" href={routes.home} className="[&_img]:h-12 [&_img]:max-w-[320px]" />
       <p className="mt-8 text-sm font-medium uppercase tracking-[0.2em] text-white/55">
         Opening AviatorPass

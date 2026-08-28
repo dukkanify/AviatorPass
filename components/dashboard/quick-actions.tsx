@@ -32,7 +32,7 @@ function QuickActions({ title = "Quick actions", actions, className }: QuickActi
             key={action.href + action.label}
             asChild
             variant="outline"
-            className="h-auto w-full justify-start gap-3 px-3 py-3 text-left transition-colors"
+            className="h-auto min-h-11 w-full justify-start gap-3 px-3 py-3 text-left transition-colors whitespace-normal"
           >
             <Link href={action.href}>
               <span

@@ -23,7 +23,7 @@ function SystemPage({
   const href = safeHref(actionHref ?? routes.home, routes.home);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent)_0%,_transparent_55%)] opacity-[0.08]" />
       <div className="relative z-10 mx-auto max-w-lg text-center">
         {code ? (

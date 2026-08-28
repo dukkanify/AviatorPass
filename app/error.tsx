@@ -26,7 +26,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--destructive)_0%,_transparent_50%)] opacity-[0.06]" />
       <div className="relative z-10 mx-auto max-w-lg text-center">
         <p className="font-display text-7xl font-bold tracking-tight text-primary/15 sm:text-8xl">

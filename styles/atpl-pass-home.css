@@ -74,10 +74,11 @@
 
 .atpl-hero-brand {
   font-family: var(--font-display);
-  font-size: clamp(2.8rem, 8vw, 5.5rem);
+  font-size: clamp(2.15rem, 9vw, 5.5rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 0.95;
+  overflow-wrap: anywhere;
   filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.35));
 }
 
@@ -90,6 +91,7 @@
 
 .atpl-badge {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
@@ -100,6 +102,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(246, 195, 108, 0.92);
+  overflow-wrap: anywhere;
   backdrop-filter: blur(8px);
   transition:
     border-color 0.3s ease,
@@ -377,20 +380,34 @@
 /* —— Contact —— */
 .atpl-contact-email {
   display: inline-flex;
-  align-items: center;
+  max-width: 100%;
+  align-items: flex-start;
   gap: 0.75rem;
   margin-top: 2rem;
-  padding: 1rem 1.75rem;
-  border-radius: 999px;
+  padding: 1rem 1.25rem;
+  border-radius: 1.25rem;
   border: 1px solid rgba(204, 160, 76, 0.35);
   background: rgba(204, 160, 76, 0.08);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
   color: white;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
   transition:
     background 0.3s ease,
     border-color 0.3s ease,
     transform 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .atpl-contact-email {
+    align-items: center;
+    padding: 1rem 1.75rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    text-align: center;
+  }
 }
 
 .atpl-contact-email:hover {
@@ -435,7 +452,13 @@
 }
 
 .atpl-landing-page {
-  padding-bottom: 4.5rem;
+  padding-bottom: 7.75rem;
+}
+
+@media (min-width: 640px) {
+  .atpl-landing-page {
+    padding-bottom: 5.25rem;
+  }
 }
 
 .atpl-stat-card {
@@ -531,5 +554,21 @@
 
   .atpl-section {
     padding-block: 3.5rem;
+  }
+
+  .atpl-pricing-card,
+  .atpl-review-card,
+  .atpl-stat-card,
+  .atpl-phase-card {
+    padding: 1.25rem 1.125rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atpl-reveal,
+  .atpl-hero-glow,
+  .atpl-contact-email {
+    animation: none !important;
+    transform: none !important;
   }
 }

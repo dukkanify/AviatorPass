@@ -106,8 +106,13 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             {HERO.audience}
           </p>
 
-          <div className="animate-in-up-delay-3 mt-12 flex flex-wrap items-center gap-3">
-            <Button size="lg" variant="accent" className="hero-cta-primary px-9" asChild>
+          <div className="animate-in-up-delay-3 mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
+            <Button
+              size="lg"
+              variant="accent"
+              className="hero-cta-primary w-full px-9 sm:w-auto"
+              asChild
+            >
               <Link href={courseHref}>
                 {HERO.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
@@ -116,7 +121,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             <Button
               size="lg"
               variant="outline"
-              className="hero-cta-secondary border-white/25 bg-white/[0.06] px-8 text-white hover:bg-white/12 hover:text-white"
+              className="hero-cta-secondary w-full border-white/25 bg-white/[0.06] px-8 text-white hover:bg-white/12 hover:text-white sm:w-auto"
               asChild
             >
               <Link href={routes.atpl}>{HERO.secondaryCta}</Link>
@@ -268,8 +273,13 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             ))}
           </div>
 
-          <div className="mt-12 flex flex-wrap gap-3">
-            <Button size="lg" variant="accent" className="hero-cta-primary" asChild>
+          <div className="mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap">
+            <Button
+              size="lg"
+              variant="accent"
+              className="hero-cta-primary w-full sm:w-auto"
+              asChild
+            >
               <Link href={courseHref}>
                 View the ATPL Course
                 <ArrowUpRight className="h-4 w-4" />
@@ -278,7 +288,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             <Button
               size="lg"
               variant="outline"
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               asChild
             >
               <Link href={routes.atpl}>View full course details</Link>
@@ -425,8 +435,13 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-white/55">
             {FINAL_CTA.body}
           </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <Button size="lg" variant="accent" className="hero-cta-primary px-10" asChild>
+          <div className="mt-10 flex w-full max-w-sm flex-col justify-center gap-3 sm:mx-auto sm:max-w-none sm:flex-row sm:flex-wrap">
+            <Button
+              size="lg"
+              variant="accent"
+              className="hero-cta-primary w-full px-10 sm:w-auto"
+              asChild
+            >
               <Link href={courseHref}>
                 {FINAL_CTA.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
@@ -435,7 +450,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             <Button
               size="lg"
               variant="outline"
-              className="border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
+              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               asChild
             >
               <Link href={routes.login}>{FINAL_CTA.secondaryCta}</Link>

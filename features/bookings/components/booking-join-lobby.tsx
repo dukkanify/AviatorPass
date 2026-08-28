@@ -54,7 +54,7 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
 
   if (loading) {
     return (
-      <div className="booking-aurora flex min-h-screen items-center justify-center px-4">
+      <div className="booking-aurora flex min-h-dvh items-center justify-center px-4">
         <div className="booking-grid-fade absolute inset-0" />
         <div className="relative z-10 w-full max-w-md space-y-4">
           <Skeleton className="h-10 w-40 bg-white/10" />
@@ -66,7 +66,7 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
 
   if (error || !data) {
     return (
-      <div className="booking-aurora flex min-h-screen flex-col items-center justify-center px-4 text-center text-white">
+      <div className="booking-aurora flex min-h-dvh flex-col items-center justify-center px-4 text-center text-white">
         <div className="booking-grid-fade absolute inset-0" />
         <div className="relative z-10 max-w-md">
           <BrandLogo variant="dark" href={routes.home} />
@@ -84,11 +84,11 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
   const enterUrl = isHost && join.startUrl ? join.startUrl : join.joinUrl;
 
   return (
-    <div className="booking-aurora relative min-h-screen overflow-hidden text-white">
+    <div className="booking-aurora relative min-h-dvh overflow-hidden text-white">
       <div className="booking-grid-fade absolute inset-0" />
       <div className="booking-scan-line" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-6">
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-3xl flex-col px-4 py-10 sm:px-6">
         <div className="flex items-center justify-between">
           <BrandLogo variant="dark" href={routes.home} />
           <Badge className="bg-white/10 text-white hover:bg-white/10">

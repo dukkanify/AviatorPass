@@ -18,27 +18,37 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <div className="hidden lg:block">
         <Sidebar className="fixed inset-y-0 left-0 z-30" />
       </div>
 
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-md lg:px-6">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col lg:pl-64">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card/90 px-3 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md sm:px-4 lg:px-6">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open sidebar">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="touch-target lg:hidden"
+                aria-label="Open sidebar"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent
+              side="left"
+              className="w-[min(18rem,calc(100vw-2.5rem))] p-0 pb-[env(safe-area-inset-bottom,0px)]"
+            >
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <Sidebar className="border-0" />
             </SheetContent>
           </Sheet>
           <p className="font-display text-sm font-semibold text-primary lg:hidden">Dashboard</p>
         </header>
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 lg:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

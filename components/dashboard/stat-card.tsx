@@ -29,7 +29,7 @@ function StatCard({ label, value, hint, icon: Icon, trend, className }: StatCard
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
+            <p className="break-words font-display text-3xl font-semibold tracking-tight text-foreground">
               {value}
             </p>
             {trend ? (
@@ -51,7 +51,7 @@ function StatCard({ label, value, hint, icon: Icon, trend, className }: StatCard
                 ) : null}
               </p>
             ) : hint ? (
-              <p className="text-xs text-muted-foreground">{hint}</p>
+              <p className="break-words text-xs text-muted-foreground">{hint}</p>
             ) : null}
           </div>
           {Icon ? (

@@ -8,7 +8,7 @@ import { SystemLayout } from "@/components/layout/app-layouts";
 export default function OfflinePage() {
   return (
     <SystemLayout>
-      <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
         <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
           <WifiOff className="h-7 w-7" aria-hidden />
         </span>
