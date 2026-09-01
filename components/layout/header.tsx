@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
 function navPathname(href: string): string {
-  return href.split("?")[0].split("#")[0] || "/";
+  return href.replace(/[?#].*$/, "") || "/";
 }
 
 function itemIsActive(pathname: string, item: MarketingNavItem): boolean {
