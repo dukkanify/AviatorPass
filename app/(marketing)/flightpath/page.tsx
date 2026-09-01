@@ -107,7 +107,7 @@ export default function FlightpathPage() {
           </h2>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Button size="lg" variant="accent" className="hero-cta-primary px-8" asChild>
-              <Link href={routes.courses}>
+              <Link href={routes.onlineCourses}>
                 Browse courses
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
@@ -118,7 +118,7 @@ export default function FlightpathPage() {
               className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
               asChild
             >
-              <Link href={routes.book}>Book live</Link>
+              <Link href={routes.onlineCourses}>Explore Online Courses</Link>
             </Button>
           </div>
         </div>

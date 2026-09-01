@@ -182,7 +182,7 @@ export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMeth
 export function quoteGuestCheckout(productId?: string | null, country = "KW"): GuestCheckoutQuote {
   const product = (productId ? getProduct(productId) : null) ?? getAtplPackageProduct();
   if (!product || !product.active) {
-    throw new PaymentError("ATPL PASS is not available for purchase right now", 404);
+    throw new PaymentError("The ATPL Course is not available for purchase right now", 404);
   }
   const settings = readPaymentsDb().settings;
   const detection = detectCheckoutCurrency({ country });
@@ -266,7 +266,7 @@ export function publicOrderSnapshot(order: Order) {
     totalAmount: order.totalAmount,
     currency: order.currency,
     totalLabel: formatMinor(order.totalAmount, order.currency),
-    productName: order.items[0]?.productName ?? "ATPL PASS",
+    productName: order.items[0]?.productName ?? "Aviator Pass",
     billingEmail: order.billingEmail,
     invoiceId: order.invoiceId,
     failureReason: order.failureReason,
@@ -324,7 +324,10 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
 
   const existingUser = findUserByEmail(email);
   if (existingUser && alreadyOwnsProduct(existingUser.id, product.id)) {
-    throw new PaymentError("This email already has ATPL PASS. Sign in to continue learning.", 409);
+    throw new PaymentError(
+      "This email already has Aviator Pass. Sign in to continue learning.",
+      409,
+    );
   }
 
   const idempotencyKey =
@@ -663,11 +666,11 @@ export async function fulfillGuestPaidOrder(
       event: "registration",
       userIds: [user.id],
       to: user.email,
-      subject: "Welcome to ATPL PASS — set your password",
+      subject: "Welcome to Aviator Pass — set your password",
       data: {
         recipientName: user.fullName || firstName,
-        title: "Welcome to ATPL PASS",
-        detail: `${bound.items[0]?.productName ?? "ATPL PASS"} is unlocked. Set your password with the secure link below, then sign in. Invoice ${bound.orderNumber} is in your billing inbox.`,
+        title: "Welcome to Aviator Pass",
+        detail: `${bound.items[0]?.productName ?? "Aviator Pass"} is unlocked. Set your password with the secure link below, then sign in. Invoice ${bound.orderNumber} is in your billing inbox.`,
         passwordSetupUrl: provisioned.passwordSetupUrl,
         temporaryPassword: provisioned.passwordSetupUrl ? "" : provisioned.temporaryPassword,
         accountEmail: user.email,
@@ -692,11 +695,11 @@ export async function fulfillGuestPaidOrder(
       event: "payment",
       userIds: [user.id],
       to: user.email,
-      subject: "ATPL PASS purchase confirmed",
+      subject: "Aviator Pass purchase confirmed",
       data: {
         recipientName: user.fullName || firstName,
         title: "Purchase confirmed",
-        detail: `${bound.items[0]?.productName ?? "ATPL PASS"} is active on your existing AviatorPass account.`,
+        detail: `${bound.items[0]?.productName ?? "Aviator Pass"} is active on your existing Aviator Pass account.`,
         loginUrl: quote.loginUrl,
         courseUrl: quote.courseAccessUrl,
         supportEmail: brand.supportEmail,
@@ -717,7 +720,7 @@ export async function fulfillGuestPaidOrder(
     title: provisioned.accountCreated ? "Account created" : "Course activated",
     body: provisioned.accountCreated
       ? "Your AviatorPass student account is ready. Check your email to set a password."
-      : `${bound.items[0]?.productName ?? "ATPL PASS"} is now on your account.`,
+      : `${bound.items[0]?.productName ?? "Aviator Pass"} is now on your account.`,
     actionUrl: "/student/courses",
     email: false,
     dedupeKey: `purchase-first:${bound.id}:${user.id}`,
@@ -939,7 +942,10 @@ export async function startHostedCheckout(input: {
   const email = input.email ? sanitizeEmail(input.email) : "";
   const existingUser = email ? findUserByEmail(email) : null;
   if (existingUser && alreadyOwnsProduct(existingUser.id, product.id)) {
-    throw new PaymentError("This email already has ATPL PASS. Sign in to continue learning.", 409);
+    throw new PaymentError(
+      "This email already has Aviator Pass. Sign in to continue learning.",
+      409,
+    );
   }
 
   const stamp = nowIso();
@@ -1022,7 +1028,7 @@ export async function startHostedCheckout(input: {
     amount: order.totalAmount,
     currency: order.currency,
     customerEmail: email || placeholderEmail,
-    customerName: "ATPL PASS student",
+    customerName: "Aviator Pass student",
     methodBrand: "card",
     stripePriceId: quote.stripePriceId ?? undefined,
     country,

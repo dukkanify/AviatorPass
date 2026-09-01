@@ -429,7 +429,7 @@ export async function finalizeEnterpriseRegistration(input: {
     userId: created.id,
     type: "account.created",
     title: "Account created",
-    body: "Welcome to ATPL PASS — your account is ready.",
+    body: "Welcome to Aviator Pass — your account is ready.",
     actionUrl: "/complete-profile",
     email: false,
   });
@@ -437,7 +437,7 @@ export async function finalizeEnterpriseRegistration(input: {
     userId: created.id,
     type: "account.welcome",
     title: "Welcome aboard",
-    body: "Your ATPL PASS account is ready. Open your dashboard to continue.",
+    body: "Your Aviator Pass account is ready. Open your dashboard to continue.",
     email: false,
   });
   await notifyRole("admin", {

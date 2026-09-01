@@ -35,6 +35,7 @@ import {
 import { siteStatic } from "@/config/site-static";
 import { routes } from "@/constants/routes";
 import { cn } from "@/lib/utils";
+import { EasaBadge } from "@/features/marketing/components/easa-badge";
 
 const FEATURE_ICONS = [
   Video,
@@ -88,7 +89,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
 
         <div className="container-app relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-center pb-20 pt-16 sm:pb-28">
           <p className="animate-in-up atpl-hero-brand" aria-hidden>
-            <span className="text-white">ATPL</span>
+            <span className="text-white">AVIATOR</span>
             <span className="atpl-hero-brand-pass"> PASS</span>
           </p>
 
@@ -113,7 +114,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               className="hero-cta-primary w-full px-9 sm:w-auto"
               asChild
             >
-              <Link href={courseHref}>
+              <Link href={routes.onlineCourses}>
                 {HERO.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
@@ -139,7 +140,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
 
         <a href="#about" className="home-hero-descend">
           <span className="home-hero-descend-mark" aria-hidden />
-          Discover ATPL PASS
+          Discover Aviator Pass
         </a>
       </section>
 
@@ -302,11 +303,11 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
         <div className="container-app">
           <SectionKicker>Included Modules</SectionKicker>
           <h2 className="atpl-heading mt-4 max-w-[22ch]">
-            Every ATPL subject, included in one program
+            13 ATPL Subjects, included in one program
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            All subjects below are modules within the ATPL Program — not separate products. Enroll
-            once and access everything.
+            All 13 Theory Subjects below are modules within the ATPL Course — not separate products.
+            Enrol once and access everything.
           </p>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {subjects.map((subject, i) => (
@@ -357,6 +358,9 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
         <div className="container-app">
           <SectionKicker>{INSTRUCTORS.kicker}</SectionKicker>
           <h2 className="atpl-heading-light mt-4 max-w-[20ch]">{INSTRUCTORS.title}</h2>
+          <div className="mt-6">
+            <EasaBadge variant="dark" />
+          </div>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/62">
             {INSTRUCTORS.intro}
           </p>
@@ -411,19 +415,34 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-white/60">
             {CONTACT.body}
           </p>
-          <a
-            href={`mailto:${siteStatic.supportEmail}`}
-            className="atpl-contact-email"
-            aria-label={`Support ${siteStatic.supportEmail}`}
-          >
-            <Mail className="h-5 w-5 text-accent" aria-hidden />
-            <span className="flex flex-col items-start text-left leading-tight sm:items-center sm:text-center">
-              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
-                Support
+          <div className="mx-auto mt-8 flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:justify-center">
+            <a
+              href={`mailto:${siteStatic.contactEmail}`}
+              className="atpl-contact-email"
+              aria-label={`Website contact ${siteStatic.contactEmail}`}
+            >
+              <Mail className="h-5 w-5 text-accent" aria-hidden />
+              <span className="flex min-w-0 flex-col items-start text-left leading-tight">
+                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
+                  Website
+                </span>
+                <span className="break-all">{siteStatic.contactEmail}</span>
               </span>
-              <span>{siteStatic.supportEmail}</span>
-            </span>
-          </a>
+            </a>
+            <a
+              href={`mailto:${siteStatic.supportEmail}`}
+              className="atpl-contact-email"
+              aria-label={`Student support ${siteStatic.supportEmail}`}
+            >
+              <Mail className="h-5 w-5 text-accent" aria-hidden />
+              <span className="flex min-w-0 flex-col items-start text-left leading-tight">
+                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
+                  Student support
+                </span>
+                <span className="break-all">{siteStatic.supportEmail}</span>
+              </span>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -442,7 +461,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               className="hero-cta-primary w-full px-10 sm:w-auto"
               asChild
             >
-              <Link href={courseHref}>
+              <Link href={routes.onlineCourses}>
                 {FINAL_CTA.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>

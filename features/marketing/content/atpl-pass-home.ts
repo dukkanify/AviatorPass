@@ -1,50 +1,50 @@
 /**
- * ATPL PASS — public marketing copy (homepage & program page).
- * No personal founder references; academy-grade messaging only.
+ * Aviator Pass — public marketing copy (homepage & shared academy sections).
+ * Complete aviation education platform — not ATPL-only.
  */
 
 import { siteStatic } from "@/config/site-static";
 
 export const ATPL_PASS = {
-  brand: "ATPL PASS",
+  brand: "Aviator Pass",
   tagline: "YOUR AVIATION JOURNEY STARTS HERE",
   supportEmail: siteStatic.supportEmail,
+  contactEmail: siteStatic.contactEmail,
 } as const;
 
 export const HERO = {
-  kicker: "International Aviation Academy",
-  headline: "Master the Airline Transport Pilot License with live, instructor-led excellence",
+  kicker: "Complete Aviation Education Platform",
+  headline: "Your aviation journey starts here — from first principles to airline theory",
   subheadline:
-    "ATPL PASS delivers live ATPL theory with certified instructors, structured subject modules, and measurable progress — prepared for regulatory exams and professional operations.",
-  audience:
-    "Built for ATPL candidates in Kuwait, the UAE, and across the Gulf who expect professional standards.",
-  primaryCta: "Enrol in ATPL PASS",
-  secondaryCta: "Explore the Program",
+    "Aviator Pass is a complete aviation education platform. Train with EASA Certified Instructors across Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams — live one-to-one and selected recorded programmes.",
+  audience: `Serving students in ${siteStatic.locations.join(", ")} and worldwide.`,
+  primaryCta: "Explore Online Courses",
+  secondaryCta: "View the ATPL Course",
 } as const;
 
 export const ABOUT = {
   kicker: "Who We Are",
-  title: "An established academy for airline-ready pilots",
+  title: "A complete aviation education platform",
   whoWeAre:
-    "ATPL PASS is a specialist aviation training academy focused exclusively on Airline Transport Pilot License preparation. We combine certified instructors, a modern digital platform, and a competency-based curriculum designed to meet international aviation standards.",
+    "Aviator Pass is a complete aviation education platform — not a single-licence academy. We prepare students from their first introduction to aviation through Private Pilot License ground school, Airline Transport Pilot License theory, and English Language Proficiency mock examinations. Every programme is delivered by EASA Certified Instructors on a modern, secure learning platform.",
   mission:
-    "To deliver live, instructor-led ATPL training that builds real competence — preparing every student for regulatory examinations and professional flight operations with confidence and discipline.",
+    "To deliver professional aviation education that builds real competence at every stage of a pilot’s journey — combining live instructor-led training, selected recorded programmes, and a structured digital platform that supports students from first lesson to exam-ready performance.",
   vision:
-    "To be the Gulf region's most trusted ATPL training academy, recognised for live excellence, structured progression, and graduates who meet the highest airline standards.",
+    "To be the trusted aviation education platform for students across Dubai, Copenhagen, Kuwait, Qatar, and beyond — recognised for EASA Certified Instructors, complete programme coverage, and graduates who meet international professional standards.",
   history:
-    "ATPL PASS was established to address a gap in premium ATPL preparation: pilots needed more than recorded lectures. We built a live-first academy where structured subject modules, interactive sessions, and continuous instructor feedback mirror the rigour of professional airline training departments.",
+    "Aviator Pass was built because aviation students needed more than a single ATPL video library. We assembled a full academy: recorded and live pathways for Basics of Aviation and Private Pilot License, a live ATPL theory programme covering 13 theory subjects, and live ELP mock exams — all taught to airline-grade standards with EASA Certified Instructors.",
   values: [
     {
       title: "Safety & Standards",
       body: "Every lesson aligns with ICAO frameworks and regulatory best practice.",
     },
     {
-      title: "Live Excellence",
-      body: "Interactive instructor sessions — never passive, never pre-recorded.",
+      title: "EASA Certified Instructors",
+      body: "Instruction from EASA Certified Instructors — one of our strongest commitments to quality.",
     },
     {
-      title: "Structured Progress",
-      body: "Clear modules, tracked milestones, and measurable competency gains.",
+      title: "Complete Pathways",
+      body: "Basics, PPL, ATPL, and ELP — live and recorded options that match how you learn.",
     },
     {
       title: "Professional Integrity",
@@ -52,42 +52,42 @@ export const ABOUT = {
     },
   ],
   whyChoose: [
-    "Industry-aligned ATPL curriculum across all core theory subjects",
-    "Live Zoom sessions with certified aviation instructors",
+    "EASA Certified Instructors across every programme",
+    "Complete aviation pathways — Basics, PPL, ATPL, and ELP",
+    "Live one-to-one sessions and selected recorded courses",
     "Structured learning paths with assignments and performance reviews",
-    "Mock examinations and practice assessments built into the program",
-    "Digital certificates and progress reports on a secure platform",
+    "Mock examinations and practice assessments built into the programmes",
     "Dedicated academy support for students and instructors",
   ],
 } as const;
 
 export const WHY_CHOOSE = {
-  kicker: "Why Choose ATPL PASS",
-  title: "Training engineered for airline careers",
+  kicker: "Why Choose Aviator Pass",
+  title: "Training engineered for aviation careers",
   features: [
     {
-      title: "Professional Live Training",
-      body: "Every session is conducted live with a certified instructor — interactive, responsive, and examination-focused.",
+      title: "EASA Certified Instructors",
+      body: "Learn from EASA Certified Instructors with professional aviation backgrounds and proven teaching experience — our strongest academic differentiator.",
     },
     {
-      title: "Certified Aviation Instructors",
-      body: "Learn from instructors with professional aviation backgrounds and proven ATPL teaching experience.",
+      title: "Complete Education Platform",
+      body: "Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams — one academy, every stage of the journey.",
+    },
+    {
+      title: "Live and recorded pathways",
+      body: "Live one-to-one instruction where it matters, with selected recorded programmes for flexible self-paced study.",
     },
     {
       title: "Modern Learning Platform",
       body: "A secure digital environment for schedules, materials, assignments, and performance tracking.",
     },
     {
-      title: "Interactive Learning Experience",
-      body: "Ask questions, work through problems, and receive real-time guidance — not passive video consumption.",
-    },
-    {
       title: "Structured Training",
-      body: "Competency-based modules across every ATPL subject, sequenced for logical progression.",
+      body: "Competency-based modules sequenced for logical progression across each programme.",
     },
     {
       title: "Industry Standards",
-      body: "Curriculum aligned with international ATPL theory requirements and examination standards.",
+      body: "Curriculum aligned with international theory requirements and examination standards.",
     },
     {
       title: "Student Progress Tracking",
@@ -99,7 +99,7 @@ export const WHY_CHOOSE = {
     },
     {
       title: "Zoom Live Sessions",
-      body: "Scheduled live classes via Zoom with session notes, recordings policy, and attendance tracking.",
+      body: "Scheduled live classes via Zoom with attendance tracking. ATPL recordings are not released to students.",
     },
     {
       title: "Premium Student Support",
@@ -110,7 +110,7 @@ export const WHY_CHOOSE = {
 
 export const PLATFORM_FEATURES = {
   kicker: "Platform Features",
-  title: "Tools built for live ATPL training",
+  title: "Tools built for aviation education",
   items: [
     {
       title: "Live Classes",
@@ -120,7 +120,7 @@ export const PLATFORM_FEATURES = {
       title: "Student Dashboard",
       body: "Schedules, progress, and academy notices in one place.",
     },
-    { title: "Progress Tracking", body: "Visual milestones across every ATPL subject module." },
+    { title: "Progress Tracking", body: "Visual milestones across every enrolled programme." },
     { title: "Certificates", body: "Verifiable credentials upon module and program completion." },
     { title: "Instructor Feedback", body: "Clear guidance on assignments and performance." },
     {
@@ -143,52 +143,56 @@ export const PLATFORM_FEATURES = {
 } as const;
 
 export const PROGRAM = {
-  kicker: "The ATPL Program",
-  title: "One program. Every subject. Complete preparation.",
+  kicker: "Online Courses",
+  title: "One platform. Every aviation pathway.",
   description:
-    "Enroll once in the ATPL Program and gain automatic access to every ATPL theory subject currently available on the platform. No separate purchases, no fragmented checkout — one unified path to your license.",
+    "Explore Online Courses to choose the programme that matches your stage: Basics of Aviation, Private Pilot License, the live ATPL Course, and ELP Mock Exams Live. Enrol in the ATPL Course for 13 theory subjects in one purchase.",
   includes: [
-    "Professional live online training",
-    "Interactive instructor sessions",
-    "Structured learning path across all ATPL modules",
+    "EASA Certified Instructors on every programme",
+    "ATPL Course — 13 theory subjects, live instruction",
+    "Basics of Aviation — recorded and live one-to-one",
+    "Private Pilot License — recorded and live one-to-one",
+    "ELP Mock Exams Live",
     "Progress tracking and competency milestones",
     "Assignments and performance reviews",
-    "Instructor feedback on every stage",
-    "Course materials and session notes",
-    "Practice examinations",
-    "Mock examinations",
+    "Practice and mock examinations",
     "Digital certificates upon completion",
+    "Academy support from first enquiry to exam day",
   ],
   badges: [
+    "EASA Certified Instructors",
     "Live Training",
-    "Professional Program",
-    "Instructor-Led",
-    "ATPL Program",
+    "Recorded Pathways",
+    "Complete Platform",
     "Premium Experience",
   ],
 } as const;
 
 export const LEARNING_METHOD = {
-  kicker: "Learning Method",
-  title: "100% live. Zero recorded courses.",
-  body: "All training at ATPL PASS is delivered live with a certified instructor. There are no pre-recorded courses, no self-paced video libraries, and no passive learning paths. Every session is interactive, every question is answered in real time, and every student progresses through structured live instruction.",
+  kicker: "How you learn",
+  title: "Live where it matters. Recorded where it helps.",
+  body: "Aviator Pass is a complete education platform. Selected programmes — Basics of Aviation and Private Pilot License — are offered as recorded courses and as live one-to-one training. The ATPL Course is delivered live: sessions are live, recordings are not available to students, and any internal recording is for quality assurance only.",
   points: [
-    "Every session is conducted live with an instructor",
-    "Interactive participation — questions, exercises, and discussions",
-    "No self-paced or pre-recorded delivery",
-    "Competency-based progression, not fixed timelines",
+    "EASA Certified Instructors across live and recorded pathways",
+    "Basics and PPL available as recorded or live one-to-one",
+    "ATPL Course sessions are live — no student recordings",
+    "ELP Mock Exams delivered live with an instructor",
   ],
 } as const;
 
 export const INSTRUCTORS = {
   kicker: "Our Instructors",
-  title: "Certified AviatorPass Instructors",
+  title: "EASA Certified Instructors",
   intro:
-    "Our instructor corps brings professional aviation experience, regulatory knowledge, and a commitment to live, personalised training. Every instructor is selected for industry credentials and the ability to guide ATPL candidates through complex theory with clarity and precision.",
+    "EASA Certified Instructors are one of Aviator Pass’s strongest selling points. Our instructor corps brings professional aviation experience, regulatory knowledge, and a commitment to live, personalised training — selected for industry credentials and the ability to guide students from first principles through ATPL theory with clarity and precision.",
   highlights: [
     {
+      title: "EASA Certified Instructors",
+      body: "Every Aviator Pass instructor is EASA certified — the academic standard we put at the centre of the academy.",
+    },
+    {
       title: "Industry Experience",
-      body: "Professional backgrounds in commercial aviation and ATPL instruction.",
+      body: "Professional backgrounds in commercial aviation and licence instruction.",
     },
     {
       title: "Aviation Credentials",
@@ -230,7 +234,7 @@ export const PAYMENTS = {
       ],
     },
     {
-      country: "UAE",
+      country: "Dubai",
       methods: [
         {
           name: "Tabby",
@@ -242,6 +246,25 @@ export const PAYMENTS = {
         },
       ],
     },
+    {
+      country: "Qatar",
+      methods: [
+        {
+          name: "Cards & wallets",
+          description:
+            "Secure Stripe checkout in your local currency, including cards and wallets.",
+        },
+      ],
+    },
+    {
+      country: "Copenhagen",
+      methods: [
+        {
+          name: "Cards & wallets",
+          description: "European checkout with cards, Apple Pay, and Google Pay where available.",
+        },
+      ],
+    },
   ],
   note: "Installment availability is subject to provider approval at checkout. All prices are displayed in your selected currency.",
 } as const;
@@ -249,14 +272,14 @@ export const PAYMENTS = {
 export const CONTACT = {
   kicker: "Support",
   title: "Support",
-  body: "For enrolment inquiries, scheduling assistance, and platform support, reach the AviatorPass team directly.",
+  body: "For enrolment inquiries, scheduling assistance, and platform support, reach the Aviator Pass team directly.",
   cta: "Email Support",
 } as const;
 
 export const FINAL_CTA = {
   kicker: "Next step",
-  title: "Train with live instructors on a structured ATPL path",
-  body: "Join ATPL PASS for every subject, live session, and study resource — organised in one academy platform.",
-  primaryCta: "Enrol in ATPL PASS",
+  title: "Train with EASA Certified Instructors on a complete aviation platform",
+  body: "Join Aviator Pass for Online Courses spanning Basics, PPL, ATPL, and ELP — organised in one academy platform.",
+  primaryCta: "Explore Online Courses",
   secondaryCta: "Log in",
 } as const;

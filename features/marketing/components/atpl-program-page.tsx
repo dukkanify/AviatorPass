@@ -21,7 +21,8 @@ import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
 import {
   ATPL_LANDING_HERO,
-  ATPL_SUBJECTS_14,
+  ATPL_LIVE_TRAINING,
+  ATPL_SUBJECTS_13,
   COURSE_BENEFITS,
   COURSE_OVERVIEW,
   COURSE_STRUCTURE,
@@ -30,11 +31,8 @@ import {
   STUDENT_REVIEWS,
   WHO_SHOULD_JOIN,
 } from "@/features/marketing/content/atpl-course-landing";
-import {
-  INSTRUCTORS,
-  LEARNING_METHOD,
-  PLATFORM_FEATURES,
-} from "@/features/marketing/content/atpl-pass-home";
+import { INSTRUCTORS, PLATFORM_FEATURES } from "@/features/marketing/content/atpl-pass-home";
+import { EasaBadge } from "@/features/marketing/components/easa-badge";
 
 const PLATFORM_ICONS = [
   Video,
@@ -65,7 +63,7 @@ function EnrolButton({
   return (
     <Button size={size} variant="accent" className={cn("w-full sm:w-auto", className)} asChild>
       <Link href={enrollHref}>
-        Enrol in ATPL PASS
+        Enrol in Aviator Pass
         <ArrowUpRight className="h-4 w-4" />
       </Link>
     </Button>
@@ -188,16 +186,16 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
         aria-labelledby="subjects-heading"
       >
         <div className="container-app">
-          <p className="atpl-kicker">14 ATPL subjects</p>
+          <p className="atpl-kicker">13 ATPL Subjects</p>
           <h2 id="subjects-heading" className="atpl-heading mt-4 max-w-[22ch]">
             Every theory paper in one enrolment
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            Fourteen Airline Transport Pilot License theory subjects. Included with ATPL PASS — no
-            separate purchases.
+            13 Theory Subjects for the Airline Transport Pilot License. Included with the ATPL
+            Course — no separate purchases.
           </p>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ATPL_SUBJECTS_14.map((subject) => (
+            {ATPL_SUBJECTS_13.map((subject) => (
               <article key={subject.code} className="atpl-subject-card">
                 <span className="atpl-subject-code">{subject.code}</span>
                 <h3 className="mt-3 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
@@ -240,13 +238,13 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
 
       <section className="atpl-section atpl-section-accent" aria-labelledby="method-heading">
         <div className="container-app">
-          <p className="atpl-kicker">{LEARNING_METHOD.kicker}</p>
+          <p className="atpl-kicker">{ATPL_LIVE_TRAINING.kicker}</p>
           <h2 id="method-heading" className="atpl-heading mt-4">
-            {LEARNING_METHOD.title}
+            {ATPL_LIVE_TRAINING.title}
           </h2>
-          <p className="mt-5 max-w-2xl text-muted-foreground">{LEARNING_METHOD.body}</p>
+          <p className="mt-5 max-w-2xl text-muted-foreground">{ATPL_LIVE_TRAINING.body}</p>
           <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-            {LEARNING_METHOD.points.map((point) => (
+            {ATPL_LIVE_TRAINING.points.map((point) => (
               <li key={point} className="atpl-learning-point">
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-hidden />
                 <span className="text-sm font-medium leading-relaxed">{point}</span>
@@ -266,6 +264,9 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
           <h2 id="instructors-heading" className="atpl-heading-light mt-4 max-w-[20ch]">
             {INSTRUCTORS.title}
           </h2>
+          <div className="mt-6">
+            <EasaBadge variant="dark" />
+          </div>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/62">
             {INSTRUCTORS.intro}
           </p>
@@ -403,7 +404,9 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
 
       <section className="atpl-section atpl-section-final">
         <div className="container-app text-center">
-          <h2 className="atpl-heading-light mx-auto max-w-[18ch]">Ready to enrol in ATPL PASS?</h2>
+          <h2 className="atpl-heading-light mx-auto max-w-[18ch]">
+            Ready to enrol in Aviator Pass?
+          </h2>
           <p className="mx-auto mt-5 max-w-md text-white/55">
             Continue to secure checkout. No registration until payment succeeds.
           </p>

@@ -128,7 +128,8 @@ export function getPublicBrandConfig() {
     language: s.localization.language,
     englishOnly: s.localization.englishOnly,
     metaDescription:
-      s.general.footerText || "Professional Aviation Education Platform for ATPL Training.",
+      s.general.footerText ||
+      "Aviator Pass — a complete aviation education platform with EASA Certified Instructors.",
     pending: {
       brandGuidelines: s.branding.brandGuidelinesPending,
       colorPalette: s.branding.colorPalettePending,

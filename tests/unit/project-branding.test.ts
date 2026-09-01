@@ -6,6 +6,7 @@ import { ATPL_PASS, CONTACT } from "@/features/marketing/content/atpl-pass-home"
 import {
   LEGACY_CLIENT_FAMILY,
   LEGACY_CLIENT_GIVEN,
+  PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
@@ -13,15 +14,16 @@ import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { JOURNEY_COURSES } from "@/services/journeys/customer-journey-catalog";
 
 describe("AviatorPass project branding", () => {
-  it("uses the configured support email in static, settings, and marketing copy", () => {
-    expect(PROJECT_SUPPORT_EMAIL).toBe("support@aviatorpass.com");
+  it("uses the configured support and contact emails in static, settings, and marketing copy", () => {
+    expect(PROJECT_SUPPORT_EMAIL).toBe("support@atplpass.com");
+    expect(PROJECT_CONTACT_EMAIL).toBe("info@atplpass.com");
     expect(siteStatic.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
-    expect(siteStatic.contactEmail).toBe(PROJECT_SUPPORT_EMAIL);
+    expect(siteStatic.contactEmail).toBe(PROJECT_CONTACT_EMAIL);
     expect(ATPL_PASS.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(CONTACT.kicker).toBe("Support");
     expect(CONTACT.title).toBe("Support");
     expect(DEFAULT_PLATFORM_SETTINGS.general.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
-    expect(DEFAULT_PLATFORM_SETTINGS.general.contactEmail).toBe(PROJECT_SUPPORT_EMAIL);
+    expect(DEFAULT_PLATFORM_SETTINGS.general.contactEmail).toBe(PROJECT_CONTACT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.general.websiteUrl).toBe("https://www.aviatorpass.com");
     expect(DEFAULT_PLATFORM_SETTINGS.email.senderEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.email.replyToEmail).toBe(PROJECT_SUPPORT_EMAIL);
@@ -55,13 +57,13 @@ describe("AviatorPass project branding", () => {
   it("exposes the project support email on the public brand snapshot", () => {
     const brand = getPublicBrandConfig();
     expect(brand.supportEmail.toLowerCase()).toBe(PROJECT_SUPPORT_EMAIL);
-    expect(brand.contactEmail.toLowerCase()).toBe(PROJECT_SUPPORT_EMAIL);
+    expect(brand.contactEmail.toLowerCase()).toBe(PROJECT_CONTACT_EMAIL);
     expect(brand.socialHandle.toLowerCase()).not.toContain(LEGACY_CLIENT_GIVEN.toLowerCase());
   });
 
   it("does not publish the retired personal support mailbox", () => {
     expect(siteStatic.supportEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
     expect(siteStatic.contactEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
-    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toBe("support@aviatorpass.com");
+    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toBe("support@atplpass.com");
   });
 });

@@ -30,7 +30,7 @@ function StripeCheckoutRedirect({ initialError }: StripeCheckoutRedirectProps) {
       <p className="mt-3 text-muted-foreground">
         {canceled
           ? "No charge was made. Continue when you are ready — Stripe collects your name, email, billing address, and country."
-          : "Enrol in ATPL PASS opens Stripe Checkout immediately. Apple Pay, Google Pay, cards, Link, and local methods appear automatically for your country."}
+          : "Enrol in Aviator Pass opens Stripe Checkout immediately. Apple Pay, Google Pay, cards, Link, and local methods appear automatically for your country."}
       </p>
       {initialError ? <p className="mt-4 text-sm text-destructive">{initialError}</p> : null}
       <div className="mt-8 flex flex-wrap justify-center gap-3">

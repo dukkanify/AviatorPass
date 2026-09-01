@@ -44,7 +44,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     delivery: "immediate",
     emailDefault: true,
     defaultTitle: "Account created",
-    defaultBody: "Welcome to ATPL PASS — your account is ready.",
+    defaultBody: "Welcome to Aviator Pass — your account is ready.",
     audiences: ["all"],
   },
   "account.email_verified": {
@@ -84,7 +84,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     delivery: "immediate",
     emailDefault: true,
     defaultTitle: "Welcome aboard",
-    defaultBody: "Your ATPL PASS account is ready. Open your dashboard to continue.",
+    defaultBody: "Your Aviator Pass account is ready. Open your dashboard to continue.",
     audiences: ["student"],
   },
   "account.profile_updated": {

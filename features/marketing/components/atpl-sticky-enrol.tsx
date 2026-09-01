@@ -15,7 +15,9 @@ function AtplStickyEnrol({ enrollHref, priceLabel }: AtplStickyEnrolProps) {
     <div className="atpl-sticky-enrol">
       <div className="container-app flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">ATPL PASS</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+            ATPL Course
+          </p>
           <p className="break-words text-sm leading-snug text-white/75">
             {priceLabel ? `From ${priceLabel} · ` : ""}Pay first — account created after payment
           </p>
@@ -27,7 +29,7 @@ function AtplStickyEnrol({ enrollHref, priceLabel }: AtplStickyEnrolProps) {
           asChild
         >
           <Link href={enrollHref}>
-            Enrol in ATPL PASS
+            Enrol in Aviator Pass
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </Button>

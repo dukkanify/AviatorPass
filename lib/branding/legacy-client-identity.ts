@@ -6,8 +6,20 @@
 import { siteStatic } from "@/config/site-static";
 
 export const PROJECT_SUPPORT_EMAIL = siteStatic.supportEmail;
+export const PROJECT_CONTACT_EMAIL = siteStatic.contactEmail;
 
-export const LEGACY_ATPLPASS_SUPPORT_EMAIL = ["support@", "atplpass.com"].join("");
+/** Retired AviatorPass-domain mailbox — remap persisted settings to the canonical support address. */
+export const LEGACY_AVIATORPASS_SUPPORT_EMAIL = ["support@", "aviatorpass.com"].join("");
+
+/**
+ * Canonical student-support mailbox (`support@atplpass.com`).
+ * Kept as a named constant so seed/remap code can compare hosts without treating it as dirty.
+ */
+export const CANONICAL_ATPLPASS_SUPPORT_EMAIL = PROJECT_SUPPORT_EMAIL;
+
+/** @deprecated Use CANONICAL_ATPLPASS_SUPPORT_EMAIL — this address is now the live support mailbox. */
+export const LEGACY_ATPLPASS_SUPPORT_EMAIL = CANONICAL_ATPLPASS_SUPPORT_EMAIL;
+
 /** Retired personal mailbox — remap persisted settings only; never show in UI. */
 export const LEGACY_PERSONAL_SUPPORT_EMAIL = [
   "me@",
@@ -24,6 +36,15 @@ export const LEGACY_CLIENT_NAME_RE = new RegExp(
   `${LEGACY_CLIENT_GIVEN}|${LEGACY_CLIENT_ALT_GIVEN}|${LEGACY_CLIENT_FAMILY}|${["sho", "ail"].join("")}`,
   "i",
 );
+
+export function isLegacySupportMailbox(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === LEGACY_AVIATORPASS_SUPPORT_EMAIL ||
+    normalized === LEGACY_PERSONAL_SUPPORT_EMAIL ||
+    LEGACY_CLIENT_NAME_RE.test(normalized)
+  );
+}
 
 export function stripLegacyClientName(value: string, replacement: string): string {
   const captainFull = new RegExp(`Captain ${LEGACY_CLIENT_GIVEN} ${LEGACY_CLIENT_FAMILY}`, "gi");

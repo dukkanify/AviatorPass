@@ -16,7 +16,7 @@ export default function ChangePasswordPage() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle>Change your password</CardTitle>
           <CardDescription>
-            First-time ATPL PASS students must replace the generated password before entering the
+            First-time Aviator Pass students must replace the generated password before entering the
             dashboard.
           </CardDescription>
         </CardHeader>

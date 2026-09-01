@@ -10,9 +10,9 @@ import type { PlatformSettings, SettingChangeRecord } from "@/types/settings";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
 import { generateId } from "@/lib/security/crypto";
 import {
-  LEGACY_ATPLPASS_SUPPORT_EMAIL,
+  isLegacySupportMailbox,
   LEGACY_CLIENT_NAME_RE,
-  LEGACY_PERSONAL_SUPPORT_EMAIL,
+  PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
 
@@ -142,15 +142,15 @@ function migrateBrandingAssets(settings: PlatformSettings): PlatformSettings {
   return changed ? { ...settings, branding } : settings;
 }
 
-function remapProjectEmail(value: string): string {
+function remapSupportEmail(value: string): string {
+  if (isLegacySupportMailbox(value)) return PROJECT_SUPPORT_EMAIL;
+  return value;
+}
+
+function remapContactEmail(value: string): string {
   const normalized = value.trim().toLowerCase();
-  if (
-    normalized === LEGACY_ATPLPASS_SUPPORT_EMAIL ||
-    normalized === LEGACY_PERSONAL_SUPPORT_EMAIL ||
-    normalized === PROJECT_SUPPORT_EMAIL ||
-    LEGACY_CLIENT_NAME_RE.test(normalized)
-  ) {
-    return PROJECT_SUPPORT_EMAIL;
+  if (isLegacySupportMailbox(value) || normalized === PROJECT_SUPPORT_EMAIL) {
+    return PROJECT_CONTACT_EMAIL;
   }
   return value;
 }
@@ -158,7 +158,7 @@ function remapProjectEmail(value: string): string {
 function isPersonalClientSocial(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return false;
-  if (normalized === PROJECT_SUPPORT_EMAIL) return false;
+  if (normalized === PROJECT_SUPPORT_EMAIL || normalized === PROJECT_CONTACT_EMAIL) return false;
   return LEGACY_CLIENT_NAME_RE.test(normalized);
 }
 
@@ -169,31 +169,45 @@ function migrateClientSupportBranding(settings: PlatformSettings): PlatformSetti
   const zoom = { ...settings.zoom };
   let changed = false;
 
-  const nextContact = remapProjectEmail(general.contactEmail);
+  const nextContact = remapContactEmail(general.contactEmail);
   if (nextContact !== general.contactEmail) {
     general.contactEmail = nextContact;
     changed = true;
   }
-  const nextSupport = remapProjectEmail(general.supportEmail);
+  const nextSupport = remapSupportEmail(general.supportEmail);
   if (nextSupport !== general.supportEmail) {
     general.supportEmail = nextSupport;
+    changed = true;
+  }
+  const nextLocations = DEFAULT_PLATFORM_SETTINGS.general.primaryLocations;
+  const locBlob = general.primaryLocations.map((l) => l.toLowerCase()).join("|");
+  if (locBlob === "kuwait|uae" || locBlob === "kuwait|dubai") {
+    general.primaryLocations = [...nextLocations];
+    changed = true;
+  }
+  if (general.platformName === "ATPL PASS" || general.platformName === "ATPLPASS") {
+    general.platformName = DEFAULT_PLATFORM_SETTINGS.general.platformName;
+    changed = true;
+  }
+  if (general.companyName === "ATPL PASS" || general.companyName === "ATPLPASS") {
+    general.companyName = DEFAULT_PLATFORM_SETTINGS.general.companyName;
     changed = true;
   }
   if (/dubai-test\.blog/i.test(general.websiteUrl)) {
     general.websiteUrl = DEFAULT_PLATFORM_SETTINGS.general.websiteUrl;
     changed = true;
   }
-  const nextSender = remapProjectEmail(email.senderEmail);
+  const nextSender = remapSupportEmail(email.senderEmail);
   if (nextSender !== email.senderEmail) {
     email.senderEmail = nextSender;
     changed = true;
   }
-  const nextReply = remapProjectEmail(email.replyToEmail);
+  const nextReply = remapSupportEmail(email.replyToEmail);
   if (nextReply !== email.replyToEmail) {
     email.replyToEmail = nextReply;
     changed = true;
   }
-  const nextZoom = remapProjectEmail(zoom.accountEmail);
+  const nextZoom = remapSupportEmail(zoom.accountEmail);
   if (nextZoom !== zoom.accountEmail) {
     zoom.accountEmail = nextZoom;
     changed = true;

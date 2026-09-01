@@ -4,26 +4,26 @@
  */
 
 export const ATPL_LANDING_HERO = {
-  kicker: "ATPL PASS · Live airline theory",
+  kicker: "Aviator Pass · ATPL Course · Live airline theory",
   headline: "The ATPL course built for pilots who train like professionals",
   subheadline:
-    "One enrolment. Fourteen ATPL theory subjects. Live instructors. A structured path from first lesson to exam-ready competence — without creating an account before you pay.",
+    "One enrolment. 13 ATPL Subjects. Live instructors. A structured path from first lesson to exam-ready competence — without creating an account before you pay.",
   proof: [
     "Pay first — account created automatically",
-    "Live instruction only — no recorded libraries",
+    "Sessions are LIVE — recordings are not available to students",
     "Worldwide checkout in your local currency",
   ],
-  primaryCta: "Enrol in ATPL PASS",
-  secondaryCta: "See the 14 subjects",
+  primaryCta: "Enrol in Aviator Pass",
+  secondaryCta: "See the 13 ATPL Subjects",
 } as const;
 
 export const COURSE_OVERVIEW = {
   kicker: "Course overview",
   title: "Complete ATPL theory in one professional programme",
-  body: "ATPL PASS is a single Airline Transport Pilot License theory programme. You enrol once, receive every subject module, and train live with certified instructors. Progression is competency-based: you move forward when you demonstrate mastery, not when a calendar says so.",
+  body: "The Aviator Pass ATPL Course is a single Airline Transport Pilot License theory programme. You enrol once, receive every subject module, and train live with EASA Certified Instructors. Progression is competency-based: you move forward when you demonstrate mastery, not when a calendar says so.",
   stats: [
-    { value: "14", label: "ATPL subjects" },
-    { value: "100%", label: "Live instruction" },
+    { value: "13", label: "ATPL Subjects" },
+    { value: "LIVE", label: "Instruction only" },
     { value: "1", label: "Unified enrolment" },
     { value: "Global", label: "Stripe checkout" },
   ],
@@ -48,8 +48,8 @@ export const WHO_SHOULD_JOIN = {
       body: "You want a premium academy experience with clear milestones, instructor feedback, and a platform that tracks every subject.",
     },
     {
-      title: "Gulf and international students",
-      body: "You train from Kuwait, the UAE, or anywhere Stripe supports — currency is selected automatically at checkout.",
+      title: "International students",
+      body: "You train from Dubai, Copenhagen, Kuwait, Qatar, or anywhere Stripe supports — currency is selected automatically at checkout.",
     },
   ],
 } as const;
@@ -67,8 +67,8 @@ export const LEARNING_OUTCOMES = {
   ],
 } as const;
 
-/** EASA ATPL theory set used on the conversion page (always 14). */
-export const ATPL_SUBJECTS_14 = [
+/** EASA ATPL theory set used on the conversion page (13 Theory Subjects). */
+export const ATPL_SUBJECTS_13 = [
   {
     code: "010",
     title: "Air Law",
@@ -130,14 +130,9 @@ export const ATPL_SUBJECTS_14 = [
     shortDescription: "Aerodynamics, stability, and high-performance aeroplane theory.",
   },
   {
-    code: "091",
-    title: "VFR Communications",
-    shortDescription: "VFR phraseology, procedures, and radio discipline.",
-  },
-  {
-    code: "092",
-    title: "IFR Communications",
-    shortDescription: "IFR phraseology, clearances, and professional R/T.",
+    code: "090",
+    title: "Communications",
+    shortDescription: "VFR and IFR phraseology, clearances, procedures, and professional R/T.",
   },
 ] as const;
 
@@ -168,21 +163,33 @@ export const COURSE_STRUCTURE = {
   ],
 } as const;
 
+export const ATPL_LIVE_TRAINING = {
+  kicker: "Live training",
+  title: "Sessions are LIVE",
+  body: "ATPL Course sessions are delivered live with an EASA Certified Instructor. Recordings are not available to students. Sessions may only be recorded internally for quality assurance.",
+  points: [
+    "Every ATPL session is conducted live with an instructor",
+    "Interactive participation — questions, exercises, and discussions",
+    "Recordings are not available to students",
+    "Internal recording, if any, is for quality assurance only",
+  ],
+} as const;
+
 export const COURSE_BENEFITS = {
   kicker: "Course benefits",
-  title: "Why candidates enrol in ATPL PASS",
+  title: "Why candidates enrol in the ATPL Course",
   items: [
     {
       title: "One purchase, full access",
-      body: "Every ATPL subject is included. No subject-by-subject checkout.",
+      body: "All 13 ATPL Subjects are included. No subject-by-subject checkout.",
     },
     {
       title: "Account after payment",
-      body: "Pay first. AviatorPass creates your student profile automatically and emails a password setup link.",
+      body: "Pay first. Aviator Pass creates your student profile automatically and emails a password setup link.",
     },
     {
-      title: "Live, never passive",
-      body: "Certified instructors teach in real time. Questions are answered in the session, not in a forum days later.",
+      title: "Live, never a student recording library",
+      body: "EASA Certified Instructors teach in real time. Recordings are not available to students.",
     },
     {
       title: "Measurable progress",
@@ -194,7 +201,7 @@ export const COURSE_BENEFITS = {
     },
     {
       title: "Academy support",
-      body: "Enrolment, scheduling, and platform help from the ATPL PASS team.",
+      body: "Enrolment, scheduling, and platform help from the Aviator Pass team.",
     },
   ],
 } as const;
@@ -219,13 +226,13 @@ export const STUDENT_REVIEWS = {
       quote:
         "The mock exams and instructor debriefs changed how I studied. I finally knew which subjects needed another live pass.",
       name: "James K.",
-      role: "Cadet · London",
+      role: "Cadet · Copenhagen",
     },
     {
       quote:
         "Professional from checkout to first class. Currency was correct for my country and the platform felt like an airline training department.",
       name: "Noor S.",
-      role: "ATPL candidate · Riyadh",
+      role: "ATPL candidate · Qatar",
     },
   ],
 } as const;
@@ -233,30 +240,34 @@ export const STUDENT_REVIEWS = {
 export const ATPL_FAQS = [
   {
     q: "Do I need an account before I pay?",
-    a: "No. Enrol in ATPL PASS opens Stripe Checkout immediately. After a successful payment we create your student account automatically and email a password setup link.",
+    a: "No. Enrol in Aviator Pass opens Stripe Checkout immediately. After a successful payment we create your student account automatically and email a password setup link.",
   },
   {
     q: "What happens after payment?",
-    a: "You land on a welcome page. Your course is activated, an invoice is available, and you can continue to the student dashboard once you set your password.",
+    a: "You land on a welcome page. Your course is activated, an invoice is available, and you can continue to the student dashboard once you set your password. Please wait for the assigned instructor to contact you directly to arrange your schedule.",
   },
   {
     q: "Which currency will I be charged in?",
     a: "Stripe selects the Price for your country (for example USD, GBP, EUR, AED, SAR, KWD). We never convert rates inside the app.",
   },
   {
-    q: "Are all 14 ATPL subjects included?",
-    a: "Yes. One ATPL PASS enrolment covers the full theory set listed on this page. There are no separate subject checkouts.",
+    q: "Are all 13 ATPL Subjects included?",
+    a: "Yes. One ATPL Course enrolment covers the full 13 Theory Subjects listed on this page. There are no separate subject checkouts.",
   },
   {
     q: "Is training live or recorded?",
-    a: "Training is live and instructor-led. There is no self-paced video library. Sessions are interactive with real-time questions and feedback.",
+    a: "ATPL Course sessions are LIVE. Recordings are not available to students. Sessions may only be recorded internally for quality assurance.",
+  },
+  {
+    q: "Which platform will you teach me from?",
+    a: "We proudly use the Pilot100 ATPL Question Bank. Through our collaboration with Pilot100, our students also receive an exclusive discount on their subscription.",
   },
   {
     q: "Can I use Apple Pay or Google Pay?",
     a: "Yes, when Stripe makes them available for your country and device. Cards, Link, and local methods also appear automatically at Checkout.",
   },
   {
-    q: "I already have an AviatorPass account.",
+    q: "I already have an Aviator Pass account.",
     a: "Pay with the same email. We attach the purchase to your existing student profile and activate the course — we do not create a second user.",
   },
   {
@@ -268,16 +279,16 @@ export const ATPL_FAQS = [
 export const PRICING = {
   kicker: "Pricing",
   title: "One programme. Transparent checkout.",
-  name: "ATPL PASS",
+  name: "ATPL Course",
   blurb:
-    "Full ATPL theory programme with live instructors, all fourteen subjects, mock exams, and platform access. You pay first; registration is automatic.",
+    "Full ATPL theory programme with EASA Certified Instructors, all 13 Theory Subjects, mock exams, and platform access. You pay first; registration is automatic.",
   bullets: [
-    "All 14 ATPL theory subjects",
-    "Live instructor-led sessions",
+    "All 13 ATPL Subjects",
+    "Live instructor-led sessions — no student recordings",
     "Student dashboard, progress, and certificates",
     "Invoice issued after payment",
     "Account created automatically — no pre-registration",
   ],
   note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible.",
-  cta: "Enrol in ATPL PASS",
+  cta: "Enrol in Aviator Pass",
 } as const;

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" role="img" aria-labelledby="easaTitle">
+  <title id="easaTitle">EASA Certified Instructors</title>
+  <rect width="160" height="48" rx="8" fill="#143048"/>
+  <rect x="1" y="1" width="158" height="46" rx="7" fill="none" stroke="#CCA04C" stroke-width="1.5"/>
+  <text x="16" y="21" font-family="IBM Plex Sans, Arial, sans-serif" font-size="13" font-weight="700" fill="#CCA04C" letter-spacing="0.18em">EASA</text>
+  <text x="16" y="36" font-family="IBM Plex Sans, Arial, sans-serif" font-size="8" font-weight="600" fill="#F4F1EA" letter-spacing="0.08em">CERTIFIED INSTRUCTORS</text>
+</svg>

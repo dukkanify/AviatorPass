@@ -1523,3 +1523,155 @@
     transform: none;
   }
 }
+
+.site-header-dropdown {
+  position: absolute;
+  top: calc(100% - 0.15rem);
+  left: 50%;
+  z-index: 50;
+  min-width: min(18.5rem, 78vw);
+  transform: translateX(-50%);
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(11, 26, 36, 0.96);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(18px);
+  transition: opacity 0.16s ease;
+}
+
+.site-header-dropdown-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.75rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.site-header-dropdown-link:hover,
+.site-header-dropdown-link:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.site-header-dropdown-hint {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(204, 160, 76, 0.9);
+}
+
+.ad-banner-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  border-bottom: 1px dashed rgba(204, 160, 76, 0.28);
+  background: rgba(20, 48, 72, 0.18);
+}
+
+.ad-banner-slot-footer {
+  margin-top: 1.75rem;
+  min-height: 4.5rem;
+  border: 1px dashed rgba(204, 160, 76, 0.28);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ad-banner-slot-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.partner-strip {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.partner-strip-kicker {
+  margin: 0 0 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(204, 160, 76, 0.9);
+}
+
+.partner-strip-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .partner-strip-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.partner-strip-link,
+.partner-strip-link-static {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.partner-strip-logo {
+  height: 1.7rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.online-course-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1.4rem 1.25rem;
+  border: 1px solid rgba(20, 48, 72, 0.1);
+  border-radius: 1.15rem;
+  background: #fff;
+  box-shadow: 0 12px 32px -24px rgba(20, 48, 72, 0.35);
+}
+
+.online-course-mode {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(20, 48, 72, 0.08);
+  color: #143048;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 390px) {
+  .site-header-dropdown {
+    left: 0;
+    transform: none;
+    min-width: min(17.5rem, 86vw);
+  }
+
+  .ad-banner-slot {
+    min-height: 2.1rem;
+  }
+}

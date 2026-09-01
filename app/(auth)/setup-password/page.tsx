@@ -17,7 +17,7 @@ export default function SetupPasswordPage() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle>Set your password</CardTitle>
           <CardDescription>
-            Choose a secure password to finish your ATPL PASS enrollment.
+            Choose a secure password to finish your Aviator Pass enrollment.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { AtplProgramPageContent } from "@/features/marketing/components/atpl-program-page";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
-import { ATPL_FAQS, ATPL_SUBJECTS_14 } from "@/features/marketing/content/atpl-course-landing";
+import { ATPL_FAQS, ATPL_SUBJECTS_13 } from "@/features/marketing/content/atpl-course-landing";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
 
 export const revalidate = 60;
@@ -12,12 +12,12 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "ATPL Course",
   description:
-    "Enrol in ATPL PASS — fourteen ATPL theory subjects, live instructor-led training, and purchase-first checkout. Pay first; your student account is created automatically.",
+    "Enrol in the Aviator Pass ATPL Course — 13 Theory Subjects, live instructor-led training, and purchase-first checkout. Sessions are LIVE. Recordings are not available to students.",
   alternates: { canonical: routes.atpl },
   openGraph: {
-    title: "ATPL Course | ATPL PASS",
+    title: "ATPL Course | Aviator Pass",
     description:
-      "Complete ATPL preparation in one programme — live training, all 14 subjects, pay first, account after payment.",
+      "Complete ATPL preparation in one programme — live training, 13 ATPL Subjects, pay first, account after payment.",
     url: routes.atpl,
   },
 };
@@ -33,14 +33,14 @@ export default function AtplCoursePage() {
           "@graph": [
             {
               "@type": "Course",
-              name: "ATPL PASS",
+              name: "ATPL Course",
               description:
-                "Complete Airline Transport Pilot License theory programme with live instructor-led training across fourteen ATPL subjects.",
+                "Complete Airline Transport Pilot License theory programme with live instructor-led training across 13 ATPL Subjects.",
               provider: { "@type": "Organization", name: siteConfig.name, url: siteConfig.url },
               url: `${siteConfig.url}${routes.atpl}`,
               courseMode: "Live Online",
               inLanguage: "en",
-              hasCourseInstance: ATPL_SUBJECTS_14.map((s) => ({
+              hasCourseInstance: ATPL_SUBJECTS_13.map((s) => ({
                 "@type": "CourseInstance",
                 name: s.title,
                 courseCode: s.code,

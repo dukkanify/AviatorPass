@@ -5,18 +5,18 @@
  */
 
 export const siteStatic = {
-  name: "ATPL PASS",
-  shortName: "ATPL PASS",
-  legalName: "ATPL PASS",
+  name: "Aviator Pass",
+  shortName: "Aviator Pass",
+  legalName: "Aviator Pass",
   description:
-    "ATPL PASS — live instructor-led Airline Transport Pilot License training. One program covering every ATPL theory subject with structured progression.",
+    "Aviator Pass — a complete aviation education platform. Live and recorded programmes from Basics of Aviation and Private Pilot License through ATPL theory and ELP mock exams, taught by EASA Certified Instructors.",
   tagline: "YOUR AVIATION JOURNEY STARTS HERE",
-  secondaryTagline: "AIRLINE TRANSPORT PILOT LICENSE",
+  secondaryTagline: "COMPLETE AVIATION EDUCATION",
   locale: "en",
   direction: "ltr" as const,
-  contactEmail: "support@aviatorpass.com",
-  supportEmail: "support@aviatorpass.com",
-  locations: ["Kuwait", "UAE"] as const,
+  contactEmail: "info@atplpass.com",
+  supportEmail: "support@atplpass.com",
+  locations: ["Dubai", "Copenhagen", "Kuwait", "Qatar"] as const,
   socialHandle: "",
   social: {
     instagram: "",

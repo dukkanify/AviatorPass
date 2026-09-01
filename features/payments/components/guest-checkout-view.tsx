@@ -161,7 +161,7 @@ function GuestCheckoutView() {
         return;
       }
       setResult(paid.data);
-      toast.success("Payment successful — ATPL PASS is yours.");
+      toast.success("Payment Successful");
     } finally {
       setPending(false);
     }
@@ -176,16 +176,16 @@ function GuestCheckoutView() {
             Enrolment complete
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-            Welcome to ATPL PASS
+            Payment Successful
           </h1>
           <p className="mt-3 text-muted-foreground">
-            {result.order.productName} is unlocked.{" "}
-            {result.accountCreated
-              ? "We created your student account automatically."
-              : "This purchase is attached to your existing AviatorPass account."}{" "}
-            Check <span className="break-email">{result.order.billingEmail}</span> for your receipt
-            and login details.
+            Your payment has been successfully received and your enrollment is confirmed.
           </p>
+          <p className="mt-3 text-muted-foreground">
+            Please wait for the assigned instructor to contact you directly to arrange your schedule
+            and agree on suitable dates and times for your subjects.
+          </p>
+          <p className="mt-3 font-medium text-foreground">Welcome to Aviator Pass.</p>
         </div>
         {result.temporaryPassword ? (
           <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-left text-sm">
@@ -231,7 +231,7 @@ function GuestCheckoutView() {
           Secure checkout
         </p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Enrol in ATPL PASS
+          Enrol in Aviator Pass
         </h1>
         <p className="mt-3 max-w-xl text-muted-foreground">
           Pay first — no registration. We create your student account the moment payment succeeds.
@@ -381,7 +381,7 @@ function GuestCheckoutView() {
         <aside className="h-fit min-w-0 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold">Order summary</p>
           <div>
-            <p className="font-display text-lg">{quote?.product.name ?? "ATPL PASS"}</p>
+            <p className="font-display text-lg">{quote?.product.name ?? "Aviator Pass"}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {quote?.product.description ?? "Airline Transport Pilot License theory package."}
             </p>

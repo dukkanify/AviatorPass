@@ -62,7 +62,7 @@ function SuperAdminDashboardView({
     <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Students, instructors, courses, and revenue across ATPL PASS."
+        description="Students, instructors, courses, and revenue across Aviator Pass."
         breadcrumbs={[{ label: "Super Admin" }, { label: "Dashboard" }]}
       />
 

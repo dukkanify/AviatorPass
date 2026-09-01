@@ -3,33 +3,44 @@
 import * as React from "react";
 import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { routes } from "@/constants/routes";
-import { NAV_ITEMS } from "@/constants/navigation";
+import { NAV_ITEMS, type MarketingNavItem } from "@/constants/navigation";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
-function navHrefKey(href: (typeof NAV_ITEMS)[number]["href"]): string {
-  return href;
+function navPathname(href: string): string {
+  return href.split("?")[0].split("#")[0] || "/";
 }
 
-function navPathname(href: (typeof NAV_ITEMS)[number]["href"]): string {
-  return href.split("#")[0] || "/";
+function itemIsActive(pathname: string, item: MarketingNavItem): boolean {
+  const itemPath = navPathname(item.href);
+  if (item.children?.length) {
+    return item.children.some((child) => {
+      const childPath = navPathname(child.href);
+      return pathname === childPath || pathname.startsWith(`${childPath}/`);
+    });
+  }
+  if (itemPath === "/") return pathname === "/";
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
 
 function Header() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
+  const [coursesOpen, setCoursesOpen] = React.useState(false);
   const isHome = pathname === "/";
   const onAtplCourse = pathname === routes.atpl;
-  const enrolHref = onAtplCourse ? routes.checkout : routes.atpl;
+  const enrolHref = onAtplCourse ? routes.checkout : routes.onlineCourses;
+  const enrolLabel = onAtplCourse ? "Enrol now" : "Explore courses";
   const solid = !(isHome && !scrolled && !open);
 
   React.useEffect(() => {
     setOpen(false);
+    setCoursesOpen(false);
   }, [pathname]);
 
   React.useEffect(() => {
@@ -60,21 +71,65 @@ function Header() {
         </div>
 
         <nav
-          className="site-header-nav absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 md:flex"
+          className="site-header-nav absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 lg:flex"
           aria-label="Primary"
         >
           {NAV_ITEMS.map((item) => {
-            const itemPath = navPathname(item.href);
-            const active =
-              itemPath === "/"
-                ? pathname === "/"
-                : pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+            const active = itemIsActive(pathname, item);
+            if (item.children?.length) {
+              return (
+                <div
+                  key={item.href}
+                  className="relative"
+                  onMouseEnter={() => setCoursesOpen(true)}
+                  onMouseLeave={() => setCoursesOpen(false)}
+                >
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "site-header-link relative inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors duration-200",
+                      active ? "text-white" : "text-white/48 hover:text-white",
+                    )}
+                    data-active={active || undefined}
+                    aria-expanded={coursesOpen}
+                    aria-haspopup="true"
+                  >
+                    {item.label}
+                    <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
+                  </Link>
+                  <div
+                    className={cn(
+                      "site-header-dropdown",
+                      coursesOpen
+                        ? "pointer-events-auto opacity-100"
+                        : "pointer-events-none opacity-0",
+                    )}
+                    role="menu"
+                    aria-label="Online Courses"
+                  >
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className="site-header-dropdown-link"
+                        role="menuitem"
+                      >
+                        <span>{child.label}</span>
+                        {child.hint ? (
+                          <span className="site-header-dropdown-hint">{child.hint}</span>
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
             return (
               <Link
-                key={navHrefKey(item.href)}
+                key={item.href}
                 href={item.href}
                 className={cn(
-                  "site-header-link relative px-3.5 py-2 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors duration-200",
+                  "site-header-link relative px-3.5 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors duration-200",
                   active ? "text-white" : "text-white/48 hover:text-white",
                 )}
                 data-active={active || undefined}
@@ -85,7 +140,7 @@ function Header() {
           })}
         </nav>
 
-        <div className="relative z-10 hidden items-center gap-1.5 md:flex">
+        <div className="relative z-10 hidden items-center gap-1.5 lg:flex">
           <Button
             variant="ghost"
             className="h-10 rounded-xl px-3.5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -99,7 +154,7 @@ function Header() {
             asChild
           >
             <Link href={enrolHref}>
-              Enrol in ATPL PASS
+              {enrolLabel}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
@@ -108,7 +163,7 @@ function Header() {
         <Button
           variant="ghost"
           size="icon"
-          className="touch-target relative z-10 shrink-0 rounded-xl text-white hover:bg-white/10 md:hidden"
+          className="touch-target relative z-10 shrink-0 rounded-xl text-white hover:bg-white/10 lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="mobile-nav"
@@ -121,31 +176,46 @@ function Header() {
       {open ? (
         <div
           id="mobile-nav"
-          className="animate-in-fade max-h-[min(70dvh,32rem)] overflow-y-auto border-t border-white/10 bg-[var(--surface-ink)]/96 backdrop-blur-2xl md:hidden"
+          className="animate-in-fade max-h-[min(78dvh,36rem)] overflow-y-auto border-t border-white/10 bg-[var(--surface-ink)]/96 backdrop-blur-2xl lg:hidden"
         >
           <nav
             className="container-app flex flex-col gap-1 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
             aria-label="Mobile"
           >
             {NAV_ITEMS.map((item) => {
-              const itemPath = navPathname(item.href);
-              const active =
-                itemPath === "/"
-                  ? pathname === "/"
-                  : pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+              const active = itemIsActive(pathname, item);
               return (
-                <Link
-                  key={navHrefKey(item.href)}
-                  href={item.href}
-                  className={cn(
-                    "touch-target flex items-center rounded-xl px-3 py-3 text-sm font-medium transition",
-                    active
-                      ? "bg-white/10 text-white shadow-[inset_3px_0_0_0_var(--accent)]"
-                      : "text-white/75 hover:bg-white/8 hover:text-white",
-                  )}
-                >
-                  {item.label}
-                </Link>
+                <div key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "touch-target flex items-center rounded-xl px-3 py-3 text-sm font-medium transition",
+                      active
+                        ? "bg-white/10 text-white shadow-[inset_3px_0_0_0_var(--accent)]"
+                        : "text-white/75 hover:bg-white/8 hover:text-white",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                  {item.children?.length ? (
+                    <div className="mb-2 ml-3 flex flex-col border-l border-white/10 pl-3">
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className="touch-target rounded-lg px-2 py-2.5 text-sm text-white/70 hover:bg-white/8 hover:text-white"
+                        >
+                          {child.label}
+                          {child.hint ? (
+                            <span className="mt-0.5 block text-[11px] uppercase tracking-[0.12em] text-accent/80">
+                              {child.hint}
+                            </span>
+                          ) : null}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
             <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
@@ -158,7 +228,7 @@ function Header() {
               </Button>
               <Button variant="accent" className="hero-cta-primary h-12" asChild>
                 <Link href={enrolHref}>
-                  Enrol in ATPL PASS
+                  {enrolLabel}
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>

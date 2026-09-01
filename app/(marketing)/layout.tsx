@@ -1,5 +1,6 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { AdBannerSlot } from "@/features/marketing/components/ad-banner-slot";
 
 /**
  * Marketing segment layout — imports client Header/Footer directly.
@@ -9,6 +10,7 @@ import { Footer } from "@/components/layout/footer";
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="platform-surface flex min-h-dvh flex-col">
+      <AdBannerSlot placement="header" />
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />

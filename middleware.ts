@@ -97,9 +97,10 @@ export async function middleware(request: NextRequest) {
     "/course": "/courses",
     "/catalog": "/courses",
     "/classes": "/courses",
-    "/booking": "/book",
-    "/bookings": "/book",
-    "/private-session": "/book",
+    "/booking": "/online-courses",
+    "/bookings": "/online-courses",
+    "/private-session": "/online-courses",
+    "/book": "/online-courses",
     "/zoom": "/live",
     "/live-zoom": "/live",
     "/flight-path": "/flightpath",
@@ -122,6 +123,7 @@ export async function middleware(request: NextRequest) {
   if (pathname !== pathname.toLowerCase()) {
     const lower = pathname.toLowerCase();
     if (
+      lower === "/online-courses" ||
       lower === "/book" ||
       lower === "/courses" ||
       lower === "/atpl" ||

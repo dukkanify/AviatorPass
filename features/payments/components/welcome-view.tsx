@@ -125,21 +125,16 @@ function WelcomeView() {
           {paid ? "Enrollment successful" : "Payment received"}
         </p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Welcome to ATPL PASS
+          Payment Successful
         </h1>
         <p className="mt-3 text-muted-foreground">
-          {data?.accountCreated
-            ? "Your student account was created automatically."
-            : data?.attachedToExisting
-              ? "This purchase is attached to your existing AviatorPass account."
-              : "We are finishing account setup."}{" "}
-          {data?.courseAssigned ? "Your course is activated." : "Course access is being assigned."}{" "}
-          {data?.emailSent
-            ? data.attachedToExisting
-              ? "A purchase confirmation email is on the way."
-              : "A welcome email with your password setup link is on the way."
-            : "Check your inbox shortly for login instructions."}
+          Your payment has been successfully received and your enrollment is confirmed.
         </p>
+        <p className="mt-3 text-muted-foreground">
+          Please wait for the assigned instructor to contact you directly to arrange your schedule
+          and agree on suitable dates and times for your subjects.
+        </p>
+        <p className="mt-3 font-medium text-foreground">Welcome to Aviator Pass.</p>
       </div>
 
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">

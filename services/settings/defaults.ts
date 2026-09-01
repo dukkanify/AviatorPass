@@ -9,8 +9,8 @@ import type { PlatformSettings } from "@/types/settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   general: {
-    platformName: "AviatorPass",
-    companyName: "AviatorPass",
+    platformName: "Aviator Pass",
+    companyName: "Aviator Pass",
     websiteUrl: "https://www.aviatorpass.com",
     contactEmail: siteStatic.contactEmail,
     contactPhone: "",
@@ -23,8 +23,9 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     country: "KW",
     maintenanceMode: false,
     platformStatus: "online",
-    primaryLocations: ["Kuwait", "Dubai"],
-    footerText: "Professional Aviation Education Platform for ATPL Training.",
+    primaryLocations: ["Dubai", "Copenhagen", "Kuwait", "Qatar"],
+    footerText:
+      "Complete aviation education platform — live and recorded programmes with EASA Certified Instructors.",
     socialHandle: siteStatic.socialHandle,
     socialLinks: {
       instagram: siteStatic.social.instagram,
@@ -46,7 +47,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     typographyDisplay: "Exo 2",
     typographyBody: "IBM Plex Sans",
     footerInformation:
-      "AviatorPass — YOUR AVIATION JOURNEY STARTS HERE. Kuwait & Dubai ATPL theory, live Zoom coaching, and exam mastery.",
+      "Aviator Pass — YOUR AVIATION JOURNEY STARTS HERE. Complete aviation education across Dubai, Copenhagen, Kuwait, and Qatar.",
     brandGuidelinesPending: false,
     colorPalettePending: false,
     typographyPending: true,
@@ -59,7 +60,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     smtpUsername: "",
     smtpPassword: "",
     encryption: "tls",
-    senderName: "AviatorPass",
+    senderName: "Aviator Pass",
     senderEmail: siteStatic.supportEmail,
     replyToEmail: siteStatic.supportEmail,
   },

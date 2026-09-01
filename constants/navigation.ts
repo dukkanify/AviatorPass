@@ -1,14 +1,53 @@
 import { PERMISSIONS } from "@/constants/permissions";
 import type { Permission } from "@/constants/permissions";
 import type { Role } from "@/constants/roles";
+import { routes } from "@/constants/routes";
 
-export const NAV_ITEMS = [
-  { label: "ATPL Course", href: "/atpl" },
+export type MarketingNavChild = {
+  label: string;
+  href: string;
+  hint?: string;
+};
+
+export type MarketingNavItem = {
+  label: string;
+  href: string;
+  children?: readonly MarketingNavChild[];
+};
+
+export const NAV_ITEMS: readonly MarketingNavItem[] = [
+  {
+    label: "Online Courses",
+    href: routes.onlineCourses,
+    children: [
+      { label: "ATPL Course", href: routes.atpl, hint: "Live · 13 theory subjects" },
+      {
+        label: "Basics of Aviation",
+        href: `${routes.onlineCoursesBasics}?mode=recorded`,
+        hint: "Recorded",
+      },
+      {
+        label: "Basics of Aviation",
+        href: `${routes.onlineCoursesBasics}?mode=live`,
+        hint: "Live One-to-One",
+      },
+      { label: "ELP Mock Exams Live", href: routes.onlineCoursesElp },
+      {
+        label: "Private Pilot License",
+        href: `${routes.onlineCoursesPpl}?mode=recorded`,
+        hint: "Recorded",
+      },
+      {
+        label: "Private Pilot License",
+        href: `${routes.onlineCoursesPpl}?mode=live`,
+        hint: "Live One-to-One",
+      },
+    ],
+  },
   { label: "About", href: "/#about" },
   { label: "Instructors", href: "/#instructors" },
-  { label: "Private Session", href: "/book" },
   { label: "Contact", href: "/#contact" },
-] as const;
+];
 
 export const DASHBOARD_NAV_BY_ROLE: Record<
   Role,
@@ -54,9 +93,9 @@ export const DASHBOARD_NAV_BY_ROLE: Record<
 
 export const APP_METADATA = {
   title: {
-    default: "ATPL PASS | Premium Live ATPL Training Academy",
-    template: "%s | ATPL PASS",
+    default: "Aviator Pass | Complete Aviation Education Platform",
+    template: "%s | Aviator Pass",
   },
   description:
-    "ATPL PASS — premium live instructor-led Airline Transport Pilot License training. One unified ATPL Program with every subject, competency-based progression, and certified instructors.",
+    "Aviator Pass — a complete aviation education platform with EASA Certified Instructors. Online courses covering Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams across Dubai, Copenhagen, Kuwait, and Qatar.",
 } as const;

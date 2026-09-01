@@ -139,8 +139,8 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
-          Just bought ATPL PASS? Paste the temporary password here. Leave blank only if you want a
-          one-time email code instead.
+          Just bought Aviator Pass? Paste the temporary password here. Leave blank only if you want
+          a one-time email code instead.
         </p>
       </div>
 

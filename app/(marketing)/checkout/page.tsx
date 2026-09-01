@@ -14,9 +14,9 @@ import { isStripeConfigured } from "@/services/payments/stripe-client";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Secure checkout — Enrol in ATPL PASS",
+  title: "Secure checkout — Enrol in Aviator Pass",
   description:
-    "Pay for ATPL PASS first. AviatorPass creates your student account automatically after successful payment.",
+    "Pay for Aviator Pass first. Your student account is created automatically after successful payment.",
 };
 
 type CheckoutSearch = {

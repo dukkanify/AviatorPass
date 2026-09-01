@@ -52,7 +52,7 @@ export default function Error({
             Try again
           </Button>
           <Button variant="outline" asChild>
-            <a href={routes.book}>Open booking</a>
+            <a href={routes.onlineCourses}>Open Online Courses</a>
           </Button>
           <Button variant="outline" asChild>
             <a href={routes.home}>Back to home</a>

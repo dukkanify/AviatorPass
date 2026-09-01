@@ -53,8 +53,8 @@ export default function LiveCoachingPage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
-              <Link href={routes.book}>
-                Open booking studio
+              <Link href={routes.onlineCourses}>
+                Explore Online Courses
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -120,8 +120,8 @@ export default function LiveCoachingPage() {
               className="hero-cta-primary w-full justify-center sm:w-auto lg:w-full"
               asChild
             >
-              <Link href={routes.book}>
-                Book live Zoom
+              <Link href={routes.onlineCourses}>
+                Explore Online Courses
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>

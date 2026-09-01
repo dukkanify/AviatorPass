@@ -4,51 +4,54 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { AtplPassHomepage } from "@/features/marketing/components/atpl-pass-homepage";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
-import { listAtplSubjectModules } from "@/lib/marketing/atpl-subjects";
+import { ATPL_SUBJECTS_13 } from "@/features/marketing/content/atpl-course-landing";
+import { APP_METADATA } from "@/constants/navigation";
 
 /** Cache public marketing HTML briefly — catalog IDs are stable enough for short ISR. */
 export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: {
-    absolute: "ATPL PASS | Premium Live ATPL Training Academy",
+    absolute: APP_METADATA.title.default,
   },
-  description:
-    "ATPL PASS — premium live instructor-led Airline Transport Pilot License training. One unified ATPL Program with every subject, competency-based progression, and certified instructors in Kuwait and the UAE.",
+  description: APP_METADATA.description,
   keywords: [
-    "ATPL PASS",
-    "ATPL training",
-    "ATPL program",
-    "airline transport pilot license",
-    "live ATPL courses",
-    "ATPL academy",
-    "Kuwait pilot training",
-    "UAE ATPL",
-    "instructor-led aviation training",
-    "competency-based ATPL",
+    "Aviator Pass",
+    "aviation education",
+    "EASA Certified Instructors",
+    "ATPL Course",
+    "Private Pilot License",
+    "Basics of Aviation",
+    "ELP mock exams",
+    "Dubai",
+    "Copenhagen",
+    "Kuwait",
+    "Qatar",
   ],
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "ATPL PASS — Premium Live ATPL Training Academy",
-    description:
-      "One ATPL Program. Every subject. Live instructor-led training with competency-based progression.",
+    title: APP_METADATA.title.default,
+    description: APP_METADATA.description,
     url: "/",
     type: "website",
-    images: [{ url: siteConfig.brand.openGraph, width: 1200, height: 630, alt: "ATPL PASS" }],
+    images: [{ url: siteConfig.brand.openGraph, width: 1200, height: 630, alt: "Aviator Pass" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ATPL PASS — Premium Live ATPL Training Academy",
-    description:
-      "One ATPL Program. Every subject. Live instructor-led training with competency-based progression.",
+    title: APP_METADATA.title.default,
+    description: APP_METADATA.description,
     images: [siteConfig.brand.openGraph],
   },
 };
 
 export default function HomePage() {
-  const subjects = listAtplSubjectModules();
+  const subjects = ATPL_SUBJECTS_13.map((s) => ({
+    code: s.code,
+    title: s.title,
+    shortDescription: s.shortDescription,
+  }));
 
   return (
     <div className="landing-root home-premium">
@@ -62,7 +65,7 @@ export default function HomePage() {
               name: siteConfig.name,
               url: siteConfig.url,
               logo: `${siteConfig.url}${siteConfig.brand.logo}`,
-              email: siteConfig.supportEmail,
+              email: siteConfig.contactEmail,
               areaServed: siteConfig.locations.map((name) => ({ "@type": "Place", name })),
             },
             {
@@ -76,9 +79,9 @@ export default function HomePage() {
             },
             {
               "@type": "Course",
-              name: "ATPL Program",
+              name: "ATPL Course",
               description:
-                "Complete Airline Transport Pilot License preparation with live instructor-led training across all ATPL theory subjects.",
+                "Complete Airline Transport Pilot License preparation with live instructor-led training across 13 ATPL Subjects.",
               provider: { "@type": "Organization", name: siteConfig.name, url: siteConfig.url },
               url: `${siteConfig.url}${routes.atpl}`,
               educationalLevel: "Professional",

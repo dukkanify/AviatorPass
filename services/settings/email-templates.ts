@@ -77,6 +77,8 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
               YOUR AVIATION JOURNEY STARTS HERE<br/>
               ${general.footerText}<br/>
               ${locations}<br/>
+              <a href="mailto:${general.contactEmail}" style="color:${accent};">${general.contactEmail}</a>
+              ·
               <a href="mailto:${general.supportEmail}" style="color:${accent};">${general.supportEmail}</a>
               <div style="margin-top:12px;">${social}</div>
             </td>
@@ -94,6 +96,7 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
     payload.bodyHtml.replace(/<[^>]+>/g, " "),
     "",
     `${general.companyName} · ${locations}`,
+    general.contactEmail,
     general.supportEmail,
     general.socialHandle,
   ].join("\n");
@@ -122,7 +125,7 @@ export function verificationSuccessEmailTemplate(input: { firstName: string; rol
   const name = input.firstName || "Aviator";
   return renderBrandedEmail({
     title: "Email verified — account ready",
-    preheader: `Welcome to ATPL PASS, ${name}`,
+    preheader: `Welcome to Aviator Pass, ${name}`,
     bodyHtml: `<p>Hi ${name},</p>
       <p>Your email is verified and your <strong>${input.role}</strong> account is ready.</p>
       <p>Sign in anytime to continue your aviation training journey.</p>`,

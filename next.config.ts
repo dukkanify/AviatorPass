@@ -34,6 +34,9 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "inline",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: "https",
@@ -66,8 +69,10 @@ const nextConfig: NextConfig = {
       { source: "/course/:path*", destination: "/courses/:path*", permanent: true },
       { source: "/catalog", destination: "/courses", permanent: true },
       { source: "/classes", destination: "/courses", permanent: true },
-      { source: "/booking", destination: "/book", permanent: true },
-      { source: "/bookings", destination: "/book", permanent: true },
+      { source: "/booking", destination: "/online-courses", permanent: false },
+      { source: "/bookings", destination: "/online-courses", permanent: false },
+      { source: "/book", destination: "/online-courses", permanent: false },
+      { source: "/private-session", destination: "/online-courses", permanent: false },
       { source: "/zoom", destination: "/live", permanent: true },
       { source: "/live-zoom", destination: "/live", permanent: true },
       { source: "/flight-path", destination: "/flightpath", permanent: true },

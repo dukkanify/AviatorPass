@@ -23,8 +23,8 @@ export default function SplashPage() {
           {brandingConfig.tagline}
         </p>
         <h1 className="font-display text-5xl font-bold tracking-tight text-white sm:text-6xl">
-          <span className="text-primary-foreground/90">ATPL</span>{" "}
-          <span className="text-accent">PASS</span>
+          <span className="text-primary-foreground/90">Aviator</span>{" "}
+          <span className="text-accent">Pass</span>
         </h1>
         <p className="mt-5 text-base leading-relaxed text-white/70">{siteConfig.description}</p>
         <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
@@ -37,7 +37,7 @@ export default function SplashPage() {
             className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             asChild
           >
-            <Link href={routes.book}>Book live Zoom</Link>
+            <Link href={routes.onlineCourses}>Explore Online Courses</Link>
           </Button>
         </div>
       </div>

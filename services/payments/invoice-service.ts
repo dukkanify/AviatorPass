@@ -165,6 +165,7 @@ export function renderInvoiceHtml(invoiceId: string): string {
     <div><strong>Total</strong><strong>${formatMinor(invoice.totalAmount, invoice.currency)}</strong></div>
     <div class="muted">Paid via ${invoice.paymentMethodSummary}</div>
   </div>
+  <p class="muted" style="margin-top:32px">Student support: <a href="mailto:${brand.supportEmail}">${brand.supportEmail}</a></p>
   <script>window.onload=()=>setTimeout(()=>window.print(),200)</script>
 </body></html>`;
 }

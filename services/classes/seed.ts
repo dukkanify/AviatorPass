@@ -4,10 +4,7 @@
 
 import { generateId } from "@/lib/security/crypto";
 import { siteStatic } from "@/config/site-static";
-import {
-  LEGACY_ATPLPASS_SUPPORT_EMAIL,
-  LEGACY_CLIENT_NAME_RE,
-} from "@/lib/branding/legacy-client-identity";
+import { isLegacySupportMailbox } from "@/lib/branding/legacy-client-identity";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
@@ -21,20 +18,13 @@ function remapLegacyHostEmails(): void {
   const db = readClassesDb();
   const dirty = db.zoomMeetings.some((m) => {
     const host = m.hostEmail ?? "";
-    return (
-      (LEGACY_CLIENT_NAME_RE.test(host) || host.toLowerCase() === LEGACY_ATPLPASS_SUPPORT_EMAIL) &&
-      host.toLowerCase() !== siteStatic.supportEmail
-    );
+    return isLegacySupportMailbox(host) && host.toLowerCase() !== siteStatic.supportEmail;
   });
   if (!dirty) return;
   writeClassesDb((d) => {
     for (const meeting of d.zoomMeetings) {
       const host = meeting.hostEmail ?? "";
-      if (
-        (LEGACY_CLIENT_NAME_RE.test(host) ||
-          host.toLowerCase() === LEGACY_ATPLPASS_SUPPORT_EMAIL) &&
-        host.toLowerCase() !== siteStatic.supportEmail
-      ) {
+      if (isLegacySupportMailbox(host) && host.toLowerCase() !== siteStatic.supportEmail) {
         meeting.hostEmail = siteStatic.supportEmail;
       }
     }

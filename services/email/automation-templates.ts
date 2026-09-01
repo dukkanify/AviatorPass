@@ -37,9 +37,9 @@ export function renderAutomationTemplate(
   switch (event) {
     case "registration":
       payload = {
-        title: subjectOverride ?? "Welcome to ATPL PASS",
+        title: subjectOverride ?? "Welcome to Aviator Pass",
         preheader: str(data, "passwordSetupUrl")
-          ? "Set your password and start ATPL PASS."
+          ? "Set your password and start Aviator Pass."
           : str(data, "temporaryPassword")
             ? "Your account, course access, and temporary password."
             : "Your account is ready.",
