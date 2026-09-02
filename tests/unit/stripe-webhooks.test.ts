@@ -340,6 +340,42 @@ describe("Stripe purchase-first webhooks", () => {
     expect(welcome?.courseAssigned).toBe(true);
   });
 
+  it("reconstructs a missing local order from checkout.session.completed", async () => {
+    const email = `stripe.reconstruct.${Date.now()}@aviatorpass.test`;
+    const sessionId = `cs_test_${generateId().slice(0, 10)}`;
+    const result = await processVerifiedStripeEvent(
+      sessionEvent({
+        id: sessionId,
+        payment_intent: `pi_recon_${generateId().slice(0, 8)}`,
+        client_reference_id: null,
+        metadata: { purchaseFirst: "true" },
+        customer_details: {
+          email,
+          name: "Reconstruct Guest",
+          phone: "+96550001111",
+          address: {
+            line1: "Gulf Road",
+            city: "Kuwait City",
+            country: "KW",
+            line2: null,
+            state: null,
+            postal_code: null,
+          },
+          tax_exempt: "none",
+          tax_ids: [],
+        } as Stripe.Checkout.Session.CustomerDetails,
+      }),
+    );
+    expect(result.status).toBe("succeeded");
+    expect(result.orderId).toBeTruthy();
+    const user = findUserByEmail(email);
+    expect(user).toBeTruthy();
+    expect(listStudentEnrollments(user!.id).some((e) => e.status === "approved")).toBe(true);
+    const welcome = getWelcomeBySessionId(sessionId);
+    expect(welcome?.accountCreated).toBe(true);
+    expect(welcome?.courseAssigned).toBe(true);
+  });
+
   it("does not create a user on payment_intent.payment_failed", async () => {
     const before = readAuthDb().users.length;
     const event = {

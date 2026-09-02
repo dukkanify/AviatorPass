@@ -22,6 +22,7 @@ import {
 } from "@/services/auth/store";
 import { passwordSchema } from "@/utils/validation";
 import { sanitizeEmail } from "@/utils/sanitize";
+import { publicAppOrigin } from "@/lib/site-origin";
 import type { ApiResponse } from "@/types";
 
 const SETUP_TTL_MS = 48 * 60 * 60_000;
@@ -31,7 +32,7 @@ function nowIso() {
 }
 
 function appOrigin(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return publicAppOrigin();
 }
 
 function hashSetupToken(token: string): string {
