@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { classFetch } from "@/features/classes/lib/api";
+import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
 import type { LiveClassListItem } from "@/types/classes";
 
 interface JoinClassClientProps {
@@ -29,6 +30,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
       providerMode: string;
     } | null;
     isHost: boolean;
+    audienceStatus?: "Upcoming" | "Live" | "Finished" | "Cancelled";
   } | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -86,6 +88,16 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
   const cls = data.class;
   const join = data.join;
+  const audience =
+    data.audienceStatus ??
+    (cls.computedStatus === "live_now"
+      ? "Live"
+      : cls.computedStatus === "completed" || cls.status === "completed"
+        ? "Finished"
+        : cls.status === "cancelled"
+          ? "Cancelled"
+          : "Upcoming");
+  const finished = audience === "Finished" || audience === "Cancelled";
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center gap-6 p-6">
@@ -97,10 +109,20 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               <CardTitle>{cls.title}</CardTitle>
               <CardDescription>
                 {new Date(cls.startsAt).toLocaleString()} · {cls.durationMinutes} min
+                {!finished ? (
+                  <>
+                    {" "}
+                    · Countdown: <MeetingCountdown startsAt={cls.startsAt} />
+                  </>
+                ) : null}
               </CardDescription>
             </div>
-            <Badge variant={cls.computedStatus === "live_now" ? "success" : "outline"}>
-              {cls.computedStatus === "live_now" ? "Live Now" : String(cls.computedStatus)}
+            <Badge
+              variant={
+                audience === "Live" ? "success" : audience === "Finished" ? "secondary" : "outline"
+              }
+            >
+              {audience}
             </Badge>
           </div>
         </CardHeader>
@@ -133,16 +155,22 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                 </p>
               </div>
               <div className="flex flex-col gap-2">
-                {data.isHost && join.startUrl ? (
+                {data.isHost && join.startUrl && !finished ? (
                   <Button asChild>
                     <a href={join.startUrl} target="_blank" rel="noreferrer">
-                      <Radio className="mr-2 h-4 w-4" /> Start as host
+                      <Radio className="mr-2 h-4 w-4" /> Start meeting
                     </a>
                   </Button>
                 ) : null}
-                <Button asChild variant={data.isHost ? "outline" : "default"}>
+                {data.isHost ? (
+                  <Button type="button" variant="outline" onClick={() => copy(join.joinUrl)}>
+                    Copy join link
+                  </Button>
+                ) : null}
+                <Button asChild variant={data.isHost ? "outline" : "default"} disabled={finished}>
                   <a href={join.joinUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" /> Join class
+                    <ExternalLink className="mr-2 h-4 w-4" />{" "}
+                    {data.isHost ? "Open join URL" : "Join Zoom"}
                   </a>
                 </Button>
               </div>

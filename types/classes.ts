@@ -3,34 +3,18 @@
  */
 
 export type LiveClassStatus =
-  | "draft"
-  | "scheduled"
-  | "live"
-  | "completed"
-  | "cancelled"
-  | "rescheduled";
+  "draft" | "scheduled" | "live" | "completed" | "cancelled" | "rescheduled";
 
 export type MeetingType = "meeting" | "webinar";
 
 export type RecurrenceFrequency = "once" | "daily" | "weekly" | "monthly";
 
-export type AttendanceStatus =
-  | "present"
-  | "late"
-  | "absent"
-  | "excused"
-  | "unknown";
+export type AttendanceStatus = "present" | "late" | "absent" | "excused" | "unknown";
 
 export type ReminderChannel = "email" | "in_app";
 
 export type ReminderKind =
-  | "24h"
-  | "2h"
-  | "15m"
-  | "live_now"
-  | "cancelled"
-  | "rescheduled"
-  | "recording";
+  "24h" | "2h" | "15m" | "live_now" | "finished" | "cancelled" | "rescheduled" | "recording";
 
 export interface ZoomMeetingRecord {
   id: string;
@@ -47,6 +31,14 @@ export interface ZoomMeetingRecord {
   coHostEmails: string[];
   /** Mock vs live Zoom API */
   providerMode: "mock" | "zoom";
+  hostId?: string | null;
+  timezone?: string | null;
+  durationMinutes?: number | null;
+  startTime?: string | null;
+  status?: "waiting" | "started" | "finished" | "scheduled" | "cancelled" | null;
+  /** Instructor user id whose OAuth token created this meeting */
+  oauthUserId?: string | null;
+  participantCount?: number | null;
   raw: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

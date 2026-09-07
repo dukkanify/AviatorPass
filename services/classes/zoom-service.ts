@@ -9,6 +9,8 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { sanitizeJoinInfoForViewer } from "@/services/zoom/policy";
+import { getIntegrationByUserId } from "@/services/zoom/store";
 import type { LiveClass, MeetingType, ZoomMeetingRecord } from "@/types/classes";
 
 export function isZoomConfigured(): boolean {
@@ -79,6 +81,13 @@ function mockMeeting(
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
     providerMode: "mock",
+    hostId: null,
+    timezone: liveClass.timezone,
+    durationMinutes: liveClass.durationMinutes,
+    startTime: liveClass.startsAt,
+    status: "scheduled",
+    oauthUserId: null,
+    participantCount: null,
     raw: {
       mock: true,
       topic: liveClass.title,
@@ -111,7 +120,9 @@ async function createZoomApiMeeting(
       join_before_host: false,
       mute_upon_entry: true,
       host_video: true,
-      participant_video: true,
+      participant_video: false,
+      approval_type: 0,
+      meeting_authentication: false,
     },
   };
 
@@ -154,6 +165,13 @@ async function createZoomApiMeeting(
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
     providerMode: "zoom",
+    hostId: null,
+    timezone: liveClass.timezone,
+    durationMinutes: liveClass.durationMinutes,
+    startTime: liveClass.startsAt,
+    status: "scheduled",
+    oauthUserId: null,
+    participantCount: null,
     raw: json as unknown as Record<string, unknown>,
   };
 }
@@ -165,6 +183,17 @@ export async function createMeetingForClass(input: {
   meetingType?: MeetingType;
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord> {
+  try {
+    const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorMeeting = await createInstructorZoomMeeting({
+      liveClass: input.liveClass,
+      actorId: input.actorId,
+    });
+    if (instructorMeeting) return instructorMeeting;
+  } catch (error) {
+    console.error("Instructor Zoom create failed; falling back", error);
+  }
+
   const settings = getPlatformSettings();
   const waitingRoom = input.waitingRoom ?? settings.zoom.defaultWaitingRoom;
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
@@ -225,6 +254,27 @@ export async function updateMeetingForClass(input: {
   if (!existing)
     return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
 
+  try {
+    const { updateInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorConnected = Boolean(
+      existing.oauthUserId || getIntegrationByUserId(input.liveClass.instructorId),
+    );
+    if (instructorConnected) {
+      const updated = await updateInstructorZoomMeeting({
+        liveClass: input.liveClass,
+        existing,
+        actorId: input.actorId,
+      });
+      if (updated) {
+        return (
+          readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClass.id) ?? existing
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Instructor Zoom update failed; falling back", error);
+  }
+
   if (existing.providerMode === "zoom" && zoomCredsPresent()) {
     const token = await getZoomAccessToken();
     if (token) {
@@ -279,6 +329,25 @@ export async function cancelMeetingForClass(input: {
   const existing = readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClassId);
   if (!existing) return;
 
+  try {
+    const { deleteInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorId =
+      existing.oauthUserId ||
+      readClassesDb().classes.find((c) => c.id === input.liveClassId)?.instructorId ||
+      "";
+    if (existing.oauthUserId || (instructorId && getIntegrationByUserId(instructorId))) {
+      const deleted = await deleteInstructorZoomMeeting({
+        liveClassId: input.liveClassId,
+        existing,
+        actorId: input.actorId,
+        notify: false,
+      });
+      if (deleted) return;
+    }
+  } catch (error) {
+    console.error("Instructor Zoom delete failed; falling back", error);
+  }
+
   if (existing.providerMode === "zoom" && zoomCredsPresent()) {
     const token = await getZoomAccessToken();
     if (token) {
@@ -288,6 +357,15 @@ export async function cancelMeetingForClass(input: {
       }).catch((err) => console.error("Zoom cancel failed", err));
     }
   }
+
+  writeClassesDb((d) => {
+    d.zoomMeetings = d.zoomMeetings.filter((z) => z.id !== existing.id);
+    const idx = d.classes.findIndex((c) => c.id === input.liveClassId);
+    if (idx >= 0) {
+      const current = d.classes[idx]!;
+      d.classes[idx] = { ...current, zoomMeetingId: null, updatedAt: new Date().toISOString() };
+    }
+  });
 
   await logActivity({
     actorId: input.actorId ?? null,
@@ -304,16 +382,7 @@ export function getZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord 
 
 /** Safe public join info — never includes start_url for non-hosts */
 export function getPublicJoinInfo(liveClassId: string, isHost: boolean) {
-  const m = getZoomMeetingByClassId(liveClassId);
-  if (!m) return null;
-  return {
-    zoomMeetingId: m.zoomMeetingId,
-    joinUrl: m.joinUrl,
-    startUrl: isHost ? m.startUrl : null,
-    password: m.password,
-    waitingRoom: m.waitingRoom,
-    providerMode: m.providerMode,
-  };
+  return sanitizeJoinInfoForViewer(getZoomMeetingByClassId(liveClassId), isHost);
 }
 
 export function refreshZoomCredentialsFlag(): boolean {

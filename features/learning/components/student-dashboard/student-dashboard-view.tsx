@@ -565,7 +565,7 @@ function LearningDashboardView() {
                 disabled={!overview.upcomingLiveClassId || joining}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                {joining ? "Joining…" : "Join Session"}
+                {joining ? "Joining…" : "Join Zoom"}
               </button>
               <Link className="sl-btn" href="/student/calendar">
                 <CalendarDays className="h-4 w-4" aria-hidden />

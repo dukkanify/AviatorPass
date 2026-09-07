@@ -96,21 +96,44 @@ export function getLiveClass(id: string): LiveClass | null {
   return cls;
 }
 
-export function getLiveClassDetail(id: string) {
+export function meetingAudienceStatus(
+  cls: LiveClass,
+): "Upcoming" | "Live" | "Finished" | "Cancelled" {
+  if (cls.status === "cancelled") return "Cancelled";
+  const runtime = computeRuntimeStatus(cls);
+  if (runtime === "live_now" || cls.status === "live") return "Live";
+  if (runtime === "completed" || cls.status === "completed") return "Finished";
+  return "Upcoming";
+}
+
+export function getLiveClassDetail(id: string, viewer?: { id: string; role: string }) {
   const cls = getLiveClass(id);
   if (!cls) return null;
   const zoom = getZoomMeetingByClassId(id);
+  const isHost = viewer
+    ? canManageClass(viewer.id, viewer.role, id) ||
+      cls.instructorId === viewer.id ||
+      cls.assistantInstructorId === viewer.id
+    : false;
   return {
     ...toListItem(cls),
+    audienceStatus: meetingAudienceStatus(cls),
     zoom: zoom
       ? {
           id: zoom.id,
           zoomMeetingId: zoom.zoomMeetingId,
           joinUrl: zoom.joinUrl,
+          startUrl: isHost ? zoom.startUrl : null,
           password: zoom.password,
           waitingRoom: zoom.waitingRoom,
           providerMode: zoom.providerMode,
           coHostEmails: zoom.coHostEmails,
+          status: zoom.status ?? null,
+          timezone: zoom.timezone ?? cls.timezone,
+          durationMinutes: zoom.durationMinutes ?? cls.durationMinutes,
+          startTime: zoom.startTime ?? cls.startsAt,
+          hostId: isHost ? (zoom.hostId ?? null) : null,
+          participantCount: isHost ? (zoom.participantCount ?? null) : null,
         }
       : null,
     participants: readClassesDb().participants.filter((p) => p.liveClassId === id),
@@ -408,6 +431,16 @@ export async function createLiveClass(
     );
     addParticipants(cls.id, students, "participant");
 
+    const { enqueueZoomNotification } = await import("@/services/zoom/notifications");
+    enqueueZoomNotification({
+      kind: "created",
+      liveClassId: cls.id,
+      classTitle: cls.title,
+      startsAt: cls.startsAt,
+      actorId: input.actorId,
+      userIds: [...participantIds],
+    });
+
     await queueClassReminders(cls.id);
     await notifyUsers(
       [...participantIds],
@@ -445,7 +478,10 @@ export async function createLiveClass(
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(base.id);
+  return getLiveClassDetail(
+    base.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function updateLiveClass(input: {
@@ -522,7 +558,10 @@ export async function updateLiveClass(input: {
     if (idx >= 0) d.classes[idx] = next;
   });
 
-  await updateMeetingForClass({ liveClass: next, actorId: input.actorId });
+  const { liveClassMeetingFieldsChanged } = await import("@/services/zoom/meeting-service");
+  if (liveClassMeetingFieldsChanged(existing, next)) {
+    await updateMeetingForClass({ liveClass: next, actorId: input.actorId });
+  }
   await cancelClassReminders(next.id);
   await queueClassReminders(next.id);
 
@@ -547,7 +586,10 @@ export async function updateLiveClass(input: {
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(next.id);
+  return getLiveClassDetail(
+    next.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function cancelLiveClass(input: {
@@ -605,7 +647,10 @@ export async function cancelLiveClass(input: {
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(input.id);
+  return getLiveClassDetail(
+    input.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function rescheduleLiveClass(input: {
@@ -793,6 +838,28 @@ export async function softDeleteLiveClass(input: {
   });
   await cancelMeetingForClass({ liveClassId: input.id, actorId: input.actorId });
   await cancelClassReminders(input.id);
+
+  const participantIds = readClassesDb()
+    .participants.filter((p) => p.liveClassId === input.id)
+    .map((p) => p.userId);
+  if (participantIds.length) {
+    await notifyUsers(
+      participantIds,
+      "Live class cancelled",
+      `${existing.title} has been cancelled`,
+      "class.cancelled",
+      { liveClassId: input.id },
+    );
+    await emailScheduleLifecycle({
+      event: "cancel",
+      userIds: participantIds,
+      title: existing.title,
+      detail: "This live class was deleted. The Zoom meeting has been removed.",
+      liveClassId: input.id,
+      actorId: input.actorId,
+    });
+  }
+
   await logActivity({
     actorId: input.actorId,
     action: ACTIVITY_ACTIONS.CLASS_DELETED,
@@ -823,6 +890,7 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     class: toListItem(cls),
     join: getPublicJoinInfo(liveClassId, Boolean(isHost)),
     isHost: Boolean(isHost),
+    audienceStatus: meetingAudienceStatus(cls),
   };
 }
 

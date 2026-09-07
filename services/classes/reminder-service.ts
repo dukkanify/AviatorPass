@@ -88,6 +88,23 @@ export async function queueClassReminders(liveClassId: string): Promise<Reminder
         d.reminders.push(liveItem);
         created.push(liveItem);
       }
+
+      const finishedItem: ReminderQueueItem = {
+        id: generateId(),
+        liveClassId,
+        userId: p.userId,
+        kind: "finished",
+        channel: "in_app",
+        scheduledFor: cls.endsAt,
+        sentAt: null,
+        status: "pending",
+        payload: { title: cls.title, startsAt: cls.startsAt },
+        createdAt: ts,
+      };
+      if (Date.parse(finishedItem.scheduledFor) >= now - 60_000) {
+        d.reminders.push(finishedItem);
+        created.push(finishedItem);
+      }
     }
   });
 
@@ -131,13 +148,22 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
     }
 
     const label =
-      item.kind === "live_now"
-        ? "Class is live now"
-        : item.kind === "15m"
-          ? "Class starts in 15 minutes"
-          : item.kind === "2h"
-            ? "Class starts in 2 hours"
-            : "Class starts in 24 hours";
+      item.kind === "finished"
+        ? "Class has finished"
+        : item.kind === "live_now"
+          ? "Class is live now"
+          : item.kind === "15m"
+            ? "Class starts in 15 minutes"
+            : item.kind === "2h"
+              ? "Class starts in 2 hours"
+              : "Class starts in 24 hours";
+
+    const notificationType =
+      item.kind === "finished"
+        ? "zoom.meeting.finished"
+        : item.kind === "15m" || item.kind === "2h"
+          ? "zoom.meeting.starts_soon"
+          : `class.reminder.${item.kind}`;
 
     if (item.channel === "email") {
       const user = findUserById(item.userId);
@@ -178,7 +204,7 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
         userId: item.userId,
         title: label,
         body: `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
-        type: `class.reminder.${item.kind}`,
+        type: notificationType,
         channel: "in_app",
         data: { liveClassId: cls.id, kind: item.kind },
       });
