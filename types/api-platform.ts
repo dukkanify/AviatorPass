@@ -5,12 +5,7 @@
 export type ApiKeyStatus = "active" | "revoked" | "expired";
 
 export type ApiKeyScope =
-  | "public:read"
-  | "mobile:full"
-  | "webhooks:manage"
-  | "import:write"
-  | "export:read"
-  | "admin:ops";
+  "public:read" | "mobile:full" | "webhooks:manage" | "import:write" | "export:read" | "admin:ops";
 
 export interface ApiKeyRecord {
   id: string;
@@ -112,7 +107,13 @@ export type JobType =
   | "import"
   | "export"
   | "webhook"
-  | "generic";
+  | "generic"
+  | "zoom.meeting.create"
+  | "zoom.meeting.update"
+  | "zoom.meeting.delete"
+  | "zoom.token.refresh"
+  | "zoom.sync"
+  | "zoom.notification";
 
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -131,12 +132,7 @@ export interface QueueJob {
   createdAt: string;
 }
 
-export type ImportExportKind =
-  | "students"
-  | "instructors"
-  | "courses"
-  | "questions"
-  | "communities";
+export type ImportExportKind = "students" | "instructors" | "courses" | "questions" | "communities";
 
 export type ExportFormat = "csv" | "json" | "xlsx" | "pdf";
 

@@ -43,10 +43,14 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
         zoom: {
           zoomMeetingId: string;
           joinUrl: string;
+          startUrl?: string | null;
           password: string;
           waitingRoom: boolean;
           providerMode: string;
+          status?: string | null;
+          participantCount?: number | null;
         } | null;
+        audienceStatus?: "Upcoming" | "Live" | "Finished" | "Cancelled";
         participants: Array<{ userId: string; role: string }>;
         recordings: Array<{ id: string; title: string; url: string }>;
       })
@@ -164,11 +168,19 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
-            <Button asChild>
-              <Link href={`/join/${detail.id}`}>
-                <Radio className="mr-2 h-4 w-4" /> Join / Start
-              </Link>
-            </Button>
+            {detail.zoom?.startUrl ? (
+              <Button asChild>
+                <a href={detail.zoom.startUrl} target="_blank" rel="noreferrer">
+                  <Radio className="mr-2 h-4 w-4" /> Start meeting
+                </a>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href={`/join/${detail.id}`}>
+                  <Radio className="mr-2 h-4 w-4" /> Join / Start
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
@@ -208,6 +220,10 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
             {detail.zoom ? (
               <>
                 <p>
+                  <span className="text-muted-foreground">Status:</span>{" "}
+                  {detail.audienceStatus ?? detail.zoom.status ?? "—"}
+                </p>
+                <p>
                   <span className="text-muted-foreground">Meeting ID:</span>{" "}
                   {detail.zoom.zoomMeetingId}
                 </p>
@@ -216,17 +232,42 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                   {detail.zoom.password || "—"}
                 </p>
                 <p>
+                  <span className="text-muted-foreground">Participants:</span>{" "}
+                  {detail.zoom.participantCount ?? "—"}
+                </p>
+                <p>
                   <span className="text-muted-foreground">Mode:</span> {detail.zoom.providerMode}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Waiting room:</span>{" "}
                   {detail.zoom.waitingRoom ? "On" : "Off"}
                 </p>
-                <Button asChild size="sm" variant="outline" className="w-full">
-                  <a href={detail.zoom.joinUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" /> Open join URL
-                  </a>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  {detail.zoom.startUrl ? (
+                    <Button asChild size="sm">
+                      <a href={detail.zoom.startUrl} target="_blank" rel="noreferrer">
+                        <Radio className="mr-2 h-4 w-4" /> Start meeting
+                      </a>
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(detail.zoom!.joinUrl);
+                      toast.success("Join link copied");
+                    }}
+                  >
+                    Copy join link
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="w-full">
+                    <a href={detail.zoom.joinUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" /> Open join URL
+                    </a>
+                  </Button>
+                </div>
               </>
             ) : (
               <p className="text-muted-foreground">No Zoom meeting linked.</p>

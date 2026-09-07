@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const user = await requireAuth();
     const { id } = await params;
-    const detail = getLiveClassDetail(id);
+    const detail = getLiveClassDetail(id, { id: user.id, role: user.role });
     if (!detail) {
       return NextResponse.json(
         { success: false, data: null, error: "Class not found" },

@@ -33,12 +33,13 @@ Apply in order on a fresh Supabase project:
 | `015_support_ops.sql`                    | Support ops                                           |
 | `016_api_platform.sql`                   | Mobile / API platform                                 |
 | `017_post_launch_ops.sql`                | Hypercare, features, KB, feedback                     |
+| `031_zoom_integrations.sql`              | Instructor Zoom General OAuth integrations            |
 
 Prefer starting at `002` for greenfield (skip or archive `001`).
 
 ## Local development store
 
-When Supabase env vars are unset, the app uses `.data/aep-*.json` domains (auth, settings, courses, classes, learning, quizzes, certificates, communication, payments, analytics, AI, ops, support-ops, api-platform).
+When Supabase env vars are unset, the app uses `.data/aep-*.json` domains (auth, settings, courses, classes, learning, quizzes, certificates, communication, payments, analytics, AI, ops, support-ops, api-platform, zoom).
 
 ## Super Admin seeder
 

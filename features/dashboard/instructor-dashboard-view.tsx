@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import {
   BookOpen,
   CalendarPlus,
@@ -10,6 +11,8 @@ import {
   Video,
   Wallet,
 } from "lucide-react";
+
+import { InstructorZoomPanel } from "@/features/zoom/components/instructor-zoom-panel";
 
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -74,6 +77,10 @@ function InstructorDashboardView({
           icon={Wallet}
         />
       </div>
+
+      <Suspense fallback={null}>
+        <InstructorZoomPanel />
+      </Suspense>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <ChartCard title="Monthly earnings" className="xl:col-span-2">

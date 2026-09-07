@@ -98,6 +98,15 @@ async function runJob(job: QueueJob): Promise<Record<string, unknown>> {
     case "import":
     case "export":
       return { processed: true, jobRef: job.payload.jobId ?? null };
+    case "zoom.meeting.create":
+    case "zoom.meeting.update":
+    case "zoom.meeting.delete":
+    case "zoom.token.refresh":
+    case "zoom.sync":
+    case "zoom.notification": {
+      const { runZoomJob } = await import("@/services/zoom/queue");
+      return runZoomJob(job);
+    }
     default:
       return { ok: true };
   }

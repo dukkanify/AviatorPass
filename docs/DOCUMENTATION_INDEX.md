@@ -28,18 +28,19 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 
 ## Technical
 
-| Doc                                         | Topic               |
-| ------------------------------------------- | ------------------- |
-| `ARCHITECTURE.md`                           | System overview     |
-| `DEVELOPER_GUIDE.md`                        | Engineer onboarding |
-| `ENVIRONMENT_SETUP.md`                      | Env / install       |
-| `DEPLOYMENT.md` / `PRODUCTION.md`           | Deploy              |
-| `API_OVERVIEW.md` / `MOBILE_API.md`         | APIs                |
-| `DATABASE_SCHEMA.md` / `database/README.md` | Schema              |
-| `SECURITY.md` / `SECURITY_REVIEW_022.md`    | Security            |
-| `BACKUP_DISASTER_RECOVERY.md`               | Backup / restore    |
-| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md` | Ops                 |
-| `TESTING.md` / `CODING_STANDARDS.md`        | Quality             |
+| Doc                                         | Topic                 |
+| ------------------------------------------- | --------------------- |
+| `ARCHITECTURE.md`                           | System overview       |
+| `DEVELOPER_GUIDE.md`                        | Engineer onboarding   |
+| `ENVIRONMENT_SETUP.md`                      | Env / install         |
+| `ZOOM_OAUTH_INTEGRATION.md`                 | Instructor Zoom OAuth |
+| `DEPLOYMENT.md` / `PRODUCTION.md`           | Deploy                |
+| `API_OVERVIEW.md` / `MOBILE_API.md`         | APIs                  |
+| `DATABASE_SCHEMA.md` / `database/README.md` | Schema                |
+| `SECURITY.md` / `SECURITY_REVIEW_022.md`    | Security              |
+| `BACKUP_DISASTER_RECOVERY.md`               | Backup / restore      |
+| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md` | Ops                   |
+| `TESTING.md` / `CODING_STANDARDS.md`        | Quality               |
 
 ## Closure, enterprise & release
 

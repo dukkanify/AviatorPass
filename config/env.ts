@@ -46,6 +46,12 @@ const serverEnvSchema = z.object({
   ZOOM_ACCOUNT_ID: z.string().optional(),
   ZOOM_CLIENT_ID: z.string().optional(),
   ZOOM_CLIENT_SECRET: z.string().optional(),
+  /** Zoom General OAuth (instructor connect) */
+  ZOOM_REDIRECT_URI: z.string().url().optional(),
+  ZOOM_BASE_URL: z.string().url().optional(),
+  ZOOM_OAUTH_SCOPES: z.string().optional(),
+  ZOOM_SECRET_TOKEN: z.string().optional(),
+  ZOOM_WEBHOOK_SECRET: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -105,6 +111,11 @@ export function getServerEnv() {
     ZOOM_ACCOUNT_ID: emptyToUndef(process.env.ZOOM_ACCOUNT_ID),
     ZOOM_CLIENT_ID: emptyToUndef(process.env.ZOOM_CLIENT_ID),
     ZOOM_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_CLIENT_SECRET),
+    ZOOM_REDIRECT_URI: emptyToUndef(process.env.ZOOM_REDIRECT_URI),
+    ZOOM_BASE_URL: emptyToUndef(process.env.ZOOM_BASE_URL),
+    ZOOM_OAUTH_SCOPES: emptyToUndef(process.env.ZOOM_OAUTH_SCOPES),
+    ZOOM_SECRET_TOKEN: emptyToUndef(process.env.ZOOM_SECRET_TOKEN),
+    ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
   });
 
   if (!result.success) {
