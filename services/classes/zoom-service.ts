@@ -183,12 +183,16 @@ export async function createMeetingForClass(input: {
   meetingType?: MeetingType;
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord> {
-  const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
-  const instructorMeeting = await createInstructorZoomMeeting({
-    liveClass: input.liveClass,
-    actorId: input.actorId,
-  });
-  if (instructorMeeting) return instructorMeeting;
+  try {
+    const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorMeeting = await createInstructorZoomMeeting({
+      liveClass: input.liveClass,
+      actorId: input.actorId,
+    });
+    if (instructorMeeting) return instructorMeeting;
+  } catch (error) {
+    console.error("Instructor Zoom create failed; falling back", error);
+  }
 
   const settings = getPlatformSettings();
   const waitingRoom = input.waitingRoom ?? settings.zoom.defaultWaitingRoom;
@@ -250,21 +254,25 @@ export async function updateMeetingForClass(input: {
   if (!existing)
     return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
 
-  const { updateInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
-  const instructorConnected = Boolean(
-    existing.oauthUserId || getIntegrationByUserId(input.liveClass.instructorId),
-  );
-  if (instructorConnected) {
-    const updated = await updateInstructorZoomMeeting({
-      liveClass: input.liveClass,
-      existing,
-      actorId: input.actorId,
-    });
-    if (updated) {
-      return (
-        readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClass.id) ?? existing
-      );
+  try {
+    const { updateInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorConnected = Boolean(
+      existing.oauthUserId || getIntegrationByUserId(input.liveClass.instructorId),
+    );
+    if (instructorConnected) {
+      const updated = await updateInstructorZoomMeeting({
+        liveClass: input.liveClass,
+        existing,
+        actorId: input.actorId,
+      });
+      if (updated) {
+        return (
+          readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClass.id) ?? existing
+        );
+      }
     }
+  } catch (error) {
+    console.error("Instructor Zoom update failed; falling back", error);
   }
 
   if (existing.providerMode === "zoom" && zoomCredsPresent()) {
@@ -321,19 +329,23 @@ export async function cancelMeetingForClass(input: {
   const existing = readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClassId);
   if (!existing) return;
 
-  const { deleteInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
-  const instructorId =
-    existing.oauthUserId ||
-    readClassesDb().classes.find((c) => c.id === input.liveClassId)?.instructorId ||
-    "";
-  if (existing.oauthUserId || (instructorId && getIntegrationByUserId(instructorId))) {
-    const deleted = await deleteInstructorZoomMeeting({
-      liveClassId: input.liveClassId,
-      existing,
-      actorId: input.actorId,
-      notify: false,
-    });
-    if (deleted) return;
+  try {
+    const { deleteInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    const instructorId =
+      existing.oauthUserId ||
+      readClassesDb().classes.find((c) => c.id === input.liveClassId)?.instructorId ||
+      "";
+    if (existing.oauthUserId || (instructorId && getIntegrationByUserId(instructorId))) {
+      const deleted = await deleteInstructorZoomMeeting({
+        liveClassId: input.liveClassId,
+        existing,
+        actorId: input.actorId,
+        notify: false,
+      });
+      if (deleted) return;
+    }
+  } catch (error) {
+    console.error("Instructor Zoom delete failed; falling back", error);
   }
 
   if (existing.providerMode === "zoom" && zoomCredsPresent()) {

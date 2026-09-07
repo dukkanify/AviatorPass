@@ -63,7 +63,9 @@ export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string
       returnTo,
     });
   });
-  const payload = `${input.userId}.${nonce}.${expiresAt}`;
+  const payload = Buffer.from(
+    JSON.stringify({ userId: input.userId, nonce, exp: expiresAt }),
+  ).toString("base64url");
   const state = `${payload}.${signPayload(payload, authSecret())}`;
 
   const url = new URL(ZOOM_OAUTH_AUTHORIZE_URL);
@@ -76,20 +78,30 @@ export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string
 }
 
 function parseState(state: string): { userId: string; nonce: string; expiresAt: string } {
-  const parts = state.split(".");
-  if (parts.length < 4) throw new PermissionError("Invalid OAuth state", 400);
-  const signature = parts.pop()!;
-  const expiresAt = parts.pop()!;
-  const nonce = parts.pop()!;
-  const userId = parts.join(".");
-  const payload = `${userId}.${nonce}.${expiresAt}`;
+  const dot = state.lastIndexOf(".");
+  if (dot <= 0) throw new PermissionError("Invalid OAuth state", 400);
+  const payload = state.slice(0, dot);
+  const signature = state.slice(dot + 1);
   if (!verifySignature(payload, signature, authSecret())) {
     throw new PermissionError("Invalid OAuth state signature", 400);
   }
-  if (Date.parse(expiresAt) < Date.now()) {
+  let parsed: { userId?: string; nonce?: string; exp?: string };
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      userId?: string;
+      nonce?: string;
+      exp?: string;
+    };
+  } catch {
+    throw new PermissionError("Invalid OAuth state", 400);
+  }
+  if (!parsed.userId || !parsed.nonce || !parsed.exp) {
+    throw new PermissionError("Invalid OAuth state", 400);
+  }
+  if (Date.parse(parsed.exp) < Date.now()) {
     throw new PermissionError("OAuth state expired — try Connect again", 400);
   }
-  return { userId, nonce, expiresAt };
+  return { userId: parsed.userId, nonce: parsed.nonce, expiresAt: parsed.exp };
 }
 
 async function exchangeToken(body: URLSearchParams): Promise<ZoomOAuthTokenResponse> {

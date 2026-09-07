@@ -8,15 +8,17 @@ import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import {
+  cancelLiveClass,
   createLiveClass,
   getJoinInfoForUser,
   getLiveClassDetail,
+  updateLiveClass,
 } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
 import { getPublicJoinInfo, getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { instructorMeetingPayload } from "@/services/zoom/client";
-import { decryptSecret, encryptSecret } from "@/services/zoom/crypto";
+import { decryptSecret, encryptSecret, looksEncrypted } from "@/services/zoom/crypto";
 import {
   completeZoomOAuthCallback,
   buildZoomAuthorizeUrl,
@@ -72,17 +74,11 @@ afterEach(() => {
 });
 
 describe("Zoom token encryption", () => {
-  it("encrypts and decrypts access tokens", async () => {
-    vi.resetModules();
-    const {
-      encryptSecret: enc,
-      decryptSecret: dec,
-      looksEncrypted,
-    } = await import("@/services/zoom/crypto");
-    const cipher = enc("zoom-access-token-value");
+  it("encrypts and decrypts access tokens", () => {
+    const cipher = encryptSecret("zoom-access-token-value");
     expect(looksEncrypted(cipher)).toBe(true);
     expect(cipher).not.toContain("zoom-access-token-value");
-    expect(dec(cipher)).toBe("zoom-access-token-value");
+    expect(decryptSecret(cipher)).toBe("zoom-access-token-value");
   });
 });
 
@@ -375,7 +371,7 @@ describe("Zoom meeting lifecycle", () => {
       }
       if (url.includes("/meetings/111") && method === "PATCH") {
         patches += 1;
-        return new Response("", { status: 204 });
+        return new Response(null, { status: 204 });
       }
       return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
@@ -387,7 +383,6 @@ describe("Zoom meeting lifecycle", () => {
       durationMinutes: 60,
       actorId: user.id,
     });
-    const { updateLiveClass } = await import("@/services/classes/class-service");
     await updateLiveClass({
       id: created!.id,
       patch: { title: "Patched title", durationMinutes: 90 },
@@ -439,7 +434,7 @@ describe("Zoom meeting lifecycle", () => {
       }
       if (url.includes("/meetings/222") && method === "DELETE") {
         deleted += 1;
-        return new Response("", { status: 204 });
+        return new Response(null, { status: 204 });
       }
       return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
@@ -451,7 +446,6 @@ describe("Zoom meeting lifecycle", () => {
       durationMinutes: 45,
       actorId: user.id,
     });
-    const { cancelLiveClass } = await import("@/services/classes/class-service");
     await cancelLiveClass({ id: created!.id, actorId: user.id, reason: "Weather" });
     expect(deleted).toBe(1);
     expect(getZoomMeetingByClassId(created!.id)).toBeNull();

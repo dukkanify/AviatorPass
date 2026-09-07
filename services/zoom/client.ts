@@ -50,7 +50,7 @@ export async function zoomRequest<T>(input: {
         body: input.body === undefined ? undefined : JSON.stringify(input.body),
       });
 
-      if (res.status === 204) return {} as T;
+      if (res.status === 204 || res.status === 202) return {} as T;
 
       if (TRANSIENT.has(res.status) && attempt < attempts - 1) {
         const retryAfter = Number(res.headers.get("retry-after"));
