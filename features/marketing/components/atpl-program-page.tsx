@@ -83,41 +83,41 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
           }}
           aria-hidden
         />
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-[var(--landing-ink)]/80 via-[var(--landing-ink)]/90 to-[var(--landing-ink)]"
-          aria-hidden
-        />
+        <div className="hero-read-overlay" aria-hidden />
+        <div className="hero-read-vignette" aria-hidden />
         <div className="container-app relative z-10 py-20 sm:py-28 lg:py-32">
-          <p className="atpl-kicker atpl-kicker-hero">{ATPL_LANDING_HERO.kicker}</p>
-          <h1 className="mt-6 max-w-[18ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-bold leading-[1.06] tracking-[-0.035em] text-white">
-            {ATPL_LANDING_HERO.headline}
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/68 sm:text-lg">
-            {ATPL_LANDING_HERO.subheadline}
-          </p>
-          <ul className="mt-8 flex flex-col gap-2 text-sm text-white/75 sm:text-base">
-            {ATPL_LANDING_HERO.proof.map((line) => (
-              <li key={line} className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-                {line}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
-              asChild
-            >
-              <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
-            </Button>
-            {priceLabel ? (
-              <p className="text-sm font-medium text-white/70">
-                From <span className="text-accent">{priceLabel}</span>
-              </p>
-            ) : null}
+          <div className="hero-read-glass">
+            <p className="atpl-kicker atpl-kicker-hero">{ATPL_LANDING_HERO.kicker}</p>
+            <h1 className="hero-read-heading mt-6 max-w-[18ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-bold leading-[1.06] tracking-[-0.035em]">
+              {ATPL_LANDING_HERO.headline}
+            </h1>
+            <p className="hero-read-sub mt-6 text-base sm:text-lg">
+              {ATPL_LANDING_HERO.subheadline}
+            </p>
+            <ul className="hero-read-sub mt-8 flex flex-col gap-2 text-sm sm:text-base">
+              {ATPL_LANDING_HERO.proof.map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
+              <Button
+                size="lg"
+                variant="outline"
+                className="hero-read-cta-dark w-full px-8 sm:w-auto"
+                asChild
+              >
+                <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
+              </Button>
+              {priceLabel ? (
+                <p className="hero-read-sub text-sm font-medium">
+                  From <span className="text-accent">{priceLabel}</span>
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>

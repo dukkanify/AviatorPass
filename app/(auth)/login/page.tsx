@@ -27,7 +27,8 @@ export default function LoginPage() {
   return (
     <div className="relative flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="hero-aviation absolute inset-0" />
-      <div className="absolute inset-0 bg-[var(--surface-ink)]/55 backdrop-blur-[2px]" />
+      <div className="hero-read-overlay" />
+      <div className="hero-read-vignette" />
       <Card className="relative z-10 w-full max-w-md border-border/60 shadow-medium">
         <CardHeader className="space-y-5 text-center">
           <div className="flex justify-center">

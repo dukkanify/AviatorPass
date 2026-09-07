@@ -51,7 +51,8 @@ function RegisterShell({ initialRole = "student" }: { initialRole?: RegisterRole
   return (
     <div className="relative flex min-h-dvh items-center justify-center px-4 py-12 sm:py-16">
       <div className="hero-aviation absolute inset-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(165deg,rgba(3,8,12,0.72)_0%,rgba(11,26,36,0.58)_48%,rgba(18,48,68,0.62)_100%)] backdrop-blur-[1.5px]" />
+      <div className="hero-read-overlay" />
+      <div className="hero-read-vignette" />
       <div
         className="pointer-events-none absolute inset-x-[12%] top-[18%] h-px bg-gradient-to-r from-transparent via-[rgb(221_155_48_/0.45)] to-transparent"
         aria-hidden

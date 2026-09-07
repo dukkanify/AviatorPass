@@ -36,36 +36,39 @@ export default function FlightpathPage() {
       />
 
       <section className="catalog-page-hero hero-aviation relative isolate overflow-hidden">
+        <div className="hero-read-overlay" aria-hidden />
         <div className="hero-horizon" aria-hidden />
-        <div className="hero-vignette" aria-hidden />
+        <div className="hero-read-vignette" aria-hidden />
         <div className="container-app relative z-10 py-20 sm:py-28 lg:py-32">
-          <p className="landing-kicker text-accent">AviatorPass flightpath</p>
-          <h1 className="hero-brand mt-6 max-w-[14ch] font-display text-[clamp(2.8rem,8vw,5.5rem)] font-semibold">
-            <span className="hero-brand-aviator">Three</span>
-            <span className="hero-brand-pass"> altitudes</span>
-          </h1>
-          <p className="mt-6 max-w-[28ch] font-display text-[clamp(1.25rem,2.8vw,1.95rem)] font-semibold tracking-[-0.03em] leading-snug text-white/92">
-            One training OS from syllabus to license readiness
-          </p>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-white/65 sm:text-lg">
-            Learn on structured ATPL lanes, book live Zoom when you need altitude, then prove
-            mastery — without brochure noise.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
-              <Link href={routes.courses}>
-                Open courses
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="hero-cta-secondary border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-              asChild
-            >
-              <Link href={routes.live}>Live coaching</Link>
-            </Button>
+          <div className="hero-read-glass">
+            <p className="landing-kicker text-accent">AviatorPass flightpath</p>
+            <h1 className="hero-brand mt-6 max-w-[14ch] font-display text-[clamp(2.8rem,8vw,5.5rem)] font-semibold">
+              <span className="hero-brand-aviator">Three</span>
+              <span className="hero-brand-pass"> altitudes</span>
+            </h1>
+            <p className="hero-read-heading mt-6 max-w-[28ch] font-display text-[clamp(1.25rem,2.8vw,1.95rem)] font-semibold tracking-[-0.03em] leading-snug">
+              One training OS from syllabus to license readiness
+            </p>
+            <p className="hero-read-sub mt-5 text-base sm:text-lg">
+              Learn on structured ATPL lanes, book live Zoom when you need altitude, then prove
+              mastery — without brochure noise.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-3">
+              <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
+                <Link href={routes.courses}>
+                  Open courses
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="hero-read-cta-dark hero-cta-secondary"
+                asChild
+              >
+                <Link href={routes.live}>Live coaching</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>

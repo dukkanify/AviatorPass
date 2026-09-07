@@ -14,8 +14,9 @@ export default function InstructorPendingPage() {
   return (
     <div className="relative flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="hero-aviation absolute inset-0" />
-      <div className="absolute inset-0 bg-[#0B1A24]/60 backdrop-blur-[2px]" />
-      <div className="relative z-10 w-full max-w-lg rounded-3xl border border-white/10 bg-[var(--surface-ink)]/80 p-8 text-center text-white shadow-medium backdrop-blur-xl">
+      <div className="hero-read-overlay" />
+      <div className="hero-read-vignette" />
+      <div className="hero-read-glass relative z-10 w-full max-w-lg p-8 text-center text-white">
         <div className="mb-6 flex justify-center">
           <BrandLogo variant="dark" href={routes.home} />
         </div>
@@ -25,7 +26,7 @@ export default function InstructorPendingPage() {
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight">
           Your instructor account is under review
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-white/65">
+        <p className="hero-read-sub mt-4 text-sm">
           An administrator will activate your teaching access. Once approved, you can open the
           instructor control panel, view assigned courses, and manage your students.
         </p>
@@ -33,11 +34,7 @@ export default function InstructorPendingPage() {
           <Button variant="accent" asChild>
             <Link href={routes.login}>Check again later</Link>
           </Button>
-          <Button
-            variant="outline"
-            className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            asChild
-          >
+          <Button variant="outline" className="hero-read-cta-dark" asChild>
             <Link href={routes.home}>Back to platform</Link>
           </Button>
         </div>

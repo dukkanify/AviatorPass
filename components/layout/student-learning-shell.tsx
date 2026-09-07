@@ -196,8 +196,12 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="sl-promo" aria-hidden>
-          <h2>Next Stop Your Goals</h2>
-          <p>Discipline today, Pilot tomorrow.</p>
+          <div className="hero-read-overlay" />
+          <div className="hero-read-vignette" />
+          <div className="hero-read-glass">
+            <h2>Next Stop Your Goals</h2>
+            <p>Discipline today, Pilot tomorrow.</p>
+          </div>
         </div>
       </aside>
 

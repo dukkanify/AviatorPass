@@ -36,36 +36,39 @@ export default function LiveCoachingPage() {
       />
 
       <section className="catalog-page-hero hero-aviation relative isolate overflow-hidden">
+        <div className="hero-read-overlay" aria-hidden />
         <div className="hero-horizon" aria-hidden />
-        <div className="hero-vignette" aria-hidden />
+        <div className="hero-read-vignette" aria-hidden />
         <div className="container-app relative z-10 py-20 sm:py-28 lg:py-32">
-          <p className="landing-kicker text-accent">Live altitude</p>
-          <h1 className="hero-brand mt-6 max-w-[12ch] font-display text-[clamp(2.8rem,8vw,5.5rem)] font-semibold">
-            <span className="hero-brand-aviator">Live</span>
-            <span className="hero-brand-pass"> Zoom</span>
-          </h1>
-          <p className="mt-6 max-w-[26ch] font-display text-[clamp(1.25rem,2.8vw,1.95rem)] font-semibold tracking-[-0.03em] leading-snug text-white/92">
-            Clear the turbulence with a live instructor
-          </p>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-white/65 sm:text-lg">
-            Private coaching windows in Greenwich Mean Time. Reserve first, confirm by email, then
-            join from your AviatorPass lobby.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
-              <Link href={routes.onlineCourses}>
-                Explore Online Courses
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="hero-cta-secondary border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-              asChild
-            >
-              <Link href={routes.flightpath}>See flightpath</Link>
-            </Button>
+          <div className="hero-read-glass">
+            <p className="landing-kicker text-accent">Live altitude</p>
+            <h1 className="hero-brand mt-6 max-w-[12ch] font-display text-[clamp(2.8rem,8vw,5.5rem)] font-semibold">
+              <span className="hero-brand-aviator">Live</span>
+              <span className="hero-brand-pass"> Zoom</span>
+            </h1>
+            <p className="hero-read-heading mt-6 max-w-[26ch] font-display text-[clamp(1.25rem,2.8vw,1.95rem)] font-semibold tracking-[-0.03em] leading-snug">
+              Clear the turbulence with a live instructor
+            </p>
+            <p className="hero-read-sub mt-5 text-base sm:text-lg">
+              Private coaching windows in Greenwich Mean Time. Reserve first, confirm by email, then
+              join from your AviatorPass lobby.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-3">
+              <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
+                <Link href={routes.onlineCourses}>
+                  Explore Online Courses
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="hero-read-cta-dark hero-cta-secondary"
+                asChild
+              >
+                <Link href={routes.flightpath}>See flightpath</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>

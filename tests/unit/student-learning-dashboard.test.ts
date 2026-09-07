@@ -73,6 +73,20 @@ describe("student dashboard isolation", () => {
     expect(layout).not.toContain("STUDENT_NAV");
   });
 
+  it("keeps dashboard hero copy off the aviation photograph", () => {
+    const css = readFileSync(resolve(root, "styles/student-learning.css"), "utf8");
+    const shared = readFileSync(resolve(root, "styles/hero-readability.css"), "utf8");
+    const view = readFileSync(
+      resolve(root, "features/learning/components/student-dashboard/student-dashboard-view.tsx"),
+      "utf8",
+    );
+    expect(css).toContain("rgba(7, 15, 28, 0.82)");
+    expect(shared).toContain("backdrop-filter: blur(18px)");
+    expect(shared).toContain("#d8dee9");
+    expect(view).toContain("hero-read-glass");
+    expect(view).toContain("sl-hero-media");
+  });
+
   it("does not reuse admin dashboard widgets on the student home", () => {
     const view = readFileSync(
       resolve(root, "features/learning/components/student-dashboard/student-dashboard-view.tsx"),

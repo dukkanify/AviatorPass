@@ -227,43 +227,47 @@ function LearningDashboardView() {
   return (
     <div className="sl-dashboard">
       <section className="sl-hero" aria-label="Welcome back">
-        <div className="sl-hero-layout">
-          <div className="sl-hero-copy">
-            <p className="sl-kicker">Welcome back</p>
-            <h1>
-              {greeting}, {firstName} 👋
-            </h1>
-            <p>Keep going. You&apos;re one step closer to your cockpit.</p>
-            <p className="sl-quote">“A good pilot is always a student.”</p>
-            <div className="sl-hero-meta">
-              <span className="sl-chip">
-                <BookOpen className="h-3.5 w-3.5" aria-hidden />
-                {currentCourse?.title ?? resume?.courseTitle ?? "Choose your next course"}
-              </span>
-              <span className="sl-chip">
-                <GraduationCap className="h-3.5 w-3.5" aria-hidden />
-                {instructorName}
-              </span>
-              <span className="sl-chip">
-                <Clock3 className="h-3.5 w-3.5" aria-hidden />
-                {estimatedCompletion(overview.progressPercent)}
-              </span>
+        <div className="sl-hero-media" aria-hidden />
+        <div className="hero-read-vignette" aria-hidden />
+        <div className="hero-read-glass sl-hero-glass">
+          <div className="sl-hero-layout">
+            <div className="sl-hero-copy">
+              <p className="sl-kicker">Welcome back</p>
+              <h1>
+                {greeting}, {firstName} 👋
+              </h1>
+              <p>Keep going. You&apos;re one step closer to your cockpit.</p>
+              <p className="sl-quote">“A good pilot is always a student.”</p>
+              <div className="sl-hero-meta">
+                <span className="sl-chip">
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                  {currentCourse?.title ?? resume?.courseTitle ?? "Choose your next course"}
+                </span>
+                <span className="sl-chip">
+                  <GraduationCap className="h-3.5 w-3.5" aria-hidden />
+                  {instructorName}
+                </span>
+                <span className="sl-chip">
+                  <Clock3 className="h-3.5 w-3.5" aria-hidden />
+                  {estimatedCompletion(overview.progressPercent)}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                <Link className="sl-btn-gold" href={resumeHref}>
+                  <PlayCircle className="h-4 w-4" aria-hidden />
+                  Continue Learning
+                </Link>
+                <Link className="sl-btn-ghost" href="/student/planner">
+                  Open study planner
+                </Link>
+              </div>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <Link className="sl-btn-gold" href={resumeHref}>
-                <PlayCircle className="h-4 w-4" aria-hidden />
-                Continue Learning
-              </Link>
-              <Link className="sl-btn-ghost" href="/student/planner">
-                Open study planner
-              </Link>
+            <div className="sl-hero-aside" aria-hidden>
+              <span>Discipline</span>
+              <span>Knowledge</span>
+              <span>Confidence</span>
+              <strong>A brighter aviation future.</strong>
             </div>
-          </div>
-          <div className="sl-hero-aside" aria-hidden>
-            <span>Discipline</span>
-            <span>Knowledge</span>
-            <span>Confidence</span>
-            <strong>A brighter aviation future.</strong>
           </div>
         </div>
       </section>

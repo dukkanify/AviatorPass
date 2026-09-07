@@ -1,0 +1,75 @@
+/* Shared hero readability — text never sits directly on a photograph. */
+
+.hero-read-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 15, 28, 0.82),
+    rgba(7, 15, 28, 0.55),
+    rgba(7, 15, 28, 0.82)
+  );
+}
+
+.hero-read-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 72% 68% at 50% 42%,
+    transparent 26%,
+    rgba(7, 15, 28, 0.58) 100%
+  );
+  box-shadow: inset 0 0 140px 48px rgba(7, 15, 28, 0.42);
+}
+
+.hero-read-glass {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 52rem);
+  padding: clamp(1.15rem, 3vw, 2rem);
+  border-radius: 22px;
+  background: rgba(10, 18, 30, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.dark .hero-read-glass {
+  background: rgba(6, 12, 22, 0.72);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.hero-read-glass h1,
+.hero-read-heading {
+  color: #ffffff;
+  font-weight: 800;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.hero-read-glass > p,
+.hero-read-sub {
+  color: #d8dee9;
+  max-width: 700px;
+  line-height: 1.7;
+}
+
+.hero-read-cta-gold {
+  background: linear-gradient(135deg, #9e712e, #cca04c) !important;
+  color: #07101c !important;
+  border: 1px solid rgba(246, 195, 108, 0.35);
+}
+
+.hero-read-cta-dark {
+  background: #0e2234 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.hero-read-cta-gold:hover,
+.hero-read-cta-dark:hover {
+  transform: translateY(-2px);
+}

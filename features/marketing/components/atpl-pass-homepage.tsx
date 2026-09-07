@@ -84,57 +84,58 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           }}
           aria-hidden
         />
-        <div className="atpl-hero-overlay absolute inset-0" aria-hidden />
-        <div className="atpl-hero-glow absolute inset-0" aria-hidden />
+        <div className="atpl-hero-overlay hero-read-overlay absolute inset-0" aria-hidden />
+        <div className="hero-read-vignette absolute inset-0 z-[1]" aria-hidden />
+        <div className="atpl-hero-glow absolute inset-0 z-[1]" aria-hidden />
 
         <div className="container-app relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-center pb-20 pt-16 sm:pb-28">
-          <p className="animate-in-up atpl-hero-brand" aria-hidden>
-            <span className="text-white">AVIATOR</span>
-            <span className="atpl-hero-brand-pass"> PASS</span>
-          </p>
+          <div className="hero-read-glass max-w-3xl">
+            <p className="animate-in-up atpl-hero-brand" aria-hidden>
+              <span className="text-white">AVIATOR</span>
+              <span className="atpl-hero-brand-pass"> PASS</span>
+            </p>
 
-          <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{HERO.kicker}</p>
+            <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{HERO.kicker}</p>
 
-          <h1 className="animate-in-up-delay-1 mt-5 max-w-[18ch] font-display text-[clamp(1.85rem,4.2vw,3.5rem)] font-semibold leading-[1.1] tracking-[-0.03em] text-white/96">
-            {HERO.headline}
-          </h1>
+            <h1 className="hero-read-heading animate-in-up-delay-1 mt-5 max-w-[18ch] font-display text-[clamp(1.85rem,4.2vw,3.5rem)] font-bold leading-[1.15] tracking-[-0.03em]">
+              {HERO.headline}
+            </h1>
 
-          <p className="animate-in-up-delay-2 mt-7 max-w-2xl text-[1.05rem] leading-relaxed text-white/82 sm:text-lg">
-            {HERO.subheadline}
-          </p>
+            <p className="hero-read-sub animate-in-up-delay-2 mt-7 text-[1.05rem] sm:text-lg">
+              {HERO.subheadline}
+            </p>
 
-          <p className="animate-in-up-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-white/65">
-            {HERO.audience}
-          </p>
+            <p className="hero-read-sub animate-in-up-delay-2 mt-4 text-sm">{HERO.audience}</p>
 
-          <div className="animate-in-up-delay-3 mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
-            <Button
-              size="lg"
-              variant="accent"
-              className="hero-cta-primary w-full px-9 sm:w-auto"
-              asChild
-            >
-              <Link href={routes.onlineCourses}>
-                {HERO.primaryCta}
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="hero-cta-secondary w-full border-white/25 bg-white/[0.06] px-8 text-white hover:bg-white/12 hover:text-white sm:w-auto"
-              asChild
-            >
-              <Link href={routes.atpl}>{HERO.secondaryCta}</Link>
-            </Button>
-          </div>
+            <div className="animate-in-up-delay-3 mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
+              <Button
+                size="lg"
+                variant="accent"
+                className="hero-cta-primary w-full px-9 sm:w-auto"
+                asChild
+              >
+                <Link href={routes.onlineCourses}>
+                  {HERO.primaryCta}
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="hero-read-cta-dark hero-cta-secondary w-full px-8 sm:w-auto"
+                asChild
+              >
+                <Link href={routes.atpl}>{HERO.secondaryCta}</Link>
+              </Button>
+            </div>
 
-          <div className="animate-in-up-delay-3 mt-14 flex flex-wrap gap-3">
-            {PROGRAM.badges.map((badge) => (
-              <span key={badge} className="atpl-badge">
-                {badge}
-              </span>
-            ))}
+            <div className="animate-in-up-delay-3 mt-14 flex flex-wrap gap-3">
+              {PROGRAM.badges.map((badge) => (
+                <span key={badge} className="atpl-badge">
+                  {badge}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
