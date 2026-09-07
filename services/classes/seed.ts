@@ -160,7 +160,7 @@ export function ensureClassesSeeded(): void {
       invitedAt: ts,
       joinedAt: null,
     });
-    for (const s of students.slice(0, 2)) {
+    for (const s of students) {
       participants.push({
         id: generateId(),
         liveClassId: classId,
