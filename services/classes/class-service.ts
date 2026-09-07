@@ -478,7 +478,10 @@ export async function createLiveClass(
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(base.id);
+  return getLiveClassDetail(
+    base.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function updateLiveClass(input: {
@@ -583,7 +586,10 @@ export async function updateLiveClass(input: {
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(next.id);
+  return getLiveClassDetail(
+    next.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function cancelLiveClass(input: {
@@ -641,7 +647,10 @@ export async function cancelLiveClass(input: {
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(input.id);
+  return getLiveClassDetail(
+    input.id,
+    input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
+  );
 }
 
 export async function rescheduleLiveClass(input: {
