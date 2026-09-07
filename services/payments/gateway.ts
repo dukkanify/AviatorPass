@@ -15,7 +15,7 @@ import {
   STRIPE_API_VERSION,
 } from "@/services/payments/stripe-client";
 import { resolveStripePrice } from "@/services/payments/stripe-catalog";
-import { routes } from "@/constants/routes";
+import { stripeCancelUrl, stripeSuccessUrl } from "@/services/stripe/config";
 import { publicAppOrigin } from "@/lib/site-origin";
 
 export interface GatewayChargeInput {
@@ -189,20 +189,29 @@ class StripeGateway implements PaymentGateway {
         invoice_creation: { enabled: true },
         adaptive_pricing: { enabled: false },
         client_reference_id: input.orderId,
-        success_url:
-          input.successUrl ?? `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: input.cancelUrl ?? `${origin}${routes.checkout}?canceled=1`,
+        success_url: input.successUrl ?? stripeSuccessUrl(origin),
+        cancel_url: input.cancelUrl ?? stripeCancelUrl(origin),
         metadata: {
           orderId: input.orderId,
           idempotencyKey: input.idempotencyKey,
           purchaseFirst: "true",
           detectedCurrency: currency,
           detectedCountry: input.country ?? "",
+          courseId: "",
+          studentId: "",
+          instructorId: "",
+          currency,
+          amount: String(input.amount),
         },
         payment_intent_data: {
           metadata: {
             orderId: input.orderId,
             purchaseFirst: "true",
+            courseId: "",
+            studentId: "",
+            instructorId: "",
+            currency,
+            amount: String(input.amount),
           },
         },
         integration_identifier: integrationIdentifier(),

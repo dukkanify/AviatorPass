@@ -142,6 +142,8 @@ export async function middleware(request: NextRequest) {
       lower === "/blog" ||
       lower === "/checkout" ||
       lower === "/welcome" ||
+      lower === "/payment/success" ||
+      lower === "/payment/cancel" ||
       lower === "/enrol" ||
       lower === "/enroll"
     ) {
