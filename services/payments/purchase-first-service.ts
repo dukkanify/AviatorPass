@@ -53,6 +53,7 @@ import {
   readPaymentsDb,
   writePaymentsDb,
 } from "@/services/payments/store";
+import { recordPendingCheckout } from "@/services/stripe/store";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { publicAppOrigin } from "@/lib/site-origin";
 import type {
@@ -461,8 +462,8 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     simulateFailure: input.simulateFailure || input.paymentToken === "fail",
-    successUrl: `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${origin}${routes.checkout}?canceled=1&productId=${product.id}`,
+    successUrl: `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
   });
 
   const payStamp = nowIso();
@@ -1035,8 +1036,8 @@ export async function startHostedCheckout(input: {
     country,
     locale: input.locale ?? undefined,
     idempotencyKey: `${order.idempotencyKey}-pay`,
-    successUrl: `${origin}${routes.welcome}?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${origin}${routes.checkout}?canceled=1&productId=${product.id}`,
+    successUrl: `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
   });
 
   if (!charge.checkoutUrl) {
@@ -1080,6 +1081,18 @@ export async function startHostedCheckout(input: {
       checkoutSessionId: payment.checkoutSessionId,
       processor: "stripe",
     };
+  });
+
+  recordPendingCheckout({
+    sessionId: payment.checkoutSessionId ?? charge.providerPaymentId,
+    orderId: order.id,
+    paymentId: payment.id,
+    courseId: product.courseId ?? product.id,
+    studentId: existingUser?.id ?? GUEST_STUDENT_ID,
+    instructorId: product.instructorId ?? "",
+    currency: order.currency,
+    amount: order.totalAmount,
+    checkoutUrl: charge.checkoutUrl,
   });
 
   return {

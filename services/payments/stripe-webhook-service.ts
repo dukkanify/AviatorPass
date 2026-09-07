@@ -16,11 +16,8 @@ import {
   fulfillGuestPaidOrder,
   getAtplPackageProduct,
 } from "@/services/payments/purchase-first-service";
-import {
-  getStripeClient,
-  isStripeConfigured,
-  isStripeWebhookConfigured,
-} from "@/services/payments/stripe-client";
+import { getStripeClient, isStripeConfigured } from "@/services/payments/stripe-client";
+import { constructStripeEvent } from "@/services/stripe/client";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
@@ -540,10 +537,21 @@ async function handlePaymentIntentFailed(pi: Stripe.PaymentIntent) {
   writePaymentsDb((db) => {
     const o = db.orders.find((x) => x.id === payment.orderId);
     if (!o || o.status === "paid") return;
-    o.status = "failed";
+    o.status = "pending";
     o.failureReason = message;
     o.updatedAt = nowIso();
   });
+  const failedOrder = getOrder(payment.orderId);
+  if (failedOrder?.studentId && failedOrder.studentId !== "guest") {
+    await notifyPayment(failedOrder.studentId, {
+      title: "Payment unsuccessful",
+      body: `${message} Your enrolment stays pending until you retry checkout.`,
+      type: "payment.failed",
+      reference: failedOrder.orderNumber,
+      actionUrl: "/checkout",
+      email: true,
+    });
+  }
   await logActivity({
     actorId: null,
     action: ACTIVITY_ACTIONS.PAYMENT_FAILED,
@@ -873,22 +881,9 @@ export async function handleStripeWebhook(
   payload: string,
   signature: string | null,
 ): Promise<StripeWebhookResult> {
-  if (!isStripeWebhookConfigured()) {
-    throw new PaymentError("Stripe webhook secret not configured", 503);
-  }
   if (!signature) {
     throw new PaymentError("Missing Stripe-Signature header", 400);
   }
-  const stripe = getStripeClient();
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!.trim(),
-    );
-  } catch {
-    throw new PaymentError("Invalid Stripe webhook signature", 400);
-  }
+  const event = constructStripeEvent(payload, signature);
   return processVerifiedStripeEvent(event);
 }

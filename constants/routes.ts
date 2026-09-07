@@ -30,6 +30,8 @@ export const routes = {
   /** Public purchase-first checkout — no registration before payment. */
   checkout: "/checkout",
   checkoutSuccess: "/checkout/success",
+  paymentSuccess: "/payment/success",
+  paymentCancel: "/payment/cancel",
   welcome: "/welcome",
   setupPassword: "/setup-password",
 

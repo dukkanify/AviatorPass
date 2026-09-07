@@ -41,6 +41,8 @@ function sessionEvent(overrides: Partial<Stripe.Checkout.Session> = {}): Stripe.
     customer_details: {
       email: "stripe.guest@aviatorpass.test",
       name: "Stripe Guest",
+      business_name: null,
+      individual_name: "Stripe Guest",
       phone: "+12025550123",
       address: {
         line1: "1 Market St",
@@ -159,6 +161,8 @@ describe("Stripe purchase-first webhooks", () => {
       customer_details: {
         email,
         name: "Lina Pilot",
+        business_name: null,
+        individual_name: "Lina Pilot",
         phone: "+12025550111",
         address: {
           line1: "10 Aviation Way",
@@ -316,6 +320,8 @@ describe("Stripe purchase-first webhooks", () => {
         customer_details: {
           email,
           name: "Existing Buyer",
+          business_name: null,
+          individual_name: "Existing Buyer",
           phone: "+12025550999",
           address: {
             line1: "9 Hangar Rd",
@@ -352,6 +358,8 @@ describe("Stripe purchase-first webhooks", () => {
         customer_details: {
           email,
           name: "Reconstruct Guest",
+          business_name: null,
+          individual_name: "Reconstruct Guest",
           phone: "+96550001111",
           address: {
             line1: "Gulf Road",

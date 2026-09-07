@@ -291,7 +291,7 @@ export async function grantPackageAccess(plan: InstallmentPlan, actorId: string)
     } catch (error) {
       if (error instanceof CourseValidationError && /already enrolled/i.test(error.message)) {
         const existing = listStudentEnrollments(plan.studentId).find(
-          (e) => e.courseId === courseId && e.status === "suspended",
+          (e) => e.courseId === courseId && (e.status === "suspended" || e.status === "pending"),
         );
         if (existing) {
           await updateEnrollmentStatus({
