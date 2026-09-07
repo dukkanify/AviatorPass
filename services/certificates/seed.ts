@@ -3,6 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { publicAppUrl } from "@/lib/site-origin";
 import { createHash, randomBytes } from "node:crypto";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
@@ -77,7 +78,7 @@ export function ensureCertificatesSeeded(): void {
         digitalSignature: createHash("sha256")
           .update(`${certificateNumber}|${student.id}|${course.id}`)
           .digest("hex"),
-        qrPayload: `http://localhost:3000/verify/certificate?code=${verificationCode}`,
+        qrPayload: publicAppUrl(`/verify/certificate?code=${verificationCode}`),
         approvedById: instructor?.id ?? null,
         approvedAt: stamp,
         metadata: { seeded: true },

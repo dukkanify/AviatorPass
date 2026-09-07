@@ -3,6 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import {
   DEFAULT_CLASS_DURATION_MINUTES,
@@ -85,7 +86,7 @@ function toListItem(cls: LiveClass): LiveClassListItem {
     assistantName: userName(cls.assistantInstructorId),
     enrolledCount: enrolled,
     computedStatus: computeRuntimeStatus(cls),
-    zoomJoinUrl: zoom?.joinUrl ?? null,
+    zoomJoinUrl: zoom?.joinUrl ? rewriteAppAbsoluteUrl(zoom.joinUrl) : null,
   };
 }
 
@@ -122,8 +123,8 @@ export function getLiveClassDetail(id: string, viewer?: { id: string; role: stri
       ? {
           id: zoom.id,
           zoomMeetingId: zoom.zoomMeetingId,
-          joinUrl: zoom.joinUrl,
-          startUrl: isHost ? zoom.startUrl : null,
+          joinUrl: rewriteAppAbsoluteUrl(zoom.joinUrl),
+          startUrl: isHost ? rewriteAppAbsoluteUrl(zoom.startUrl) : null,
           password: zoom.password,
           waitingRoom: zoom.waitingRoom,
           providerMode: zoom.providerMode,

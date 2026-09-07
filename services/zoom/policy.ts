@@ -3,6 +3,7 @@
  */
 
 import { ROLES } from "@/constants/roles";
+import { rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { PermissionError } from "@/services/auth/permissions";
 import { getIntegrationByUserId } from "@/services/zoom/store";
 import type { UserProfile } from "@/types";
@@ -60,8 +61,8 @@ export function sanitizeJoinInfoForViewer(
   if (!meeting) return null;
   return {
     zoomMeetingId: meeting.zoomMeetingId,
-    joinUrl: meeting.joinUrl,
-    startUrl: isHost ? meeting.startUrl : null,
+    joinUrl: rewriteAppAbsoluteUrl(meeting.joinUrl),
+    startUrl: isHost ? rewriteAppAbsoluteUrl(meeting.startUrl) : null,
     password: meeting.password,
     waitingRoom: meeting.waitingRoom,
     providerMode: meeting.providerMode,

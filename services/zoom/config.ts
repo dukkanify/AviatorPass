@@ -2,7 +2,8 @@
  * Zoom General OAuth configuration — environment variables only.
  */
 
-import { getServerEnv, publicEnv } from "@/config/env";
+import { getServerEnv } from "@/config/env";
+import { getBaseUrl } from "@/lib/site-origin";
 
 export const ZOOM_OAUTH_AUTHORIZE_URL = "https://zoom.us/oauth/authorize";
 export const ZOOM_OAUTH_TOKEN_URL = "https://zoom.us/oauth/token";
@@ -24,8 +25,7 @@ export const TOKEN_REFRESH_SKEW_MS = 90_000;
 export function getZoomOAuthConfig() {
   const env = getServerEnv();
   const redirectUri =
-    env.ZOOM_REDIRECT_URI?.trim() ||
-    `${publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/integrations/zoom/callback`;
+    env.ZOOM_REDIRECT_URI?.trim() || `${getBaseUrl()}/api/integrations/zoom/callback`;
   const scopes = env.ZOOM_OAUTH_SCOPES?.trim() || DEFAULT_ZOOM_OAUTH_SCOPES;
   return {
     clientId: env.ZOOM_CLIENT_ID?.trim() || "",

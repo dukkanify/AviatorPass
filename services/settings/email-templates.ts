@@ -155,15 +155,19 @@ export function classReminderEmailTemplate(input: {
   title: string;
   startsAt: string;
   label: string;
+  joinUrl?: string;
 }) {
   const when = new Date(input.startsAt).toLocaleString();
+  const joinBlock = input.joinUrl
+    ? `<p><a href="${input.joinUrl}">Join Zoom class</a></p>`
+    : `<p>Open AviatorPass to join your live Zoom session when it is time.</p>`;
   return renderBrandedEmail({
     title: input.label,
     preheader: `${input.title} · ${when}`,
     bodyHtml: `<p><strong>${input.label}</strong></p>
       <p>${input.title}</p>
       <p>Starts: ${when}</p>
-      <p>Open AviatorPass to join your live Zoom session when it is time.</p>`,
+      ${joinBlock}`,
   });
 }
 

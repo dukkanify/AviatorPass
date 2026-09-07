@@ -4,6 +4,7 @@
  */
 
 import { generateId, generateToken } from "@/lib/security/crypto";
+import { appJoinUrl, rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { getServerEnv } from "@/config/env";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
@@ -68,13 +69,12 @@ function mockMeeting(
         .replace(/[^a-zA-Z0-9]/g, "")
         .slice(0, 8) || "AviatorPass1"
     : "";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return {
     liveClassId: liveClass.id,
     zoomMeetingId,
     zoomUuid: generateId(),
-    joinUrl: `${appUrl}/join/${liveClass.id}?mid=${zoomMeetingId}`,
-    startUrl: `${appUrl}/join/${liveClass.id}?host=1&mid=${zoomMeetingId}`,
+    joinUrl: appJoinUrl(liveClass.id, zoomMeetingId),
+    startUrl: appJoinUrl(liveClass.id, zoomMeetingId, true),
     password,
     hostEmail: getPlatformSettings().zoom.accountEmail || null,
     waitingRoom: opts.waitingRoom,
@@ -377,7 +377,17 @@ export async function cancelMeetingForClass(input: {
 }
 
 export function getZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord | null {
-  return readClassesDb().zoomMeetings.find((z) => z.liveClassId === liveClassId) ?? null;
+  const meeting = readClassesDb().zoomMeetings.find((z) => z.liveClassId === liveClassId) ?? null;
+  if (!meeting) return null;
+  return {
+    ...meeting,
+    joinUrl:
+      rewriteAppAbsoluteUrl(meeting.joinUrl) ||
+      appJoinUrl(meeting.liveClassId, meeting.zoomMeetingId),
+    startUrl:
+      rewriteAppAbsoluteUrl(meeting.startUrl) ||
+      appJoinUrl(meeting.liveClassId, meeting.zoomMeetingId, true),
+  };
 }
 
 /** Safe public join info — never includes start_url for non-hosts */

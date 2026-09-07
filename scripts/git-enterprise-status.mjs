@@ -112,7 +112,7 @@ Required checks on PRs: \`quality\`, \`e2e\`, \`merge-gate\` (see \`.github/work
 
 > This tip does not deploy marketplace products. Keep AviatorPass secrets isolated from any other Vercel project.
 
-Production health (AviatorPass): \`${trySh("curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://aviatorpass.vercel.app/api/health 2>/dev/null") ?? "unknown"}\` on \`/api/health\`
+Production health (AviatorPass): \`${trySh("curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://www.aviatorpass.com/api/health 2>/dev/null") ?? "unknown"}\` on \`/api/health\`
 
 ## Safe push
 
