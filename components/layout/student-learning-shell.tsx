@@ -112,7 +112,7 @@ const iconMap: Record<DashboardIcon, React.ComponentType<{ className?: string }>
 
 function initialsFor(name?: string | null, email?: string | null): string {
   const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  if (parts.length >= 2) return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
   if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
   return (email?.[0] ?? "S").toUpperCase();
 }

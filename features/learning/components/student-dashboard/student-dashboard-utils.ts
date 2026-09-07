@@ -71,7 +71,7 @@ export function weekDays(anchor = new Date()): Array<{
   });
 }
 
-export function sameDay(a: string | Date, b: string | Date): boolean {
+export function sameDay(a: string | number | Date, b: string | number | Date): boolean {
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
