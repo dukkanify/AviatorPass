@@ -32,21 +32,22 @@ afterEach(() => {
 });
 
 describe("Stripe Checkout currencies", () => {
-  it("supports AED, USD, KWD, and SAR", () => {
-    expect(["AED", "USD", "KWD", "SAR"].every(isStripeCheckoutCurrency)).toBe(true);
-    expect(isStripeCheckoutCurrency("EUR")).toBe(false);
+  it("supports AED, USD, KWD, SAR, and any ISO 4217 code", () => {
+    expect(["AED", "USD", "KWD", "SAR", "EUR", "GBP"].every(isStripeCheckoutCurrency)).toBe(true);
+    expect(isStripeCheckoutCurrency("US")).toBe(false);
+    expect(isStripeCheckoutCurrency("")).toBe(false);
   });
 });
 
 describe("createCheckoutSession", () => {
-  it("rejects unsupported currencies", async () => {
+  it("rejects invalid currency codes", async () => {
     await expect(
       createCheckoutSession({
         courseId: "atpl",
-        currency: "EUR",
+        currency: "US",
         amount: 1000,
       }),
-    ).rejects.toThrow(/AED, USD, KWD, or SAR/);
+    ).rejects.toThrow(/ISO 4217/);
   });
 
   it("requires Stripe to be configured", async () => {

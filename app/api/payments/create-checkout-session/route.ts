@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       courseId: String(body.courseId ?? ""),
       studentId,
       instructorId: typeof body.instructorId === "string" ? body.instructorId : null,
-      currency: String(body.currency ?? ""),
+      currency: typeof body.currency === "string" && body.currency.trim() ? body.currency : null,
       amount: typeof body.amount === "number" ? body.amount : null,
       email: typeof body.email === "string" ? body.email : session.user?.email,
       customerName:

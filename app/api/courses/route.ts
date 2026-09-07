@@ -133,6 +133,9 @@ export async function POST(request: Request) {
         : null,
       primaryInstructorId,
       tags: Array.isArray(body.tags) ? body.tags.map(String) : undefined,
+      priceAmount:
+        body.priceAmount != null && body.priceAmount !== "" ? Number(body.priceAmount) : undefined,
+      currency: body.currency != null ? String(body.currency) : undefined,
       actorId: user.id,
       ...ctx,
     });

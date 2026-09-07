@@ -22,6 +22,8 @@ import {
   assertStatus,
 } from "@/services/courses/validation";
 import { getPublicDeliveryFilter, isCoursePubliclyListed } from "@/services/courses/publishing";
+import { syncCatalogProductForCourse } from "@/services/stripe/catalog-sync";
+import { isIso4217Currency } from "@/services/stripe/currency";
 import type {
   BulkCourseAction,
   Course,
@@ -59,6 +61,24 @@ function toListItem(course: Course): CourseListItem {
       activeEnrollments: enrollments.filter((e) => e.status === "approved").length,
     },
   };
+}
+
+function normalizeCoursePrice(input: { priceAmount?: number | null; currency?: string | null }): {
+  priceAmount: number | null;
+  currency: string | null;
+} {
+  if (input.priceAmount === undefined && input.currency === undefined) {
+    return { priceAmount: null, currency: null };
+  }
+  const amount =
+    input.priceAmount == null || !Number.isFinite(Number(input.priceAmount))
+      ? null
+      : Math.max(0, Math.round(Number(input.priceAmount)));
+  const currency = input.currency?.trim() ? input.currency.trim().toUpperCase() : null;
+  if (currency && !isIso4217Currency(currency)) {
+    throw new CourseValidationError("Currency must be a 3-letter ISO 4217 code");
+  }
+  return { priceAmount: amount, currency };
 }
 
 export function getCourseById(id: string, includeDeleted = false): Course | null {
@@ -356,6 +376,8 @@ export type CreateCourseInput = {
   scheduledPublishAt?: string | null;
   primaryInstructorId?: string | null;
   tags?: string[];
+  priceAmount?: number | null;
+  currency?: string | null;
   actorId: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -378,6 +400,10 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
   const hidden = assertBooleanFlag("hidden", input.hidden, false);
   const scheduledPublishAt = assertScheduledPublish(status, input.scheduledPublishAt ?? null);
   assertInstructorExists(input.primaryInstructorId);
+  const pricing = normalizeCoursePrice({
+    priceAmount: input.priceAmount,
+    currency: input.currency,
+  });
 
   if (input.categoryId) {
     const cat = readCoursesDb().categories.find((c) => c.id === input.categoryId);
@@ -409,6 +435,8 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
     status,
     scheduledPublishAt,
     primaryInstructorId: input.primaryInstructorId ?? null,
+    priceAmount: pricing.priceAmount,
+    currency: pricing.currency,
     tags: input.tags ?? [],
     metadata: {},
     createdById: input.actorId,
@@ -431,6 +459,8 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
       });
     }
   });
+
+  syncCatalogProductForCourse(course);
 
   await logActivity({
     actorId: input.actorId,
@@ -501,6 +531,14 @@ export async function updateCourse(input: {
       ? input.patch.primaryInstructorId
       : existing.primaryInstructorId;
   assertInstructorExists(primaryInstructorId);
+  const pricing =
+    input.patch.priceAmount !== undefined || input.patch.currency !== undefined
+      ? normalizeCoursePrice({
+          priceAmount:
+            input.patch.priceAmount !== undefined ? input.patch.priceAmount : existing.priceAmount,
+          currency: input.patch.currency !== undefined ? input.patch.currency : existing.currency,
+        })
+      : { priceAmount: existing.priceAmount ?? null, currency: existing.currency ?? null };
 
   if ((status === "published" || status === "private") && !primaryInstructorId) {
     throw new CourseValidationError("Published courses require a primary instructor");
@@ -541,6 +579,8 @@ export async function updateCourse(input: {
     status,
     scheduledPublishAt,
     primaryInstructorId,
+    priceAmount: pricing.priceAmount,
+    currency: pricing.currency,
     tags: input.patch.tags ?? existing.tags,
     updatedAt: now,
     publishedAt:
@@ -570,6 +610,8 @@ export async function updateCourse(input: {
       d.instructors = [...others, primary];
     }
   });
+
+  syncCatalogProductForCourse(next);
 
   await logActivity({
     actorId: input.actorId,

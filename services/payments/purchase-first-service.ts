@@ -47,7 +47,6 @@ import {
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { getRegionalPaymentRule } from "@/services/payments/regional-rules-service";
 import { isStripeConfigured } from "@/services/payments/stripe-client";
-import { tryResolveStripePrice } from "@/services/payments/stripe-catalog";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
@@ -227,29 +226,12 @@ export async function quotePublicCheckout(input: {
     locale: input.locale,
   });
   const base = quoteGuestCheckout(input.productId, detection.country ?? "US");
-  const stripePrice = await tryResolveStripePrice(detection.currency);
-  if (!stripePrice) {
-    return {
-      ...base,
-      detectedCountry: detection.country,
-      detectedCurrency: detection.currency,
-      detectionSource: detection.source,
-    };
-  }
   return {
     ...base,
-    currency: stripePrice.currency,
-    subtotalAmount: stripePrice.unitAmount,
-    taxAmount: 0,
-    taxRatePercent: 0,
-    totalAmount: stripePrice.unitAmount,
-    totalLabel: formatMinor(stripePrice.unitAmount, stripePrice.currency),
-    processor: "stripe",
-    hostedCheckout: true,
     detectedCountry: detection.country,
-    detectedCurrency: stripePrice.currency,
-    detectionSource: detection.source,
-    stripePriceId: stripePrice.stripePriceId,
+    detectedCurrency: base.currency,
+    detectionSource: "course",
+    stripePriceId: null,
   };
 }
 
@@ -999,9 +981,9 @@ export async function startHostedCheckout(input: {
       purchaseFirst: true,
       hostedCheckout: true,
       guestCountry: country,
-      detectedCurrency: detection.currency,
-      detectionSource: detection.source,
-      stripePriceId: quote.stripePriceId,
+      detectedCurrency: quote.currency,
+      detectionSource: "course",
+      platform: "AviatorPass",
     },
     createdAt: stamp,
     updatedAt: stamp,
@@ -1032,9 +1014,12 @@ export async function startHostedCheckout(input: {
     customerEmail: email || placeholderEmail,
     customerName: "Aviator Pass student",
     methodBrand: "card",
-    stripePriceId: quote.stripePriceId ?? undefined,
     country,
     locale: input.locale ?? undefined,
+    courseId: product.courseId ?? undefined,
+    instructorId: product.instructorId ?? undefined,
+    productName: product.name,
+    productDescription: product.description,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     successUrl: `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,

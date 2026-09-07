@@ -9,6 +9,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { PaymentError } from "@/services/payments/access";
 import { getOrder, getPayment } from "@/services/payments/checkout-service";
+import { issueInvoiceForOrder } from "@/services/payments/invoice-service";
 import { formatMinor } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
 import {
@@ -18,25 +19,25 @@ import {
 } from "@/services/payments/purchase-first-service";
 import { getStripeClient, isStripeConfigured } from "@/services/payments/stripe-client";
 import { constructStripeEvent } from "@/services/stripe/client";
+import { resolveCourseOffer } from "@/services/stripe/course-offer";
+import { shouldRevokeAccessOnRefund } from "@/services/stripe/config";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
   writePaymentsDb,
 } from "@/services/payments/store";
 import { clawbackForRefund } from "@/services/payments/wallet-service";
-import type { Order, PaymentRecord, Subscription } from "@/types/payments";
+import {
+  listStudentEnrollments,
+  updateEnrollmentStatus,
+} from "@/services/courses/enrollment-service";
+import type { Order, PaymentRecord } from "@/types/payments";
 import { sanitizeEmail, sanitizeString } from "@/utils/sanitize";
 
 const HANDLED_TYPES = new Set([
   "checkout.session.completed",
-  "payment_intent.succeeded",
   "payment_intent.payment_failed",
   "charge.refunded",
-  "invoice.paid",
-  "invoice.payment_failed",
-  "customer.subscription.created",
-  "customer.subscription.updated",
-  "customer.subscription.deleted",
 ]);
 
 export type StripeWebhookResult = {
@@ -138,10 +139,47 @@ function materializeOrderFromSession(
   session: Stripe.Checkout.Session,
   preferredId: string | null,
 ): Order {
-  const product = getAtplPackageProduct();
-  if (!product) {
-    throw new PaymentError("ATPL product is not available for Stripe fulfillment", 500);
+  const meta = session.metadata ?? {};
+  const courseId = str(meta.courseId);
+  let title = "AviatorPass course";
+  let description = title;
+  let productId = courseId || generateId();
+  let resolvedCourseId = courseId;
+  let instructorId = str(meta.instructorId);
+  let pricingModel: Order["items"][number]["pricingModel"] = "one_time";
+  let fallbackAmount = session.amount_total ?? 0;
+
+  if (courseId) {
+    try {
+      const offer = resolveCourseOffer({
+        courseId,
+        instructorId,
+        currency: session.currency,
+        amount: session.amount_total,
+      });
+      title = offer.title;
+      description = offer.description;
+      productId = offer.productId ?? offer.courseId;
+      resolvedCourseId = offer.courseId;
+      instructorId = offer.instructorId || instructorId;
+      pricingModel = offer.pricingModel;
+      fallbackAmount = offer.amount;
+    } catch {
+      /* use session totals */
+    }
+  } else {
+    const product = getAtplPackageProduct();
+    if (product) {
+      title = product.name;
+      description = product.description;
+      productId = product.id;
+      resolvedCourseId = product.courseId;
+      instructorId = product.instructorId;
+      pricingModel = product.pricingModel;
+      fallbackAmount = product.priceAmount;
+    }
   }
+
   const stamp = nowIso();
   const id = preferredId || generateId();
   const existing = getOrder(id);
@@ -153,15 +191,18 @@ function materializeOrderFromSession(
     `pending+${id.slice(0, 10)}@checkout.invalid`;
   const name = str(session.customer_details?.name) ?? "Aviator Pass student";
   const country = (session.customer_details?.address?.country ?? "US").toUpperCase();
-  const amount = session.amount_total ?? product.priceAmount;
-  const currency = (session.currency ?? product.currency ?? "usd").toUpperCase();
+  const amount = session.amount_total ?? fallbackAmount;
+  const currency = (session.currency ?? meta.currency ?? "usd").toUpperCase();
+  const metaStudent = str(meta.studentId);
+  const studentId =
+    metaStudent && metaStudent !== GUEST_STUDENT_ID ? metaStudent : GUEST_STUDENT_ID;
   const item = {
     id: generateId(),
-    productId: product.id,
-    productName: product.name,
-    courseId: product.courseId,
-    instructorId: product.instructorId,
-    pricingModel: product.pricingModel,
+    productId,
+    productName: title,
+    courseId: resolvedCourseId,
+    instructorId,
+    pricingModel,
     unitAmount: session.amount_subtotal ?? amount,
     quantity: 1,
     discountAmount: 0,
@@ -171,7 +212,7 @@ function materializeOrderFromSession(
   const order: Order = {
     id,
     orderNumber: nextReconstructedOrderNumber(),
-    studentId: GUEST_STUDENT_ID,
+    studentId,
     studentName: name,
     studentEmail: sanitizeEmail(email),
     status: "pending",
@@ -196,11 +237,14 @@ function materializeOrderFromSession(
     cancelledAt: null,
     expiresAt: null,
     metadata: {
-      purchaseFirst: true,
+      purchaseFirst: meta.purchaseFirst === "true" || studentId === GUEST_STUDENT_ID,
       hostedCheckout: true,
       reconstructed: true,
       guestCountry: country,
       stripeSessionId: session.id,
+      courseSlug: str(meta.courseSlug),
+      platform: "AviatorPass",
+      description,
     },
     createdAt: stamp,
     updatedAt: stamp,
@@ -346,7 +390,7 @@ async function fulfillIfPaid(payment: PaymentRecord) {
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, eventId?: string) {
   const order = ensureOrderForSession(session);
 
   let payment = findPayment({
@@ -376,6 +420,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       createdAt: stamp,
       updatedAt: stamp,
       ...blankStripePaymentFields(),
+      studentId: order.studentId,
+      courseId: order.items[0]?.courseId ?? str(session.metadata?.courseId),
+      stripeEventId: eventId ?? null,
     };
     writePaymentsDb((db) => {
       db.payments.unshift(payment!);
@@ -441,6 +488,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       chargeId: fees.chargeId,
       customerId: str(session.customer),
     },
+    studentId: order.studentId,
+    courseId: order.items[0]?.courseId ?? str(session.metadata?.courseId),
+    stripeEventId: eventId ?? payment.stripeEventId,
   });
 
   writePaymentsDb((db) => {
@@ -460,6 +510,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   });
 
   if (paid) {
+    const fresh = getPayment(payment.id)!;
+    const invoice = await issueInvoiceForOrder(getOrder(order.id) ?? order, fresh);
+    patchPayment(payment.id, { invoiceNumber: invoice.invoiceNumber });
     await fulfillIfPaid(getPayment(payment.id)!);
   }
 
@@ -469,55 +522,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 /** Used by `/welcome` when the webhook isolate did not share the local order store. */
 export async function fulfillStripeCheckoutSession(session: Stripe.Checkout.Session) {
   return handleCheckoutSessionCompleted(session);
-}
-
-async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
-  const orderId = metadataOrderId(pi);
-  const payment = findPayment({
-    paymentIntentId: pi.id,
-    orderId,
-    checkoutSessionId: str(pi.metadata?.checkoutSessionId),
-  });
-  if (!payment) {
-    return { paymentId: null, orderId, status: "ignored" };
-  }
-  const stripe = isStripeConfigured() ? getStripeClient() : null;
-  const fees = stripe
-    ? await stripeFeeFromPaymentIntent(stripe, pi.id)
-    : {
-        fee: null,
-        net: null,
-        receiptUrl: null,
-        chargeId: null,
-        country: null,
-        billingAddress: null,
-      };
-  patchPayment(payment.id, {
-    status: "succeeded",
-    webhookVerified: true,
-    paymentIntentId: pi.id,
-    receiptUrl: fees.receiptUrl ?? payment.receiptUrl,
-    stripeFeeMinor: fees.fee ?? payment.stripeFeeMinor,
-    netAmountMinor: fees.net ?? payment.netAmountMinor,
-    country: fees.country ?? payment.country,
-    billingAddressSnapshot: fees.billingAddress ?? payment.billingAddressSnapshot,
-    amount: pi.amount_received || pi.amount || payment.amount,
-    currency: (pi.currency ?? payment.currency).toUpperCase(),
-    rawProviderPayload: {
-      ...payment.rawProviderPayload,
-      paymentIntentId: pi.id,
-      chargeId: fees.chargeId,
-    },
-  });
-  writePaymentsDb((db) => {
-    const o = db.orders.find((x) => x.id === payment.orderId);
-    if (!o || o.status === "paid") return;
-    o.status = "paid";
-    o.paidAt = o.paidAt ?? nowIso();
-    o.updatedAt = nowIso();
-  });
-  await fulfillIfPaid(getPayment(payment.id)!);
-  return { paymentId: payment.id, orderId: payment.orderId, status: "succeeded" };
 }
 
 async function handlePaymentIntentFailed(pi: Stripe.PaymentIntent) {
@@ -537,7 +541,7 @@ async function handlePaymentIntentFailed(pi: Stripe.PaymentIntent) {
   writePaymentsDb((db) => {
     const o = db.orders.find((x) => x.id === payment.orderId);
     if (!o || o.status === "paid") return;
-    o.status = "pending";
+    o.status = "failed";
     o.failureReason = message;
     o.updatedAt = nowIso();
   });
@@ -642,6 +646,23 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
         amountLabel: formatMinor(charge.amount_refunded || payment.amount, payment.currency),
       });
     }
+    const revoke =
+      shouldRevokeAccessOnRefund() || Boolean(readPaymentsDb().settings.revokeAccessOnRefund);
+    if (full && revoke && order.studentId && order.studentId !== GUEST_STUDENT_ID) {
+      for (const item of order.items) {
+        if (!item.courseId) continue;
+        const enrollment = listStudentEnrollments(order.studentId).find(
+          (row) => row.courseId === item.courseId && row.status === "approved",
+        );
+        if (enrollment) {
+          await updateEnrollmentStatus({
+            id: enrollment.id,
+            status: "suspended",
+            actorId: null,
+          });
+        }
+      }
+    }
   }
   await logAudit({
     actorId: null,
@@ -654,115 +675,6 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     orderId: payment.orderId,
     status: full ? "refunded" : "partially_refunded",
   };
-}
-
-async function handleInvoice(invoice: Stripe.Invoice, paid: boolean) {
-  const raw = invoice as Stripe.Invoice & { payment_intent?: string | { id?: string } | null };
-  const piId = str(
-    typeof raw.payment_intent === "object" ? raw.payment_intent?.id : raw.payment_intent,
-  );
-  const payment = findPayment({
-    paymentIntentId: piId,
-    invoiceId: invoice.id,
-    orderId: str(invoice.metadata?.orderId),
-  });
-  if (!payment) {
-    return { paymentId: null, orderId: null, status: "ignored" };
-  }
-  patchPayment(payment.id, {
-    stripeInvoiceId: invoice.id,
-    webhookVerified: true,
-    receiptUrl:
-      typeof invoice.hosted_invoice_url === "string"
-        ? invoice.hosted_invoice_url
-        : payment.receiptUrl,
-    status: paid ? "succeeded" : payment.status,
-    failureMessage: paid
-      ? null
-      : (str(
-          (invoice as { last_finalization_error?: { message?: string } }).last_finalization_error
-            ?.message,
-        ) ?? payment.failureMessage),
-  });
-  if (!paid && payment.orderId) {
-    const order = getOrder(payment.orderId);
-    if (order?.studentId && order.studentId !== GUEST_STUDENT_ID) {
-      await notifyPayment(order.studentId, {
-        title: "Invoice payment failed",
-        body: `Stripe could not collect ${formatMinor(invoice.amount_due ?? payment.amount, payment.currency)}.`,
-        type: "payment.failed",
-        reference: order.orderNumber,
-      });
-    }
-  }
-  return {
-    paymentId: payment.id,
-    orderId: payment.orderId,
-    status: paid ? "invoice.paid" : "invoice.payment_failed",
-  };
-}
-
-function subscriptionPeriod(sub: Stripe.Subscription): { start: number; end: number } {
-  const raw = sub as Stripe.Subscription & {
-    current_period_start?: number;
-    current_period_end?: number;
-  };
-  return {
-    start: raw.current_period_start ?? 0,
-    end: raw.current_period_end ?? 0,
-  };
-}
-
-function upsertSubscription(sub: Stripe.Subscription, status: Subscription["status"]) {
-  const stamp = nowIso();
-  const stripeId = sub.id;
-  const period = subscriptionPeriod(sub);
-  writePaymentsDb((db) => {
-    const existing = db.subscriptions.find(
-      (s) => str(s.metadata?.stripeSubscriptionId) === stripeId,
-    );
-    const row: Subscription = existing ?? {
-      id: generateId(),
-      studentId: str(sub.metadata?.studentId) ?? "unknown",
-      productId: str(sub.metadata?.productId) ?? "stripe-subscription",
-      productName: "Stripe subscription",
-      status,
-      pricingModel: "subscription_monthly",
-      amount: sub.items.data[0]?.price?.unit_amount ?? 0,
-      currency: (sub.currency ?? "usd").toUpperCase(),
-      currentPeriodStart: new Date(period.start * 1000).toISOString(),
-      currentPeriodEnd: new Date(period.end * 1000).toISOString(),
-      cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
-      canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
-      orderId: str(sub.metadata?.orderId),
-      createdAt: stamp,
-      updatedAt: stamp,
-      metadata: { stripeSubscriptionId: stripeId },
-    };
-    row.metadata = { ...(row.metadata ?? {}), stripeSubscriptionId: stripeId };
-    row.status = status;
-    row.cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
-    row.canceledAt = sub.canceled_at
-      ? new Date(sub.canceled_at * 1000).toISOString()
-      : row.canceledAt;
-    row.updatedAt = stamp;
-    if (!existing) db.subscriptions.unshift(row);
-  });
-}
-
-function mapSubscriptionStatus(status: Stripe.Subscription.Status): Subscription["status"] {
-  if (status === "trialing") return "trialing";
-  if (status === "active") return "active";
-  if (
-    status === "past_due" ||
-    status === "unpaid" ||
-    status === "incomplete" ||
-    status === "incomplete_expired"
-  ) {
-    return "past_due";
-  }
-  if (status === "canceled") return "canceled";
-  return "expired";
 }
 
 export async function processVerifiedStripeEvent(
@@ -789,15 +701,7 @@ export async function processVerifiedStripeEvent(
       case "checkout.session.completed": {
         const result = await handleCheckoutSessionCompleted(
           event.data.object as Stripe.Checkout.Session,
-        );
-        paymentId = result.paymentId;
-        orderId = result.orderId;
-        status = result.status;
-        break;
-      }
-      case "payment_intent.succeeded": {
-        const result = await handlePaymentIntentSucceeded(
-          event.data.object as Stripe.PaymentIntent,
+          event.id,
         );
         paymentId = result.paymentId;
         orderId = result.orderId;
@@ -816,32 +720,6 @@ export async function processVerifiedStripeEvent(
         paymentId = result.paymentId;
         orderId = result.orderId;
         status = result.status;
-        break;
-      }
-      case "invoice.paid": {
-        const result = await handleInvoice(event.data.object as Stripe.Invoice, true);
-        paymentId = result.paymentId;
-        orderId = result.orderId;
-        status = result.status;
-        break;
-      }
-      case "invoice.payment_failed": {
-        const result = await handleInvoice(event.data.object as Stripe.Invoice, false);
-        paymentId = result.paymentId;
-        orderId = result.orderId;
-        status = result.status;
-        break;
-      }
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const mapped =
-          event.type === "customer.subscription.deleted"
-            ? "canceled"
-            : mapSubscriptionStatus(sub.status);
-        upsertSubscription(sub, mapped);
-        status = mapped;
         break;
       }
       default:

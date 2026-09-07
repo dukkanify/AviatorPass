@@ -279,6 +279,10 @@ export function ensurePaymentsSeeded(): void {
     netAmountMinor: null,
     country: null,
     billingAddressSnapshot: null,
+    studentId: student.id,
+    courseId: order.items[0]?.courseId ?? null,
+    stripeEventId: null,
+    invoiceNumber: `INV-${new Date().getFullYear()}-00001`,
   };
 
   const invoice: Invoice = {

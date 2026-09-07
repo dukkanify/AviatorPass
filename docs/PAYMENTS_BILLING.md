@@ -83,7 +83,7 @@ Marketing CTAs (`Enrol in ATPL PASS`) open public `/checkout`.
 
 When `STRIPE_SECRET_KEY` is set, `/checkout` **server-side redirects immediately to Stripe-hosted Checkout** (no account form, no client JavaScript hop). Stripe collects full name, email, billing address, country, and optional phone. Dynamic payment methods (Apple Pay, Google Pay, cards, Link, local methods) are configured in the Stripe Dashboard — the API never sends `payment_method_types`. Crawlers see a continue button so they do not mint Checkout Sessions. `/checkout/success` redirects to `/welcome`.
 
-Currency is detected from billing country, CDN geo (`x-vercel-ip-country` / `cf-ipcountry`), then `Accept-Language`. Mapped catalogs: USD, GBP, EUR, AED, SAR, KWD, BHD, QAR, OMR, EGP, JOD, CAD, AUD, NZD, SGD, MYR, JPY, INR, TRY, ZAR. Unknown country → **USD**. Amounts always come from Stripe Prices (`STRIPE_PRODUCT_ID` / `STRIPE_PRICE_*` or listed Prices on the ATPL PASS Product). The app never converts FX.
+Currency is taken from the AviatorPass course / catalog product (source of truth). Stripe Checkout is created with `price_data` — no Stripe Product or Price IDs. First-class currencies: AED, USD, KWD, SAR. Any other ISO 4217 code on the course works without a code change. The app never converts FX.
 
 On **`checkout.session.completed`** (signature verified, idempotent by event id) AviatorPass:
 
@@ -96,15 +96,13 @@ Failed charges create **no** user and reserve **no** seat. OTP `/register` remai
 
 ### Stripe webhooks
 
-`POST /api/payments/webhooks` verifies `Stripe-Signature` and handles:
+`POST /api/payments/webhook` verifies `Stripe-Signature` and handles:
 
 - `checkout.session.completed`
-- `payment_intent.succeeded` / `payment_intent.payment_failed`
+- `payment_intent.payment_failed`
 - `charge.refunded`
-- `invoice.paid` / `invoice.payment_failed`
-- `customer.subscription.created` / `updated` / `deleted`
 
-Configure the endpoint in Stripe Dashboard → Developers → Webhooks. Sync catalog: `npm run stripe:sync` (requires operator-supplied `STRIPE_UNIT_AMOUNT_<CCY>` integers — never computed).
+Unrelated events are acknowledged and ignored. Configure the endpoint in Stripe Dashboard → Developers → Webhooks.
 
 ## Permissions
 

@@ -117,6 +117,33 @@ function CheckoutView() {
       return;
     }
 
+    if (paymentMode === "full" && product?.courseId) {
+      await ensureBrowserCsrf();
+      const hosted = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...csrfHeaders() },
+        body: JSON.stringify({
+          courseId: product.courseId,
+          currency: product.currency,
+          customerName: billingName,
+          email: billingEmail,
+          country: billingCountry,
+        }),
+      });
+      const json = (await hosted.json().catch(() => null)) as {
+        success?: boolean;
+        data?: { url?: string };
+        error?: string | null;
+      } | null;
+      if (json?.data?.url) {
+        window.location.href = json.data.url;
+        return;
+      }
+      setError(json?.error ?? "Unable to start Stripe Checkout");
+      return;
+    }
+
     const result = await payJson<Order>("/api/payments/orders", "POST", {
       action: "checkout",
       productId: selected,

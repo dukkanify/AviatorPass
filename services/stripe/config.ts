@@ -4,20 +4,13 @@
 
 import { PRODUCTION_SITE_URL, publicAppOrigin } from "@/lib/site-origin";
 import { routes } from "@/constants/routes";
-import { STRIPE_CHECKOUT_CURRENCIES, type StripeCheckoutCurrency } from "@/services/stripe/types";
+
+export { isStripeCheckoutCurrency, stripeCheckoutCurrencies } from "@/services/stripe/currency";
 
 export const STRIPE_API_VERSION = "2026-08-26.dahlia" as const;
 
 export const STRIPE_WEBHOOK_PATH = "/api/payments/webhook";
 export const STRIPE_WEBHOOK_URL = `${PRODUCTION_SITE_URL}${STRIPE_WEBHOOK_PATH}`;
-
-export function stripeCheckoutCurrencies(): readonly StripeCheckoutCurrency[] {
-  return STRIPE_CHECKOUT_CURRENCIES;
-}
-
-export function isStripeCheckoutCurrency(value: string): value is StripeCheckoutCurrency {
-  return (STRIPE_CHECKOUT_CURRENCIES as readonly string[]).includes(value.toUpperCase());
-}
 
 export function stripeSuccessUrl(origin = publicAppOrigin()): string {
   return `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`;
@@ -45,4 +38,8 @@ export function isStripeSecretConfigured(): boolean {
 
 export function isStripeWebhookSecretConfigured(): boolean {
   return Boolean(getStripeWebhookSecret());
+}
+
+export function shouldRevokeAccessOnRefund(): boolean {
+  return process.env.STRIPE_REVOKE_ACCESS_ON_REFUND === "true";
 }

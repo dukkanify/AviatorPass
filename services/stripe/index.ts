@@ -16,6 +16,8 @@ export { createCheckoutSession } from "@/services/stripe/checkout";
 export { getPublicCheckoutSession } from "@/services/stripe/sessions";
 export { processStripeWebhook } from "@/services/stripe/webhook";
 export { recordPendingCheckout, resetStripeStoreForTests } from "@/services/stripe/store";
+export { resolveCourseOffer } from "@/services/stripe/course-offer";
+export { buildDynamicPriceDataLineItem } from "@/services/stripe/price-data";
 export type {
   CreateCheckoutSessionInput,
   PublicCheckoutSession,

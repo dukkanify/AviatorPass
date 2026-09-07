@@ -29,6 +29,7 @@ import {
   ENROLLMENT_MODES,
 } from "@/constants/courses";
 import { courseFetch } from "@/features/courses/lib/api";
+import { currencyExponent, majorToMinor } from "@/services/payments/money";
 import type { CourseCategory, CourseListItem } from "@/types/courses";
 import type { UserProfile } from "@/types";
 
@@ -63,6 +64,9 @@ function CourseFormDialog({
   const [enrollmentMode, setEnrollmentMode] = React.useState("manual");
   const [primaryInstructorId, setPrimaryInstructorId] = React.useState<string>("none");
   const [estimatedDurationMinutes, setEstimatedDurationMinutes] = React.useState("0");
+  const [priceMajor, setPriceMajor] = React.useState("");
+  const [currency, setCurrency] = React.useState("AED");
+  const [thumbnailUrl, setThumbnailUrl] = React.useState("");
 
   React.useEffect(() => {
     if (!open) return;
@@ -75,6 +79,15 @@ function CourseFormDialog({
     setEnrollmentMode(course?.enrollmentMode ?? "manual");
     setPrimaryInstructorId(lockedInstructorId ?? course?.primaryInstructorId ?? "none");
     setEstimatedDurationMinutes(String(course?.estimatedDurationMinutes ?? 0));
+    const nextCurrency = course?.currency || "AED";
+    setCurrency(nextCurrency);
+    const existingMinor = course?.priceAmount;
+    setPriceMajor(
+      existingMinor != null && existingMinor > 0
+        ? String(existingMinor / 10 ** currencyExponent(nextCurrency))
+        : "",
+    );
+    setThumbnailUrl(course?.thumbnailUrl ?? "");
   }, [open, course, lockedInstructorId]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -95,6 +108,9 @@ function CourseFormDialog({
           : primaryInstructorId,
       estimatedDurationMinutes: Number(estimatedDurationMinutes) || 0,
       language: "en",
+      currency,
+      priceAmount: priceMajor.trim() ? majorToMinor(Number(priceMajor), currency) : null,
+      thumbnailUrl: thumbnailUrl.trim() || null,
     };
 
     const result = course
@@ -258,6 +274,44 @@ function CourseFormDialog({
                 min={0}
                 value={estimatedDurationMinutes}
                 onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="course-price">Price</Label>
+              <Input
+                id="course-price"
+                type="number"
+                min={0}
+                step="0.001"
+                value={priceMajor}
+                onChange={(e) => setPriceMajor(e.target.value)}
+                placeholder="e.g. 480"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(new Set(["AED", "USD", "KWD", "SAR", "EUR", "GBP", currency])).map(
+                    (code) => (
+                      <SelectItem key={code} value={code}>
+                        {code}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="course-image">Image URL</Label>
+              <Input
+                id="course-image"
+                value={thumbnailUrl}
+                onChange={(e) => setThumbnailUrl(e.target.value)}
+                placeholder="https://…"
               />
             </div>
           </div>
