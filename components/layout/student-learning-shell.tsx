@@ -40,6 +40,7 @@ import {
 import Link from "@/components/ui/app-link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { STUDENT_LEARNING_NAV_GROUPS } from "@/constants/student-learning-nav";
 import { ROLE_DASHBOARD, ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
@@ -234,6 +235,7 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
               <Globe className="h-3.5 w-3.5" aria-hidden />
               EN
             </span>
+            <ThemeToggle />
             <NotificationBell />
             <div className="sl-profile">
               <span className="sl-avatar" aria-hidden>
