@@ -7,6 +7,8 @@ import {
   getWelcomeByOrderId,
   getWelcomeBySessionId,
 } from "@/services/payments/purchase-first-service";
+import { isStripeConfigured, getStripeClient } from "@/services/payments/stripe-client";
+import { fulfillStripeCheckoutSession } from "@/services/payments/stripe-webhook-service";
 
 export async function GET(request: Request) {
   try {
@@ -15,17 +17,27 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id") ?? searchParams.get("sessionId");
     const orderId = searchParams.get("orderId");
-    const snapshot = sessionId
-      ? getWelcomeBySessionId(sessionId)
-      : orderId
-        ? getWelcomeByOrderId(orderId)
-        : null;
     if (!sessionId && !orderId) {
       return NextResponse.json(
         { success: false, data: null, error: "Missing checkout session" },
         { status: 400 },
       );
     }
+
+    let snapshot = sessionId
+      ? getWelcomeBySessionId(sessionId)
+      : orderId
+        ? getWelcomeByOrderId(orderId)
+        : null;
+
+    if (!snapshot && sessionId && sessionId.startsWith("cs_") && isStripeConfigured()) {
+      const session = await getStripeClient().checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === "paid" || session.status === "complete") {
+        await fulfillStripeCheckoutSession(session);
+        snapshot = getWelcomeBySessionId(sessionId);
+      }
+    }
+
     if (!snapshot) {
       return NextResponse.json(
         {

@@ -54,6 +54,7 @@ import {
   writePaymentsDb,
 } from "@/services/payments/store";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
+import { publicAppOrigin } from "@/lib/site-origin";
 import type {
   CatalogProduct,
   Order,
@@ -113,7 +114,7 @@ function nowIso() {
 }
 
 function appOrigin(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return publicAppOrigin();
 }
 
 function countryName(code: string): string {

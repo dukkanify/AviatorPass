@@ -16,6 +16,7 @@ import {
 } from "@/services/payments/stripe-client";
 import { resolveStripePrice } from "@/services/payments/stripe-catalog";
 import { routes } from "@/constants/routes";
+import { publicAppOrigin } from "@/lib/site-origin";
 
 export interface GatewayChargeInput {
   orderId: string;
@@ -70,7 +71,7 @@ function maskToken(token?: string): string {
 }
 
 function appOrigin(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return publicAppOrigin();
 }
 
 function integrationIdentifier(): string {

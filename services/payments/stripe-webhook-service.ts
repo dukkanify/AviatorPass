@@ -14,6 +14,7 @@ import { notifyPayment } from "@/services/payments/notify";
 import {
   GUEST_STUDENT_ID,
   fulfillGuestPaidOrder,
+  getAtplPackageProduct,
 } from "@/services/payments/purchase-first-service";
 import {
   getStripeClient,
@@ -96,12 +97,21 @@ function findPayment(refs: {
   providerPaymentId?: string | null;
 }): PaymentRecord | null {
   const payments = readPaymentsDb().payments;
+  if (refs.checkoutSessionId) {
+    const bySession = payments.find(
+      (p) =>
+        p.checkoutSessionId === refs.checkoutSessionId ||
+        p.providerPaymentId === refs.checkoutSessionId,
+    );
+    if (bySession) return bySession;
+    if (refs.orderId) {
+      return payments.find((p) => p.orderId === refs.orderId) ?? null;
+    }
+    return null;
+  }
   return (
     payments.find(
       (p) =>
-        (refs.checkoutSessionId &&
-          (p.checkoutSessionId === refs.checkoutSessionId ||
-            p.providerPaymentId === refs.checkoutSessionId)) ||
         (refs.paymentIntentId && p.paymentIntentId === refs.paymentIntentId) ||
         (refs.invoiceId && p.stripeInvoiceId === refs.invoiceId) ||
         (refs.providerPaymentId && p.providerPaymentId === refs.providerPaymentId) ||
@@ -114,6 +124,101 @@ function findPayment(refs: {
 function findOrder(orderId: string | null): Order | null {
   if (!orderId) return null;
   return getOrder(orderId);
+}
+
+function nextReconstructedOrderNumber(): string {
+  const y = new Date().getFullYear();
+  const n = readPaymentsDb().orders.length + 1;
+  return `ORD-${y}-${String(n).padStart(5, "0")}`;
+}
+
+/**
+ * Vercel serverless uses an in-memory JSON store. The Checkout Session that
+ * created the pending order may have run on a different isolate. Rebuild the
+ * order from Stripe so fulfillment still succeeds.
+ */
+function materializeOrderFromSession(
+  session: Stripe.Checkout.Session,
+  preferredId: string | null,
+): Order {
+  const product = getAtplPackageProduct();
+  if (!product) {
+    throw new PaymentError("ATPL product is not available for Stripe fulfillment", 500);
+  }
+  const stamp = nowIso();
+  const id = preferredId || generateId();
+  const existing = getOrder(id);
+  if (existing) return existing;
+
+  const email =
+    str(session.customer_details?.email) ??
+    str(session.customer_email) ??
+    `pending+${id.slice(0, 10)}@checkout.invalid`;
+  const name = str(session.customer_details?.name) ?? "Aviator Pass student";
+  const country = (session.customer_details?.address?.country ?? "US").toUpperCase();
+  const amount = session.amount_total ?? product.priceAmount;
+  const currency = (session.currency ?? product.currency ?? "usd").toUpperCase();
+  const item = {
+    id: generateId(),
+    productId: product.id,
+    productName: product.name,
+    courseId: product.courseId,
+    instructorId: product.instructorId,
+    pricingModel: product.pricingModel,
+    unitAmount: session.amount_subtotal ?? amount,
+    quantity: 1,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: amount,
+  };
+  const order: Order = {
+    id,
+    orderNumber: nextReconstructedOrderNumber(),
+    studentId: GUEST_STUDENT_ID,
+    studentName: name,
+    studentEmail: sanitizeEmail(email),
+    status: "pending",
+    currency,
+    subtotalAmount: session.amount_subtotal ?? amount,
+    discountAmount: 0,
+    taxAmount: 0,
+    taxRatePercent: 0,
+    totalAmount: amount,
+    couponId: null,
+    couponCode: null,
+    billingName: name,
+    billingEmail: sanitizeEmail(email),
+    billingCountry: country,
+    billingAddress: "",
+    items: [item],
+    paymentId: null,
+    invoiceId: null,
+    idempotencyKey: `stripe-session-${session.id}`,
+    failureReason: null,
+    paidAt: null,
+    cancelledAt: null,
+    expiresAt: null,
+    metadata: {
+      purchaseFirst: true,
+      hostedCheckout: true,
+      reconstructed: true,
+      guestCountry: country,
+      stripeSessionId: session.id,
+    },
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  writePaymentsDb((db) => {
+    if (!db.orders.some((o) => o.id === order.id)) {
+      db.orders.unshift(order);
+    }
+  });
+  return getOrder(id) ?? order;
+}
+
+function ensureOrderForSession(session: Stripe.Checkout.Session): Order {
+  const existingId = metadataOrderId(session);
+  return findOrder(existingId) ?? materializeOrderFromSession(session, existingId);
 }
 
 function metadataOrderId(object: {
@@ -245,11 +350,7 @@ async function fulfillIfPaid(payment: PaymentRecord) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  const orderId = metadataOrderId(session);
-  const order = findOrder(orderId);
-  if (!order) {
-    throw new PaymentError(`Order not found for Checkout Session ${session.id}`, 404);
-  }
+  const order = ensureOrderForSession(session);
 
   let payment = findPayment({
     checkoutSessionId: session.id,
@@ -366,6 +467,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   return { paymentId: payment.id, orderId: order.id, status: paid ? "succeeded" : "processing" };
+}
+
+/** Used by `/welcome` when the webhook isolate did not share the local order store. */
+export async function fulfillStripeCheckoutSession(session: Stripe.Checkout.Session) {
+  return handleCheckoutSessionCompleted(session);
 }
 
 async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
