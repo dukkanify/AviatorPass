@@ -57,6 +57,10 @@
   );
 }
 
+.atpl-hero .hero-read-glass {
+  background: rgba(10, 18, 30, 0.72);
+}
+
 .atpl-hero-glow {
   background:
     radial-gradient(ellipse 65% 50% at 78% 12%, rgba(204, 160, 76, 0.32), transparent 62%),
