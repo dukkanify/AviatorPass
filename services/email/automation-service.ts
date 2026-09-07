@@ -19,8 +19,6 @@ import {
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
 import { isEmailDeliveryConfigured, sendEmail } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
-import { appJoinUrl } from "@/lib/site-origin";
-import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import type {
   EmailAutomationDispatchInput,
@@ -325,13 +323,6 @@ export async function emailScheduleLifecycle(input: {
   actorId?: string | null;
   joinUrl?: string;
 }) {
-  let joinUrl = input.joinUrl ?? "";
-  if (!joinUrl && input.liveClassId) {
-    const meeting = getZoomMeetingByClassId(input.liveClassId);
-    if (meeting?.zoomMeetingId) {
-      joinUrl = appJoinUrl(input.liveClassId, meeting.zoomMeetingId);
-    }
-  }
   return dispatchEmailEvent({
     event: input.event,
     userIds: input.userIds,
@@ -339,7 +330,7 @@ export async function emailScheduleLifecycle(input: {
       title: input.title,
       when: input.when ?? "",
       detail: input.detail ?? "",
-      joinUrl,
+      joinUrl: input.joinUrl ?? "",
     },
     actorId: input.actorId,
     meta: { liveClassId: input.liveClassId },

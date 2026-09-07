@@ -3,7 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
-import { rewriteAppAbsoluteUrl } from "@/lib/site-origin";
+import { appJoinUrl, rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import {
   DEFAULT_CLASS_DURATION_MINUTES,
@@ -450,6 +450,7 @@ export async function createLiveClass(
       "class.created",
       { liveClassId: cls.id },
     );
+    const createdMeeting = getZoomMeetingByClassId(cls.id);
     await emailScheduleLifecycle({
       event: "schedule",
       userIds: [...participantIds],
@@ -458,6 +459,7 @@ export async function createLiveClass(
       detail: "A Zoom meeting has been prepared for this session.",
       liveClassId: cls.id,
       actorId: input.actorId,
+      joinUrl: createdMeeting ? appJoinUrl(cls.id, createdMeeting.zoomMeetingId) : undefined,
     });
   }
 
@@ -758,14 +760,19 @@ export async function rescheduleLiveClass(input: {
     "class.rescheduled",
     { liveClassId: created?.id, fromId: existing.id },
   );
+  const rescheduledId = created?.id ?? existing.id;
+  const rescheduledMeeting = getZoomMeetingByClassId(rescheduledId);
   await emailScheduleLifecycle({
     event: "reschedule",
     userIds: participantIds,
     title: existing.title,
     when: new Date(startsAt).toLocaleString(),
     detail: "Please use the updated calendar entry and Zoom link.",
-    liveClassId: created?.id ?? existing.id,
+    liveClassId: rescheduledId,
     actorId: input.actorId,
+    joinUrl: rescheduledMeeting
+      ? appJoinUrl(rescheduledId, rescheduledMeeting.zoomMeetingId)
+      : undefined,
   });
 
   return created;
