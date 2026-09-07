@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,26 @@ import Link from "@/components/ui/app-link";
 import { routes } from "@/constants/routes";
 
 /**
- * Unknown URLs never show a dead "404" screen — bounce to the platform home.
+ * Unknown page URLs bounce to the platform home.
+ * Unknown /api/* paths must stay on the API — never client-navigate to "/".
  */
 export default function NotFound() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isApi = Boolean(pathname?.startsWith("/api/"));
 
   React.useEffect(() => {
+    if (isApi) return;
     router.replace(routes.home);
-  }, [router]);
+  }, [router, isApi]);
+
+  if (isApi) {
+    return (
+      <pre className="min-h-dvh bg-[var(--surface-ink,#0f2a3d)] p-6 font-mono text-sm text-white">
+        {JSON.stringify({ error: "Not found" })}
+      </pre>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--surface-ink,#0f2a3d)] px-4 text-white">
