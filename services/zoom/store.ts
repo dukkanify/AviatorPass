@@ -73,6 +73,18 @@ export function deleteIntegrationForUser(userId: string): ZoomIntegrationRecord 
   return existing;
 }
 
+export function consumePendingOAuthState(
+  userId: string,
+  nonce: string,
+): ZoomOAuthPendingState | null {
+  const existing = readZoomDb().pendingStates.find((s) => s.nonce === nonce && s.userId === userId);
+  if (!existing) return null;
+  writeZoomDb((db) => {
+    db.pendingStates = db.pendingStates.filter((s) => !(s.nonce === nonce && s.userId === userId));
+  });
+  return existing;
+}
+
 export function resetZoomStoreForTests(): void {
   writeJsonFile(dataFile(), emptyDb());
 }

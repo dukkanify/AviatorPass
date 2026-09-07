@@ -22,6 +22,7 @@ import { fetchZoomProfile, ZoomApiError } from "@/services/zoom/client";
 import { logZoomActivity, ZOOM_ACTIVITY } from "@/services/zoom/logging";
 import { publicIntegrationView } from "@/services/zoom/policy";
 import {
+  consumePendingOAuthState,
   deleteIntegrationForUser,
   getIntegrationByUserId,
   getIntegrationByZoomUserId,
@@ -172,15 +173,7 @@ export async function completeZoomOAuthCallback(input: {
     return { redirectTo: "/instructor/dashboard?zoom=error", userId: "" };
   }
 
-  let pending: { nonce: string; userId: string; returnTo: string } | null = null;
-  writeZoomDb((db) => {
-    const idx = db.pendingStates.findIndex(
-      (s) => s.nonce === parsed.nonce && s.userId === parsed.userId,
-    );
-    if (idx < 0) return;
-    pending = db.pendingStates[idx]!;
-    db.pendingStates.splice(idx, 1);
-  });
+  const pending = consumePendingOAuthState(parsed.userId, parsed.nonce);
 
   if (!pending) {
     emitZoomEvent({
