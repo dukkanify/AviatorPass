@@ -112,7 +112,7 @@ export async function processStripeWebhook(
         writePaymentsDb((db) => {
           const order = db.orders.find((row) => row.id === orderId);
           if (!order || order.status === "paid") return;
-          order.status = "pending";
+          order.status = "failed";
           order.failureReason = pi.last_payment_error?.message ?? "Payment failed";
           order.updatedAt = new Date().toISOString();
         });

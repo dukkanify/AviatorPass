@@ -54,11 +54,22 @@ function normalizeCourse(course: Course): Course {
     typeof course.enrollmentOpen === "boolean"
       ? course.enrollmentOpen
       : course.enrollmentMode === "open";
+  const priceAmount =
+    typeof course.priceAmount === "number" && Number.isFinite(course.priceAmount)
+      ? Math.round(course.priceAmount)
+      : typeof course.metadata?.priceAmount === "number"
+        ? Math.round(course.metadata.priceAmount)
+        : null;
+  const currencyRaw =
+    (typeof course.currency === "string" && course.currency.trim()) ||
+    (typeof course.metadata?.currency === "string" ? course.metadata.currency : "");
   return {
     ...course,
     deliveryType,
     enrollmentOpen,
     hidden: Boolean(course.hidden),
+    priceAmount,
+    currency: currencyRaw ? currencyRaw.trim().toUpperCase() : null,
   };
 }
 

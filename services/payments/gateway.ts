@@ -1,6 +1,7 @@
 /**
- * Payment gateway adapters — mock (default) + Stripe Checkout with catalog Prices.
+ * Payment gateway adapters — mock (default) + Stripe Checkout with dynamic price_data.
  * Never stores raw card data (PCI-aware). Never passes payment_method_types.
+ * Never uses Stripe Price or Product IDs.
  */
 
 import Stripe from "stripe";
@@ -8,14 +9,19 @@ import Stripe from "stripe";
 import { generateId, generateToken } from "@/lib/security/crypto";
 import type { PaymentMethodBrand, PaymentProvider, PaymentRecord } from "@/types/payments";
 import { PaymentError } from "@/services/payments/access";
-import { coerceCheckoutCurrency } from "@/services/payments/currency-detection";
 import {
   getStripeClient,
   isStripeConfigured,
   STRIPE_API_VERSION,
 } from "@/services/payments/stripe-client";
-import { resolveStripePrice } from "@/services/payments/stripe-catalog";
 import { stripeCancelUrl, stripeSuccessUrl } from "@/services/stripe/config";
+import { resolveCourseOffer } from "@/services/stripe/course-offer";
+import {
+  buildDynamicPriceDataLineItem,
+  stripeCheckoutMetadata,
+} from "@/services/stripe/price-data";
+import { normalizeCheckoutCurrency } from "@/services/stripe/currency";
+import { readPaymentsDb } from "@/services/payments/store";
 import { publicAppOrigin } from "@/lib/site-origin";
 
 export interface GatewayChargeInput {
@@ -33,6 +39,13 @@ export interface GatewayChargeInput {
   stripePriceId?: string;
   country?: string;
   locale?: string;
+  courseId?: string;
+  studentId?: string;
+  instructorId?: string;
+  courseSlug?: string;
+  productName?: string;
+  productDescription?: string;
+  imageUrl?: string | null;
 }
 
 export interface GatewayChargeResult {
@@ -79,7 +92,7 @@ function integrationIdentifier(): string {
     .replace(/[^a-zA-Z]/g, "x")
     .slice(0, 8)
     .padEnd(8, "a");
-  return `atplpass${suffix}`;
+  return `aviatorpass${suffix}`;
 }
 
 class MockGateway implements PaymentGateway {
@@ -168,19 +181,66 @@ class StripeGateway implements PaymentGateway {
       );
     }
 
-    const currency = coerceCheckoutCurrency(input.currency);
-    const price = input.stripePriceId
-      ? { stripePriceId: input.stripePriceId, currency, unitAmount: input.amount }
-      : await resolveStripePrice(currency);
+    const order = readPaymentsDb().orders.find((o) => o.id === input.orderId) ?? null;
+    const item = order?.items[0];
+    const courseId = input.courseId || item?.courseId || "";
+    let offer = null as ReturnType<typeof resolveCourseOffer> | null;
+    if (courseId) {
+      try {
+        offer = resolveCourseOffer({
+          courseId,
+          instructorId: input.instructorId ?? item?.instructorId,
+          currency: input.currency,
+          amount: input.amount,
+        });
+      } catch {
+        offer = null;
+      }
+    }
+    const currency = offer?.currency ?? normalizeCheckoutCurrency(input.currency);
+    const amount = offer?.amount ?? Math.round(input.amount);
+    const title = offer?.title || input.productName || item?.productName || "AviatorPass course";
+    const description = offer?.description || input.productDescription || title;
+    const instructorId = offer?.instructorId || input.instructorId || item?.instructorId || "";
+    const courseSlug = offer?.courseSlug || input.courseSlug || courseId;
+    const studentId = input.studentId || order?.studentId || "";
 
     const stripe = getStripeClient();
     const origin = appOrigin();
     const email = input.customerEmail.includes("@invalid.") ? undefined : input.customerEmail;
+    const metadata = stripeCheckoutMetadata({
+      courseId: offer?.courseId || courseId,
+      studentId,
+      instructorId,
+      courseSlug,
+      currency,
+      amount,
+      extra: {
+        orderId: input.orderId,
+        idempotencyKey: input.idempotencyKey,
+        purchaseFirst: "true",
+      },
+    });
+
+    const lineOffer = offer ?? {
+      courseId: courseId || input.orderId,
+      courseSlug,
+      title,
+      description,
+      imageUrl: input.imageUrl ?? null,
+      instructorId,
+      amount,
+      currency,
+      productId: item?.productId ?? null,
+      pricingModel: item?.pricingModel ?? "one_time",
+      course: null,
+      product: null,
+    };
 
     const session = await stripe.checkout.sessions.create(
       {
         mode: "payment",
-        line_items: [{ price: price.stripePriceId, quantity: 1 }],
+        line_items: [buildDynamicPriceDataLineItem(lineOffer, "payment")],
         customer_email: email || undefined,
         billing_address_collection: "required",
         phone_number_collection: { enabled: true },
@@ -191,28 +251,10 @@ class StripeGateway implements PaymentGateway {
         client_reference_id: input.orderId,
         success_url: input.successUrl ?? stripeSuccessUrl(origin),
         cancel_url: input.cancelUrl ?? stripeCancelUrl(origin),
-        metadata: {
-          orderId: input.orderId,
-          idempotencyKey: input.idempotencyKey,
-          purchaseFirst: "true",
-          detectedCurrency: currency,
-          detectedCountry: input.country ?? "",
-          courseId: "",
-          studentId: "",
-          instructorId: "",
-          currency,
-          amount: String(input.amount),
-        },
+        metadata,
         payment_intent_data: {
-          metadata: {
-            orderId: input.orderId,
-            purchaseFirst: "true",
-            courseId: "",
-            studentId: "",
-            instructorId: "",
-            currency,
-            amount: String(input.amount),
-          },
+          metadata,
+          ...(instructorId ? { transfer_group: `instructor:${instructorId}` } : {}),
         },
         integration_identifier: integrationIdentifier(),
         locale: "auto",
@@ -231,7 +273,7 @@ class StripeGateway implements PaymentGateway {
       rawProviderPayload: {
         sessionId: session.id,
         status: session.status,
-        priceId: price.stripePriceId,
+        priceData: true,
         apiVersion: STRIPE_API_VERSION,
       },
       failureCode: null,

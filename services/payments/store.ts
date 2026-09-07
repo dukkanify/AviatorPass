@@ -81,6 +81,7 @@ function defaultSettings(): PaymentSettings {
     agreementVersion: DEFAULT_PAYMENT_AGREEMENT_VERSION,
     agreementText: DEFAULT_PAYMENT_AGREEMENT_TEXT,
     defaultInstallmentCount: 4,
+    revokeAccessOnRefund: false,
   };
 }
 
@@ -147,6 +148,10 @@ export function blankStripePaymentFields(): Pick<
   | "netAmountMinor"
   | "country"
   | "billingAddressSnapshot"
+  | "studentId"
+  | "courseId"
+  | "stripeEventId"
+  | "invoiceNumber"
 > {
   return {
     stripeCustomerId: null,
@@ -158,6 +163,10 @@ export function blankStripePaymentFields(): Pick<
     netAmountMinor: null,
     country: null,
     billingAddressSnapshot: null,
+    studentId: null,
+    courseId: null,
+    stripeEventId: null,
+    invoiceNumber: null,
   };
 }
 
@@ -174,6 +183,10 @@ function normalizePayment(raw: PaymentRecord): PaymentRecord {
     netAmountMinor: raw.netAmountMinor ?? null,
     country: raw.country ?? null,
     billingAddressSnapshot: raw.billingAddressSnapshot ?? null,
+    studentId: raw.studentId ?? null,
+    courseId: raw.courseId ?? null,
+    stripeEventId: raw.stripeEventId ?? null,
+    invoiceNumber: raw.invoiceNumber ?? null,
   };
 }
 

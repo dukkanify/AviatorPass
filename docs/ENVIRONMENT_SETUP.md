@@ -48,7 +48,7 @@ Supabase vars may stay empty for JSON-store mode.
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Email / OTP delivery | Provider-specific (wire via settings + server secrets)                                                                                                              |
 | Zoom                 | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`, `ZOOM_BASE_URL`, `ZOOM_SECRET_TOKEN`, `ZOOM_WEBHOOK_SECRET`, optional `ZOOM_ACCOUNT_ID` (S2S fallback) |
-| Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRODUCT_ID`, `STRIPE_PRICE_<CCY>`                                       |
+| Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                                                                                  |
 | Supabase             | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`                                              |
 
 5. Domain: attach custom domain in Vercel (SSL automatic).

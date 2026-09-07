@@ -114,6 +114,10 @@ export interface Course {
   status: CourseStatus;
   scheduledPublishAt: string | null;
   primaryInstructorId: string | null;
+  /** Integer minor units. AviatorPass is the source of truth for Stripe Checkout. */
+  priceAmount: number | null;
+  /** ISO 4217 code (AED, USD, KWD, SAR, or any future currency). */
+  currency: string | null;
   tags: string[];
   metadata: Record<string, unknown>;
   createdById: string | null;

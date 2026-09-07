@@ -1,6 +1,5 @@
 /**
- * Stripe catalog contract for ATPL PASS.
- * Amounts never live here — they come from Stripe Prices (Dashboard or sync script).
+ * Currency maps for geo hints. Amounts and checkout currency come from AviatorPass courses.
  */
 
 export const STRIPE_ATPL_PRODUCT_NAME = "ATPL PASS";

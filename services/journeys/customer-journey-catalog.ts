@@ -358,6 +358,8 @@ export function ensureCustomerJourneyCourses(): void {
         status: "published",
         scheduledPublishAt: null,
         primaryInstructorId: instructorId,
+        priceAmount: majorToMinor(def.priceMajor, "KWD"),
+        currency: "KWD",
         tags: def.tags,
         metadata: {
           journeySku: def.sku,

@@ -1,9 +1,9 @@
-# Stripe Checkout — AviatorPass production
+# Stripe Checkout — AviatorPass source of truth
 
-Hosted Stripe Checkout for Aviator Pass. Secret keys stay in environment variables and never reach the browser.
+Hosted Stripe Checkout. AviatorPass owns courses, prices, currency, enrolment, invoices, and notifications. Stripe only processes the payment.
 
 Runtime store: `.data/aep-stripe.json`  
-SQL: `database/migrations/032_stripe_checkouts.sql`
+SQL: `database/migrations/032_stripe_checkouts.sql`, `database/migrations/033_stripe_dynamic_payments.sql`
 
 ## Endpoints
 
@@ -32,49 +32,50 @@ Never commit values. Set in Vercel Production / `.env.local` only.
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-STRIPE_PRODUCT_ID=
-STRIPE_PRICE_USD=
-STRIPE_PRICE_AED=
-STRIPE_PRICE_KWD=
-STRIPE_PRICE_SAR=
 ```
 
-`STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are server-only. The publishable key is the only Stripe value allowed in the browser.
+Do **not** set `STRIPE_PRODUCT_ID` or `STRIPE_PRICE_*`. Checkout uses `price_data` generated from the AviatorPass course.
 
-## Payment statuses
+## How Checkout is created
 
-Stored on `stripe_checkouts.status`:
+Admin creates a course (title, description, price, currency, instructor, image, publish).  
+Enrol Now → `POST /api/payments/create-checkout-session` with `courseId`.  
+Backend loads the course and creates a Stripe Session with:
 
-| Status     | Meaning                                                                  |
-| ---------- | ------------------------------------------------------------------------ |
-| `pending`  | Checkout created; enrolment stays pending                                |
-| `paid`     | Payment succeeded; student is enrolled; email + in-app notification sent |
-| `failed`   | Payment failed; enrolment remains pending; student is notified           |
-| `refunded` | Charge refunded                                                          |
+- `price_data.currency`
+- `price_data.unit_amount`
+- `product_data.name`
+- `product_data.description`
+
+No Stripe Dashboard Products or Prices.
 
 ## Metadata sent to Stripe
 
-`courseId`, `studentId`, `instructorId`, `currency`, `amount` (plus `orderId` when an AviatorPass order exists).
+`courseId`, `studentId`, `instructorId`, `courseSlug`, `currency`, `amount`, `platform=AviatorPass`.
+
+## Payment statuses
+
+| Status     | Meaning                                                                |
+| ---------- | ---------------------------------------------------------------------- |
+| `pending`  | Checkout created; enrolment stays pending                              |
+| `paid`     | Payment succeeded; student enrolled; invoice + email + notification    |
+| `failed`   | Payment failed; no access; student notified                            |
+| `refunded` | Charge refunded; access revoked only if `revokeAccessOnRefund` is true |
+
+Duplicate webhooks are ignored via Stripe Event ID (`processedProviderEvents`).
 
 ## Currencies
 
-First-class on `POST /api/payments/create-checkout-session`: **AED, USD, KWD, SAR**.  
-Existing ATPL catalog Prices may still use additional ISO currencies on the public `/checkout` flow.
+Read from the course. First-class: **AED, USD, KWD, SAR**. Any other ISO 4217 code works without a code change.
 
 Amounts are integer minor units (fils for KWD, cents for USD/AED/SAR).
 
-## Subscriptions and instructor payouts
-
-Checkout `mode` accepts `payment` (default) or `subscription`. Recurring Prices are required for subscription mode.
-
-Instructor payouts: `instructorId` is stored on the session and PaymentIntent (`transfer_group`). Stripe Connect `transfer_data` / destination charges can be added later without changing this metadata contract.
-
 ## Webhook events
 
-Signature verified with `STRIPE_WEBHOOK_SECRET` (`Stripe-Signature` header). Handled types include:
+Signature verified with `STRIPE_WEBHOOK_SECRET` (`Stripe-Signature` header). Handled types:
 
 - `checkout.session.completed`
-- `payment_intent.succeeded` / `payment_intent.payment_failed`
+- `payment_intent.payment_failed`
 - `charge.refunded`
-- `invoice.paid` / `invoice.payment_failed`
-- `customer.subscription.*`
+
+All other event types are acknowledged and ignored.

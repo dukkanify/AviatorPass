@@ -195,6 +195,10 @@ export interface PaymentRecord {
   failureCode: string | null;
   failureMessage: string | null;
   rawProviderPayload: Record<string, unknown>;
+  studentId: string | null;
+  courseId: string | null;
+  stripeEventId: string | null;
+  invoiceNumber: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -348,6 +352,8 @@ export interface PaymentSettings {
   agreementVersion: string;
   agreementText: string;
   defaultInstallmentCount: number;
+  /** When true, charge.refunded suspends the paid enrolment. Default false. */
+  revokeAccessOnRefund: boolean;
 }
 
 export interface ProcessedProviderEvent {

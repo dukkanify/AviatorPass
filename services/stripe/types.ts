@@ -7,8 +7,9 @@
 export const STRIPE_LIFECYCLE_STATUSES = ["pending", "paid", "failed", "refunded"] as const;
 export type StripeLifecycleStatus = (typeof STRIPE_LIFECYCLE_STATUSES)[number];
 
+/** First-class currencies. Any other ISO 4217 code on a course is also accepted. */
 export const STRIPE_CHECKOUT_CURRENCIES = ["AED", "USD", "KWD", "SAR"] as const;
-export type StripeCheckoutCurrency = (typeof STRIPE_CHECKOUT_CURRENCIES)[number];
+export type StripeCheckoutCurrency = string;
 
 export const STRIPE_CHECKOUT_MODES = ["payment", "subscription", "setup"] as const;
 export type StripeCheckoutMode = (typeof STRIPE_CHECKOUT_MODES)[number];
@@ -17,8 +18,10 @@ export interface StripeCheckoutMetadata {
   courseId: string;
   studentId: string;
   instructorId: string;
+  courseSlug: string;
   currency: string;
   amount: string;
+  platform: "AviatorPass";
   orderId?: string;
   paymentId?: string;
   checkoutId?: string;
@@ -56,7 +59,7 @@ export interface CreateCheckoutSessionInput {
   courseId: string;
   studentId?: string | null;
   instructorId?: string | null;
-  currency: string;
+  currency?: string | null;
   amount?: number | null;
   email?: string | null;
   customerName?: string | null;

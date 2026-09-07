@@ -1,38 +1,33 @@
 /**
- * Hosted Stripe Checkout Sessions.
+ * Hosted Stripe Checkout Sessions from AviatorPass course data.
+ * Always uses price_data — never Stripe Price or Product IDs.
  * Never returns secret keys. Omits payment_method_types (dynamic methods).
  */
-
-import Stripe from "stripe";
 
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { generateId, generateToken } from "@/lib/security/crypto";
 import { publicAppOrigin } from "@/lib/site-origin";
+import { ORDER_EXPIRY_MINUTES } from "@/constants/payments";
 import { logActivity } from "@/services/auth/activity-log";
 import { readAuthDb } from "@/services/auth/store";
 import { PaymentError } from "@/services/payments/access";
-import { getProduct, listProducts } from "@/services/payments/catalog-service";
-import { getCourseById } from "@/services/courses/course-service";
-import { ORDER_EXPIRY_MINUTES } from "@/constants/payments";
-import { getAtplPackageProduct } from "@/services/payments/purchase-first-service";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
   writePaymentsDb,
 } from "@/services/payments/store";
-import { tryResolveStripePrice } from "@/services/payments/stripe-catalog";
 import { STRIPE_API_VERSION, getStripeClient, isStripeConfigured } from "@/services/stripe/client";
-import {
-  isStripeCheckoutCurrency,
-  stripeCancelUrl,
-  stripeSuccessUrl,
-} from "@/services/stripe/config";
+import { stripeCancelUrl, stripeSuccessUrl } from "@/services/stripe/config";
+import { resolveCourseOffer } from "@/services/stripe/course-offer";
 import { ensurePendingEnrollment } from "@/services/stripe/fulfillment";
 import { logStripeEvent } from "@/services/stripe/logging";
+import {
+  buildDynamicPriceDataLineItem,
+  stripeCheckoutMetadata,
+} from "@/services/stripe/price-data";
 import { upsertCheckout } from "@/services/stripe/store";
 import type {
   CreateCheckoutSessionInput,
-  StripeCheckoutCurrency,
   StripeCheckoutMode,
   StripeCheckoutRecord,
 } from "@/services/stripe/types";
@@ -59,41 +54,39 @@ function nextOrderNumber(): string {
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 
-function normalizeCurrency(raw: string): StripeCheckoutCurrency {
-  const upper = raw.trim().toUpperCase();
-  if (!isStripeCheckoutCurrency(upper)) {
-    throw new PaymentError("Currency must be AED, USD, KWD, or SAR", 422);
+function reusePendingCheckout(input: {
+  studentId: string;
+  courseId: string;
+  currency: string;
+  amount: number;
+  idempotencyKey: string;
+}): { url: string; sessionId: string; checkoutId: string; status: "pending" } | null {
+  const db = readPaymentsDb();
+  const byKey = db.orders.find(
+    (o) => o.idempotencyKey === input.idempotencyKey && o.status === "pending",
+  );
+  const byStudentCourse =
+    byKey ??
+    db.orders.find(
+      (o) =>
+        o.status === "pending" &&
+        o.studentId === input.studentId &&
+        o.currency === input.currency &&
+        o.totalAmount === input.amount &&
+        o.items.some((item) => item.courseId === input.courseId) &&
+        Boolean(o.metadata?.checkoutUrl) &&
+        Boolean(o.metadata?.stripeSessionId) &&
+        (!o.expiresAt || Date.parse(o.expiresAt) > Date.now()),
+    );
+  if (byStudentCourse?.metadata?.checkoutUrl && byStudentCourse.metadata.stripeSessionId) {
+    return {
+      url: String(byStudentCourse.metadata.checkoutUrl),
+      sessionId: String(byStudentCourse.metadata.stripeSessionId),
+      checkoutId: String(byStudentCourse.metadata.stripeCheckoutId ?? byStudentCourse.id),
+      status: "pending",
+    };
   }
-  return upper;
-}
-
-function resolveCatalog(input: CreateCheckoutSessionInput) {
-  const courseId = sanitizeString(input.courseId || "");
-  if (!courseId) throw new PaymentError("courseId is required", 422);
-
-  const product =
-    getProduct(courseId) ||
-    listProducts().find((p) => p.courseId === courseId && p.active) ||
-    (getAtplPackageProduct()?.courseId === courseId || getAtplPackageProduct()?.id === courseId
-      ? getAtplPackageProduct()
-      : null);
-
-  const course =
-    getCourseById(courseId) ?? (product?.courseId ? getCourseById(product.courseId) : null);
-  const resolvedCourseId = course?.id || product?.courseId || courseId;
-  const instructorId =
-    sanitizeString(input.instructorId || "") ||
-    product?.instructorId ||
-    course?.primaryInstructorId ||
-    "";
-  const name = product?.name || course?.title || "Aviator Pass";
-  return {
-    courseId: resolvedCourseId,
-    instructorId,
-    product,
-    course,
-    name,
-  };
+  return null;
 }
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{
@@ -102,14 +95,18 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
   checkoutId: string;
   status: "pending";
 }> {
-  const currency = normalizeCurrency(input.currency);
+  const offer = resolveCourseOffer({
+    courseId: input.courseId,
+    instructorId: input.instructorId,
+    currency: input.currency,
+    amount: input.amount,
+  });
   if (!isStripeConfigured()) {
     throw new PaymentError(
       "Stripe secret key is not configured. Set STRIPE_SECRET_KEY to enable Checkout.",
       503,
     );
   }
-  const catalog = resolveCatalog(input);
   const email = input.email ? sanitizeEmail(input.email) : "";
   const studentId = sanitizeString(input.studentId || "") || GUEST_STUDENT_ID;
   const mode: StripeCheckoutMode = input.mode ?? "payment";
@@ -120,51 +117,33 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     );
   }
 
-  const price = await tryResolveStripePrice(currency);
-  const amount =
-    typeof input.amount === "number" && Number.isFinite(input.amount) && input.amount > 0
-      ? Math.round(input.amount)
-      : (price?.unitAmount ?? catalog.product?.priceAmount ?? 0);
-  if (!amount || amount < 1) {
-    throw new PaymentError("A positive amount is required", 422);
-  }
+  const idempotencyKey = input.idempotencyKey?.trim() || generateToken(16);
+  const reused = reusePendingCheckout({
+    studentId,
+    courseId: offer.courseId,
+    currency: offer.currency,
+    amount: offer.amount,
+    idempotencyKey,
+  });
+  if (reused) return reused;
 
-  if (mode === "subscription" && price && !price.stripePriceId) {
-    throw new PaymentError("A recurring Stripe Price is required for subscriptions", 422);
-  }
-
+  const stamp = nowIso();
   const origin = publicAppOrigin();
   const successUrl = stripeSuccessUrl(origin);
   const cancelUrl = stripeCancelUrl(origin);
-  const stamp = nowIso();
-  const idempotencyKey = input.idempotencyKey?.trim() || generateToken(16);
-  const existingOrder = readPaymentsDb().orders.find(
-    (o) => o.idempotencyKey === idempotencyKey && o.status === "pending",
-  );
-  if (existingOrder?.metadata?.checkoutUrl && existingOrder.metadata.stripeSessionId) {
-    return {
-      url: String(existingOrder.metadata.checkoutUrl),
-      sessionId: String(existingOrder.metadata.stripeSessionId),
-      checkoutId: String(existingOrder.metadata.stripeCheckoutId ?? existingOrder.id),
-      status: "pending",
-    };
-  }
 
   const item: OrderItem = {
     id: generateId(),
-    productId: catalog.product?.id ?? catalog.courseId,
-    productName: catalog.name,
-    courseId: catalog.courseId,
-    instructorId: catalog.instructorId || null,
-    pricingModel:
-      mode === "subscription"
-        ? "subscription_monthly"
-        : (catalog.product?.pricingModel ?? "one_time"),
-    unitAmount: amount,
+    productId: offer.productId ?? offer.courseId,
+    productName: offer.title,
+    courseId: offer.courseId,
+    instructorId: offer.instructorId || null,
+    pricingModel: mode === "subscription" ? "subscription_monthly" : offer.pricingModel,
+    unitAmount: offer.amount,
     quantity: 1,
     discountAmount: 0,
     taxAmount: 0,
-    totalAmount: amount,
+    totalAmount: offer.amount,
   };
 
   const order: Order = {
@@ -177,12 +156,12 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
       "Aviator Pass student",
     studentEmail: email || `${studentId}@checkout.invalid`,
     status: "pending",
-    currency,
-    subtotalAmount: amount,
+    currency: offer.currency,
+    subtotalAmount: offer.amount,
     discountAmount: 0,
     taxAmount: 0,
     taxRatePercent: 0,
-    totalAmount: amount,
+    totalAmount: offer.amount,
     couponId: null,
     couponCode: null,
     billingName: input.customerName || "Aviator Pass student",
@@ -200,6 +179,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     metadata: {
       hostedCheckout: true,
       stripeCheckout: true,
+      courseSlug: offer.courseSlug,
+      platform: "AviatorPass",
     },
     createdAt: stamp,
     updatedAt: stamp,
@@ -210,41 +191,26 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
   });
 
   const enrollment = await ensurePendingEnrollment({
-    courseId: catalog.courseId,
+    courseId: offer.courseId,
     studentId,
     actorId: studentId === GUEST_STUDENT_ID ? null : studentId,
   });
 
-  const stripe = getStripeClient();
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = price?.stripePriceId
-    ? [{ price: price.stripePriceId, quantity: 1 }]
-    : [
-        {
-          quantity: 1,
-          price_data: {
-            currency: currency.toLowerCase(),
-            unit_amount: amount,
-            product_data: {
-              name: catalog.name,
-              metadata: { courseId: catalog.courseId },
-            },
-          },
-        },
-      ];
-
-  const metadata = {
-    courseId: catalog.courseId,
+  const metadata = stripeCheckoutMetadata({
+    courseId: offer.courseId,
     studentId,
-    instructorId: catalog.instructorId,
-    currency,
-    amount: String(amount),
-    orderId: order.id,
-  };
+    instructorId: offer.instructorId,
+    courseSlug: offer.courseSlug,
+    currency: offer.currency,
+    amount: offer.amount,
+    extra: { orderId: order.id },
+  });
 
+  const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.create(
     {
       mode: mode === "subscription" ? "subscription" : "payment",
-      line_items: lineItems,
+      line_items: [buildDynamicPriceDataLineItem(offer, mode)],
       customer_email: email.includes("@") && !email.endsWith(".invalid") ? email : undefined,
       billing_address_collection: "required",
       phone_number_collection: { enabled: true },
@@ -258,19 +224,10 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
         mode === "payment"
           ? {
               metadata,
-              ...(catalog.instructorId
-                ? {
-                    transfer_group: `instructor:${catalog.instructorId}`,
-                  }
-                : {}),
+              ...(offer.instructorId ? { transfer_group: `instructor:${offer.instructorId}` } : {}),
             }
           : undefined,
-      subscription_data:
-        mode === "subscription"
-          ? {
-              metadata,
-            }
-          : undefined,
+      subscription_data: mode === "subscription" ? { metadata } : undefined,
       integration_identifier: integrationIdentifier(),
       locale: "auto",
     },
@@ -289,8 +246,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     status: "requires_payment",
     methodBrand: "card",
     paymentMethodSummary: "Stripe Checkout",
-    amount,
-    currency,
+    amount: offer.amount,
+    currency: offer.currency,
     clientSecret: null,
     checkoutUrl: session.url,
     webhookVerified: false,
@@ -300,6 +257,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
       sessionId: session.id,
       status: session.status,
       apiVersion: STRIPE_API_VERSION,
+      priceData: true,
     },
     createdAt: stamp,
     updatedAt: stamp,
@@ -307,6 +265,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     checkoutSessionId: session.id,
     stripeCustomerId: typeof session.customer === "string" ? session.customer : null,
     country: input.country ?? null,
+    studentId,
+    courseId: offer.courseId,
   };
 
   writePaymentsDb((db) => {
@@ -333,11 +293,11 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     stripeConnectAccountId: null,
     mode,
     status: "pending",
-    courseId: catalog.courseId,
+    courseId: offer.courseId,
     studentId,
-    instructorId: catalog.instructorId,
-    currency,
-    amount,
+    instructorId: offer.instructorId,
+    currency: offer.currency,
+    amount: offer.amount,
     enrollmentId: enrollment?.id ?? null,
     orderId: order.id,
     paymentId: payment.id,
@@ -358,22 +318,24 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     entityId: order.id,
     metadata: {
       stripe: true,
-      courseId: catalog.courseId,
-      currency,
-      amount,
+      courseId: offer.courseId,
+      courseSlug: offer.courseSlug,
+      currency: offer.currency,
+      amount: offer.amount,
       mode,
+      priceData: true,
     },
   });
   logStripeEvent({
-    message: "Created hosted Checkout Session",
+    message: "Created hosted Checkout Session from AviatorPass course",
     path: "/api/payments/create-checkout-session",
     userId: studentId === GUEST_STUDENT_ID ? null : studentId,
     details: {
       sessionId: session.id,
       orderId: order.id,
-      courseId: catalog.courseId,
-      currency,
-      amount,
+      courseId: offer.courseId,
+      currency: offer.currency,
+      amount: offer.amount,
       mode,
     },
   });
