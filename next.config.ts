@@ -107,8 +107,26 @@ const nextConfig: NextConfig = {
     }
     return [
       {
-        source: "/(.*)",
+        source: "/((?!api/).*)",
         headers: securityHeaders,
+      },
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Cache-Control", value: "no-store" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+          ...(isProd
+            ? [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains; preload",
+                },
+              ]
+            : []),
+        ],
       },
       {
         source: "/_next/static/:path*",

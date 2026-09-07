@@ -489,3 +489,44 @@ describe("Zoom viewer policy", () => {
     expect(result.encryptedToken).toMatch(/^[a-f0-9]{64}$/);
   });
 });
+
+describe("Zoom webhook HTTP surface", () => {
+  it("returns 405 JSON for GET so browsers never bounce to the homepage", async () => {
+    const { GET, HEAD } = await import("@/app/api/integrations/zoom/webhook/route");
+    const get = GET();
+    expect(get.status).toBe(405);
+    expect(get.headers.get("Allow")).toBe("POST, OPTIONS");
+    expect(get.headers.get("Cache-Control")).toBe("no-store");
+    await expect(get.json()).resolves.toEqual({
+      error: "Method not allowed",
+      allowed: ["POST", "OPTIONS"],
+    });
+    const head = HEAD();
+    expect(head.status).toBe(405);
+    expect(head.headers.get("Allow")).toBe("POST, OPTIONS");
+  });
+
+  it("answers OPTIONS with 204", async () => {
+    const { OPTIONS } = await import("@/app/api/integrations/zoom/webhook/route");
+    const res = OPTIONS();
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Allow")).toBe("POST, OPTIONS");
+  });
+
+  it("answers Zoom URL validation without a signature", async () => {
+    const { POST } = await import("@/app/api/integrations/zoom/webhook/route");
+    const request = new Request("https://www.aviatorpass.com/api/integrations/zoom/webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "endpoint.url_validation",
+        payload: { plainToken: "plain-token" },
+      }),
+    });
+    const res = await POST(request);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { plainToken: string; encryptedToken: string };
+    expect(json.plainToken).toBe("plain-token");
+    expect(json.encryptedToken).toMatch(/^[a-f0-9]{64}$/);
+  });
+});

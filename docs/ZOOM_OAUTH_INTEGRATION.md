@@ -71,14 +71,16 @@ JSON mode uses `.data/aep-zoom.json` with the same fields.
 
 ## 4. API routes
 
-| Method | Path                                | Auth                         | Purpose                                            |
-| ------ | ----------------------------------- | ---------------------------- | -------------------------------------------------- |
-| GET    | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                             |
-| GET    | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard |
-| GET    | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens)                      |
-| POST   | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                        |
-| POST   | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status            |
-| POST   | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                 |
+| Method  | Path                                | Auth                         | Purpose                                                      |
+| ------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------ |
+| GET     | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                                       |
+| GET     | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard           |
+| GET     | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens)                                |
+| POST    | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                                  |
+| POST    | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status                      |
+| GET     | `/api/integrations/zoom/webhook`    | None                         | `405` JSON (reachability; Zoom/browser must not land on `/`) |
+| OPTIONS | `/api/integrations/zoom/webhook`    | None                         | `204` with `Allow: POST, OPTIONS`                            |
+| POST    | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                           |
 
 Existing: `GET /api/zoom/status` (platform S2S, Super Admin), `/api/classes/:id/join` (student/instructor join info).
 

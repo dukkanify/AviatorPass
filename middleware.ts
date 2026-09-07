@@ -92,6 +92,12 @@ async function isMaintenanceEnabled(request: NextRequest): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // API routes must never be aliased or bounced to marketing pages.
+  // Zoom/Stripe webhooks (and every other /api/* handler) fall through to the App Router.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   // Friendly aliases — never leave visitors on a dead path.
   const aliases: Record<string, string> = {
     "/course": "/courses",
