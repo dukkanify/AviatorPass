@@ -4,4 +4,6 @@ export { Sidebar } from "./sidebar";
 export { Breadcrumb } from "./breadcrumb";
 export { DashboardShell } from "./dashboard-shell";
 export { RoleShell } from "./role-shell";
+export { StudentLearningShell } from "./student-learning-shell";
+
 export { PublicLayout, AuthLayout, BlankLayout, SystemLayout } from "./app-layouts";
