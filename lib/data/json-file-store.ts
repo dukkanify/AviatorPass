@@ -23,7 +23,7 @@ import {
 const rawMemory = new Map<string, string>();
 const parsedMemory = new Map<string, unknown>();
 
-let hydratedFromPostgres = false;
+const hydratedKeys = new Set<string>();
 let tableReady = false;
 
 export function dataDir(): string {
@@ -100,18 +100,20 @@ function ensureTable(): void {
   tableReady = true;
 }
 
-function hydrateFromPostgres(): void {
-  if (hydratedFromPostgres || !postgresStoreEnabled()) return;
+function hydrateKeyFromPostgres(filePath: string): void {
+  if (!postgresStoreEnabled()) return;
+  const key = storeKeyFromPath(filePath);
+  if (hydratedKeys.has(key)) return;
   ensureTable();
-  const rows = neonSql<{ key: string; value: unknown }>("SELECT key, value FROM aep_json_store");
-  for (const row of rows) {
-    if (!row?.key) continue;
-    const filePath = path.join(dataDir(), row.key);
-    const raw = JSON.stringify(row.value);
-    rawMemory.set(filePath, raw);
+  const rows = neonSql<{ value: unknown }>("SELECT value FROM aep_json_store WHERE key = $1", [
+    key,
+  ]);
+  const row = rows[0];
+  if (row && row.value !== undefined) {
+    rawMemory.set(filePath, JSON.stringify(row.value));
     parsedMemory.set(filePath, row.value);
   }
-  hydratedFromPostgres = true;
+  hydratedKeys.add(key);
 }
 
 function persistToPostgres(filePath: string, value: unknown): void {
@@ -148,7 +150,7 @@ function writeLocalFile(filePath: string, raw: string): boolean {
 export function readJsonFile<T>(filePath: string, fallback: () => T): T {
   if (postgresStoreEnabled()) {
     try {
-      hydrateFromPostgres();
+      hydrateKeyFromPostgres(filePath);
     } catch (error) {
       if (requireDurableWrites()) {
         throw error instanceof PostgresStoreError
@@ -222,12 +224,13 @@ export function clearJsonFileCache(filePath?: string): void {
   if (!filePath) {
     rawMemory.clear();
     parsedMemory.clear();
-    hydratedFromPostgres = false;
+    hydratedKeys.clear();
     tableReady = false;
     return;
   }
   rawMemory.delete(filePath);
   parsedMemory.delete(filePath);
+  hydratedKeys.delete(storeKeyFromPath(filePath));
 }
 
 /** Test helper — force the next read to reload from Postgres. */
