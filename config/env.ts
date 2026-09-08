@@ -55,6 +55,15 @@ const serverEnvSchema = z.object({
   TAMARA_API_TOKEN: z.string().optional(),
   TAMARA_BASE_URL: z.string().url().optional(),
   TAMARA_NOTIFICATION_TOKEN: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_USERNAME: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -122,6 +131,15 @@ export function getServerEnv() {
     TAMARA_API_TOKEN: emptyToUndef(process.env.TAMARA_API_TOKEN),
     TAMARA_BASE_URL: emptyToUndef(process.env.TAMARA_BASE_URL),
     TAMARA_NOTIFICATION_TOKEN: emptyToUndef(process.env.TAMARA_NOTIFICATION_TOKEN),
+    SMTP_HOST: emptyToUndef(process.env.SMTP_HOST),
+    SMTP_PORT: emptyToUndef(process.env.SMTP_PORT),
+    SMTP_USER: emptyToUndef(process.env.SMTP_USER),
+    SMTP_USERNAME: emptyToUndef(process.env.SMTP_USERNAME),
+    SMTP_PASSWORD: emptyToUndef(process.env.SMTP_PASSWORD),
+    SMTP_FROM: emptyToUndef(process.env.SMTP_FROM),
+    SMTP_FROM_NAME: emptyToUndef(process.env.SMTP_FROM_NAME),
+    EMAIL_FROM: emptyToUndef(process.env.EMAIL_FROM),
+    RESEND_API_KEY: emptyToUndef(process.env.RESEND_API_KEY),
   });
 
   if (!result.success) {

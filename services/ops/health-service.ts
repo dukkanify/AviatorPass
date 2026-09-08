@@ -3,14 +3,14 @@
  * Includes a short in-process cache for deep snapshots (performance).
  */
 
-import { existsSync, accessSync, constants, readdirSync } from "fs";
-import path from "path";
-
 import { publicEnv, isSupabaseConfigured, getServerEnv } from "@/config/env";
+import { getJsonStoreStatus } from "@/lib/data/json-file-store";
+import { isEmailDeliveryConfigured } from "@/services/email/mailer";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getActivityMonitoring } from "@/services/settings/monitoring";
 import { listBackups } from "@/services/ops/backup-service";
 import { listOpsLogs } from "@/services/ops/logging-service";
+import { getZoomCredentialInventory } from "@/services/classes/zoom-service";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 
@@ -55,27 +55,23 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
     latencyMs: app.ms,
   });
 
-  const dataDir = path.join(process.cwd(), ".data");
-  try {
-    accessSync(dataDir, constants.R_OK | constants.W_OK);
-    const files = existsSync(dataDir)
-      ? readdirSync(dataDir).filter((f) => f.endsWith(".json")).length
-      : 0;
-    checks.push({
-      id: "database",
-      label: "Data store",
-      status: files > 0 ? "pass" : "warn",
-      detail: existsSync(dataDir) ? `${files} JSON stores readable` : "Missing .data directory",
-    });
-  } catch {
-    // Serverless / read-only hosts still serve via in-memory JSON fallback.
-    checks.push({
-      id: "database",
-      label: "Data store",
-      status: "warn",
-      detail: "Data directory not writable — using in-memory store",
-    });
-  }
+  const store = timed(() => getJsonStoreStatus());
+  const productionRuntime =
+    publicEnv.NEXT_PUBLIC_APP_ENV === "production" || process.env.VERCEL_ENV === "production";
+  const storeStatus: CheckStatus = store.value.writable
+    ? "pass"
+    : productionRuntime
+      ? "fail"
+      : store.value.backend === "memory"
+        ? "warn"
+        : "pass";
+  checks.push({
+    id: "database",
+    label: "Data store",
+    status: storeStatus,
+    detail: store.value.detail,
+    latencyMs: store.ms,
+  });
 
   const settings = getPlatformSettings();
   checks.push({
@@ -85,23 +81,41 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
     detail: `Provider ${settings.storage.provider} · uploads under public/uploads`,
   });
 
+  const emailConfigured = isEmailDeliveryConfigured();
   checks.push({
     id: "email_queue",
     label: "Email queue",
-    status: settings.email.smtpHost || settings.email.provider !== "smtp" ? "pass" : "warn",
-    detail: settings.email.smtpHost
-      ? `SMTP ${settings.email.smtpHost}`
-      : "SMTP not configured (mock/dev OK)",
+    status: emailConfigured ? "pass" : productionRuntime ? "fail" : "warn",
+    detail: emailConfigured
+      ? settings.email.smtpHost
+        ? `SMTP ${settings.email.smtpHost}`
+        : process.env.RESEND_API_KEY
+          ? "Resend API configured"
+          : "Email delivery configured"
+      : "SMTP/Resend not configured — emails stay in the outbox",
   });
 
+  const zoom = getZoomCredentialInventory();
+  const s2sReady = zoom.accountId && zoom.clientId && zoom.clientSecret;
+  const zoomPresent = [zoom.accountId, zoom.clientId, zoom.clientSecret, zoom.webhookSecret].filter(
+    Boolean,
+  ).length;
   checks.push({
     id: "zoom",
     label: "Zoom API",
-    status: settings.zoom?.credentialsConfigured || process.env.ZOOM_CLIENT_ID ? "pass" : "warn",
-    detail:
-      settings.zoom?.credentialsConfigured || process.env.ZOOM_CLIENT_ID
-        ? "Configured"
-        : "Mock mode — credentials not set",
+    status: s2sReady ? "pass" : productionRuntime ? "fail" : "warn",
+    detail: s2sReady
+      ? "Server-to-Server OAuth ready (Account ID + Client ID + Client Secret)"
+      : `S2S incomplete — present: ${
+          [
+            zoom.accountId ? "Account ID" : null,
+            zoom.clientId ? "Client ID" : null,
+            zoom.clientSecret ? "Client Secret" : null,
+            zoom.webhookSecret ? "Webhook Secret" : null,
+          ]
+            .filter(Boolean)
+            .join(", ") || "none"
+        } (${zoomPresent}/4)`,
   });
 
   checks.push({

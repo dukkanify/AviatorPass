@@ -6,6 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import QRCode from "qrcode";
 
 import { generateId } from "@/lib/security/crypto";
+import { publicAppUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { siteConfig } from "@/config/site";
 import { logActivity } from "@/services/auth/activity-log";
@@ -39,8 +40,7 @@ function signCertificatePayload(payload: string): string {
 }
 
 function publicVerifyUrl(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/verify/certificate?code=${encodeURIComponent(code)}`;
+  return publicAppUrl(`/verify/certificate?code=${encodeURIComponent(code)}`);
 }
 
 export function listCertificates(filters?: {

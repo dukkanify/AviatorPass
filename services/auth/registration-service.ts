@@ -79,7 +79,7 @@ export async function startEnterpriseRegistration(
     demoOtp?: string;
     expiresInMinutes: number;
     resendAvailableInSeconds: number;
-    emailDelivery?: "smtp" | "outbox" | "failed";
+    emailDelivery?: "smtp" | "resend" | "outbox" | "failed";
     emailOutboxId?: string;
   }>
 > {
@@ -220,7 +220,7 @@ export async function resendRegistrationOtp(
     demoOtp?: string;
     expiresInMinutes: number;
     resendAvailableInSeconds: number;
-    emailDelivery?: "smtp" | "outbox" | "failed";
+    emailDelivery?: "smtp" | "resend" | "outbox" | "failed";
     emailOutboxId?: string;
   }>
 > {

@@ -9,7 +9,7 @@ import path from "path";
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import { generateId } from "@/lib/security/crypto";
 
-export type EmailDeliveryMode = "smtp" | "outbox" | "failed";
+export type EmailDeliveryMode = "smtp" | "resend" | "outbox" | "failed";
 
 export interface OutboundEmailRecord {
   id: string;

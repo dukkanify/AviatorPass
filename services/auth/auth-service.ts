@@ -282,7 +282,7 @@ export async function requestOtp(input: {
     demoOtp?: string;
     expiresInMinutes: number;
     resendAvailableInSeconds?: number;
-    emailDelivery?: "smtp" | "outbox" | "failed";
+    emailDelivery?: "smtp" | "resend" | "outbox" | "failed";
     emailOutboxId?: string;
   }>
 > {

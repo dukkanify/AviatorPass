@@ -35,7 +35,8 @@
     "verify:isolation": "node scripts/verify-product-isolation.mjs",
     "db:generate": "prisma generate --schema=database/prisma/schema.prisma",
     "db:push": "prisma db push --schema=database/prisma/schema.prisma",
-    "db:studio": "prisma studio --schema=database/prisma/schema.prisma"
+    "db:studio": "prisma studio --schema=database/prisma/schema.prisma",
+    "db:store-import": "node scripts/json-store-import.mjs"
   },
   "keywords": [
     "aviation",
@@ -50,7 +51,7 @@
     "type": "git",
     "url": "git+https://github.com/dukkanify/AviatorPass.git"
   },
-  "homepage": "https://aviatorpass.vercel.app",
+  "homepage": "https://www.aviatorpass.com",
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",

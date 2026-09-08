@@ -4,6 +4,7 @@
 
 import Stripe from "stripe";
 
+import { getBaseUrl } from "@/lib/site-origin";
 import { PaymentError } from "@/services/payments/access";
 import {
   STRIPE_API_VERSION,
@@ -37,7 +38,7 @@ export function getStripeClient(): Stripe {
     typescript: true,
     appInfo: {
       name: "AviatorPass",
-      url: process.env.NEXT_PUBLIC_APP_URL,
+      url: getBaseUrl(),
     },
   });
 }

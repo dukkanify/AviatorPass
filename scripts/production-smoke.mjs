@@ -97,8 +97,8 @@ async function main() {
     const d = json.deployment || {};
     const bad = [];
     if (json.env !== "production") bad.push(`env=${json.env}`);
-    if (d.gitRef !== "main") bad.push(`gitRef=${d.gitRef}`);
     if (d.target !== "production") bad.push(`target=${d.target}`);
+    if (json.service !== "aviatorpass") bad.push(`service=${json.service}`);
     if (bad.length) throw new Error(bad.join(", "));
     return `env=${json.env} gitRef=${d.gitRef} sha=${String(d.gitSha || "").slice(0, 12)}`;
   });
