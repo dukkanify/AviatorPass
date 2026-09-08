@@ -50,7 +50,7 @@ If `TAMARA_BASE_URL` is omitted, AviatorPass uses sandbox unless `NEXT_PUBLIC_AP
 4. Tamara returns to `/payment/success` or `/payment/cancel`.
 5. The webhook is the source of truth for activation.
 
-Tamara is available when `TAMARA_API_TOKEN` is set and the billing country is SA, AE, BH, KW, or OM.
+Tamara is available when `TAMARA_API_TOKEN` is set and the billing country is the United Arab Emirates or Saudi Arabia. Other countries hide Tamara automatically.
 
 ## Webhook events
 
@@ -70,7 +70,7 @@ On **Approved**, AviatorPass authorises (and captures) the Tamara order so it do
 ## Testing steps
 
 1. Set `TAMARA_API_TOKEN` and `TAMARA_BASE_URL=https://api-sandbox.tamara.co`.
-2. Open `/checkout`, choose country SA/AE/BH/KW/OM, select Tamara, submit. Confirm the API returns `checkout_url` and the browser redirects to Tamara.
+2. Open `/checkout`, choose country AE or SA, select Tamara, submit. Confirm the API returns `checkout_url` and the browser redirects to Tamara.
 3. POST a signed `order_approved` payload to `/api/payments/tamara/webhook`. Confirm enrolment, invoice, email outbox, and in-app notification.
 4. Replay the same event ID — response `duplicate: true`, no second enrolment.
 5. POST `order_declined` — payment failed, no account/enrolment.

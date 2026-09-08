@@ -137,10 +137,16 @@ describe("Taly checkout creation", () => {
     expect(quote.methods.find((m) => m.id === "taly")?.available).toBe(false);
   });
 
-  it("offers Taly for any AviatorPass country when configured", () => {
-    const quote = quoteGuestCheckout(undefined, "US");
-    expect(quote.methods.find((m) => m.id === "taly")?.available).toBe(true);
-    expect(quote.methods.find((m) => m.id === "taly")?.comingSoon).toBe(false);
+  it("offers Taly only for Kuwait when configured", () => {
+    const kuwait = quoteGuestCheckout(undefined, "KW");
+    expect(kuwait.methods.find((m) => m.id === "taly")?.available).toBe(true);
+    expect(kuwait.methods.find((m) => m.id === "taly")?.comingSoon).toBe(false);
+    expect(
+      quoteGuestCheckout(undefined, "US").methods.find((m) => m.id === "taly"),
+    ).toBeUndefined();
+    expect(
+      quoteGuestCheckout(undefined, "AE").methods.find((m) => m.id === "taly"),
+    ).toBeUndefined();
   });
 
   it("exposes POST /api/payments/taly/create-order", async () => {

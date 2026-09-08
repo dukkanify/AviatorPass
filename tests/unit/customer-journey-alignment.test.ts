@@ -49,11 +49,13 @@ describe("customer journey alignment", () => {
     expect(`${instructor?.firstName} ${instructor?.lastName}`).toBe("Khalid Al Rashid");
   });
 
-  it("maps Tabby to Kuwait and Tamara to UAE with installment capacity", () => {
+  it("maps Taly to Kuwait and Tamara to UAE/SA with installment capacity", () => {
     const kw = getRegionalPaymentRule("KW");
     const ae = getRegionalPaymentRule("AE");
-    expect(kw.bnplProviders).toEqual(["tabby"]);
+    const sa = getRegionalPaymentRule("SA");
+    expect(kw.bnplProviders).toEqual(["taly"]);
     expect(ae.bnplProviders).toEqual(["tamara"]);
+    expect(sa.bnplProviders).toEqual(["tamara"]);
     expect(kw.maxInstallments).toBeGreaterThanOrEqual(6);
     expect(ae.maxInstallments).toBeGreaterThanOrEqual(6);
   });
