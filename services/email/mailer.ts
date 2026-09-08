@@ -1,13 +1,16 @@
 /**
- * Outbound email mailer — SMTP via nodemailer when configured,
- * durable outbox fallback so notifications still "work" in demo/staging.
+ * Outbound email mailer — Resend, then SMTP, then durable outbox.
+ * Failed production sends are queued for automatic retry.
  */
 
 import nodemailer from "nodemailer";
 
 import { getPlatformSettings } from "@/services/settings/settings-service";
+import { logEmailEvent } from "@/services/email/email-log";
 import {
+  isRetryableEmailError,
   recordOutboundEmail,
+  retryBackoffIso,
   type EmailDeliveryMode,
   type OutboundEmailRecord,
 } from "@/services/email/outbox";
@@ -32,9 +35,6 @@ export interface SendEmailResult {
 
 function smtpConfigured(): boolean {
   const email = getPlatformSettings().email;
-  if (email.provider !== "smtp") {
-    return false;
-  }
   return Boolean(email.smtpHost?.trim() && email.senderEmail?.trim());
 }
 
@@ -44,6 +44,12 @@ function resendConfigured(): boolean {
 
 export function isEmailDeliveryConfigured(): boolean {
   return smtpConfigured() || resendConfigured();
+}
+
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_APP_ENV === "production" || process.env.VERCEL_ENV === "production"
+  );
 }
 
 async function sendViaResend(input: {
@@ -71,11 +77,26 @@ async function sendViaResend(input: {
       text: input.text,
     }),
   });
-  const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+  const json = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    message?: string;
+    name?: string;
+  };
   if (!res.ok) {
-    throw new Error(json.message || `Resend HTTP ${res.status}`);
+    throw new Error(json.message || json.name || `Resend HTTP ${res.status}`);
   }
   return json;
+}
+
+function failedRecordFields(error: string, isRetry = false) {
+  const retryable = isRetryableEmailError(error) && !isRetry;
+  return {
+    attempts: 1,
+    maxAttempts: 5,
+    queueStatus: retryable ? ("queued" as const) : ("dead" as const),
+    nextRetryAt: retryable ? retryBackoffIso(1) : null,
+    error,
+  };
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
@@ -84,6 +105,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const to = input.to.trim();
   const from = `${email.senderName || settings.general.platformName} <${email.senderEmail}>`;
   const replyTo = email.replyToEmail || email.senderEmail;
+  const isRetry = Boolean(input.meta?.retryOf);
 
   if (!to) {
     const record = recordOutboundEmail({
@@ -95,9 +117,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       replyTo,
       provider: email.provider,
       mode: "failed",
-      error: "Missing recipient",
+      ...failedRecordFields("Missing recipient", isRetry),
       meta: input.meta,
     });
+    logEmailEvent("email_failed", { to: "", subject: input.subject, error: "Missing recipient" });
     return {
       success: false,
       delivered: false,
@@ -108,7 +131,6 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     };
   }
 
-  // Respect global notification kill-switch except for auth OTP / system mail.
   const isSystem = Boolean(
     input.meta?.system || input.meta?.kind === "test" || input.meta?.kind === "otp",
   );
@@ -122,8 +144,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       replyTo,
       provider: email.provider,
       mode: "failed",
-      error: "Email notifications disabled in platform settings",
+      ...failedRecordFields("Email notifications disabled in platform settings", isRetry),
       meta: input.meta,
+    });
+    logEmailEvent("email_failed", {
+      to,
+      subject: input.subject,
+      error: "Email notifications disabled in platform settings",
     });
     return {
       success: false,
@@ -135,7 +162,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     };
   }
 
-  if (resendConfigured() && !smtpConfigured()) {
+  const errors: string[] = [];
+
+  if (resendConfigured()) {
     try {
       const info = await sendViaResend({
         from,
@@ -155,8 +184,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         provider: "resend",
         mode: "resend",
         error: null,
+        queueStatus: "none",
         meta: { ...(input.meta ?? {}), resendId: info.id },
       });
+      logEmailEvent(
+        "email_sent",
+        { to, subject: input.subject, mode: "resend", outboxId: record.id, resendId: info.id },
+        typeof input.meta?.userId === "string" ? input.meta.userId : null,
+      );
       return {
         success: true,
         delivered: true,
@@ -167,27 +202,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         record,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Resend send failed";
-      const record = recordOutboundEmail({
-        to,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-        from,
-        replyTo,
-        provider: "resend",
-        mode: "failed",
-        error: message,
-        meta: input.meta,
-      });
-      return {
-        success: false,
-        delivered: false,
-        mode: "failed",
-        outboxId: record.id,
-        error: message,
-        record,
-      };
+      errors.push(error instanceof Error ? error.message : "Resend send failed");
     }
   }
 
@@ -228,9 +243,15 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         provider: email.provider,
         mode: "smtp",
         error: null,
+        queueStatus: "none",
         meta: { ...(input.meta ?? {}), smtpMessageId: info.messageId },
       });
-
+      logEmailEvent("email_sent", {
+        to,
+        subject: input.subject,
+        mode: "smtp",
+        outboxId: record.id,
+      });
       return {
         success: true,
         delivered: true,
@@ -241,31 +262,67 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         record,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "SMTP send failed";
-      const record = recordOutboundEmail({
-        to,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-        from,
-        replyTo,
-        provider: email.provider,
-        mode: "failed",
-        error: message,
-        meta: input.meta,
-      });
-      return {
-        success: false,
-        delivered: false,
-        mode: "failed",
-        outboxId: record.id,
-        error: message,
-        record,
-      };
+      errors.push(error instanceof Error ? error.message : "SMTP send failed");
     }
   }
 
-  // Demo / staging without SMTP: durable outbox so flows are testable.
+  if (errors.length) {
+    const message = errors.join(" · ");
+    const record = recordOutboundEmail({
+      to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      from,
+      replyTo,
+      provider: resendConfigured() ? "resend" : email.provider,
+      mode: "failed",
+      ...failedRecordFields(message, isRetry),
+      meta: input.meta,
+    });
+    logEmailEvent(
+      "email_failed",
+      { to, subject: input.subject, error: message, outboxId: record.id, queued: record.queueStatus },
+      typeof input.meta?.userId === "string" ? input.meta.userId : null,
+    );
+    if (record.queueStatus === "queued") {
+      logEmailEvent("email_queued", { outboxId: record.id, nextRetryAt: record.nextRetryAt });
+    }
+    return {
+      success: false,
+      delivered: false,
+      mode: "failed",
+      outboxId: record.id,
+      error: message,
+      record,
+    };
+  }
+
+  if (isProductionRuntime()) {
+    const message = "SMTP/Resend not configured — production cannot store OTP in the outbox";
+    const record = recordOutboundEmail({
+      to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      from,
+      replyTo,
+      provider: email.provider,
+      mode: "failed",
+      ...failedRecordFields(message, isRetry),
+      meta: input.meta,
+    });
+    logEmailEvent("email_failed", { to, subject: input.subject, error: message });
+    return {
+      success: false,
+      delivered: false,
+      mode: "failed",
+      outboxId: record.id,
+      error: message,
+      record,
+    };
+  }
+
   const record = recordOutboundEmail({
     to,
     subject: input.subject,
@@ -276,15 +333,15 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     provider: email.provider,
     mode: "outbox",
     error: null,
+    queueStatus: "none",
     meta: {
       ...(input.meta ?? {}),
-      note: "Stored in outbox — configure SMTP in Platform Settings to deliver to inboxes",
+      note: "Stored in outbox — configure SMTP or Resend to deliver to inboxes",
     },
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    console.info(`[email:outbox] → ${to} | ${input.subject} | id=${record.id}`);
-  }
+  console.info(`[email:outbox] → ${to} | ${input.subject} | id=${record.id}`);
+  logEmailEvent("email_sent", { to, subject: input.subject, mode: "outbox", outboxId: record.id });
 
   return {
     success: true,

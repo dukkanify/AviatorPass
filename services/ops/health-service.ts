@@ -6,6 +6,7 @@
 import { publicEnv, isSupabaseConfigured, getServerEnv } from "@/config/env";
 import { getJsonStoreStatus } from "@/lib/data/json-file-store";
 import { isEmailDeliveryConfigured } from "@/services/email/mailer";
+import { listOutboundEmails } from "@/services/email/outbox";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getActivityMonitoring } from "@/services/settings/monitoring";
 import { listBackups } from "@/services/ops/backup-service";
@@ -82,17 +83,23 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
   });
 
   const emailConfigured = isEmailDeliveryConfigured();
+  const lastFailed = listOutboundEmails(20).find((m) => m.mode === "failed");
+  const domainUnverified = Boolean(
+    lastFailed?.error && /domain is not verified/i.test(lastFailed.error),
+  );
   checks.push({
     id: "email_queue",
     label: "Email queue",
-    status: emailConfigured ? "pass" : productionRuntime ? "fail" : "warn",
-    detail: emailConfigured
-      ? settings.email.smtpHost
-        ? `SMTP ${settings.email.smtpHost}`
-        : process.env.RESEND_API_KEY
-          ? "Resend API configured"
-          : "Email delivery configured"
-      : "SMTP/Resend not configured — emails stay in the outbox",
+    status: emailConfigured ? (domainUnverified ? "fail" : "pass") : productionRuntime ? "fail" : "warn",
+    detail: domainUnverified
+      ? lastFailed?.error || "Resend domain is not verified"
+      : emailConfigured
+        ? settings.email.smtpHost
+          ? `SMTP ${settings.email.smtpHost}`
+          : process.env.RESEND_API_KEY
+            ? `Resend API configured · from ${settings.email.senderEmail}`
+            : "Email delivery configured"
+        : "SMTP/Resend not configured — emails stay in the outbox",
   });
 
   const zoom = getZoomCredentialInventory();

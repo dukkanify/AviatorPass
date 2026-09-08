@@ -52,9 +52,9 @@ export async function POST(request: Request) {
         previewHtml: template.html,
         configured,
         message: result.delivered
-          ? `Test email delivered to ${to} via SMTP.`
+          ? `Test email delivered to ${to} via ${result.mode}.`
           : result.mode === "outbox"
-            ? `Test email saved to outbox (${result.outboxId}). Configure SMTP in Email settings to deliver to real inboxes.`
+            ? `Test email saved to outbox (${result.outboxId}). Configure Resend or SMTP to deliver to real inboxes.`
             : result.error || "Failed to send test email.",
         provider: settings.email.provider,
         error: result.error,

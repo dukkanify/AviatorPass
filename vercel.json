@@ -1,5 +1,11 @@
 {
   "ignoreCommand": "exit 1",
+  "crons": [
+    {
+      "path": "/api/cron/email-queue",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

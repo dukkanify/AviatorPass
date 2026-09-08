@@ -209,6 +209,74 @@ export function renderAutomationTemplate(
           <p>${cta}</p>`,
       };
       break;
+    case "enrollment":
+      payload = {
+        title: subjectOverride ?? "You are enrolled",
+        preheader: title || detail,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p>You are enrolled${title ? ` in <strong>${title}</strong>` : ""}.</p>
+          <p>${detail || "Open My Courses to start."}</p>`,
+      };
+      break;
+    case "refund":
+      payload = {
+        title: subjectOverride ?? "Refund processed",
+        preheader: amount || detail,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p>A refund has been issued.</p>
+          ${amount ? `<p>Amount: <strong>${amount}</strong></p>` : ""}
+          ${reference ? `<p>Reference: ${reference}</p>` : ""}
+          <p>${detail}</p>`,
+      };
+      break;
+    case "password_reset":
+      payload = {
+        title: subjectOverride ?? "Password reset",
+        preheader: "A password reset was requested",
+        bodyHtml: `<p>Hello ${name},</p>
+          <p>A password reset was requested for your AviatorPass account.</p>
+          <p>${detail || "Use the one-time verification code to choose a new password."}</p>`,
+      };
+      break;
+    case "purchase":
+      payload = {
+        title: subjectOverride ?? "Purchase confirmed",
+        preheader: title || amount,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p>Your purchase${title ? ` of <strong>${title}</strong>` : ""} is confirmed.</p>
+          ${amount ? `<p>Amount: <strong>${amount}</strong></p>` : ""}
+          ${reference ? `<p>Order: ${reference}</p>` : ""}
+          <p>${detail}</p>`,
+      };
+      break;
+    case "class_started":
+      payload = {
+        title: subjectOverride ?? "Class started",
+        preheader: title,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p><strong>${title || "Your live class"}</strong> has started.</p>
+          ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : ""}
+          <p>${detail}</p>`,
+      };
+      break;
+    case "class_finished":
+      payload = {
+        title: subjectOverride ?? "Class finished",
+        preheader: title,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p><strong>${title || "Your live class"}</strong> has finished.</p>
+          <p>${detail || "Review recordings and homework in AviatorPass."}</p>`,
+      };
+      break;
+    case "course_published":
+      payload = {
+        title: subjectOverride ?? "Course published",
+        preheader: title,
+        bodyHtml: `<p>Hello ${name},</p>
+          <p>${title ? `<strong>${title}</strong> is now published.` : "A course is now published."}</p>
+          <p>${detail}</p>`,
+      };
+      break;
     default:
       payload = {
         title: subjectOverride ?? "AviatorPass notification",

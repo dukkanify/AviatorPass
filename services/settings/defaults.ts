@@ -61,8 +61,9 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     smtpPassword: "",
     encryption: "tls",
     senderName: "Aviator Pass",
-    senderEmail: siteStatic.supportEmail,
+    senderEmail: "noreply@aviatorpass.com",
     replyToEmail: siteStatic.supportEmail,
+    adminNotificationEmail: "",
   },
   notifications: {
     emailNotifications: true,

@@ -46,7 +46,7 @@ Supabase vars may stay empty for JSON-store mode.
 
 | Integration          | Variables                                                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Email / OTP delivery | Provider-specific (wire via settings + server secrets)                                                                                                              |
+| Email / OTP delivery | `RESEND_API_KEY`, `EMAIL_FROM=AviatorPass <noreply@aviatorpass.com>`, `EMAIL_FROM_NAME`, `ADMIN_NOTIFICATION_EMAIL`. **Verify `aviatorpass.com` in Resend + DNS (see `docs/EMAIL.md`)** |
 | Zoom                 | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`, `ZOOM_BASE_URL`, `ZOOM_SECRET_TOKEN`, `ZOOM_WEBHOOK_SECRET`, optional `ZOOM_ACCOUNT_ID` (S2S fallback) |
 | Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                                                                                  |
 | Tamara               | `TAMARA_API_TOKEN`, `TAMARA_BASE_URL` (`https://api.tamara.co` in production), optional `TAMARA_NOTIFICATION_TOKEN`                                                 |
