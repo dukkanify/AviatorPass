@@ -10,6 +10,7 @@ import { isLikelyCrawler } from "@/lib/http/crawler";
 import { PaymentError } from "@/services/payments/access";
 import { startHostedCheckout } from "@/services/payments/purchase-first-service";
 import { isStripeConfigured } from "@/services/payments/stripe-client";
+import { isTamaraConfigured } from "@/services/payments/tamara-config";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +47,9 @@ async function readSearch(searchParams: PageProps["searchParams"]): Promise<Chec
 export default async function CheckoutPage({ searchParams }: PageProps) {
   const params = await readSearch(searchParams);
   const hosted = isStripeConfigured();
+  const showProviderChooser = !hosted || isTamaraConfigured();
 
-  if (!hosted) {
+  if (showProviderChooser) {
     return (
       <Suspense fallback={<LoadingState label="Opening secure checkout..." />}>
         <GuestCheckoutView />
