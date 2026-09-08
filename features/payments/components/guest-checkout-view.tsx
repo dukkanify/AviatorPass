@@ -365,8 +365,8 @@ function GuestCheckoutView() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Pay with Stripe (cards and wallets), Tamara, or Taly. Apple Pay and Google Pay appear
-              when the processor enables wallets. Tabby and MyFatoorah stay future-ready.
+              Stripe is available in every country. Tamara appears for the United Arab Emirates and
+              Saudi Arabia. Taly appears for Kuwait. Unsupported gateways are hidden.
             </p>
           </div>
 

@@ -12,6 +12,7 @@ import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automati
 import { assertCanCheckout, assertOwnOrder, PaymentError } from "@/services/payments/access";
 import { getProduct, validateCoupon } from "@/services/payments/catalog-service";
 import { getPaymentGateway } from "@/services/payments/gateway";
+import { assertPaymentMethodAllowedForCountry } from "@/services/payments/regional-rules-service";
 import { tamaraCancelUrl, tamaraSuccessUrl } from "@/services/payments/tamara-config";
 import { talyCancelUrl, talySuccessUrl } from "@/services/payments/taly-config";
 import { publicAppOrigin } from "@/lib/site-origin";
@@ -280,6 +281,13 @@ export async function payOrder(input: {
     throw new PaymentError(`Cannot pay order in status ${order.status}`);
   }
 
+  assertPaymentMethodAllowedForCountry(
+    input.paymentMode === "tamara" || input.paymentMode === "taly" || input.paymentMode === "tabby"
+      ? input.paymentMode
+      : input.methodBrand,
+    order.billingCountry,
+  );
+
   return finalizeSuccessfulPayment({
     orderId: order.id,
     methodBrand: input.methodBrand,
@@ -309,6 +317,8 @@ async function payScheduleItem(input: {
   const item = listScheduleForPlan(plan.id).find((s) => s.id === input.scheduleItemId);
   if (!item) throw new PaymentError("Installment schedule item not found", 404);
   if (item.status === "paid") throw new PaymentError("Installment already paid");
+
+  assertPaymentMethodAllowedForCountry(input.methodBrand, order.billingCountry);
 
   const gateway = getPaymentGateway(input.methodBrand);
   const charge = await gateway.createPayment({

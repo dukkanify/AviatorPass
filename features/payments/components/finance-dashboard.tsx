@@ -155,7 +155,7 @@ function FinanceDashboard() {
                   Installments: {rule.allowInstallments ? "yes" : "no"} · BNPL:{" "}
                   {rule.bnplProviders.length
                     ? rule.bnplProviders
-                        .map((p) => (p === "tabby" ? "Tabby (تالي)" : "Tamara"))
+                        .map((p) => (p === "taly" ? "Taly" : p === "tabby" ? "Tabby" : "Tamara"))
                         .join(", ")
                     : "—"}
                 </p>

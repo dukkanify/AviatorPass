@@ -70,11 +70,12 @@ Platform collects payments centrally; instructor share is credited to internal w
 
 Sourced from the **ATPL Theory Package** (`metadata.sku: ATPL-PACKAGE`).
 
-| Region         | Modes                                    |
-| -------------- | ---------------------------------------- |
-| KW, SA, AE, BH | Full, Installments, Tamara, Tabby (تالي) |
-| QA, OM         | Full, Installments                       |
-| Other          | Full only                                |
+| Region                    | Gateways        |
+| ------------------------- | --------------- |
+| United Arab Emirates (AE) | Stripe + Tamara |
+| Saudi Arabia (SA)         | Stripe + Tamara |
+| Kuwait (KW)               | Stripe + Taly   |
+| All other countries       | Stripe only     |
 
 Checkout requires **passport upload** + **agreement acceptance** for installments/BNPL. Schedule items carry **due dates**; reminder emails/in-app fire on configured offsets; overdue plans can **auto-suspend** package course access and **resume** after payment.
 

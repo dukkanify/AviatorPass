@@ -49,7 +49,7 @@ If `TALY_BASE_URL` is omitted, AviatorPass uses sandbox unless `NEXT_PUBLIC_APP_
 
 Every Taly API call authenticates with the merchant **API Key** and **Secret Key**: password-grant login (`POST /uaa/oauth/token`) then `Authorization: Bearer` plus `X-Api-Key` / `X-Api-Secret` on subsequent requests. Access tokens are cached until shortly before expiry (~24h). Tokens and keys are never logged.
 
-Taly is shown on checkout whenever `TALY_API_KEY` and `TALY_SECRET_KEY` are set. Currencies follow the AviatorPass course / order (all existing catalog currencies). Amounts are converted from integer minor units to Taly major units.
+Taly is shown on checkout only for **Kuwait** billing, and only when `TALY_API_KEY` and `TALY_SECRET_KEY` are set. Other countries hide Taly automatically. Currencies follow the AviatorPass course / order (all existing catalog currencies). Amounts are converted from integer minor units to Taly major units.
 
 ## Checkout flow
 
