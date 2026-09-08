@@ -62,6 +62,11 @@ function methodIcon(id: PaymentMethodBrand) {
   return CreditCard;
 }
 
+function methodLabel(method: { id: PaymentMethodBrand; label: string }) {
+  if (method.id === "card") return "Stripe";
+  return method.label;
+}
+
 function GuestCheckoutView() {
   const search = useSearchParams();
   const [quote, setQuote] = React.useState<Quote | null>(null);
@@ -343,8 +348,13 @@ function GuestCheckoutView() {
                     } ${disabled ? "cursor-not-allowed opacity-55" : "hover:border-accent/60"}`}
                   >
                     <span className="flex items-center gap-2">
-                      <Icon className="size-4" />
-                      {method.label}
+                      {method.id === "tamara" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src="/partners/tamara.svg" alt="" className="h-5 w-auto" />
+                      ) : (
+                        <Icon className="size-4" />
+                      )}
+                      {methodLabel(method)}
                     </span>
                     {method.comingSoon ? <Badge variant="secondary">Soon</Badge> : null}
                   </button>
@@ -352,9 +362,8 @@ function GuestCheckoutView() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Available methods are determined by the payment gateway
-              {quote?.processor ? ` (${quote.processor})` : ""}. Apple Pay and Google Pay appear
-              when the processor enables wallets. Tabby, Tamara, and MyFatoorah stay future-ready.
+              Pay with Stripe (cards and wallets) or Tamara. Apple Pay and Google Pay appear when
+              the processor enables wallets. Tabby and MyFatoorah stay future-ready.
             </p>
           </div>
 
@@ -368,7 +377,9 @@ function GuestCheckoutView() {
               ? "Loading checkout…"
               : pending
                 ? "Processing…"
-                : `Pay ${quote?.totalLabel ?? ""} securely`}
+                : form.methodBrand === "tamara"
+                  ? "Continue to Tamara"
+                  : `Pay ${quote?.totalLabel ?? ""} securely`}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Want a free account without buying?{" "}

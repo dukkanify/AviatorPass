@@ -87,7 +87,7 @@ function PaymentSuccessView() {
           ? "Your enrolment is being activated. A confirmation email and in-app notification are on the way."
           : error
             ? error
-            : "Stripe is confirming the Checkout Session. This page updates automatically."}
+            : "Your payment is being confirmed. This page updates automatically."}
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Button variant="accent" asChild>

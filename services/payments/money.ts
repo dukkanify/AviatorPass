@@ -45,6 +45,16 @@ export function majorToMinor(major: number, currency = "KWD"): number {
   return Math.round(major * 10 ** currencyExponent(currency));
 }
 
+export function minorToMajor(amount: number, currency = "KWD"): number {
+  return amount / 10 ** currencyExponent(currency);
+}
+
+/** Major-unit amount for Tamara (KWD 3dp, AED/SAR 2dp). */
+export function formatTamaraAmount(amount: number, currency = "KWD"): number {
+  const digits = currencyExponent(currency);
+  return Number(minorToMajor(amount, currency).toFixed(digits));
+}
+
 export function calcTax(subtotalAfterDiscount: number, taxRatePercent: number): number {
   return Math.round((subtotalAfterDiscount * taxRatePercent) / 100);
 }

@@ -33,6 +33,18 @@ export const PRICING_MODEL_LABELS: Record<PricingModel, string> = {
   free: "Free",
 };
 
+export const PAYMENT_PROVIDER_LABELS: Record<
+  "stripe" | "tamara" | "tabby" | "myfatoorah" | "mock" | "manual",
+  string
+> = {
+  stripe: "Stripe",
+  tamara: "Tamara",
+  tabby: "Tabby (تالي)",
+  myfatoorah: "MyFatoorah",
+  mock: "Mock",
+  manual: "Manual",
+};
+
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethodBrand, string> = {
   visa: "Visa",
   mastercard: "Mastercard",

@@ -35,6 +35,7 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 | `ENVIRONMENT_SETUP.md`                      | Env / install          |
 | `ZOOM_OAUTH_INTEGRATION.md`                 | Instructor Zoom OAuth  |
 | `STRIPE_CHECKOUT.md`                        | Stripe hosted Checkout |
+| `TAMARA.md`                                 | Tamara hosted checkout |
 | `DEPLOYMENT.md` / `PRODUCTION.md`           | Deploy                 |
 | `API_OVERVIEW.md` / `MOBILE_API.md`         | APIs                   |
 | `DATABASE_SCHEMA.md` / `database/README.md` | Schema                 |

@@ -122,7 +122,12 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
     id: "payments",
     label: "Payment gateway",
     status: process.env.STRIPE_SECRET_KEY ? "pass" : "warn",
-    detail: process.env.STRIPE_SECRET_KEY ? "Stripe key present" : "Mock gateway",
+    detail: [
+      process.env.STRIPE_SECRET_KEY ? "Stripe key present" : "Mock gateway",
+      process.env.TAMARA_API_TOKEN ? "Tamara configured" : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
   });
 
   checks.push({

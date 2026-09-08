@@ -186,6 +186,10 @@ function CheckoutView() {
       return;
     }
     setOrder(paid.data.order);
+    if (paid.data.payment?.checkoutUrl) {
+      window.location.href = paid.data.payment.checkoutUrl;
+      return;
+    }
     if (paid.data.order.status === "paid") {
       setSuccess(`Payment successful — ${paid.data.order.orderNumber}`);
     } else if (paymentMode === "installments") {
@@ -336,10 +340,17 @@ function CheckoutView() {
                 onChange={(e) => setToken(e.target.value)}
               />
             ) : (
-              <p className="text-xs text-muted-foreground">
-                {CHECKOUT_PAYMENT_MODE_LABELS[paymentMode]} will open a mock BNPL checkout for this
-                country.
-              </p>
+              <div className="space-y-2">
+                {paymentMode === "tamara" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/partners/tamara.svg" alt="Tamara" className="h-8 w-auto" />
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  {paymentMode === "tamara"
+                    ? "You will be redirected to Tamara hosted checkout to complete payment."
+                    : `${CHECKOUT_PAYMENT_MODE_LABELS[paymentMode]} will open a mock BNPL checkout for this country.`}
+                </p>
+              </div>
             )}
 
             {needsKyc ? (
