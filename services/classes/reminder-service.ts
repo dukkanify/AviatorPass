@@ -3,6 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { appJoinUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_REMINDER_OFFSETS_MINUTES } from "@/constants/classes";
 import { logActivity } from "@/services/auth/activity-log";
@@ -178,6 +179,7 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
         title: cls.title,
         startsAt: cls.startsAt,
         label,
+        joinUrl: cls.zoomMeetingId ? appJoinUrl(cls.id, cls.zoomMeetingId) : undefined,
       });
       const mail = await sendEmail({
         to: user.email,

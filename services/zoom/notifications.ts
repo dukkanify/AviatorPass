@@ -2,9 +2,11 @@
  * Zoom meeting lifecycle notifications — in-app + email.
  */
 
+import { appJoinUrl } from "@/lib/site-origin";
 import { enqueueJob, processQueue } from "@/services/api-platform/queue-service";
 import { emailScheduleLifecycle } from "@/services/email/automation-service";
 import { notifyUsers } from "@/services/notifications/notification-service";
+import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { readClassesDb } from "@/services/classes/store";
 
 export type ZoomNotifyKind = "created" | "updated" | "cancelled" | "starts_soon" | "finished";
@@ -78,6 +80,7 @@ export async function sendZoomMeetingNotifications(input: {
     data: { liveClassId: input.liveClassId, kind: input.kind },
   });
   if (copy.emailEvent) {
+    const meeting = getZoomMeetingByClassId(input.liveClassId);
     await emailScheduleLifecycle({
       event: copy.emailEvent,
       userIds,
@@ -86,6 +89,7 @@ export async function sendZoomMeetingNotifications(input: {
       detail: copy.emailDetail,
       liveClassId: input.liveClassId,
       actorId: input.actorId ?? null,
+      joinUrl: meeting ? appJoinUrl(input.liveClassId, meeting.zoomMeetingId) : undefined,
     });
   }
   return { sent: userIds.length };

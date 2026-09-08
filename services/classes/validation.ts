@@ -7,9 +7,11 @@ import { MEETING_TYPES } from "@/constants/classes";
 import { readClassesDb } from "@/services/classes/store";
 
 export class ClassValidationError extends Error {
-  constructor(message: string) {
+  status: number;
+  constructor(message: string, status = 400) {
     super(message);
     this.name = "ClassValidationError";
+    this.status = status;
   }
 }
 
@@ -45,12 +47,7 @@ export function assertTimeRange(startsAt: string, endsAt: string): void {
   }
 }
 
-export function rangesOverlap(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string,
-): boolean {
+export function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   const as = Date.parse(aStart);
   const ae = Date.parse(aEnd);
   const bs = Date.parse(bStart);
@@ -78,8 +75,7 @@ export function detectScheduleConflicts(input: {
   const instructorConflict =
     active.find(
       (c) =>
-        (c.instructorId === input.instructorId ||
-          c.assistantInstructorId === input.instructorId) &&
+        (c.instructorId === input.instructorId || c.assistantInstructorId === input.instructorId) &&
         rangesOverlap(c.startsAt, c.endsAt, input.startsAt, input.endsAt),
     ) ?? null;
 

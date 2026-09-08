@@ -3,6 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { appJoinUrl } from "@/lib/site-origin";
 import { siteStatic } from "@/config/site-static";
 import { isLegacySupportMailbox } from "@/lib/branding/legacy-client-identity";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
@@ -130,8 +131,8 @@ export function ensureClassesSeeded(): void {
       liveClassId: classId,
       zoomMeetingId,
       zoomUuid: generateId(),
-      joinUrl: `http://localhost:3000/join/${classId}?mid=${zoomMeetingId}`,
-      startUrl: `http://localhost:3000/join/${classId}?host=1&mid=${zoomMeetingId}`,
+      joinUrl: appJoinUrl(classId, zoomMeetingId),
+      startUrl: appJoinUrl(classId, zoomMeetingId, true),
       password: "AtplLive1",
       hostEmail: siteStatic.supportEmail,
       waitingRoom: true,

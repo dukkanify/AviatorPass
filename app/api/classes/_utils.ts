@@ -7,7 +7,7 @@ export function classErrorResponse(error: unknown) {
   if (error instanceof ClassValidationError) {
     return NextResponse.json(
       { success: false, data: null, error: error.message },
-      { status: 400 },
+      { status: error.status || 400 },
     );
   }
   return authErrorResponse(error);

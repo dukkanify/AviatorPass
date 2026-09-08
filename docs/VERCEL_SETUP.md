@@ -6,7 +6,7 @@
 | --------------------------- | ------------------------------------------------ |
 | Vercel project              | `dukkanify-technology-llcs-projects/aviatorpass` |
 | GitHub repo (after cutover) | `dukkanify/AviatorPass`                          |
-| Production URL              | https://aviatorpass.vercel.app                   |
+| Production URL              | https://www.aviatorpass.com                      |
 | Production branch           | `main` (or `aviatorpass` during cutover)         |
 
 `vercel.json` sets `"ignoreCommand": "exit 1"` so Git deployments always build. This overrides the dashboard Ignored Build Step, which previously cancelled AviatorPass-only-repo pushes as “Canceled by Ignored Build Step” (GitHub still reports that as a green success).

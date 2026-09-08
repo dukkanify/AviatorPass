@@ -59,6 +59,15 @@ const serverEnvSchema = z.object({
   TALY_SECRET_KEY: z.string().optional(),
   TALY_WEBHOOK_SECRET: z.string().optional(),
   TALY_BASE_URL: z.string().url().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_USERNAME: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -130,6 +139,15 @@ export function getServerEnv() {
     TALY_SECRET_KEY: emptyToUndef(process.env.TALY_SECRET_KEY),
     TALY_WEBHOOK_SECRET: emptyToUndef(process.env.TALY_WEBHOOK_SECRET),
     TALY_BASE_URL: emptyToUndef(process.env.TALY_BASE_URL),
+    SMTP_HOST: emptyToUndef(process.env.SMTP_HOST),
+    SMTP_PORT: emptyToUndef(process.env.SMTP_PORT),
+    SMTP_USER: emptyToUndef(process.env.SMTP_USER),
+    SMTP_USERNAME: emptyToUndef(process.env.SMTP_USERNAME),
+    SMTP_PASSWORD: emptyToUndef(process.env.SMTP_PASSWORD),
+    SMTP_FROM: emptyToUndef(process.env.SMTP_FROM),
+    SMTP_FROM_NAME: emptyToUndef(process.env.SMTP_FROM_NAME),
+    EMAIL_FROM: emptyToUndef(process.env.EMAIL_FROM),
+    RESEND_API_KEY: emptyToUndef(process.env.RESEND_API_KEY),
   });
 
   if (!result.success) {

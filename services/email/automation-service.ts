@@ -321,6 +321,7 @@ export async function emailScheduleLifecycle(input: {
   detail?: string;
   liveClassId?: string;
   actorId?: string | null;
+  joinUrl?: string;
 }) {
   return dispatchEmailEvent({
     event: input.event,
@@ -329,6 +330,7 @@ export async function emailScheduleLifecycle(input: {
       title: input.title,
       when: input.when ?? "",
       detail: input.detail ?? "",
+      joinUrl: input.joinUrl ?? "",
     },
     actorId: input.actorId,
     meta: { liveClassId: input.liveClassId },

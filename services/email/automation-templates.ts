@@ -31,6 +31,7 @@ export function renderAutomationTemplate(
   const amount = escapeHtml(str(data, "amountLabel", ""));
   const reference = escapeHtml(str(data, "reference", ""));
   const cta = escapeHtml(str(data, "cta", "Open AviatorPass"));
+  const joinUrl = escapeHtml(str(data, "joinUrl", ""));
 
   let payload: { title: string; preheader?: string; bodyHtml: string };
 
@@ -129,7 +130,7 @@ export function renderAutomationTemplate(
           <p><strong>${title}</strong></p>
           ${when ? `<p>Starts: ${when}</p>` : ""}
           <p>${detail}</p>
-          <p>Join from AviatorPass → Calendar / Live Classes when it is time.</p>`,
+          ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : "<p>Join from AviatorPass → Calendar / Live Classes when it is time.</p>"}`,
       };
       break;
     case "reschedule":
@@ -140,6 +141,7 @@ export function renderAutomationTemplate(
           <p><strong>${title}</strong> has been moved.</p>
           ${when ? `<p>New time: ${when}</p>` : ""}
           <p>${detail}</p>
+          ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : ""}
           <p>Your calendar and reminders have been updated.</p>`,
       };
       break;

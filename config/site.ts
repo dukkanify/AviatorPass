@@ -6,12 +6,12 @@
  * bundle never depends on Zod / env parsing.
  */
 
-import { publicEnv } from "@/config/env";
+import { publicAppOrigin } from "@/lib/site-origin";
 import { siteStatic } from "@/config/site-static";
 
 export const siteConfig = {
   ...siteStatic,
-  url: publicEnv.NEXT_PUBLIC_APP_URL,
+  url: publicAppOrigin(),
 } as const;
 
 export type SiteConfig = typeof siteConfig;

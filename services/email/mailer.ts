@@ -33,14 +33,49 @@ export interface SendEmailResult {
 function smtpConfigured(): boolean {
   const email = getPlatformSettings().email;
   if (email.provider !== "smtp") {
-    // Non-SMTP providers need API keys — not wired yet; treat as unconfigured.
     return false;
   }
   return Boolean(email.smtpHost?.trim() && email.senderEmail?.trim());
 }
 
+function resendConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY?.trim());
+}
+
 export function isEmailDeliveryConfigured(): boolean {
-  return smtpConfigured();
+  return smtpConfigured() || resendConfigured();
+}
+
+async function sendViaResend(input: {
+  from: string;
+  to: string;
+  replyTo: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<{ id?: string }> {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) throw new Error("RESEND_API_KEY is not set");
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: input.from,
+      to: [input.to],
+      reply_to: input.replyTo,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+  if (!res.ok) {
+    throw new Error(json.message || `Resend HTTP ${res.status}`);
+  }
+  return json;
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
@@ -98,6 +133,62 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       error: "Email notifications disabled in platform settings",
       record,
     };
+  }
+
+  if (resendConfigured() && !smtpConfigured()) {
+    try {
+      const info = await sendViaResend({
+        from,
+        to,
+        replyTo,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+      });
+      const record = recordOutboundEmail({
+        to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        from,
+        replyTo,
+        provider: "resend",
+        mode: "resend",
+        error: null,
+        meta: { ...(input.meta ?? {}), resendId: info.id },
+      });
+      return {
+        success: true,
+        delivered: true,
+        mode: "resend",
+        messageId: info.id,
+        outboxId: record.id,
+        error: null,
+        record,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Resend send failed";
+      const record = recordOutboundEmail({
+        to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        from,
+        replyTo,
+        provider: "resend",
+        mode: "failed",
+        error: message,
+        meta: input.meta,
+      });
+      return {
+        success: false,
+        delivered: false,
+        mode: "failed",
+        outboxId: record.id,
+        error: message,
+        record,
+      };
+    }
   }
 
   if (smtpConfigured()) {
