@@ -12,10 +12,34 @@ import { logActivity } from "@/services/auth/activity-log";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { sanitizeJoinInfoForViewer } from "@/services/zoom/policy";
 import { getIntegrationByUserId } from "@/services/zoom/store";
+import { ClassValidationError } from "@/services/classes/validation";
 import type { LiveClass, MeetingType, ZoomMeetingRecord } from "@/types/classes";
 
 export function isZoomConfigured(): boolean {
   return zoomCredsPresent();
+}
+
+function envPresent(name: string): boolean {
+  return Boolean(process.env[name]?.trim());
+}
+
+export function getZoomCredentialInventory() {
+  return {
+    accountId: envPresent("ZOOM_ACCOUNT_ID"),
+    clientId: envPresent("ZOOM_CLIENT_ID"),
+    clientSecret: envPresent("ZOOM_CLIENT_SECRET"),
+    webhookSecret: envPresent("ZOOM_WEBHOOK_SECRET"),
+    secretToken: envPresent("ZOOM_SECRET_TOKEN"),
+    redirectUri: envPresent("ZOOM_REDIRECT_URI"),
+  };
+}
+
+export function isMockZoomAllowed(): boolean {
+  if (process.env.ALLOW_ZOOM_MOCK === "true") return true;
+  if (process.env.FORBID_ZOOM_MOCK === "true") return false;
+  return (
+    process.env.NEXT_PUBLIC_APP_ENV !== "production" && process.env.VERCEL_ENV !== "production"
+  );
 }
 
 function zoomCredsPresent(): boolean {
@@ -27,6 +51,10 @@ function zoomCredsPresent(): boolean {
   } catch {
     return false;
   }
+}
+
+function requireLiveZoom(reason: string): never {
+  throw new ClassValidationError(reason, 503);
 }
 
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -206,6 +234,13 @@ export async function createMeetingForClass(input: {
       : null;
 
   if (!payload) {
+    if (!isMockZoomAllowed()) {
+      requireLiveZoom(
+        zoomCredsPresent()
+          ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
+          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET, or connect an instructor Zoom account.",
+      );
+    }
     payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
   }
 
@@ -463,6 +498,13 @@ export async function provisionStandaloneZoomMeeting(input: {
       : null;
 
   if (!payload) {
+    if (!isMockZoomAllowed()) {
+      requireLiveZoom(
+        zoomCredsPresent()
+          ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
+          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET, or connect an instructor Zoom account.",
+      );
+    }
     const zoomMeetingId = String(Math.floor(100_000_000 + Math.random() * 899_999_999));
     const password = passcode
       ? generateToken(6)

@@ -1,23 +1,166 @@
 /**
- * Durable JSON file helpers with in-memory fallback.
- * On read-only hosts (e.g. Vercel serverless) disk writes fail — keep serving
- * from process memory so marketing SSR never 500s.
+ * Durable JSON helpers with Postgres write-through when DATABASE_URL is set.
  *
- * Important: cache the *parsed* value, not only the raw string — re-parsing
- * multi‑MB files on every request (settings history) can OOM/timeout SSR.
+ * Order of backends:
+ *  1. Postgres `aep_json_store` (production) — hydrate on first access, persist every write
+ *  2. `.data/*.json` files when the filesystem is writable
+ *  3. In-process memory on read-only hosts (local tests / accidental missing DATABASE_URL)
+ *
+ * Vitest stays on file/memory unless AEP_TEST_POSTGRES=1 so unit tests never
+ * touch the production database.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+
+import {
+  getDatabaseUrl,
+  neonSql,
+  pingPostgres,
+  PostgresStoreError,
+} from "@/lib/data/neon-sql-sync";
 
 const rawMemory = new Map<string, string>();
 const parsedMemory = new Map<string, unknown>();
+
+let hydratedFromPostgres = false;
+let tableReady = false;
 
 export function dataDir(): string {
   return path.join(process.cwd(), ".data");
 }
 
+export function storeKeyFromPath(filePath: string): string {
+  return path.basename(filePath);
+}
+
+export function postgresStoreEnabled(): boolean {
+  if (process.env.AEP_DISABLE_POSTGRES === "1") return false;
+  if (process.env.VITEST && process.env.AEP_TEST_POSTGRES !== "1") return false;
+  return Boolean(getDatabaseUrl());
+}
+
+export function requireDurableWrites(): boolean {
+  if (!postgresStoreEnabled()) return false;
+  if (process.env.NEXT_PHASE === "phase-production-build") return false;
+  return (
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NEXT_PUBLIC_APP_ENV === "production" ||
+    process.env.AEP_REQUIRE_POSTGRES === "1"
+  );
+}
+
+export type JsonStoreBackend = "postgres" | "file" | "memory";
+
+export function getJsonStoreStatus(): {
+  backend: JsonStoreBackend;
+  writable: boolean;
+  detail: string;
+  latencyMs?: number;
+} {
+  if (postgresStoreEnabled()) {
+    const ping = pingPostgres();
+    return {
+      backend: "postgres",
+      writable: ping.ok,
+      detail: ping.ok
+        ? `Postgres aep_json_store · ${ping.detail}`
+        : `Postgres configured but unreachable: ${ping.detail}`,
+      latencyMs: ping.latencyMs,
+    };
+  }
+
+  try {
+    const dir = dataDir();
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    accessSync(dir, constants.R_OK | constants.W_OK);
+    return {
+      backend: "file",
+      writable: true,
+      detail: "Local JSON files under .data",
+    };
+  } catch {
+    return {
+      backend: "memory",
+      writable: false,
+      detail: "Data directory not writable — in-memory only (set DATABASE_URL)",
+    };
+  }
+}
+
+function ensureTable(): void {
+  if (tableReady) return;
+  neonSql(`
+    CREATE TABLE IF NOT EXISTS aep_json_store (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  tableReady = true;
+}
+
+function hydrateFromPostgres(): void {
+  if (hydratedFromPostgres || !postgresStoreEnabled()) return;
+  ensureTable();
+  const rows = neonSql<{ key: string; value: unknown }>("SELECT key, value FROM aep_json_store");
+  for (const row of rows) {
+    if (!row?.key) continue;
+    const filePath = path.join(dataDir(), row.key);
+    const raw = JSON.stringify(row.value);
+    rawMemory.set(filePath, raw);
+    parsedMemory.set(filePath, row.value);
+  }
+  hydratedFromPostgres = true;
+}
+
+function persistToPostgres(filePath: string, value: unknown): void {
+  ensureTable();
+  const key = storeKeyFromPath(filePath);
+  neonSql(
+    `INSERT INTO aep_json_store (key, value, updated_at)
+     VALUES ($1, $2::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [key, JSON.stringify(value)],
+  );
+}
+
+function writeLocalFile(filePath: string, raw: string): boolean {
+  try {
+    const dir = path.dirname(filePath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(filePath, raw, "utf8");
+    return true;
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production" && !postgresStoreEnabled()) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code)
+          : "";
+      console.warn(
+        `[data] write skipped for ${path.basename(filePath)}${code ? ` (${code})` : ""}`,
+      );
+    }
+    return false;
+  }
+}
+
 export function readJsonFile<T>(filePath: string, fallback: () => T): T {
+  if (postgresStoreEnabled()) {
+    try {
+      hydrateFromPostgres();
+    } catch (error) {
+      if (requireDurableWrites()) {
+        throw error instanceof PostgresStoreError
+          ? error
+          : new PostgresStoreError(
+              error instanceof Error ? error.message : "Failed to hydrate JSON store",
+            );
+      }
+      console.error("[data] postgres hydrate failed; using local fallback", error);
+    }
+  }
+
   if (parsedMemory.has(filePath)) {
     return parsedMemory.get(filePath) as T;
   }
@@ -56,22 +199,22 @@ export function writeJsonFile(filePath: string, value: unknown): void {
   rawMemory.set(filePath, raw);
   parsedMemory.set(filePath, value);
 
-  try {
-    const dir = path.dirname(filePath);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(filePath, raw, "utf8");
-  } catch (error) {
-    // Read-only filesystem (serverless) — memory copy remains authoritative.
-    if (process.env.NODE_ENV !== "production") {
-      const code =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code?: string }).code)
-          : "";
-      console.warn(
-        `[data] write skipped for ${path.basename(filePath)}${code ? ` (${code})` : ""}`,
-      );
+  if (postgresStoreEnabled()) {
+    try {
+      persistToPostgres(filePath, value);
+    } catch (error) {
+      if (requireDurableWrites()) {
+        throw error instanceof PostgresStoreError
+          ? error
+          : new PostgresStoreError(
+              error instanceof Error ? error.message : "Failed to persist JSON store",
+            );
+      }
+      console.error("[data] postgres persist failed; memory copy kept", error);
     }
   }
+
+  writeLocalFile(filePath, raw);
 }
 
 /** Drop cached entries (tests). */
@@ -79,8 +222,15 @@ export function clearJsonFileCache(filePath?: string): void {
   if (!filePath) {
     rawMemory.clear();
     parsedMemory.clear();
+    hydratedFromPostgres = false;
+    tableReady = false;
     return;
   }
   rawMemory.delete(filePath);
   parsedMemory.delete(filePath);
+}
+
+/** Test helper — force the next read to reload from Postgres. */
+export function resetJsonStoreRuntime(): void {
+  clearJsonFileCache();
 }
