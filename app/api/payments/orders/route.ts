@@ -72,7 +72,10 @@ export async function GET(request: Request) {
     }
 
     const orders = canManageFinance(user)
-      ? listOrders({ status: (searchParams.get("status") as never) ?? "all" })
+      ? listOrders({
+          status: (searchParams.get("status") as never) ?? "all",
+          provider: (searchParams.get("provider") as never) ?? "all",
+        })
       : listOrders({ studentId: user.id });
     return NextResponse.json({ success: true, data: orders, error: null });
   } catch (error) {

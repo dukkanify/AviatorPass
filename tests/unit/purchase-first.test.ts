@@ -55,6 +55,22 @@ describe("purchase-first ATPL enrollment", () => {
     );
     expect(quote.methods.find((m) => m.id === "card")?.available).toBe(true);
     expect(quote.methods.find((m) => m.id === "tabby")?.comingSoon).toBe(true);
+    expect(quote.methods.find((m) => m.id === "tamara")?.comingSoon).toBe(true);
+    expect(quote.methods.find((m) => m.id === "tamara")?.available).toBe(false);
+  });
+
+  it("offers Tamara when the API token is configured for a Tamara country", () => {
+    const previous = process.env.TAMARA_API_TOKEN;
+    process.env.TAMARA_API_TOKEN = "test-tamara-token";
+    try {
+      const quote = quoteGuestCheckout(undefined, "AE");
+      const tamara = quote.methods.find((m) => m.id === "tamara");
+      expect(tamara?.available).toBe(true);
+      expect(tamara?.comingSoon).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.TAMARA_API_TOKEN;
+      else process.env.TAMARA_API_TOKEN = previous;
+    }
   });
 
   it("does not create an account when payment fails", async () => {

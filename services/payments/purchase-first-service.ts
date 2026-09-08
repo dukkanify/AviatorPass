@@ -40,6 +40,12 @@ import {
 } from "@/services/payments/currency-detection";
 import { getPaymentGateway } from "@/services/payments/gateway";
 import {
+  isTamaraConfigured,
+  isTamaraCountry,
+  tamaraCancelUrl,
+  tamaraSuccessUrl,
+} from "@/services/payments/tamara-config";
+import {
   createInstallmentPlanForOrder,
   listScheduleForPlan,
   markInstallmentPaid,
@@ -166,15 +172,25 @@ export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMeth
     row("google_pay", settings.allowGooglePay !== false),
     row("mada", madaMarkets.has(cc), !madaMarkets.has(cc)),
     row("tabby", false, true),
-    row("tamara", false, true),
+    row(
+      "tamara",
+      isTamaraConfigured() && isTamaraCountry(cc),
+      !(isTamaraConfigured() && isTamaraCountry(cc)),
+    ),
     row("myfatoorah", processor === "myfatoorah", processor !== "myfatoorah"),
     row("manual", processor === "manual", processor !== "manual"),
   ].map((method) => {
     if (method.id === "tabby" && rule.bnplProviders.includes("tabby")) {
       return { ...method, comingSoon: true, available: false };
     }
-    if (method.id === "tamara" && rule.bnplProviders.includes("tamara")) {
-      return { ...method, comingSoon: true, available: false };
+    if (method.id === "tamara") {
+      const live = isTamaraConfigured() && isTamaraCountry(cc);
+      return {
+        ...method,
+        available: live,
+        comingSoon: !live,
+        processor: live ? "tamara" : processor,
+      };
     }
     return method;
   });
@@ -336,7 +352,6 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
   const stamp = nowIso();
   const fullName = `${sanitizeString(input.firstName)} ${sanitizeString(input.lastName)}`.trim();
   const billingName = sanitizeString(input.billingName || fullName);
-  const settings = readPaymentsDb().settings;
   const origin = appOrigin();
 
   const item: OrderItem = {
@@ -433,7 +448,8 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     throw new PaymentError("Manual payment is not enabled. Choose Credit Card or a wallet.");
   }
 
-  const gateway = getPaymentGateway();
+  const gateway = getPaymentGateway(methodBrand);
+  const tamara = methodBrand === "tamara";
   const charge = await gateway.createPayment({
     orderId: order.id,
     amount: order.totalAmount,
@@ -444,8 +460,19 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     simulateFailure: input.simulateFailure || input.paymentToken === "fail",
-    successUrl: `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: tamara
+      ? tamaraSuccessUrl(order.id, origin)
+      : `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: tamara
+      ? tamaraCancelUrl(order.id, origin)
+      : `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
+    country: input.country.toUpperCase(),
+    phone: normalizePhone(input.phone),
+    billingAddress: sanitizeString(input.billingAddress || ""),
+    productName: product.name,
+    productDescription: product.description,
+    courseId: product.courseId ?? undefined,
+    instructorId: product.instructorId ?? undefined,
   });
 
   const payStamp = nowIso();
@@ -461,8 +488,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     currency: order.currency,
     clientSecret: charge.clientSecret,
     checkoutUrl: charge.checkoutUrl,
-    webhookVerified:
-      charge.provider === "mock" || charge.provider === "tamara" || charge.provider === "tabby",
+    webhookVerified: charge.status === "succeeded" && charge.provider !== "stripe",
     failureCode: charge.failureCode,
     failureMessage: charge.failureMessage,
     rawProviderPayload: { ...charge.rawProviderPayload, purchaseFirst: true },
@@ -481,7 +507,12 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     if (!o) return;
     o.paymentId = payment.id;
     o.updatedAt = payStamp;
-    o.metadata = { ...o.metadata, checkoutUrl: charge.checkoutUrl, processor: settings.provider };
+    o.metadata = {
+      ...o.metadata,
+      checkoutUrl: charge.checkoutUrl,
+      processor: charge.provider,
+      paymentProvider: charge.provider,
+    };
     if (charge.status === "failed") {
       o.status = "failed";
       o.failureReason = charge.failureMessage;

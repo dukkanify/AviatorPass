@@ -8,7 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ORDER_STATUS_LABELS, REFUND_STATUS_LABELS } from "@/constants/payments";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_PROVIDER_LABELS,
+  REFUND_STATUS_LABELS,
+} from "@/constants/payments";
 import { formatMinor } from "@/services/payments/money";
 import { payFetch, payJson } from "@/features/payments/lib/api";
 import type { Coupon, Order, RefundRequest } from "@/types/payments";
@@ -51,6 +55,7 @@ function FinanceDashboard() {
     Array<{ plan: { id: string; productName: string; status: string; countryCode: string } }>
   >([]);
   const [purchases, setPurchases] = React.useState<Order[]>([]);
+  const [providerFilter, setProviderFilter] = React.useState<"all" | "stripe" | "tamara">("all");
   const [code, setCode] = React.useState("SAVE15");
   const [value, setValue] = React.useState("15");
   const [error, setError] = React.useState<string | null>(null);
@@ -62,7 +67,9 @@ function FinanceDashboard() {
       payFetch<RefundRequest[]>("/api/payments/refunds"),
       payFetch<{ rules: typeof rules }>("/api/payments/regional-rules?view=all"),
       payFetch<typeof plans>("/api/payments/installments"),
-      payFetch<Order[]>("/api/payments/orders"),
+      payFetch<Order[]>(
+        `/api/payments/orders${providerFilter === "all" ? "" : `?provider=${providerFilter}`}`,
+      ),
     ]);
     setDash(d.data);
     setCoupons(c.data ?? []);
@@ -72,7 +79,7 @@ function FinanceDashboard() {
     setPurchases(
       (orders.data ?? []).filter((o) => Boolean(o.metadata?.purchaseFirst)).slice(0, 12),
     );
-  }, []);
+  }, [providerFilter]);
 
   React.useEffect(() => {
     void load();
@@ -265,6 +272,19 @@ function FinanceDashboard() {
           <CardTitle className="text-base">Purchase-first enrollments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {(["all", "stripe", "tamara"] as const).map((provider) => (
+              <Button
+                key={provider}
+                type="button"
+                size="sm"
+                variant={providerFilter === provider ? "accent" : "outline"}
+                onClick={() => setProviderFilter(provider)}
+              >
+                {provider === "all" ? "All providers" : PAYMENT_PROVIDER_LABELS[provider]}
+              </Button>
+            ))}
+          </div>
           {purchases.length === 0 ? (
             <p className="text-sm text-muted-foreground">No guest checkout purchases yet.</p>
           ) : (
@@ -276,6 +296,10 @@ function FinanceDashboard() {
                 </div>
                 <p className="mt-1">
                   {o.studentEmail} · {formatMinor(o.totalAmount, o.currency)}
+                  {typeof o.metadata?.paymentProvider === "string" ||
+                  typeof o.metadata?.processor === "string"
+                    ? ` · ${String(o.metadata.paymentProvider ?? o.metadata.processor)}`
+                    : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Student{" "}

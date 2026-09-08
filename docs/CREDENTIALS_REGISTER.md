@@ -18,6 +18,7 @@
 | 9   | SMTP / email OTP provider        |                   |       | Provider + Vercel  | ☐       |                             |
 | 10  | Zoom Developer (S2S OAuth)       |                   |       | Zoom + Vercel      | ☐       | Incl. webhook secret        |
 | 11  | Stripe / payment gateway         |                   |       | Stripe + Vercel    | ☐       | Prefer `rk_live_…`          |
+| 11b | Tamara / BNPL gateway            |                   |       | Tamara + Vercel    | ☐       | API + notification tokens   |
 | 12  | Stripe webhook signing secret    |                   |       | Vercel env         | ☐       |                             |
 | 13  | Analytics (if any)               |                   |       | Vendor             | ☐       |                             |
 | 14  | Uptime / monitoring              |                   |       | Vendor             | ☐       | Probe `/api/health?ready=1` |
@@ -38,6 +39,9 @@ Copy names only from `.env.production.example`. Values live exclusively in the h
 | Supabase trio + DB URLs          | ☐           | When cut over               |
 | Zoom quartet                     | ☐           | Incl. `ZOOM_WEBHOOK_SECRET` |
 | Stripe trio                      | ☐           |                             |
+| `TAMARA_API_TOKEN`               | ☐           | Merchant API token          |
+| `TAMARA_BASE_URL`                | ☐           | `https://api.tamara.co`     |
+| `TAMARA_NOTIFICATION_TOKEN`      | ☐           | Webhook JWT secret          |
 
 ## Delivery log
 

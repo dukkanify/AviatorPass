@@ -12,6 +12,8 @@ import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automati
 import { assertCanCheckout, assertOwnOrder, PaymentError } from "@/services/payments/access";
 import { getProduct, validateCoupon } from "@/services/payments/catalog-service";
 import { getPaymentGateway } from "@/services/payments/gateway";
+import { tamaraCancelUrl, tamaraSuccessUrl } from "@/services/payments/tamara-config";
+import { publicAppOrigin } from "@/lib/site-origin";
 import {
   createInstallmentPlanForOrder,
   getInstallmentPlan,
@@ -34,6 +36,7 @@ import type {
   Order,
   OrderItem,
   PaymentMethodBrand,
+  PaymentProvider,
   PaymentRecord,
   PricingModel,
   Subscription,
@@ -50,11 +53,23 @@ function nextOrderNumber(): string {
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 
-export function listOrders(filters?: { studentId?: string; status?: Order["status"] | "all" }) {
+export function listOrders(filters?: {
+  studentId?: string;
+  status?: Order["status"] | "all";
+  provider?: PaymentProvider | "all";
+}) {
   let rows = [...readPaymentsDb().orders];
   if (filters?.studentId) rows = rows.filter((o) => o.studentId === filters.studentId);
   if (filters?.status && filters.status !== "all") {
     rows = rows.filter((o) => o.status === filters.status);
+  }
+  if (filters?.provider && filters.provider !== "all") {
+    const payments = readPaymentsDb().payments;
+    rows = rows.filter((o) => {
+      const payment =
+        payments.find((p) => p.id === o.paymentId) ?? payments.find((p) => p.orderId === o.id);
+      return payment?.provider === filters.provider;
+    });
   }
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -294,7 +309,7 @@ async function payScheduleItem(input: {
   if (!item) throw new PaymentError("Installment schedule item not found", 404);
   if (item.status === "paid") throw new PaymentError("Installment already paid");
 
-  const gateway = getPaymentGateway();
+  const gateway = getPaymentGateway(input.methodBrand);
   const charge = await gateway.createPayment({
     orderId: order.id,
     amount: item.amount,
@@ -305,6 +320,8 @@ async function payScheduleItem(input: {
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-inst-${item.sequence}`,
     simulateFailure: input.simulateFailure,
+    country: order.billingCountry,
+    billingAddress: order.billingAddress,
   });
 
   const stamp = nowIso();
@@ -320,8 +337,7 @@ async function payScheduleItem(input: {
     currency: order.currency,
     clientSecret: charge.clientSecret,
     checkoutUrl: charge.checkoutUrl,
-    webhookVerified:
-      charge.provider === "mock" || charge.provider === "tamara" || charge.provider === "tabby",
+    webhookVerified: charge.status === "succeeded" && charge.provider !== "stripe",
     failureCode: charge.failureCode,
     failureMessage: charge.failureMessage,
     rawProviderPayload: { ...charge.rawProviderPayload, scheduleItemId: item.id },
@@ -417,17 +433,24 @@ async function finalizeSuccessfulPayment(input: {
       mode === "installments" ? (schedule[0]?.amount ?? order.totalAmount) : order.totalAmount;
   }
 
-  const gateway = getPaymentGateway();
+  const methodBrand = mode === "tamara" ? "tamara" : mode === "tabby" ? "tabby" : input.methodBrand;
+  const origin = publicAppOrigin();
+  const gateway = getPaymentGateway(methodBrand);
   const charge = await gateway.createPayment({
     orderId: order.id,
     amount: amountToCharge,
     currency: order.currency,
     customerEmail: order.billingEmail,
     customerName: order.billingName,
-    methodBrand: mode === "tamara" ? "tamara" : mode === "tabby" ? "tabby" : input.methodBrand,
+    methodBrand,
     paymentToken: input.paymentToken,
     idempotencyKey: order.idempotencyKey,
     simulateFailure: input.simulateFailure,
+    country: order.billingCountry,
+    billingAddress: order.billingAddress,
+    successUrl: methodBrand === "tamara" ? tamaraSuccessUrl(order.id, origin) : undefined,
+    cancelUrl: methodBrand === "tamara" ? tamaraCancelUrl(order.id, origin) : undefined,
+    productName: order.items[0]?.productName,
   });
 
   const stamp = nowIso();
@@ -443,8 +466,7 @@ async function finalizeSuccessfulPayment(input: {
     currency: order.currency,
     clientSecret: charge.clientSecret,
     checkoutUrl: charge.checkoutUrl,
-    webhookVerified:
-      charge.provider === "mock" || charge.provider === "tamara" || charge.provider === "tabby",
+    webhookVerified: charge.status === "succeeded" && charge.provider !== "stripe",
     failureCode: charge.failureCode,
     failureMessage: charge.failureMessage,
     rawProviderPayload: {
@@ -455,6 +477,8 @@ async function finalizeSuccessfulPayment(input: {
     createdAt: stamp,
     updatedAt: stamp,
     ...blankStripePaymentFields(),
+    checkoutSessionId: charge.checkoutSessionId,
+    country: order.billingCountry,
   };
 
   writePaymentsDb((db) => {

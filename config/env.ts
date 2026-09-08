@@ -52,6 +52,9 @@ const serverEnvSchema = z.object({
   ZOOM_OAUTH_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
+  TAMARA_API_TOKEN: z.string().optional(),
+  TAMARA_BASE_URL: z.string().url().optional(),
+  TAMARA_NOTIFICATION_TOKEN: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -116,6 +119,9 @@ export function getServerEnv() {
     ZOOM_OAUTH_SCOPES: emptyToUndef(process.env.ZOOM_OAUTH_SCOPES),
     ZOOM_SECRET_TOKEN: emptyToUndef(process.env.ZOOM_SECRET_TOKEN),
     ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
+    TAMARA_API_TOKEN: emptyToUndef(process.env.TAMARA_API_TOKEN),
+    TAMARA_BASE_URL: emptyToUndef(process.env.TAMARA_BASE_URL),
+    TAMARA_NOTIFICATION_TOKEN: emptyToUndef(process.env.TAMARA_NOTIFICATION_TOKEN),
   });
 
   if (!result.success) {

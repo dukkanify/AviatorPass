@@ -1,7 +1,7 @@
 /**
- * Payment gateway adapters — mock (default) + Stripe Checkout with dynamic price_data.
+ * Payment gateway adapters — mock (default) + Stripe Checkout with dynamic price_data + Tamara.
  * Never stores raw card data (PCI-aware). Never passes payment_method_types.
- * Never uses Stripe Price or Product IDs.
+ * Never uses Stripe Price or Product IDs. Tamara is selected via methodBrand === "tamara".
  */
 
 import Stripe from "stripe";
@@ -23,6 +23,7 @@ import {
 import { normalizeCheckoutCurrency } from "@/services/stripe/currency";
 import { readPaymentsDb } from "@/services/payments/store";
 import { publicAppOrigin } from "@/lib/site-origin";
+import { TamaraGateway } from "@/services/payments/tamara-gateway";
 
 export interface GatewayChargeInput {
   orderId: string;
@@ -46,6 +47,8 @@ export interface GatewayChargeInput {
   productName?: string;
   productDescription?: string;
   imageUrl?: string | null;
+  phone?: string;
+  billingAddress?: string;
 }
 
 export interface GatewayChargeResult {
@@ -307,7 +310,8 @@ function stripeObjectId(object: unknown): string {
   return "";
 }
 
-export function getPaymentGateway(): PaymentGateway {
+export function getPaymentGateway(methodBrand?: PaymentMethodBrand): PaymentGateway {
+  if (methodBrand === "tamara") return new TamaraGateway();
   if (isStripeConfigured()) return new StripeGateway();
   return new MockGateway();
 }
