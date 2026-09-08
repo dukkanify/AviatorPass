@@ -108,7 +108,7 @@ describe("advanced email automation (CR009)", () => {
     expect(admin.sent).toBeGreaterThan(0);
 
     const overview = getEmailAutomationOverview();
-    expect(overview.catalog.length).toBe(14);
+    expect(overview.catalog.length).toBe(21);
     expect(overview.catalog.find((c) => c.event === "homework")?.enabled).toBe(false);
     expect(overview.stats.dispatched).toBeGreaterThan(0);
   });

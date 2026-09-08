@@ -37,6 +37,7 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 | `STRIPE_CHECKOUT.md`                        | Stripe hosted Checkout |
 | `TAMARA.md`                                 | Tamara hosted checkout |
 | `TALY.md`                                   | Taly hosted checkout   |
+| `EMAIL.md`                                  | Resend / SMTP / DNS    |
 | `DEPLOYMENT.md` / `PRODUCTION.md`           | Deploy                 |
 | `API_OVERVIEW.md` / `MOBILE_API.md`         | APIs                   |
 | `DATABASE_SCHEMA.md` / `database/README.md` | Schema                 |

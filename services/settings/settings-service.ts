@@ -43,34 +43,66 @@ function envTrim(name: string): string | undefined {
   return value ? value : undefined;
 }
 
+function parseSenderAddress(raw: string | undefined): { email?: string; name?: string } {
+  if (!raw) return {};
+  const trimmed = raw.trim();
+  const angled = trimmed.match(/^(.*)<([^>]+)>$/);
+  if (angled) {
+    return { name: angled[1]?.trim().replace(/^"|"$/g, "") || undefined, email: angled[2]?.trim() };
+  }
+  return { email: trimmed };
+}
+
 /** Env SMTP/Resend wins over stored settings so production can be configured without a writable UI. */
 export function applyRuntimeEmailOverrides(settings: PlatformSettings): PlatformSettings {
   const host = envTrim("SMTP_HOST");
   const portRaw = envTrim("SMTP_PORT");
   const user = envTrim("SMTP_USER") || envTrim("SMTP_USERNAME");
   const pass = process.env.SMTP_PASSWORD?.length ? process.env.SMTP_PASSWORD : undefined;
-  const from = envTrim("SMTP_FROM") || envTrim("EMAIL_FROM");
-  const fromName = envTrim("SMTP_FROM_NAME");
+  const fromRaw = envTrim("SMTP_FROM") || envTrim("EMAIL_FROM");
+  const parsedFrom = parseSenderAddress(fromRaw);
+  const from = parsedFrom.email;
+  const fromName = envTrim("SMTP_FROM_NAME") || envTrim("EMAIL_FROM_NAME") || parsedFrom.name;
+  const providerRaw = (envTrim("EMAIL_PROVIDER") || "").toLowerCase();
+  const adminEmail = envTrim("ADMIN_NOTIFICATION_EMAIL");
   const hasSmtp = Boolean(host);
   const hasResend = Boolean(envTrim("RESEND_API_KEY"));
 
-  if (!hasSmtp && !hasResend && !from && !fromName) {
+  if (!hasSmtp && !hasResend && !from && !fromName && !providerRaw && !adminEmail) {
     return settings;
   }
+
+  const provider: PlatformSettings["email"]["provider"] =
+    providerRaw === "resend" || providerRaw === "smtp" || providerRaw === "sendgrid" ||
+    providerRaw === "mailgun" || providerRaw === "ses"
+      ? providerRaw
+      : hasSmtp
+        ? "smtp"
+        : hasResend
+          ? "resend"
+          : settings.email.provider;
 
   return {
     ...settings,
     email: {
       ...settings.email,
-      provider: hasSmtp ? "smtp" : settings.email.provider,
+      provider,
       smtpHost: host || settings.email.smtpHost,
       smtpPort: portRaw ? Number(portRaw) || settings.email.smtpPort : settings.email.smtpPort,
       smtpUsername: user || settings.email.smtpUsername,
       smtpPassword: pass || settings.email.smtpPassword,
       senderEmail: from || settings.email.senderEmail,
       senderName: fromName || settings.email.senderName,
+      adminNotificationEmail: adminEmail || settings.email.adminNotificationEmail || "",
     },
   };
+}
+
+export function getAdminNotificationEmail(): string | null {
+  const settings = getPlatformSettings();
+  const email = settings.email.adminNotificationEmail?.trim();
+  if (email) return email;
+  return null;
 }
 
 export function getPlatformSettings(): PlatformSettings {

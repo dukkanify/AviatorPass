@@ -163,7 +163,7 @@ async function main() {
     });
     if (!req.json?.success) throw new Error(req.json?.error || "otp request failed");
     const delivery = req.json.data?.emailDelivery;
-    if (delivery !== "outbox" && delivery !== "smtp") {
+    if (delivery !== "outbox" && delivery !== "smtp" && delivery !== "resend") {
       throw new Error(`unexpected emailDelivery=${delivery}`);
     }
 

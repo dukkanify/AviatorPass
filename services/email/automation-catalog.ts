@@ -99,6 +99,55 @@ export const EMAIL_AUTOMATION_CATALOG: EmailAutomationCatalogItem[] = [
     audience: "student",
     defaultEnabled: true,
   },
+  {
+    event: "enrollment",
+    label: "Enrollment",
+    description: "Course enrolment confirmed.",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "refund",
+    label: "Refund",
+    description: "Refund issued to the student and copied to admin.",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "password_reset",
+    label: "Password reset",
+    description: "Password reset confirmation (OTP is sent separately).",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "purchase",
+    label: "Purchase",
+    description: "Course purchase confirmation.",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "class_started",
+    label: "Class started",
+    description: "Live class has started.",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "class_finished",
+    label: "Class finished",
+    description: "Live class has finished.",
+    audience: "student",
+    defaultEnabled: true,
+  },
+  {
+    event: "course_published",
+    label: "Course published",
+    description: "A course the student can access was published.",
+    audience: "student",
+    defaultEnabled: true,
+  },
 ];
 
 export function getCatalogItem(event: string) {

@@ -47,36 +47,55 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
 
   const locations = general.primaryLocations.join(" · ");
 
+  const site = general.websiteUrl.replace(/\/$/, "") || "https://www.aviatorpass.com";
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
   <title>${payload.title}</title>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .ap-body { background:#0B1A24 !important; color:#E8EEF4 !important; }
+      .ap-card { background:#143048 !important; border-color:#2A4A66 !important; }
+      .ap-copy { color:#E8EEF4 !important; }
+      .ap-title { color:#F6C36C !important; }
+    }
+    @media only screen and (max-width: 620px) {
+      .ap-card { width:100% !important; }
+      .ap-pad { padding:20px 16px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#F3F6F9;font-family:'IBM Plex Sans',Arial,sans-serif;color:${primary};">
+<body class="ap-body" style="margin:0;padding:0;background:#F3F6F9;font-family:'IBM Plex Sans',Arial,sans-serif;color:${primary};">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${payload.preheader ?? ""}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F3F6F9;padding:32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #D8E0E8;">
+        <table class="ap-card" role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #D8E0E8;">
           <tr>
-            <td style="background:${primary};padding:24px 32px;">
-              <img src="${logo}" alt="${general.platformName}" height="40" style="display:block;height:40px;width:auto;" />
+            <td class="ap-pad" style="background:${primary};padding:24px 32px;">
+              <a href="${site}" style="text-decoration:none;">
+                <img src="${logo}" alt="${general.platformName}" height="40" style="display:block;height:40px;width:auto;border:0;" />
+              </a>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px;">
-              <h1 style="margin:0 0 16px;font-family:'Exo 2',Arial,sans-serif;font-size:22px;color:${primary};">${payload.title}</h1>
+            <td class="ap-pad ap-copy" style="padding:32px;">
+              <h1 class="ap-title" style="margin:0 0 16px;font-family:'Exo 2',Arial,sans-serif;font-size:22px;color:${primary};">${payload.title}</h1>
               <div style="font-size:15px;line-height:1.6;color:#0B1A24;">${payload.bodyHtml}</div>
+              <p style="margin-top:24px;"><a href="${site}" style="color:${accent};">Open AviatorPass</a></p>
             </td>
           </tr>
           <tr>
-            <td style="padding:20px 32px;background:#0B1A24;color:#E2E8F0;font-size:12px;line-height:1.6;">
+            <td class="ap-pad" style="padding:20px 32px;background:#0B1A24;color:#E2E8F0;font-size:12px;line-height:1.6;">
               <strong style="color:#fff;">${general.companyName}</strong><br/>
               YOUR AVIATION JOURNEY STARTS HERE<br/>
               ${general.footerText}<br/>
               ${locations}<br/>
+              <a href="${site}" style="color:${accent};">${site}</a><br/>
               <a href="mailto:${general.contactEmail}" style="color:${accent};">${general.contactEmail}</a>
               ·
               <a href="mailto:${general.supportEmail}" style="color:${accent};">${general.supportEmail}</a>
@@ -234,4 +253,125 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+export function welcomeEmailTemplate(input: { firstName: string }) {
+  const name = escapeHtml(input.firstName || "Aviator");
+  return renderBrandedEmail({
+    title: "Welcome to AviatorPass",
+    preheader: "YOUR AVIATION JOURNEY STARTS HERE",
+    bodyHtml: `<p>Hi ${name},</p>
+      <p>Welcome to AviatorPass. Your student workspace, courses, and live classes are ready.</p>
+      <p>Sign in to continue enrolment, billing, and your ATPL journey.</p>`,
+  });
+}
+
+export function passwordResetEmailTemplate(input: { firstName?: string }) {
+  const name = escapeHtml(input.firstName || "Aviator");
+  return renderBrandedEmail({
+    title: "Reset your password",
+    preheader: "Use the verification code we sent, or request a new one",
+    bodyHtml: `<p>Hi ${name},</p>
+      <p>A password reset was requested for your AviatorPass account.</p>
+      <p>Use the one-time code in the verification email to choose a new password. If you did not request this, you can ignore this message.</p>`,
+  });
+}
+
+export function purchaseConfirmationEmailTemplate(input: {
+  firstName?: string;
+  productName: string;
+  amountLabel?: string;
+  reference?: string;
+}) {
+  return renderBrandedEmail({
+    title: "Purchase confirmed",
+    preheader: input.productName,
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Aviator")},</p>
+      <p>Your purchase of <strong>${escapeHtml(input.productName)}</strong> is confirmed.</p>
+      ${input.amountLabel ? `<p>Amount: <strong>${escapeHtml(input.amountLabel)}</strong></p>` : ""}
+      ${input.reference ? `<p>Reference: ${escapeHtml(input.reference)}</p>` : ""}
+      <p>Open My Courses to start learning.</p>`,
+  });
+}
+
+export function paymentFailedEmailTemplate(input: { firstName?: string; detail?: string }) {
+  return renderBrandedEmail({
+    title: "Payment failed",
+    preheader: "We could not complete your payment",
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Aviator")},</p>
+      <p>${escapeHtml(input.detail || "We could not process your payment. Try another method from checkout.")}</p>`,
+  });
+}
+
+export function refundEmailTemplate(input: {
+  firstName?: string;
+  amountLabel?: string;
+  reference?: string;
+}) {
+  return renderBrandedEmail({
+    title: "Refund processed",
+    preheader: input.amountLabel || "A refund was issued",
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Aviator")},</p>
+      <p>A refund has been issued${input.amountLabel ? ` for <strong>${escapeHtml(input.amountLabel)}</strong>` : ""}.</p>
+      ${input.reference ? `<p>Reference: ${escapeHtml(input.reference)}</p>` : ""}`,
+  });
+}
+
+export function enrollmentEmailTemplate(input: { firstName?: string; courseName?: string }) {
+  return renderBrandedEmail({
+    title: "You are enrolled",
+    preheader: input.courseName || "Course access is ready",
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Aviator")},</p>
+      <p>You are enrolled${input.courseName ? ` in <strong>${escapeHtml(input.courseName)}</strong>` : ""}.</p>
+      <p>Open AviatorPass → My Courses to begin.</p>`,
+  });
+}
+
+export function instructorAssignmentEmailTemplate(input: {
+  firstName?: string;
+  studentName?: string;
+  courseName?: string;
+}) {
+  return renderBrandedEmail({
+    title: "New student assigned",
+    preheader: input.studentName || "A student was assigned to you",
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Instructor")},</p>
+      <p>${escapeHtml(input.studentName || "A student")} was assigned${input.courseName ? ` for <strong>${escapeHtml(input.courseName)}</strong>` : ""}.</p>
+      <p>Open the instructor dashboard to review the assignment.</p>`,
+  });
+}
+
+export function liveClassEmailTemplate(input: {
+  kind: "created" | "updated" | "cancelled" | "started" | "finished" | "reminder_24h" | "reminder_2h";
+  title: string;
+  when?: string;
+  joinUrl?: string;
+}) {
+  const labels: Record<typeof input.kind, string> = {
+    created: "Live class created",
+    updated: "Live class updated",
+    cancelled: "Live class cancelled",
+    started: "Class started",
+    finished: "Class finished",
+    reminder_24h: "Reminder — class in 24 hours",
+    reminder_2h: "Reminder — class in 2 hours",
+  };
+  const join = input.joinUrl ? `<p><a href="${escapeHtml(input.joinUrl)}">Join Zoom class</a></p>` : "";
+  return renderBrandedEmail({
+    title: labels[input.kind],
+    preheader: `${input.title}${input.when ? ` · ${input.when}` : ""}`,
+    bodyHtml: `<p><strong>${escapeHtml(input.title)}</strong></p>
+      ${input.when ? `<p>When: ${escapeHtml(input.when)}</p>` : ""}
+      ${join}`,
+  });
+}
+
+export function certificateIssuedEmailTemplate(input: { firstName?: string; title?: string }) {
+  return renderBrandedEmail({
+    title: "Certificate issued",
+    preheader: input.title || "Your certificate is ready",
+    bodyHtml: `<p>Hi ${escapeHtml(input.firstName || "Aviator")},</p>
+      <p>Your certificate${input.title ? ` for <strong>${escapeHtml(input.title)}</strong>` : ""} is ready.</p>
+      <p>Download it from AviatorPass → Certificates.</p>`,
+  });
 }

@@ -144,6 +144,16 @@ function PlatformSettingsShell() {
   const [saving, setSaving] = React.useState(false);
   const [category, setCategory] = React.useState<SettingsCategory>("general");
   const [query, setQuery] = React.useState("");
+  const [emailStatus, setEmailStatus] = React.useState<{
+    configured?: boolean;
+    resend?: {
+      domainVerified?: boolean;
+      senderDomain?: string;
+      error?: string | null;
+      records?: Array<{ type: string; name: string; value: string; status?: string }>;
+    };
+    recent?: Array<{ mode: string; error?: string | null; createdAt: string; subject: string }>;
+  } | null>(null);
 
   const dirty = React.useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(draft),
@@ -177,6 +187,24 @@ function PlatformSettingsShell() {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  const loadEmailStatus = React.useCallback(async () => {
+    const result = await authFetch<{
+      configured: boolean;
+      resend: {
+        domainVerified?: boolean;
+        senderDomain?: string;
+        error?: string | null;
+        records?: Array<{ type: string; name: string; value: string; status?: string }>;
+      };
+      recent: Array<{ mode: string; error?: string | null; createdAt: string; subject: string }>;
+    }>("/api/admin/settings/email-status");
+    if (result.success && result.data) setEmailStatus(result.data);
+  }, []);
+
+  React.useEffect(() => {
+    if (category === "email") void loadEmailStatus();
+  }, [category, loadEmailStatus]);
 
   const save = async () => {
     if (!draft || !settings) return;
@@ -669,12 +697,35 @@ function PlatformSettingsShell() {
         </TabsContent>
 
         <TabsContent value="email" className="mt-6 space-y-4">
+          {emailStatus?.resend ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Production delivery</CardTitle>
+                <CardDescription>
+                  {emailStatus.resend.domainVerified
+                    ? `Resend domain ${emailStatus.resend.senderDomain} is verified.`
+                    : emailStatus.resend.error ||
+                      "Add and verify aviatorpass.com in Resend, then add the DNS records below."}
+                </CardDescription>
+              </CardHeader>
+              {emailStatus.resend.records && emailStatus.resend.records.length > 0 ? (
+                <CardContent className="space-y-2 text-xs">
+                  {emailStatus.resend.records.map((row) => (
+                    <p key={`${row.type}-${row.name}`} className="font-mono break-all">
+                      {row.type} {row.name} → {row.value}
+                      {row.status ? ` (${row.status})` : ""}
+                    </p>
+                  ))}
+                </CardContent>
+              ) : null}
+            </Card>
+          ) : null}
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
                 <CardTitle>Email configuration</CardTitle>
                 <CardDescription>
-                  SMTP and future providers (SendGrid, Mailgun, SES).
+                  Resend is used in production when RESEND_API_KEY is set. SMTP is the fallback.
                 </CardDescription>
               </div>
               <Button
@@ -802,6 +853,30 @@ function PlatformSettingsShell() {
                   value={draft.email.senderEmail}
                   onChange={(e) =>
                     setDraft({ ...draft, email: { ...draft.email, senderEmail: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field label="Reply-to email">
+                <Input
+                  type="email"
+                  value={draft.email.replyToEmail}
+                  onChange={(e) =>
+                    setDraft({ ...draft, email: { ...draft.email, replyToEmail: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field
+                label="Admin notification email"
+                description="Receives copies of registration, purchase, payment, and refund emails."
+              >
+                <Input
+                  type="email"
+                  value={draft.email.adminNotificationEmail ?? ""}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      email: { ...draft.email, adminNotificationEmail: e.target.value },
+                    })
                   }
                 />
               </Field>

@@ -17,6 +17,13 @@ export const EMAIL_AUTOMATION_EVENTS = [
   "admin_alert",
   "instructor_alert",
   "student_alert",
+  "enrollment",
+  "refund",
+  "password_reset",
+  "purchase",
+  "class_started",
+  "class_finished",
+  "course_published",
 ] as const;
 
 export type EmailAutomationEvent = (typeof EMAIL_AUTOMATION_EVENTS)[number];

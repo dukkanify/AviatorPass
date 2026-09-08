@@ -34,7 +34,23 @@ describe("SMTP env overlay", () => {
     delete process.env.SMTP_PASSWORD;
     delete process.env.SMTP_FROM;
     delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_PROVIDER;
+    delete process.env.EMAIL_FROM;
+    delete process.env.EMAIL_FROM_NAME;
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
     const next = applyRuntimeEmailOverrides(DEFAULT_PLATFORM_SETTINGS);
     expect(next.email.smtpHost).toBe(DEFAULT_PLATFORM_SETTINGS.email.smtpHost);
+  });
+
+  it("treats Resend as the provider when only RESEND_API_KEY is set", () => {
+    delete process.env.SMTP_HOST;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "AviatorPass <noreply@aviatorpass.com>";
+    process.env.ADMIN_NOTIFICATION_EMAIL = "ops@aviatorpass.com";
+    const next = applyRuntimeEmailOverrides(DEFAULT_PLATFORM_SETTINGS);
+    expect(next.email.provider).toBe("resend");
+    expect(next.email.senderEmail).toBe("noreply@aviatorpass.com");
+    expect(next.email.senderName).toBe("AviatorPass");
+    expect(next.email.adminNotificationEmail).toBe("ops@aviatorpass.com");
   });
 });

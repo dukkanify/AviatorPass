@@ -18,8 +18,10 @@ import {
   type NotificationPreferences,
 } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
-import { emailPaymentUpdate } from "@/services/email/automation-service";
+import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { logEmailEvent } from "@/services/email/email-log";
 import { writeOpsLog } from "@/services/ops/logging-service";
+import type { EmailAutomationEvent } from "@/types/email-automation";
 
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -164,13 +166,20 @@ async function maybeSendEmail(input: {
   if (def.category === "marketing" && !prefs.marketingEnabled) return false;
   const should = input.forceEmail ?? input.emailDefault;
   if (!should) return false;
+  // OTP / verification codes are emailed by the mailer from the OTP engine — do not duplicate.
+  if (input.type === "account.otp_sent") return false;
   try {
-    await emailPaymentUpdate({
-      userId: input.userId,
-      title: input.title,
-      detail: input.body,
-      amountLabel: input.amountLabel,
-      reference: input.reference ?? input.type,
+    const event = notificationTypeToEmailEvent(input.type);
+    await dispatchEmailEvent({
+      event,
+      userIds: [input.userId],
+      data: {
+        title: input.title,
+        detail: input.body,
+        amountLabel: input.amountLabel ?? "",
+        reference: input.reference ?? input.type,
+      },
+      system: def.category === "security" || def.category === "ops",
     });
     return true;
   } catch (error) {
@@ -255,6 +264,12 @@ export async function emitNotification(
     createdAt: nowIso(),
   });
 
+  logEmailEvent(
+    "notification_created",
+    { notificationId: record.id, type: record.type, userId: input.userId },
+    input.userId,
+  );
+
   if (prefs.inAppEnabled && platform.notifications.inAppNotifications) {
     writeAuthDb((db) => {
       db.notifications.unshift(record);
@@ -288,6 +303,11 @@ export async function emitNotification(
       if (n) n.emailSentAt = nowIso();
     });
     record.emailSentAt = nowIso();
+    logEmailEvent(
+      "notification_delivered",
+      { notificationId: record.id, type: record.type, channel: "email+in_app" },
+      input.userId,
+    );
   }
 
   return record;
@@ -606,4 +626,40 @@ export async function notifyRole(
 
 export function assertUserExists(userId: string): boolean {
   return Boolean(findUserById(userId));
+}
+
+export function notificationTypeToEmailEvent(type: string): EmailAutomationEvent {
+  if (type.startsWith("admin.") || type.startsWith("ops.") || type.startsWith("system.")) {
+    return "admin_alert";
+  }
+  if (type.startsWith("instructor.") || type.startsWith("cgi.")) return "instructor_alert";
+  if (type === "account.welcome" || type === "account.created" || type === "account.email_verified") {
+    return "registration";
+  }
+  if (type === "account.password_reset" || type === "account.password_changed") {
+    return "password_reset";
+  }
+  if (type.includes("refund")) return "refund";
+  if (type.includes("enroll") || type === "course.access_granted" || type === "course.atpl_enrolled") {
+    return "enrollment";
+  }
+  if (type === "course.published" || type === "course.subject_unlocked") return "course_published";
+  if (type === "certificate.issued") return "certificate";
+  if (type === "class.started" || type === "zoom.meeting.started") return "class_started";
+  if (type === "class.finished" || type === "zoom.meeting.finished") return "class_finished";
+  if (type === "class.cancelled" || type === "zoom.meeting.cancelled") return "cancel";
+  if (type === "class.rescheduled" || type === "zoom.meeting.updated") return "reschedule";
+  if (
+    type === "class.scheduled" ||
+    type === "class.created" ||
+    type === "zoom.meeting.created"
+  ) {
+    return "schedule";
+  }
+  if (type.startsWith("class.reminder") || type.includes("reminder")) return "reminder";
+  if (type === "invoice.generated") return "invoice";
+  if (type === "payment.succeeded" || type === "payment.purchase") return "purchase";
+  if (type.startsWith("payment.") || type.startsWith("invoice.")) return "payment";
+  if (type.startsWith("assignment.")) return "assignment";
+  return "student_alert";
 }

@@ -19,7 +19,7 @@ import {
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
 import { isEmailDeliveryConfigured, sendEmail } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
-import { getPlatformSettings } from "@/services/settings/settings-service";
+import { getAdminNotificationEmail, getPlatformSettings } from "@/services/settings/settings-service";
 import type {
   EmailAutomationDispatchInput,
   EmailAutomationDispatchResult,
@@ -182,6 +182,8 @@ export async function dispatchEmailEvent(
     }
   }
 
+  await maybeCopyAdmin(input, recipients.map((r) => r.email), result);
+
   await logActivity({
     actorId: input.actorId ?? null,
     action: ACTIVITY_ACTIONS.EMAIL_AUTOMATION_DISPATCHED,
@@ -279,6 +281,65 @@ export function configureAutomationEvent(event: EmailAutomationEvent, enabled: b
 }
 
 export { EMAIL_AUTOMATION_CATALOG };
+
+const ADMIN_COPY_EVENTS = new Set<EmailAutomationEvent>([
+  "registration",
+  "payment",
+  "purchase",
+  "invoice",
+  "receipt",
+  "refund",
+]);
+
+async function maybeCopyAdmin(
+  input: EmailAutomationDispatchInput,
+  already: string[],
+  result: EmailAutomationDispatchResult,
+) {
+  if (!ADMIN_COPY_EVENTS.has(input.event) && input.event !== "admin_alert") return;
+  const adminEmail = getAdminNotificationEmail();
+  if (!adminEmail) return;
+  const seen = new Set(already.map((e) => e.trim().toLowerCase()));
+  if (seen.has(adminEmail.toLowerCase())) return;
+
+  const title =
+    input.event === "registration"
+      ? "New registration"
+      : input.event === "refund"
+        ? "Refund"
+        : input.event === "payment" && /fail/i.test(String(input.data.title ?? input.subject ?? ""))
+          ? "Payment failed"
+          : "New purchase / payment";
+  const template = renderAutomationTemplate(
+    "admin_alert",
+    {
+      title,
+      detail: `${input.event}: ${String(input.data.detail ?? input.data.title ?? "")} ${String(input.data.reference ?? "")}`.trim(),
+      reference: String(input.data.reference ?? ""),
+    },
+    title,
+  );
+  const mail = await sendEmail({
+    to: adminEmail,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    meta: {
+      kind: "admin_copy",
+      event: input.event,
+      system: true,
+      ...input.meta,
+    },
+  });
+  result.attempted += 1;
+  if (mail.success) {
+    result.sent += 1;
+    result.outboxIds.push(mail.outboxId);
+  } else {
+    result.failed += 1;
+    if (mail.error) result.errors.push(mail.error);
+  }
+}
 
 /** Convenience helpers used by domain services. */
 export async function emailRegistrationWelcome(input: { userId: string; actorId?: string | null }) {

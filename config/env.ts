@@ -66,8 +66,12 @@ const serverEnvSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().optional(),
   SMTP_FROM_NAME: z.string().optional(),
+  EMAIL_PROVIDER: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  EMAIL_FROM_NAME: z.string().optional(),
+  ADMIN_NOTIFICATION_EMAIL: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -146,8 +150,12 @@ export function getServerEnv() {
     SMTP_PASSWORD: emptyToUndef(process.env.SMTP_PASSWORD),
     SMTP_FROM: emptyToUndef(process.env.SMTP_FROM),
     SMTP_FROM_NAME: emptyToUndef(process.env.SMTP_FROM_NAME),
+    EMAIL_PROVIDER: emptyToUndef(process.env.EMAIL_PROVIDER),
     EMAIL_FROM: emptyToUndef(process.env.EMAIL_FROM),
+    EMAIL_FROM_NAME: emptyToUndef(process.env.EMAIL_FROM_NAME),
+    ADMIN_NOTIFICATION_EMAIL: emptyToUndef(process.env.ADMIN_NOTIFICATION_EMAIL),
     RESEND_API_KEY: emptyToUndef(process.env.RESEND_API_KEY),
+    CRON_SECRET: emptyToUndef(process.env.CRON_SECRET),
   });
 
   if (!result.success) {
