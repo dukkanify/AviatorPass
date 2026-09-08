@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { publicEnv } from "@/config/env";
+import { getBaseUrl } from "@/lib/site-origin";
 import { completeZoomOAuthCallback } from "@/services/zoom/oauth-service";
 
 export async function GET(request: Request) {
@@ -10,6 +10,6 @@ export async function GET(request: Request) {
     state: url.searchParams.get("state"),
     error: url.searchParams.get("error"),
   });
-  const dest = new URL(result.redirectTo, publicEnv.NEXT_PUBLIC_APP_URL);
+  const dest = new URL(result.redirectTo, getBaseUrl());
   return NextResponse.redirect(dest);
 }

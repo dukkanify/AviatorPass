@@ -50,7 +50,7 @@
     "type": "git",
     "url": "git+https://github.com/dukkanify/AviatorPass.git"
   },
-  "homepage": "https://aviatorpass.vercel.app",
+  "homepage": "https://www.aviatorpass.com",
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",

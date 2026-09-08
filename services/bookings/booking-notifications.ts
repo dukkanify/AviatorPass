@@ -2,6 +2,7 @@
  * Private session booking emails — student, instructor, and calendar details.
  */
 
+import { rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { sendEmail } from "@/services/email/mailer";
 import { renderBrandedEmail } from "@/services/settings/email-templates";
 import { findUserById } from "@/services/auth/store";
@@ -37,10 +38,11 @@ export async function sendPrivateSessionConfirmationEmails(
     booking.paymentRequired && booking.priceAmountMinor > 0
       ? `<p>Fee: <strong>${formatMinor(booking.priceAmountMinor, booking.currency)}</strong></p>`
       : "";
+  const zoomJoinUrl = booking.zoom ? rewriteAppAbsoluteUrl(booking.zoom.joinUrl) : "";
   const zoomBlock = booking.zoom
     ? `<p><strong>Zoom meeting</strong><br/>
         Meeting ID: ${booking.zoom.meetingNumber}<br/>
-        Join link: <a href="${booking.zoom.joinUrl}">${booking.zoom.joinUrl}</a><br/>
+        Join link: <a href="${zoomJoinUrl}">${zoomJoinUrl}</a><br/>
         Passcode: ${booking.zoom.password}</p>`
     : `<p>Your Zoom meeting link will appear in your dashboard once the session is confirmed.</p>`;
 
