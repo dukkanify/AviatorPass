@@ -3,6 +3,7 @@
  */
 
 import { PaymentError } from "@/services/payments/access";
+import { assertBnplCurrency } from "@/services/payments/country-pricing";
 import type {
   GatewayChargeInput,
   GatewayChargeResult,
@@ -64,6 +65,7 @@ export class TamaraGateway implements PaymentGateway {
     }
 
     const currency = (input.currency || order?.currency || "SAR").toUpperCase();
+    assertBnplCurrency("tamara", country, currency);
     const major = formatTamaraAmount(input.amount, currency);
     const taxMajor = formatTamaraAmount(order?.taxAmount ?? 0, currency);
     const names = splitName(input.customerName || order?.billingName || "AviatorPass Student");

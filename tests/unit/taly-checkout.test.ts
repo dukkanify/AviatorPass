@@ -122,7 +122,8 @@ describe("Taly checkout creation", () => {
       customerDetails: { phoneNumber: string; countryCode: string };
       totalAmount: number;
     };
-    expect(body.currency).toBeTruthy();
+    expect(body.currency).toBe("KWD");
+    expect(body.currency).not.toBe("AED");
     expect(body.merchantRedirectUrl).toContain("/payment/success");
     expect(body.postBackUrl).toContain("/api/payments/taly/webhook");
     expect(body.customerDetails.countryCode).toBe("965");
@@ -130,17 +131,16 @@ describe("Taly checkout creation", () => {
     expect(typeof body.totalAmount).toBe("number");
   });
 
-  it("keeps Taly coming soon when merchant keys are missing", () => {
+  it("hides Taly completely when merchant keys are missing", () => {
     delete process.env.TALY_API_KEY;
     delete process.env.TALY_SECRET_KEY;
     const quote = quoteGuestCheckout(undefined, "KW");
-    expect(quote.methods.find((m) => m.id === "taly")?.available).toBe(false);
+    expect(quote.methods.find((m) => m.id === "taly")).toBeUndefined();
   });
 
   it("offers Taly only for Kuwait when configured", () => {
     const kuwait = quoteGuestCheckout(undefined, "KW");
     expect(kuwait.methods.find((m) => m.id === "taly")?.available).toBe(true);
-    expect(kuwait.methods.find((m) => m.id === "taly")?.comingSoon).toBe(false);
     expect(
       quoteGuestCheckout(undefined, "US").methods.find((m) => m.id === "taly"),
     ).toBeUndefined();

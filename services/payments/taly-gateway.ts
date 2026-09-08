@@ -3,6 +3,7 @@
  */
 
 import { PaymentError } from "@/services/payments/access";
+import { assertBnplCurrency } from "@/services/payments/country-pricing";
 import type {
   GatewayChargeInput,
   GatewayChargeResult,
@@ -96,6 +97,7 @@ export class TalyGateway implements PaymentGateway {
     const item = order?.items[0];
     const country = (input.country || order?.billingCountry || "KW").toUpperCase();
     const currency = (input.currency || order?.currency || "KWD").toUpperCase();
+    assertBnplCurrency("taly", country, currency);
     const total = majorAmount(input.amount, currency);
     const tax = majorAmount(order?.taxAmount ?? 0, currency);
     const discount = majorAmount(order?.discountAmount ?? 0, currency);

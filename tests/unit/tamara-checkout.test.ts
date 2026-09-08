@@ -79,19 +79,22 @@ describe("Tamara checkout creation", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
       country_code: string;
+      total_amount: { currency: string; amount: number };
       merchant_url: { success: string; cancel: string; notification: string };
       consumer: { phone_number: string };
     };
     expect(body.country_code).toBe("AE");
+    expect(body.total_amount.currency).toBe("AED");
+    expect(body.total_amount.currency).not.toBe("KWD");
     expect(body.merchant_url.success).toContain("/payment/success");
     expect(body.merchant_url.cancel).toContain("/payment/cancel");
     expect(body.merchant_url.notification).toContain("/api/payments/tamara/webhook");
     expect(body.consumer.phone_number).toBe("501234567");
   });
 
-  it("keeps Tamara coming soon when the token is missing", () => {
+  it("hides Tamara completely when the token is missing", () => {
     delete process.env.TAMARA_API_TOKEN;
     const quote = quoteGuestCheckout(undefined, "SA");
-    expect(quote.methods.find((m) => m.id === "tamara")?.available).toBe(false);
+    expect(quote.methods.find((m) => m.id === "tamara")).toBeUndefined();
   });
 });

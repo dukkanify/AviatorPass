@@ -173,13 +173,22 @@ export function defaultRegionalPaymentRules(currency: string): RegionalPaymentRu
   ];
 }
 
+const COUNTRY_CHECKOUT_CURRENCY: Record<string, string> = {
+  AE: "AED",
+  SA: "SAR",
+  KW: "KWD",
+};
+
 function applyCountryGatewayRouting(rule: RegionalPaymentRule): boolean {
   const expected = routedBnplProviders(rule.countryCode);
-  const same =
+  const expectedCurrency = COUNTRY_CHECKOUT_CURRENCY[rule.countryCode];
+  const sameProviders =
     rule.bnplProviders.length === expected.length &&
     expected.every((provider) => rule.bnplProviders.includes(provider));
-  if (same) return false;
+  const sameCurrency = !expectedCurrency || rule.currency === expectedCurrency;
+  if (sameProviders && sameCurrency) return false;
   rule.bnplProviders = expected;
+  if (expectedCurrency) rule.currency = expectedCurrency;
   if (rule.countryCode === "KW") {
     rule.maxInstallments = Math.max(rule.maxInstallments, 6);
     rule.notes = "Stripe + Taly. Tamara is hidden.";
@@ -236,14 +245,16 @@ export function getRegionalPaymentRule(
     found.countryCode === "XX" && code !== "XX" ? code : found.countryCode,
   );
   // Unknown countries fall back to the XX rule but must still be Stripe-only.
+  const currency = COUNTRY_CHECKOUT_CURRENCY[found.countryCode] ?? found.currency;
   if (found.countryCode === "XX") {
     return { ...found, bnplProviders: [] };
   }
   if (
     found.bnplProviders.length !== expected.length ||
-    !expected.every((provider) => found.bnplProviders.includes(provider))
+    !expected.every((provider) => found.bnplProviders.includes(provider)) ||
+    found.currency !== currency
   ) {
-    return { ...found, bnplProviders: expected };
+    return { ...found, bnplProviders: expected, currency };
   }
   return found;
 }

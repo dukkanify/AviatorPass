@@ -5,17 +5,9 @@
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
-import {
-  assertCanManageFinance,
-  PaymentError,
-} from "@/services/payments/access";
+import { assertCanManageFinance, PaymentError } from "@/services/payments/access";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
-import type {
-  CatalogProduct,
-  Coupon,
-  CouponType,
-  PricingModel,
-} from "@/types/payments";
+import type { CatalogProduct, Coupon, CouponType, PricingModel } from "@/types/payments";
 import type { UserProfile } from "@/types";
 
 function nowIso() {
@@ -60,6 +52,7 @@ export function upsertProduct(
     priceAmount: number;
     compareAtAmount?: number | null;
     currency?: string;
+    pricesByCurrency?: Record<string, number>;
     isFree?: boolean;
     active?: boolean;
   },
@@ -81,6 +74,7 @@ export function upsertProduct(
         priceAmount: input.isFree ? 0 : input.priceAmount,
         compareAtAmount: input.compareAtAmount ?? existing.compareAtAmount,
         currency: input.currency ?? existing.currency,
+        pricesByCurrency: input.pricesByCurrency ?? existing.pricesByCurrency,
         isFree: Boolean(input.isFree),
         active: input.active ?? existing.active,
         updatedAt: stamp,
@@ -98,6 +92,7 @@ export function upsertProduct(
       priceAmount: input.isFree ? 0 : input.priceAmount,
       compareAtAmount: input.compareAtAmount ?? null,
       currency: input.currency ?? db.settings.currency,
+      pricesByCurrency: input.pricesByCurrency,
       isFree: Boolean(input.isFree),
       active: input.active ?? true,
       metadata: {},
@@ -120,8 +115,7 @@ export function listCoupons() {
 export function getCouponByCode(code: string): Coupon | null {
   const normalized = code.trim().toUpperCase();
   return (
-    readPaymentsDb().coupons.find((c) => c.code.toUpperCase() === normalized && c.active) ??
-    null
+    readPaymentsDb().coupons.find((c) => c.code.toUpperCase() === normalized && c.active) ?? null
   );
 }
 
