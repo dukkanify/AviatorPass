@@ -128,6 +128,9 @@ beforeEach(() => {
   ensureDemoUsersSeeded();
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
+  writePaymentsDb((db) => {
+    db.processedProviderEvents = db.processedProviderEvents.filter((e) => e.provider !== "tamara");
+  });
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response(JSON.stringify({ status: "authorised" }), { status: 200 })),
@@ -251,7 +254,7 @@ describe("Tamara webhooks", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order_id: "missing",
+          order_id: `missing-${generateId().slice(0, 8)}`,
           event_type: "order_approved",
         }),
       }),
