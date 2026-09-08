@@ -13,6 +13,7 @@ import { assertCanCheckout, assertOwnOrder, PaymentError } from "@/services/paym
 import { getProduct, validateCoupon } from "@/services/payments/catalog-service";
 import { getPaymentGateway } from "@/services/payments/gateway";
 import { tamaraCancelUrl, tamaraSuccessUrl } from "@/services/payments/tamara-config";
+import { talyCancelUrl, talySuccessUrl } from "@/services/payments/taly-config";
 import { publicAppOrigin } from "@/lib/site-origin";
 import {
   createInstallmentPlanForOrder,
@@ -433,7 +434,14 @@ async function finalizeSuccessfulPayment(input: {
       mode === "installments" ? (schedule[0]?.amount ?? order.totalAmount) : order.totalAmount;
   }
 
-  const methodBrand = mode === "tamara" ? "tamara" : mode === "tabby" ? "tabby" : input.methodBrand;
+  const methodBrand =
+    mode === "tamara"
+      ? "tamara"
+      : mode === "taly"
+        ? "taly"
+        : mode === "tabby"
+          ? "tabby"
+          : input.methodBrand;
   const origin = publicAppOrigin();
   const gateway = getPaymentGateway(methodBrand);
   const charge = await gateway.createPayment({
@@ -448,8 +456,18 @@ async function finalizeSuccessfulPayment(input: {
     simulateFailure: input.simulateFailure,
     country: order.billingCountry,
     billingAddress: order.billingAddress,
-    successUrl: methodBrand === "tamara" ? tamaraSuccessUrl(order.id, origin) : undefined,
-    cancelUrl: methodBrand === "tamara" ? tamaraCancelUrl(order.id, origin) : undefined,
+    successUrl:
+      methodBrand === "taly"
+        ? talySuccessUrl(order.id, origin)
+        : methodBrand === "tamara"
+          ? tamaraSuccessUrl(order.id, origin)
+          : undefined,
+    cancelUrl:
+      methodBrand === "taly"
+        ? talyCancelUrl(order.id, origin)
+        : methodBrand === "tamara"
+          ? tamaraCancelUrl(order.id, origin)
+          : undefined,
     productName: order.items[0]?.productName,
   });
 

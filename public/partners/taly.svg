@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" role="img" aria-labelledby="talyTitle">
+  <title id="talyTitle">Taly</title>
+  <rect width="120" height="40" rx="6" fill="transparent"/>
+  <text x="8" y="26" font-family="IBM Plex Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#143048">Taly</text>
+</svg>

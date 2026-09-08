@@ -111,6 +111,7 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
     detail: [
       process.env.STRIPE_SECRET_KEY ? "Stripe key present" : "Mock gateway",
       process.env.TAMARA_API_TOKEN ? "Tamara configured" : null,
+      process.env.TALY_API_KEY && process.env.TALY_SECRET_KEY ? "Taly configured" : null,
     ]
       .filter(Boolean)
       .join(" · "),

@@ -55,6 +55,10 @@ const serverEnvSchema = z.object({
   TAMARA_API_TOKEN: z.string().optional(),
   TAMARA_BASE_URL: z.string().url().optional(),
   TAMARA_NOTIFICATION_TOKEN: z.string().optional(),
+  TALY_API_KEY: z.string().optional(),
+  TALY_SECRET_KEY: z.string().optional(),
+  TALY_WEBHOOK_SECRET: z.string().optional(),
+  TALY_BASE_URL: z.string().url().optional(),
 });
 
 function parsePublicEnv() {
@@ -122,6 +126,10 @@ export function getServerEnv() {
     TAMARA_API_TOKEN: emptyToUndef(process.env.TAMARA_API_TOKEN),
     TAMARA_BASE_URL: emptyToUndef(process.env.TAMARA_BASE_URL),
     TAMARA_NOTIFICATION_TOKEN: emptyToUndef(process.env.TAMARA_NOTIFICATION_TOKEN),
+    TALY_API_KEY: emptyToUndef(process.env.TALY_API_KEY),
+    TALY_SECRET_KEY: emptyToUndef(process.env.TALY_SECRET_KEY),
+    TALY_WEBHOOK_SECRET: emptyToUndef(process.env.TALY_WEBHOOK_SECRET),
+    TALY_BASE_URL: emptyToUndef(process.env.TALY_BASE_URL),
   });
 
   if (!result.success) {

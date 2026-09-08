@@ -4,7 +4,7 @@ Enterprise financial infrastructure for AviatorPass.
 
 ## Scope
 
-- Gateway adapters: **mock** (default) + **Stripe Checkout** + **Tamara** (see `docs/TAMARA.md`)
+- Gateway adapters: **mock** (default) + **Stripe Checkout** + **Tamara** + **Taly** (see `docs/TAMARA.md`, `docs/TALY.md`)
 - Pricing models: one-time, monthly/annual subscriptions, premium, packages, free, coupons
 - Secure checkout (tokenized methods only — never stores PAN)
 - Orders, invoices (HTML/PDF print), subscriptions
@@ -24,7 +24,7 @@ Platform collects payments centrally; instructor share is credited to internal w
 - JSON: `.data/aep-payments.json`
 - SQL: `database/migrations/011_payments_billing.sql`
 - Flags: `features.payments`, `features.wallet` enabled
-- Env (optional): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `TAMARA_API_TOKEN`, `TAMARA_BASE_URL`, `TAMARA_NOTIFICATION_TOKEN`
+- Env (optional): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `TAMARA_API_TOKEN`, `TAMARA_BASE_URL`, `TAMARA_NOTIFICATION_TOKEN`, `TALY_API_KEY`, `TALY_SECRET_KEY`, `TALY_WEBHOOK_SECRET`, `TALY_BASE_URL`
 
 ## Services
 
@@ -59,6 +59,8 @@ Platform collects payments centrally; instructor share is credited to internal w
 | `/api/payments/reports`              | Dashboard + CSV                                 |
 | `/api/payments/webhook`              | Stripe webhooks (unchanged)                     |
 | `/api/payments/tamara/webhook`       | Tamara webhooks                                 |
+| `/api/payments/taly/create-order`    | Taly hosted checkout create                     |
+| `/api/payments/taly/webhook`         | Taly webhooks                                   |
 | `/api/payments/regional-rules`       | Country BNPL / installment eligibility          |
 | `/api/payments/installments`         | Plans, schedule, suspend/resume                 |
 | `/api/payments/installments/process` | Cron: overdue + reminder emails                 |

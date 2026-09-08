@@ -51,12 +51,40 @@ describe("purchase-first ATPL enrollment", () => {
     expect(quote.hostedCheckout).toBe(false);
     const ids = quote.methods.map((m) => m.id);
     expect(ids).toEqual(
-      expect.arrayContaining(["card", "apple_pay", "google_pay", "mada", "tabby", "tamara"]),
+      expect.arrayContaining([
+        "card",
+        "apple_pay",
+        "google_pay",
+        "mada",
+        "tabby",
+        "tamara",
+        "taly",
+      ]),
     );
     expect(quote.methods.find((m) => m.id === "card")?.available).toBe(true);
     expect(quote.methods.find((m) => m.id === "tabby")?.comingSoon).toBe(true);
     expect(quote.methods.find((m) => m.id === "tamara")?.comingSoon).toBe(true);
     expect(quote.methods.find((m) => m.id === "tamara")?.available).toBe(false);
+    expect(quote.methods.find((m) => m.id === "taly")?.comingSoon).toBe(true);
+    expect(quote.methods.find((m) => m.id === "taly")?.available).toBe(false);
+  });
+
+  it("offers Taly when merchant keys are configured, independent of country", () => {
+    const previousKey = process.env.TALY_API_KEY;
+    const previousSecret = process.env.TALY_SECRET_KEY;
+    process.env.TALY_API_KEY = "test-taly-key";
+    process.env.TALY_SECRET_KEY = "test-taly-secret";
+    try {
+      const quote = quoteGuestCheckout(undefined, "US");
+      const taly = quote.methods.find((m) => m.id === "taly");
+      expect(taly?.available).toBe(true);
+      expect(taly?.comingSoon).toBe(false);
+    } finally {
+      if (previousKey === undefined) delete process.env.TALY_API_KEY;
+      else process.env.TALY_API_KEY = previousKey;
+      if (previousSecret === undefined) delete process.env.TALY_SECRET_KEY;
+      else process.env.TALY_SECRET_KEY = previousSecret;
+    }
   });
 
   it("offers Tamara when the API token is configured for a Tamara country", () => {

@@ -111,6 +111,7 @@ export const guestCheckoutSchema = z.object({
       "manual",
       "uae_local",
       "tamara",
+      "taly",
       "tabby",
     ])
     .optional()

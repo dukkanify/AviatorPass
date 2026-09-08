@@ -5,6 +5,7 @@
 import { generateId } from "@/lib/security/crypto";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { BnplProvider, CheckoutPaymentMode, RegionalPaymentRule } from "@/types/payments";
+import { isTalyConfigured } from "@/services/payments/taly-config";
 
 function nowIso() {
   return new Date().toISOString();
@@ -142,7 +143,9 @@ export function allowedCheckoutModes(rule: RegionalPaymentRule): CheckoutPayment
   if (rule.allowFullPayment) modes.push("full");
   if (rule.allowInstallments) modes.push("installments");
   if (rule.bnplProviders.includes("tamara")) modes.push("tamara");
+  if (rule.bnplProviders.includes("taly")) modes.push("taly");
   if (rule.bnplProviders.includes("tabby")) modes.push("tabby");
+  if (isTalyConfigured() && !modes.includes("taly")) modes.push("taly");
   return modes;
 }
 

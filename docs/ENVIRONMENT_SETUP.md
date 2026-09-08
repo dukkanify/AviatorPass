@@ -50,6 +50,7 @@ Supabase vars may stay empty for JSON-store mode.
 | Zoom                 | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`, `ZOOM_BASE_URL`, `ZOOM_SECRET_TOKEN`, `ZOOM_WEBHOOK_SECRET`, optional `ZOOM_ACCOUNT_ID` (S2S fallback) |
 | Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                                                                                  |
 | Tamara               | `TAMARA_API_TOKEN`, `TAMARA_BASE_URL` (`https://api.tamara.co` in production), optional `TAMARA_NOTIFICATION_TOKEN`                                                 |
+| Taly                 | `TALY_API_KEY`, `TALY_SECRET_KEY`, `TALY_WEBHOOK_SECRET`, `TALY_BASE_URL` (`https://api.taly.io` in production)                                                     |
 | Supabase             | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`                                              |
 
 5. Domain: attach custom domain in Vercel (SSL automatic).

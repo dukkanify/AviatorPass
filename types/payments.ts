@@ -3,7 +3,8 @@
  * Amounts are integer minor units (e.g. fils for KWD, cents for USD).
  */
 
-export type PaymentProvider = "mock" | "stripe" | "tamara" | "tabby" | "myfatoorah" | "manual";
+export type PaymentProvider =
+  "mock" | "stripe" | "tamara" | "taly" | "tabby" | "myfatoorah" | "manual";
 
 export type PaymentMethodBrand =
   | "visa"
@@ -17,12 +18,13 @@ export type PaymentMethodBrand =
   | "manual"
   | "uae_local"
   | "tamara"
+  | "taly"
   | "tabby";
 
 /** Checkout payment mode for ATPL packages / regional rules (CR003). */
-export type CheckoutPaymentMode = "full" | "installments" | "tamara" | "tabby";
+export type CheckoutPaymentMode = "full" | "installments" | "tamara" | "taly" | "tabby";
 
-export type BnplProvider = "tamara" | "tabby";
+export type BnplProvider = "tamara" | "taly" | "tabby";
 
 export type InstallmentPlanStatus =
   "pending_kyc" | "active" | "completed" | "overdue" | "suspended" | "cancelled";

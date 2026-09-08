@@ -34,11 +34,12 @@ export const PRICING_MODEL_LABELS: Record<PricingModel, string> = {
 };
 
 export const PAYMENT_PROVIDER_LABELS: Record<
-  "stripe" | "tamara" | "tabby" | "myfatoorah" | "mock" | "manual",
+  "stripe" | "tamara" | "taly" | "tabby" | "myfatoorah" | "mock" | "manual",
   string
 > = {
   stripe: "Stripe",
   tamara: "Tamara",
+  taly: "Taly",
   tabby: "Tabby (تالي)",
   myfatoorah: "MyFatoorah",
   mock: "Mock",
@@ -57,6 +58,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodBrand, string> = {
   manual: "Manual payment",
   uae_local: "UAE local (future)",
   tamara: "Tamara",
+  taly: "Taly",
   tabby: "Tabby (تالي)",
 };
 
@@ -64,6 +66,7 @@ export const CHECKOUT_PAYMENT_MODE_LABELS: Record<CheckoutPaymentMode, string> =
   full: "Full payment",
   installments: "Installments",
   tamara: "Tamara",
+  taly: "Taly",
   tabby: "Tabby (تالي)",
 };
 

@@ -5,26 +5,27 @@
 
 ## Inventory
 
-| #   | System                           | Account / project | Owner | Location of secret | Rotated | Notes                       |
-| --- | -------------------------------- | ----------------- | ----- | ------------------ | ------- | --------------------------- |
-| 1   | GitHub repository                | org/repo          |       | Invite / SSO       | ☐       | Source code access          |
-| 2   | Vercel (frontend hosting)        | project           |       | Vercel team        | ☐       | Domain + env                |
-| 3   | Production URL / DNS             |                   |       | Registrar          | ☐       | A/CNAME records             |
-| 4   | SSL                              |                   |       | Vercel / CDN       | ☐       | Auto on custom domain       |
-| 5   | Supabase project                 |                   |       | Supabase dashboard | ☐       | DB + Storage + keys         |
-| 6   | `DATABASE_URL` / `DIRECT_URL`    |                   |       | Vercel env         | ☐       | Server only                 |
-| 7   | `SUPABASE_SERVICE_ROLE_KEY`      |                   |       | Vercel env         | ☐       | Never `NEXT_PUBLIC_*`       |
-| 8   | `AUTH_SECRET`                    |                   |       | Vercel env         | ☐       | ≥24 chars unique            |
-| 9   | SMTP / email OTP provider        |                   |       | Provider + Vercel  | ☐       |                             |
-| 10  | Zoom Developer (S2S OAuth)       |                   |       | Zoom + Vercel      | ☐       | Incl. webhook secret        |
-| 11  | Stripe / payment gateway         |                   |       | Stripe + Vercel    | ☐       | Prefer `rk_live_…`          |
-| 11b | Tamara / BNPL gateway            |                   |       | Tamara + Vercel    | ☐       | API + notification tokens   |
-| 12  | Stripe webhook signing secret    |                   |       | Vercel env         | ☐       |                             |
-| 13  | Analytics (if any)               |                   |       | Vendor             | ☐       |                             |
-| 14  | Uptime / monitoring              |                   |       | Vendor             | ☐       | Probe `/api/health?ready=1` |
-| 15  | Platform API keys (`aep_live_…`) |                   |       | Ops Center         | ☐       | Hash stored in app          |
-| 16  | Super Admin login                |                   |       | OTP channel        | ☐       | Rotate demos                |
-| 17  | Backup storage (offsite)         |                   |       | Vault              | ☐       | Copy of `.backups` / PITR   |
+| #   | System                           | Account / project | Owner | Location of secret | Rotated | Notes                         |
+| --- | -------------------------------- | ----------------- | ----- | ------------------ | ------- | ----------------------------- |
+| 1   | GitHub repository                | org/repo          |       | Invite / SSO       | ☐       | Source code access            |
+| 2   | Vercel (frontend hosting)        | project           |       | Vercel team        | ☐       | Domain + env                  |
+| 3   | Production URL / DNS             |                   |       | Registrar          | ☐       | A/CNAME records               |
+| 4   | SSL                              |                   |       | Vercel / CDN       | ☐       | Auto on custom domain         |
+| 5   | Supabase project                 |                   |       | Supabase dashboard | ☐       | DB + Storage + keys           |
+| 6   | `DATABASE_URL` / `DIRECT_URL`    |                   |       | Vercel env         | ☐       | Server only                   |
+| 7   | `SUPABASE_SERVICE_ROLE_KEY`      |                   |       | Vercel env         | ☐       | Never `NEXT_PUBLIC_*`         |
+| 8   | `AUTH_SECRET`                    |                   |       | Vercel env         | ☐       | ≥24 chars unique              |
+| 9   | SMTP / email OTP provider        |                   |       | Provider + Vercel  | ☐       |                               |
+| 10  | Zoom Developer (S2S OAuth)       |                   |       | Zoom + Vercel      | ☐       | Incl. webhook secret          |
+| 11  | Stripe / payment gateway         |                   |       | Stripe + Vercel    | ☐       | Prefer `rk_live_…`            |
+| 11b | Tamara / BNPL gateway            |                   |       | Tamara + Vercel    | ☐       | API + notification tokens     |
+| 11c | Taly / BNPL gateway              |                   |       | Taly + Vercel      | ☐       | API key, secret, webhook HMAC |
+| 12  | Stripe webhook signing secret    |                   |       | Vercel env         | ☐       |                               |
+| 13  | Analytics (if any)               |                   |       | Vendor             | ☐       |                               |
+| 14  | Uptime / monitoring              |                   |       | Vendor             | ☐       | Probe `/api/health?ready=1`   |
+| 15  | Platform API keys (`aep_live_…`) |                   |       | Ops Center         | ☐       | Hash stored in app            |
+| 16  | Super Admin login                |                   |       | OTP channel        | ☐       | Rotate demos                  |
+| 17  | Backup storage (offsite)         |                   |       | Vault              | ☐       | Copy of `.backups` / PITR     |
 
 ## Environment variable checklist
 
@@ -42,6 +43,10 @@ Copy names only from `.env.production.example`. Values live exclusively in the h
 | `TAMARA_API_TOKEN`               | ☐           | Merchant API token          |
 | `TAMARA_BASE_URL`                | ☐           | `https://api.tamara.co`     |
 | `TAMARA_NOTIFICATION_TOKEN`      | ☐           | Webhook JWT secret          |
+| `TALY_API_KEY`                   | ☐           | Merchant API username       |
+| `TALY_SECRET_KEY`                | ☐           | Merchant API password       |
+| `TALY_WEBHOOK_SECRET`            | ☐           | HMAC webhook secret         |
+| `TALY_BASE_URL`                  | ☐           | `https://api.taly.io`       |
 
 ## Delivery log
 

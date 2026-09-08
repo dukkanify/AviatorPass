@@ -45,6 +45,7 @@ import {
   tamaraCancelUrl,
   tamaraSuccessUrl,
 } from "@/services/payments/tamara-config";
+import { isTalyConfigured, talyCancelUrl, talySuccessUrl } from "@/services/payments/taly-config";
 import {
   createInstallmentPlanForOrder,
   listScheduleForPlan,
@@ -177,6 +178,7 @@ export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMeth
       isTamaraConfigured() && isTamaraCountry(cc),
       !(isTamaraConfigured() && isTamaraCountry(cc)),
     ),
+    row("taly", isTalyConfigured(), !isTalyConfigured()),
     row("myfatoorah", processor === "myfatoorah", processor !== "myfatoorah"),
     row("manual", processor === "manual", processor !== "manual"),
   ].map((method) => {
@@ -190,6 +192,15 @@ export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMeth
         available: live,
         comingSoon: !live,
         processor: live ? "tamara" : processor,
+      };
+    }
+    if (method.id === "taly") {
+      const live = isTalyConfigured();
+      return {
+        ...method,
+        available: live,
+        comingSoon: !live,
+        processor: live ? "taly" : processor,
       };
     }
     return method;
@@ -450,6 +461,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
 
   const gateway = getPaymentGateway(methodBrand);
   const tamara = methodBrand === "tamara";
+  const taly = methodBrand === "taly";
   const charge = await gateway.createPayment({
     orderId: order.id,
     amount: order.totalAmount,
@@ -460,12 +472,16 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     simulateFailure: input.simulateFailure || input.paymentToken === "fail",
-    successUrl: tamara
-      ? tamaraSuccessUrl(order.id, origin)
-      : `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: tamara
-      ? tamaraCancelUrl(order.id, origin)
-      : `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: taly
+      ? talySuccessUrl(order.id, origin)
+      : tamara
+        ? tamaraSuccessUrl(order.id, origin)
+        : `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: taly
+      ? talyCancelUrl(order.id, origin)
+      : tamara
+        ? tamaraCancelUrl(order.id, origin)
+        : `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
     country: input.country.toUpperCase(),
     phone: normalizePhone(input.phone),
     billingAddress: sanitizeString(input.billingAddress || ""),

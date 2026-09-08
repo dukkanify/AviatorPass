@@ -55,7 +55,9 @@ function FinanceDashboard() {
     Array<{ plan: { id: string; productName: string; status: string; countryCode: string } }>
   >([]);
   const [purchases, setPurchases] = React.useState<Order[]>([]);
-  const [providerFilter, setProviderFilter] = React.useState<"all" | "stripe" | "tamara">("all");
+  const [providerFilter, setProviderFilter] = React.useState<"all" | "stripe" | "tamara" | "taly">(
+    "all",
+  );
   const [code, setCode] = React.useState("SAVE15");
   const [value, setValue] = React.useState("15");
   const [error, setError] = React.useState<string | null>(null);
@@ -273,7 +275,7 @@ function FinanceDashboard() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="mb-3 flex flex-wrap gap-2">
-            {(["all", "stripe", "tamara"] as const).map((provider) => (
+            {(["all", "stripe", "tamara", "taly"] as const).map((provider) => (
               <Button
                 key={provider}
                 type="button"
