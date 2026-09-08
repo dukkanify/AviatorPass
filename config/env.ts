@@ -52,6 +52,15 @@ const serverEnvSchema = z.object({
   ZOOM_OAUTH_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_USERNAME: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 function parsePublicEnv() {
@@ -116,6 +125,15 @@ export function getServerEnv() {
     ZOOM_OAUTH_SCOPES: emptyToUndef(process.env.ZOOM_OAUTH_SCOPES),
     ZOOM_SECRET_TOKEN: emptyToUndef(process.env.ZOOM_SECRET_TOKEN),
     ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
+    SMTP_HOST: emptyToUndef(process.env.SMTP_HOST),
+    SMTP_PORT: emptyToUndef(process.env.SMTP_PORT),
+    SMTP_USER: emptyToUndef(process.env.SMTP_USER),
+    SMTP_USERNAME: emptyToUndef(process.env.SMTP_USERNAME),
+    SMTP_PASSWORD: emptyToUndef(process.env.SMTP_PASSWORD),
+    SMTP_FROM: emptyToUndef(process.env.SMTP_FROM),
+    SMTP_FROM_NAME: emptyToUndef(process.env.SMTP_FROM_NAME),
+    EMAIL_FROM: emptyToUndef(process.env.EMAIL_FROM),
+    RESEND_API_KEY: emptyToUndef(process.env.RESEND_API_KEY),
   });
 
   if (!result.success) {

@@ -59,7 +59,7 @@ export interface IssueOtpResult {
   challengeId: string;
   expiresInMinutes: number;
   resendAvailableInSeconds: number;
-  emailDelivery: "smtp" | "outbox" | "failed";
+  emailDelivery: "smtp" | "resend" | "outbox" | "failed";
   emailOutboxId?: string;
   demoOtp?: string;
 }

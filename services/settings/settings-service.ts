@@ -38,8 +38,43 @@ export type CategoryPatch = {
   courses?: Partial<CourseCatalogSettings>;
 };
 
+function envTrim(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+/** Env SMTP/Resend wins over stored settings so production can be configured without a writable UI. */
+export function applyRuntimeEmailOverrides(settings: PlatformSettings): PlatformSettings {
+  const host = envTrim("SMTP_HOST");
+  const portRaw = envTrim("SMTP_PORT");
+  const user = envTrim("SMTP_USER") || envTrim("SMTP_USERNAME");
+  const pass = process.env.SMTP_PASSWORD?.length ? process.env.SMTP_PASSWORD : undefined;
+  const from = envTrim("SMTP_FROM") || envTrim("EMAIL_FROM");
+  const fromName = envTrim("SMTP_FROM_NAME");
+  const hasSmtp = Boolean(host);
+  const hasResend = Boolean(envTrim("RESEND_API_KEY"));
+
+  if (!hasSmtp && !hasResend && !from && !fromName) {
+    return settings;
+  }
+
+  return {
+    ...settings,
+    email: {
+      ...settings.email,
+      provider: hasSmtp ? "smtp" : settings.email.provider,
+      smtpHost: host || settings.email.smtpHost,
+      smtpPort: portRaw ? Number(portRaw) || settings.email.smtpPort : settings.email.smtpPort,
+      smtpUsername: user || settings.email.smtpUsername,
+      smtpPassword: pass || settings.email.smtpPassword,
+      senderEmail: from || settings.email.senderEmail,
+      senderName: fromName || settings.email.senderName,
+    },
+  };
+}
+
 export function getPlatformSettings(): PlatformSettings {
-  const settings = getStoredSettings();
+  const settings = applyRuntimeEmailOverrides(getStoredSettings());
   const configured = Boolean(
     process.env.ZOOM_ACCOUNT_ID?.trim() &&
     process.env.ZOOM_CLIENT_ID?.trim() &&
