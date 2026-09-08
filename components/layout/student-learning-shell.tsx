@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
@@ -61,13 +60,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 import "@/styles/student-learning.css";
 
-const FloatingAiAssistant = dynamic(
-  () =>
-    import("@/features/ai").then((m) => ({
-      default: m.FloatingAiAssistant,
-    })),
-  { ssr: false },
-);
+import { FloatingAiAssistant } from "@/features/ai";
 
 const iconMap: Record<DashboardIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
