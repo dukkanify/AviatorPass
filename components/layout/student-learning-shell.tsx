@@ -23,6 +23,8 @@ import {
   Menu,
   MessageSquare,
   Headset,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Sparkles,
   Star,
@@ -40,6 +42,15 @@ import {
 import Link from "@/components/ui/app-link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { STUDENT_LEARNING_NAV_GROUPS } from "@/constants/student-learning-nav";
 import { ROLE_DASHBOARD, ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
@@ -123,6 +134,7 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading, signOut } = useAuth();
   const [navOpen, setNavOpen] = React.useState(false);
   const [commandOpen, setCommandOpen] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(false);
 
   React.useEffect(() => {
     if (isLoading || !user) return;
@@ -133,6 +145,11 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setNavOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    const stored = window.localStorage.getItem("sl-sidebar-collapsed");
+    if (stored === "1") setCollapsed(true);
+  }, []);
 
   React.useEffect(() => {
     if (!navOpen) return;
@@ -146,8 +163,20 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
   const displayName = user?.fullName || user?.firstName || user?.email || "Student";
   const initials = initialsFor(user?.fullName ?? user?.firstName, user?.email);
 
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem("sl-sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
   return (
-    <div className="sl-shell" data-nav-open={navOpen ? "true" : "false"}>
+    <div
+      className="sl-shell"
+      data-nav-open={navOpen ? "true" : "false"}
+      data-collapsed={collapsed ? "true" : "false"}
+    >
       <a href="#student-main" className="sl-skip">
         Skip to main content
       </a>
@@ -182,6 +211,7 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
                       className="sl-nav-link"
                       data-active={active ? "true" : "false"}
                       aria-current={active ? "page" : undefined}
+                      title={item.label}
                     >
                       <span className="sl-nav-icon" aria-hidden>
                         <Icon className="h-4 w-4" />
@@ -194,6 +224,20 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
             ),
           )}
         </nav>
+
+        <button
+          type="button"
+          className="sl-collapse-btn"
+          onClick={toggleCollapsed}
+          aria-pressed={collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </button>
 
         <div className="sl-promo" aria-hidden>
           <h2>Next Stop Your Goals</h2>
@@ -230,30 +274,67 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
               <Globe className="h-3.5 w-3.5" aria-hidden />
               EN
             </span>
+            <ThemeToggle />
             <NotificationBell />
-            <div className="sl-profile">
-              <span className="sl-avatar" aria-hidden>
-                {initials}
-              </span>
-              <span>
-                <strong>{displayName}</strong>
-                <span>Student</span>
-              </span>
-              <Link href="/student/profile" className="sl-signout" aria-label="Open profile">
-                <UserRound className="h-4 w-4" />
-              </Link>
-              <button
-                type="button"
-                className="sl-signout"
-                aria-label="Sign out"
-                onClick={async () => {
-                  await signOut();
-                  router.replace(routes.login);
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="sl-profile-btn" aria-label="Open profile menu">
+                  <span className="sl-avatar">
+                    {user?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- student photo
+                      <img src={user.avatarUrl} alt="" />
+                    ) : (
+                      initials
+                    )}
+                    <span className="sl-online" aria-hidden />
+                  </span>
+                  <span className="sl-profile-copy">
+                    <strong>{displayName}</strong>
+                    <span>Student</span>
+                    <span className="sl-member">AviatorPass</span>
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>
+                  <div className="flex items-center gap-3">
+                    <span className="sl-avatar-lg">
+                      {user?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- student photo
+                        <img src={user.avatarUrl} alt="" />
+                      ) : (
+                        initials
+                      )}
+                      <span className="sl-online" aria-hidden />
+                    </span>
+                    <span>
+                      <span className="block font-semibold">{displayName}</span>
+                      <span className="block text-xs text-muted-foreground">Student · Online</span>
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/student/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/student/certificates">Certificates</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/student/notifications">Notifications</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={async () => {
+                    await signOut();
+                    router.replace(routes.login);
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
