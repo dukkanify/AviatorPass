@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       methodBrand?: PaymentMethodBrand;
       paymentToken?: string;
       simulateFailure?: boolean;
-      paymentMode?: "full" | "installments" | "tamara" | "tabby";
+      paymentMode?: "full" | "installments" | "tamara" | "taly" | "tabby";
       installmentCount?: number;
       agreementAccepted?: boolean;
       passportDocumentId?: string | null;

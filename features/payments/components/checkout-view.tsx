@@ -77,7 +77,9 @@ function CheckoutView() {
 
   const product = products.find((p) => p.id === selected);
   const needsKyc =
-    paymentMode !== "full" && Boolean(rule?.requiresPassport || rule?.requiresAgreement);
+    paymentMode !== "full" &&
+    paymentMode !== "taly" &&
+    Boolean(rule?.requiresPassport || rule?.requiresAgreement);
 
   async function uploadPassport(file: File) {
     setError(null);
@@ -164,7 +166,13 @@ function CheckoutView() {
     }
 
     const payMethod: PaymentMethodBrand =
-      paymentMode === "tamara" ? "tamara" : paymentMode === "tabby" ? "tabby" : method;
+      paymentMode === "tamara"
+        ? "tamara"
+        : paymentMode === "taly"
+          ? "taly"
+          : paymentMode === "tabby"
+            ? "tabby"
+            : method;
 
     const paid = await payJson<{ order: Order; payment: PaymentRecord }>(
       "/api/payments/orders",
@@ -324,7 +332,7 @@ function CheckoutView() {
                 onChange={(e) => setMethod(e.target.value as PaymentMethodBrand)}
               >
                 {Object.entries(PAYMENT_METHOD_LABELS)
-                  .filter(([k]) => !["tamara", "tabby"].includes(k))
+                  .filter(([k]) => !["tamara", "taly", "tabby"].includes(k))
                   .map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
@@ -344,11 +352,16 @@ function CheckoutView() {
                 {paymentMode === "tamara" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src="/partners/tamara.svg" alt="Tamara" className="h-8 w-auto" />
+                ) : paymentMode === "taly" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/partners/taly.svg" alt="Taly" className="h-8 w-auto" />
                 ) : null}
                 <p className="text-xs text-muted-foreground">
                   {paymentMode === "tamara"
                     ? "You will be redirected to Tamara hosted checkout to complete payment."
-                    : `${CHECKOUT_PAYMENT_MODE_LABELS[paymentMode]} will open a mock BNPL checkout for this country.`}
+                    : paymentMode === "taly"
+                      ? "You will be redirected to Taly hosted checkout to complete payment."
+                      : `${CHECKOUT_PAYMENT_MODE_LABELS[paymentMode]} will open a mock BNPL checkout for this country.`}
                 </p>
               </div>
             )}

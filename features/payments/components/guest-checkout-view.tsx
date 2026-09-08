@@ -351,6 +351,9 @@ function GuestCheckoutView() {
                       {method.id === "tamara" ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src="/partners/tamara.svg" alt="" className="h-5 w-auto" />
+                      ) : method.id === "taly" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src="/partners/taly.svg" alt="" className="h-5 w-auto" />
                       ) : (
                         <Icon className="size-4" />
                       )}
@@ -362,8 +365,8 @@ function GuestCheckoutView() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Pay with Stripe (cards and wallets) or Tamara. Apple Pay and Google Pay appear when
-              the processor enables wallets. Tabby and MyFatoorah stay future-ready.
+              Stripe is available in every country. Tamara appears for the United Arab Emirates and
+              Saudi Arabia. Taly appears for Kuwait. Unsupported gateways are hidden.
             </p>
           </div>
 
@@ -379,7 +382,9 @@ function GuestCheckoutView() {
                 ? "Processing…"
                 : form.methodBrand === "tamara"
                   ? "Continue to Tamara"
-                  : `Pay ${quote?.totalLabel ?? ""} securely`}
+                  : form.methodBrand === "taly"
+                    ? "Continue to Taly"
+                    : `Pay ${quote?.totalLabel ?? ""} securely`}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Want a free account without buying?{" "}

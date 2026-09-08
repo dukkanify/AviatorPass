@@ -1,7 +1,7 @@
 /**
  * Payment gateway adapters — mock (default) + Stripe Checkout with dynamic price_data + Tamara.
  * Never stores raw card data (PCI-aware). Never passes payment_method_types.
- * Never uses Stripe Price or Product IDs. Tamara is selected via methodBrand === "tamara".
+ * Never uses Stripe Price or Product IDs. Tamara/Taly are selected via methodBrand.
  */
 
 import Stripe from "stripe";
@@ -24,6 +24,7 @@ import { normalizeCheckoutCurrency } from "@/services/stripe/currency";
 import { readPaymentsDb } from "@/services/payments/store";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { TamaraGateway } from "@/services/payments/tamara-gateway";
+import { TalyGateway } from "@/services/payments/taly-gateway";
 
 export interface GatewayChargeInput {
   orderId: string;
@@ -121,14 +122,18 @@ class MockGateway implements PaymentGateway {
 
     const providerPaymentId = `mock_pay_${generateId().slice(0, 12)}`;
     const provider: PaymentProvider =
-      input.methodBrand === "tamara" || input.methodBrand === "tabby" ? input.methodBrand : "mock";
+      input.methodBrand === "tamara" ||
+      input.methodBrand === "taly" ||
+      input.methodBrand === "tabby"
+        ? input.methodBrand
+        : "mock";
     return {
       provider,
       providerPaymentId,
       status: "succeeded",
       clientSecret: `mock_secret_${generateToken(8)}`,
       checkoutUrl:
-        provider === "tamara" || provider === "tabby"
+        provider === "tamara" || provider === "taly" || provider === "tabby"
           ? `https://checkout.mock.${provider}.example/${providerPaymentId}`
           : null,
       methodBrand: input.methodBrand,
@@ -137,7 +142,9 @@ class MockGateway implements PaymentGateway {
           ? "Tabby (تالي) · mock BNPL"
           : input.methodBrand === "tamara"
             ? "Tamara · mock BNPL"
-            : `${input.methodBrand.toUpperCase()} ${maskToken(input.paymentToken ?? "4242")}`,
+            : input.methodBrand === "taly"
+              ? "Taly · mock BNPL"
+              : `${input.methodBrand.toUpperCase()} ${maskToken(input.paymentToken ?? "4242")}`,
       rawProviderPayload: {
         simulated: true,
         provider,
@@ -312,6 +319,7 @@ function stripeObjectId(object: unknown): string {
 
 export function getPaymentGateway(methodBrand?: PaymentMethodBrand): PaymentGateway {
   if (methodBrand === "tamara") return new TamaraGateway();
+  if (methodBrand === "taly") return new TalyGateway();
   if (isStripeConfigured()) return new StripeGateway();
   return new MockGateway();
 }

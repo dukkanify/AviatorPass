@@ -5,16 +5,15 @@
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
-import {
-  assertCanManageFinance,
-  assertOwnOrder,
-  PaymentError,
-} from "@/services/payments/access";
-import { getOrder } from "@/services/payments/checkout-service";
-import { formatMinor } from "@/services/payments/money";
+import { assertCanManageFinance, assertOwnOrder, PaymentError } from "@/services/payments/access";
+import { getOrder, getPayment } from "@/services/payments/checkout-service";
+import { formatMinor, formatTamaraAmount } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import { clawbackForRefund } from "@/services/payments/wallet-service";
+import { refundTalyOrder } from "@/services/payments/taly-client";
+import { isTalyConfigured } from "@/services/payments/taly-config";
+import { logTalyEvent } from "@/services/payments/taly-logging";
 import type { RefundRequest } from "@/types/payments";
 import type { UserProfile } from "@/types";
 
@@ -27,7 +26,10 @@ function nextRefundNumber(): string {
   return `REF-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
 }
 
-export function listRefunds(filters?: { studentId?: string; status?: RefundRequest["status"] | "all" }) {
+export function listRefunds(filters?: {
+  studentId?: string;
+  status?: RefundRequest["status"] | "all";
+}) {
   let rows = [...readPaymentsDb().refunds];
   if (filters?.studentId) rows = rows.filter((r) => r.studentId === filters.studentId);
   if (filters?.status && filters.status !== "all") {
@@ -129,6 +131,36 @@ export async function reviewRefund(input: {
 
   // Approve + process
   const order = getOrder(refund.orderId);
+  const payment = getPayment(refund.paymentId);
+  if (payment?.provider === "taly" && isTalyConfigured()) {
+    const orderToken = String(
+      payment.checkoutSessionId || payment.rawProviderPayload.orderToken || "",
+    );
+    if (orderToken) {
+      try {
+        await refundTalyOrder({
+          orderToken,
+          merchantOrderId: payment.orderId,
+          refundAmount: formatTamaraAmount(refund.amount, refund.currency),
+          currency: refund.currency.toUpperCase(),
+          reason: refund.reason,
+        });
+      } catch (error) {
+        logTalyEvent({
+          level: "error",
+          message: "Taly refund API failed",
+          details: {
+            paymentId: payment.id,
+            reason: error instanceof Error ? error.message : "unknown",
+          },
+        });
+        throw new PaymentError(
+          error instanceof Error ? error.message : "Taly refund request failed",
+          502,
+        );
+      }
+    }
+  }
   writePaymentsDb((db) => {
     const r = db.refunds.find((x) => x.id === refund.id);
     if (!r) return;

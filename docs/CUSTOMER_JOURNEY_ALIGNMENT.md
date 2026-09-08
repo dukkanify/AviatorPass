@@ -32,7 +32,7 @@ Folder: `public/brand/source/journeys/` (see README there).
 | Single-session / anti-share      | `singleDeviceLogin` + max concurrent sessions + watermark deterrents               |
 | No screenshot/recording          | UI deterrents in learning player (browser cannot fully block capture)              |
 | Course detail fields             | Objectives, hours, language AR/EN, AviatorPass instructor, price, enroll CTA       |
-| Tabby KW / Tamara UAE            | `regional-rules-service` exclusivity + installments 4/5/6                          |
+| Taly KW / Tamara AE+SA / Stripe  | `regional-rules-service` country gateway routing + installments 4/5/6              |
 | Invoice to student + Super Admin | Invoice/receipt emails + `admin_alert` on paid checkout                            |
 | Course available email           | Payment automation event after successful checkout                                 |
 | Auto certificate                 | `maybeAutoIssueCertificate` wired from lesson completion                           |

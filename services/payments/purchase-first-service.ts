@@ -41,17 +41,20 @@ import {
 import { getPaymentGateway } from "@/services/payments/gateway";
 import {
   isTamaraConfigured,
-  isTamaraCountry,
   tamaraCancelUrl,
   tamaraSuccessUrl,
 } from "@/services/payments/tamara-config";
+import { isTalyConfigured, talyCancelUrl, talySuccessUrl } from "@/services/payments/taly-config";
 import {
   createInstallmentPlanForOrder,
   listScheduleForPlan,
   markInstallmentPaid,
 } from "@/services/payments/installment-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
-import { getRegionalPaymentRule } from "@/services/payments/regional-rules-service";
+import {
+  assertPaymentMethodAllowedForCountry,
+  routedBnplProviders,
+} from "@/services/payments/regional-rules-service";
 import { isStripeConfigured } from "@/services/payments/stripe-client";
 import {
   blankStripePaymentFields,
@@ -149,51 +152,45 @@ export function getAtplPackageProduct(): CatalogProduct | null {
 
 export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMethod[] {
   const settings = readPaymentsDb().settings;
-  const rule = getRegionalPaymentRule(countryCode);
   const processor = settings.provider;
   const cc = countryCode.toUpperCase();
   const madaMarkets = new Set(["KW", "SA", "BH", "QA", "AE", "OM"]);
+  const bnpl = routedBnplProviders(cc);
+  const allowTamara = bnpl.includes("tamara");
+  const allowTaly = bnpl.includes("taly");
 
   const row = (
     id: PaymentMethodBrand,
     available: boolean,
     comingSoon?: boolean,
+    methodProcessor = processor,
   ): GuestCheckoutMethod => ({
     id,
     label: PAYMENT_METHOD_LABELS[id],
     available,
     comingSoon,
-    processor,
+    processor: methodProcessor,
   });
 
-  return [
+  const methods: GuestCheckoutMethod[] = [
     row("card", true),
     row("apple_pay", settings.allowApplePay !== false),
     row("google_pay", settings.allowGooglePay !== false),
     row("mada", madaMarkets.has(cc), !madaMarkets.has(cc)),
-    row("tabby", false, true),
-    row(
-      "tamara",
-      isTamaraConfigured() && isTamaraCountry(cc),
-      !(isTamaraConfigured() && isTamaraCountry(cc)),
-    ),
-    row("myfatoorah", processor === "myfatoorah", processor !== "myfatoorah"),
-    row("manual", processor === "manual", processor !== "manual"),
-  ].map((method) => {
-    if (method.id === "tabby" && rule.bnplProviders.includes("tabby")) {
-      return { ...method, comingSoon: true, available: false };
-    }
-    if (method.id === "tamara") {
-      const live = isTamaraConfigured() && isTamaraCountry(cc);
-      return {
-        ...method,
-        available: live,
-        comingSoon: !live,
-        processor: live ? "tamara" : processor,
-      };
-    }
-    return method;
-  });
+  ];
+
+  if (allowTamara) {
+    const live = isTamaraConfigured();
+    methods.push(row("tamara", live, !live, live ? "tamara" : processor));
+  }
+  if (allowTaly) {
+    const live = isTalyConfigured();
+    methods.push(row("taly", live, !live, live ? "taly" : processor));
+  }
+  if (processor === "myfatoorah") methods.push(row("myfatoorah", true));
+  if (processor === "manual") methods.push(row("manual", true));
+
+  return methods;
 }
 
 export function quoteGuestCheckout(productId?: string | null, country = "KW"): GuestCheckoutQuote {
@@ -316,6 +313,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
   const quote = quoteGuestCheckout(input.productId, input.country);
   const product = quote.product;
   const methodBrand: PaymentMethodBrand = input.methodBrand ?? "card";
+  assertPaymentMethodAllowedForCountry(methodBrand, input.country, countryName(input.country));
   const methods = listGuestCheckoutMethods(input.country);
   const selected = methods.find((m) => m.id === methodBrand);
   if (!selected?.available) {
@@ -450,6 +448,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
 
   const gateway = getPaymentGateway(methodBrand);
   const tamara = methodBrand === "tamara";
+  const taly = methodBrand === "taly";
   const charge = await gateway.createPayment({
     orderId: order.id,
     amount: order.totalAmount,
@@ -460,12 +459,16 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     paymentToken: input.paymentToken,
     idempotencyKey: `${order.idempotencyKey}-pay`,
     simulateFailure: input.simulateFailure || input.paymentToken === "fail",
-    successUrl: tamara
-      ? tamaraSuccessUrl(order.id, origin)
-      : `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: tamara
-      ? tamaraCancelUrl(order.id, origin)
-      : `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: taly
+      ? talySuccessUrl(order.id, origin)
+      : tamara
+        ? tamaraSuccessUrl(order.id, origin)
+        : `${origin}${routes.paymentSuccess}?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: taly
+      ? talyCancelUrl(order.id, origin)
+      : tamara
+        ? tamaraCancelUrl(order.id, origin)
+        : `${origin}${routes.paymentCancel}?session_id={CHECKOUT_SESSION_ID}`,
     country: input.country.toUpperCase(),
     phone: normalizePhone(input.phone),
     billingAddress: sanitizeString(input.billingAddress || ""),

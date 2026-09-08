@@ -31,20 +31,23 @@ describe("installments & regional payments (CR003)", () => {
     ensurePaymentsSeeded();
   });
 
-  it("maps Tabby to Kuwait and Tamara to UAE (customer journey)", () => {
+  it("routes Stripe+Taly in Kuwait and Stripe+Tamara in AE/SA", () => {
     expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).toEqual(
-      expect.arrayContaining(["full", "installments", "tabby"]),
+      expect.arrayContaining(["full", "installments", "taly"]),
     );
     expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("tamara");
+    expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("tabby");
     expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).toEqual(
       expect.arrayContaining(["full", "installments", "tamara"]),
     );
-    expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).not.toContain("tabby");
+    expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).not.toContain("taly");
     expect(allowedCheckoutModes(getRegionalPaymentRule("SA"))).toContain("tamara");
+    expect(allowedCheckoutModes(getRegionalPaymentRule("SA"))).not.toContain("taly");
     const qa = allowedCheckoutModes(getRegionalPaymentRule("QA"));
     expect(qa).toContain("full");
     expect(qa).toContain("installments");
     expect(qa).not.toContain("tamara");
+    expect(qa).not.toContain("taly");
   });
 
   it("splits installment amounts exactly", () => {
