@@ -9,11 +9,17 @@ import {
   studentNavCoversAllRoutes,
 } from "@/constants/student-learning-nav";
 import {
+  academicGpa,
   clampPercent,
+  computeXp,
   countdownLabel,
+  dailyMotivationQuote,
   estimatedCompletion,
   firstNameOf,
   greetingForHour,
+  nextFlightMilestone,
+  pilotLevelFromXp,
+  weatherForCountry,
   weekDays,
 } from "@/features/learning/components/student-dashboard/student-dashboard-utils";
 
@@ -63,6 +69,23 @@ describe("student dashboard copy helpers", () => {
       "45m",
     );
   });
+
+  it("derives pilot level, weather, and motivation from learning progress", () => {
+    expect(
+      pilotLevelFromXp(
+        computeXp({
+          completedLessons: 4,
+          learningHours: 8,
+          certificates: 1,
+          progressPercent: 40,
+        }),
+      ).name,
+    ).toBeTruthy();
+    expect(weatherForCountry("AE").city).toBe("Dubai");
+    expect(dailyMotivationQuote(new Date("2026-09-08T10:00:00"))).toContain(" ");
+    expect(nextFlightMilestone(10)).toContain("Principles");
+    expect(academicGpa(80, 10)).toBeGreaterThan(3);
+  });
 });
 
 describe("student dashboard isolation", () => {
@@ -84,5 +107,19 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("Upcoming Live Session");
     expect(view).toContain("Study Planner");
     expect(view).toContain("Quick Actions");
+    expect(view).toContain("Student Level");
+    expect(view).toContain("Learning heatmap");
+    expect(view).toContain("Notifications");
+  });
+
+  it("gives the student shell a collapsible sidebar and profile menu", () => {
+    const shell = readFileSync(
+      resolve(root, "components/layout/student-learning-shell.tsx"),
+      "utf8",
+    );
+    expect(shell).toContain("data-collapsed");
+    expect(shell).toContain("ThemeToggle");
+    expect(shell).toContain("Open profile menu");
+    expect(shell).toContain("NotificationBell");
   });
 });

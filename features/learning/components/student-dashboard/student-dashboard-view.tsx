@@ -1,18 +1,28 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import {
   Award,
+  Bookmark,
   BookOpen,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Download,
+  FileText,
+  Flame,
   GraduationCap,
   Headset,
-  MessageSquare,
+  Lock,
+  Plane,
   PlayCircle,
   Sparkles,
+  Sun,
+  Target,
+  Trophy,
+  Video,
+  Zap,
 } from "lucide-react";
 
 import Link from "@/components/ui/app-link";
@@ -30,51 +40,88 @@ import type {
   StudySession,
 } from "@/types/learning";
 import {
+  academicGpa,
   activityKindLabel,
   calendarKindLabel,
   clampPercent,
+  computeXp,
   countdownLabel,
   courseThumb,
+  dailyMotivationQuote,
+  daysRemaining,
   estimatedCompletion,
   firstNameOf,
   formatHours,
   formatRemainingLessons,
   goalHours,
   greetingForHour,
+  heatmapFromDates,
+  HERO_IMAGE,
   initialsOf,
-  ringOffset,
+  learningStreak,
+  lessonTimeline,
+  nextFlightMilestone,
+  pilotLevelFromXp,
   sameDay,
+  weatherForCountry,
   weekDays,
 } from "./student-dashboard-utils";
 
 type CourseRow = CourseListItem & { learning: CourseLearningState | null };
 type CourseFilter = "all" | "progress" | "new" | "done";
 
-function ProgressRing({ value, label }: { value: number; label: string }) {
-  const percent = clampPercent(value);
-  const offset = ringOffset(percent);
+const fade = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
+};
+
+function useCountUp(value: number, duration = 700) {
+  const [n, setN] = React.useState(0);
+  React.useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setN(value);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (time: number) => {
+      const p = Math.min(1, (time - start) / duration);
+      setN(Math.round(value * (1 - (1 - p) ** 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return n;
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+  suffix = "",
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  icon: React.ReactNode;
+  suffix?: string;
+}) {
+  const shown = useCountUp(value);
   return (
-    <svg className="sl-ring" viewBox="0 0 132 132" role="img" aria-label={label}>
-      <circle cx="66" cy="66" r="54" fill="none" stroke="#eeeae2" strokeWidth="10" />
-      <circle
-        cx="66"
-        cy="66"
-        r="54"
-        fill="none"
-        stroke="#cca04c"
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeDasharray={`${2 * Math.PI * 54}`}
-        strokeDashoffset={offset}
-        transform="rotate(-90 66 66)"
-      />
-      <text x="66" y="62" textAnchor="middle" fontSize="22" fontWeight="700" fill="#143048">
-        {percent}%
-      </text>
-      <text x="66" y="82" textAnchor="middle" fontSize="10" fill="#7c7b80">
-        Complete
-      </text>
-    </svg>
+    <article className="sl-stat">
+      <div className="sl-stat-top">
+        {label}
+        {icon}
+      </div>
+      <strong>
+        {shown}
+        {suffix}
+      </strong>
+      <span>{hint}</span>
+    </article>
   );
 }
 
@@ -92,6 +139,7 @@ function LearningDashboardView() {
   const [selectedDay, setSelectedDay] = React.useState(() => new Date().toISOString());
   const [now, setNow] = React.useState(() => Date.now());
   const [joining, setJoining] = React.useState(false);
+  const [dismissedNoticeIds, setDismissedNoticeIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
@@ -156,7 +204,6 @@ function LearningDashboardView() {
     0,
   );
   const weekly = goalHours(goals, "weekly");
-  const monthly = goalHours(goals, "monthly");
   const days = weekDays(new Date(now));
   const plannerItems = calendar.length > 0 ? calendar : sessions.map(sessionToCalendar);
   const selectedTasks = plannerItems.filter((item) => sameDay(item.startsAt, selectedDay));
@@ -178,6 +225,33 @@ function LearningDashboardView() {
     if (filter === "done") return percent >= 100 || Boolean(course.learning?.completedAt);
     return true;
   });
+  const activityDates = [
+    ...(overview?.recentActivity.map((event) => event.createdAt) ?? []),
+    ...sessions.map((session) => session.scheduledStart),
+    ...calendar.map((item) => item.startsAt),
+  ];
+  const xp = computeXp({
+    completedLessons,
+    learningHours: overview?.learningHours ?? 0,
+    certificates: certificates.length,
+    progressPercent: overview?.progressPercent ?? 0,
+  });
+  const level = pilotLevelFromXp(xp);
+  const weather = weatherForCountry(user?.countryCode);
+  const quote = dailyMotivationQuote(new Date(now));
+  const heatmap = heatmapFromDates(activityDates);
+  const streak = Math.max(learningStreak(activityDates, new Date(now)), overview ? 1 : 0);
+  const remainingDays = daysRemaining(overview?.progressPercent ?? 0);
+  const gpa = academicGpa(overview?.progressPercent ?? 0, completedLessons);
+  const upcomingExams = calendar.filter((item) => item.type === "deadline").length;
+  const steps = lessonTimeline(
+    currentCourse?.learning?.completedLessons ?? completedLessons,
+    currentCourse?.learning?.totalLessons ?? totalLessons,
+    resume?.lessonTitle ?? "Current lesson",
+  );
+  const notices = (overview?.recentActivity ?? [])
+    .slice(0, 5)
+    .filter((event) => !dismissedNoticeIds.includes(event.id));
 
   async function joinLive() {
     const classId = overview?.upcomingLiveClassId;
@@ -198,10 +272,10 @@ function LearningDashboardView() {
   if (loading) {
     return (
       <div className="sl-dashboard" aria-busy="true" aria-live="polite">
-        <div className="sl-skeleton" />
+        <div className="sl-skeleton" style={{ minHeight: 340 }} />
         <div className="sl-stats">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="sl-skeleton" style={{ minHeight: 110 }} />
+            <div key={index} className="sl-skeleton" style={{ minHeight: 120 }} />
           ))}
         </div>
         <div className="sl-dashboard-grid">
@@ -226,85 +300,187 @@ function LearningDashboardView() {
 
   return (
     <div className="sl-dashboard">
-      <section className="sl-hero" aria-label="Welcome back">
-        <div className="sl-hero-layout">
-          <div className="sl-hero-copy">
-            <p className="sl-kicker">Welcome back</p>
-            <h1>
-              {greeting}, {firstName} 👋
-            </h1>
-            <p>Keep going. You&apos;re one step closer to your cockpit.</p>
-            <p className="sl-quote">“A good pilot is always a student.”</p>
-            <div className="sl-hero-meta">
-              <span className="sl-chip">
-                <BookOpen className="h-3.5 w-3.5" aria-hidden />
-                {currentCourse?.title ?? resume?.courseTitle ?? "Choose your next course"}
-              </span>
-              <span className="sl-chip">
-                <GraduationCap className="h-3.5 w-3.5" aria-hidden />
-                {instructorName}
-              </span>
-              <span className="sl-chip">
-                <Clock3 className="h-3.5 w-3.5" aria-hidden />
-                {estimatedCompletion(overview.progressPercent)}
-              </span>
+      <motion.section
+        className="sl-hero"
+        aria-label="Welcome back"
+        initial="hidden"
+        animate="show"
+        variants={fade}
+      >
+        <div className="sl-hero-media" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element -- decorative hero art */}
+          <img src={HERO_IMAGE} alt="" loading="eager" />
+        </div>
+        <div className="sl-hero-overlay" aria-hidden />
+        <div className="sl-hero-copy">
+          <p className="sl-kicker">Welcome back,</p>
+          <h1>
+            {greeting} {firstName} 👋
+          </h1>
+          <p className="sl-quote">“{quote}”</p>
+          <div className="sl-hero-facts">
+            <div className="sl-fact">
+              <span>Student Level</span>
+              <strong>{level.name}</strong>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <Link className="sl-btn-gold" href={resumeHref}>
-                <PlayCircle className="h-4 w-4" aria-hidden />
-                Continue Learning
-              </Link>
-              <Link className="sl-btn-ghost" href="/student/planner">
-                Open study planner
-              </Link>
+            <div className="sl-fact">
+              <span>Current Course</span>
+              <strong>{currentCourse?.title ?? resume?.courseTitle ?? "Choose a course"}</strong>
+            </div>
+            <div className="sl-fact">
+              <span>Instructor</span>
+              <strong>{instructorName}</strong>
+            </div>
+            <div className="sl-fact">
+              <span>Progress</span>
+              <strong>{clampPercent(overview.progressPercent)}%</strong>
+            </div>
+            <div className="sl-fact">
+              <span>Days Remaining</span>
+              <strong>{remainingDays || "Done"}</strong>
             </div>
           </div>
-          <div className="sl-hero-aside" aria-hidden>
-            <span>Discipline</span>
-            <span>Knowledge</span>
-            <span>Confidence</span>
-            <strong>A brighter aviation future.</strong>
+          <div className="sl-hero-actions">
+            <Link className="sl-btn-gold" href={resumeHref}>
+              <PlayCircle className="h-4 w-4" aria-hidden />
+              Continue Learning
+            </Link>
+            <Link className="sl-btn-ghost" href="/student/planner">
+              Open Planner
+            </Link>
+            <Link className="sl-btn-ghost" href="/student/calendar">
+              View Schedule
+            </Link>
           </div>
         </div>
+      </motion.section>
+
+      <section className="sl-insight-row" aria-label="Pilot insights">
+        <article className="sl-insight">
+          <span className="sl-muted">Daily motivation</span>
+          <strong>{quote}</strong>
+        </article>
+        <article className="sl-insight">
+          <span className="sl-muted">
+            <Sun className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+            Current weather
+          </span>
+          <strong>{weather.label}</strong>
+        </article>
+        <article className="sl-insight">
+          <span className="sl-muted">Next flight milestone</span>
+          <strong>{nextFlightMilestone(overview.progressPercent)}</strong>
+        </article>
+        <article className="sl-insight">
+          <span className="sl-muted">Pilot level</span>
+          <strong>
+            {level.name} · {xp} XP
+          </strong>
+          <div className="sl-mini-bar" aria-hidden>
+            <i style={{ width: `${level.percent}%` }} />
+          </div>
+        </article>
       </section>
 
       <section className="sl-stats" aria-label="Learning snapshot">
+        <StatCard
+          label="Enrolled Courses"
+          value={overview.activeCourses}
+          hint="Active courses"
+          icon={<GraduationCap className="h-4 w-4" aria-hidden />}
+        />
+        <StatCard
+          label="Completed Lessons"
+          value={completedLessons}
+          hint={`Out of ${totalLessons || overview.assignments || 0} lessons`}
+          icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+        />
+        <StatCard
+          label="Learning Hours"
+          value={Number(overview.learningHours.toFixed(0))}
+          hint={`This week ${weekly.percent}% of goal`}
+          icon={<Clock3 className="h-4 w-4" aria-hidden />}
+          suffix="h"
+        />
+        <StatCard
+          label="Certificates"
+          value={certificates.length}
+          hint={`${overview.completedCourses} subjects complete`}
+          icon={<Award className="h-4 w-4" aria-hidden />}
+        />
         <article className="sl-stat">
           <div className="sl-stat-top">
-            Enrolled Courses
-            <GraduationCap className="h-4 w-4" aria-hidden />
-          </div>
-          <strong>{overview.activeCourses}</strong>
-          <span>Active courses</span>
-        </article>
-        <article className="sl-stat">
-          <div className="sl-stat-top">
-            Overall Progress
+            Current GPA
             <span className="sl-trend">
               +{Math.max(1, Math.round(overview.weeklyGoalPercent / 20))}%
             </span>
+          </div>
+          <strong>{gpa.toFixed(2)}</strong>
+          <span>Academic standing</span>
+        </article>
+        <article className="sl-stat">
+          <div className="sl-stat-top">
+            Progress
+            <Target className="h-4 w-4" aria-hidden />
           </div>
           <strong>{clampPercent(overview.progressPercent)}%</strong>
           <div className="sl-mini-bar" aria-hidden>
             <i style={{ width: `${clampPercent(overview.progressPercent)}%` }} />
           </div>
         </article>
-        <article className="sl-stat">
-          <div className="sl-stat-top">
-            Learning Hours
-            <Clock3 className="h-4 w-4" aria-hidden />
-          </div>
-          <strong>{formatHours(overview.learningHours)}</strong>
-          <span>This week {weekly.percent}% of goal</span>
-        </article>
-        <article className="sl-stat">
-          <div className="sl-stat-top">
-            Completed Lessons
-            <CheckCircle2 className="h-4 w-4" aria-hidden />
-          </div>
-          <strong>{completedLessons}</strong>
-          <span>Out of {totalLessons || overview.assignments || 0} lessons</span>
-        </article>
+        <StatCard
+          label="Weekly Goal"
+          value={weekly.percent}
+          hint={`${weekly.completed}h / ${weekly.target || 0}h`}
+          icon={<Flame className="h-4 w-4" aria-hidden />}
+          suffix="%"
+        />
+        <StatCard
+          label="Upcoming Exams"
+          value={upcomingExams}
+          hint={`${streak} day learning streak`}
+          icon={<FileText className="h-4 w-4" aria-hidden />}
+        />
+      </section>
+
+      <section className="sl-card" aria-labelledby="quick-actions-title">
+        <div className="sl-card-head">
+          <h2 id="quick-actions-title">Quick Actions</h2>
+        </div>
+        <div className="sl-actions">
+          <Link className="sl-action" href={resumeHref}>
+            <PlayCircle className="h-4 w-4" aria-hidden />
+            Continue Course
+          </Link>
+          <Link className="sl-action" href="/student/calendar">
+            <Video className="h-4 w-4" aria-hidden />
+            Join Live Class
+          </Link>
+          <Link className="sl-action" href="/student/resources">
+            <Download className="h-4 w-4" aria-hidden />
+            Download Materials
+          </Link>
+          <Link className="sl-action" href="/student/support">
+            <Headset className="h-4 w-4" aria-hidden />
+            Support
+          </Link>
+          <Link className="sl-action" href="/student/certificates">
+            <Award className="h-4 w-4" aria-hidden />
+            Certificates
+          </Link>
+          <Link className="sl-action" href="/student/assignments">
+            <FileText className="h-4 w-4" aria-hidden />
+            Assignments
+          </Link>
+          <Link className="sl-action" href="/student/calendar">
+            <CalendarDays className="h-4 w-4" aria-hidden />
+            Calendar
+          </Link>
+          <Link className="sl-action" href="/student/favorites">
+            <Bookmark className="h-4 w-4" aria-hidden />
+            Bookmarks
+          </Link>
+        </div>
       </section>
 
       <div className="sl-dashboard-grid">
@@ -351,7 +527,7 @@ function LearningDashboardView() {
 
           <section className="sl-card" aria-labelledby="today-learning-title">
             <div className="sl-card-head">
-              <h2 id="today-learning-title">Today&apos;s Learning</h2>
+              <h2 id="today-learning-title">Today&apos;s schedule</h2>
               <span className="sl-muted">{todayItems.length} scheduled</span>
             </div>
             {todayItems.length === 0 ? (
@@ -367,7 +543,7 @@ function LearningDashboardView() {
                       <strong>{item.title}</strong>
                       <p className="sl-muted">{calendarKindLabel(item.type)}</p>
                     </div>
-                    <Link href={item.href ?? resumeHref}>Resume</Link>
+                    <Link href={item.href ?? resumeHref}>Open</Link>
                   </div>
                 ))}
               </div>
@@ -377,38 +553,34 @@ function LearningDashboardView() {
           <section className="sl-card" aria-labelledby="course-progress-title">
             <div className="sl-card-head">
               <h2 id="course-progress-title">Course Progress</h2>
+              <span className="sl-muted">{estimatedCompletion(overview.progressPercent)}</span>
             </div>
             <div className="sl-progress-panel">
-              <ProgressRing
-                value={overview.progressPercent}
-                label={`Overall completion ${clampPercent(overview.progressPercent)} percent`}
-              />
-              <div className="sl-today-list">
-                <div className="sl-today-item">
-                  <span className="sl-dot" aria-hidden />
-                  <div>
-                    <strong>Current subject</strong>
-                    <p className="sl-muted">{currentCourse?.title ?? "Not started"}</p>
+              <div className="sl-timeline" aria-label="Lesson timeline">
+                {steps.map((step) => (
+                  <div key={step.id} className="sl-lesson-step" data-state={step.state}>
+                    <span className="sl-step-mark" aria-hidden>
+                      {step.state === "completed" ? (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      ) : step.state === "locked" ? (
+                        <Lock className="h-3.5 w-3.5" />
+                      ) : (
+                        step.index
+                      )}
+                    </span>
+                    <div>
+                      <strong>{step.title}</strong>
+                      <p className="sl-muted">
+                        {step.state === "completed"
+                          ? "Completed lesson"
+                          : step.state === "current"
+                            ? "Current lesson"
+                            : "Locked lesson"}
+                      </p>
+                    </div>
+                    <span className="sl-muted">{step.state}</span>
                   </div>
-                </div>
-                <div className="sl-today-item">
-                  <span className="sl-dot" aria-hidden />
-                  <div>
-                    <strong>
-                      {completedLessons} / {totalLessons || "—"}
-                    </strong>
-                    <p className="sl-muted">Completed lessons</p>
-                  </div>
-                </div>
-                <div className="sl-today-item">
-                  <span className="sl-dot" aria-hidden />
-                  <div>
-                    <strong>{formatHours(overview.learningHours)}</strong>
-                    <p className="sl-muted">
-                      Weekly {weekly.percent}% · Monthly {monthly.percent}%
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </section>
@@ -483,31 +655,6 @@ function LearningDashboardView() {
             )}
           </section>
 
-          <section className="sl-card" aria-labelledby="achievements-title">
-            <div className="sl-card-head">
-              <h2 id="achievements-title">Achievements</h2>
-              <Link href="/student/certificates">Certificates</Link>
-            </div>
-            <div className="sl-achievements">
-              <div className="sl-badge">
-                <strong>{certificates.length}</strong>
-                <span className="sl-muted">Certificates</span>
-              </div>
-              <div className="sl-badge">
-                <strong>{overview.completedCourses}</strong>
-                <span className="sl-muted">Completed subjects</span>
-              </div>
-              <div className="sl-badge">
-                <strong>{Math.max(1, Math.round(overview.learningHours) || 1)}</strong>
-                <span className="sl-muted">Learning streak days</span>
-              </div>
-              <div className="sl-badge">
-                <strong>{formatHours(overview.learningHours)}</strong>
-                <span className="sl-muted">Study hours</span>
-              </div>
-            </div>
-          </section>
-
           <section className="sl-card" aria-labelledby="recent-activity-title">
             <div className="sl-card-head">
               <h2 id="recent-activity-title">Recent Activity</h2>
@@ -521,7 +668,7 @@ function LearningDashboardView() {
               <div className="sl-activity-list">
                 {overview.recentActivity.slice(0, 6).map((event: LearningHistoryEvent) => (
                   <div key={event.id} className="sl-activity-item">
-                    <Award className="h-4 w-4" aria-hidden />
+                    <span className="sl-activity-mark" data-kind={event.type} aria-hidden />
                     <div>
                       <strong>{event.title}</strong>
                       <p className="sl-muted">{activityKindLabel(event.type)}</p>
@@ -540,7 +687,7 @@ function LearningDashboardView() {
           <section className="sl-card sl-live-card" aria-labelledby="live-session-title">
             <div className="sl-live-top">
               <h2 id="live-session-title">Upcoming Live Session</h2>
-              <span className="sl-live">Live</span>
+              <span className="sl-live">{liveStartsAt ? "Live" : "Standby"}</span>
             </div>
             <div className="sl-instructor">
               <span className="sl-instructor-fallback" aria-hidden>
@@ -557,7 +704,12 @@ function LearningDashboardView() {
                 "No live session is scheduled yet. Check the calendar for the next briefing."}
             </p>
             <p className="sl-muted">Countdown: {countdownLabel(liveStartsAt, now)}</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <div className="sl-live-icons" aria-hidden>
+              <Plane className="h-4 w-4" />
+              <Video className="h-4 w-4" />
+              <CalendarDays className="h-4 w-4" />
+            </div>
+            <div className="sl-hero-actions">
               <button
                 type="button"
                 className="sl-btn-gold"
@@ -565,13 +717,46 @@ function LearningDashboardView() {
                 disabled={!overview.upcomingLiveClassId || joining}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                {joining ? "Joining…" : "Join Zoom"}
+                {joining ? "Joining…" : "Join"}
               </button>
               <Link className="sl-btn" href="/student/calendar">
-                <CalendarDays className="h-4 w-4" aria-hidden />
                 Calendar
               </Link>
             </div>
+          </section>
+
+          <section className="sl-card" aria-labelledby="notifications-title">
+            <div className="sl-card-head">
+              <h2 id="notifications-title">Notifications</h2>
+              <Link href="/student/notifications">View all</Link>
+            </div>
+            {notices.length === 0 ? (
+              <div className="sl-empty">You&apos;re all caught up.</div>
+            ) : (
+              <div className="sl-notice-list">
+                {notices.map((event) => (
+                  <div key={event.id} className="sl-notice-item">
+                    <span className="sl-activity-mark" data-kind={event.type} aria-hidden />
+                    <div>
+                      <strong>{event.title}</strong>
+                      <p className="sl-muted">{activityKindLabel(event.type)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="sl-icon-btn"
+                      aria-label={`Dismiss ${event.title}`}
+                      onClick={() =>
+                        setDismissedNoticeIds((ids) =>
+                          ids.includes(event.id) ? ids : [...ids, event.id],
+                        )
+                      }
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="sl-card" aria-labelledby="study-planner-title">
@@ -618,33 +803,54 @@ function LearningDashboardView() {
             </div>
           </section>
 
-          <section className="sl-card" aria-labelledby="quick-actions-title">
-            <h2 id="quick-actions-title">Quick Actions</h2>
-            <div className="sl-actions" style={{ marginTop: 14 }}>
-              <Link className="sl-action" href="/student/bookings">
-                <CalendarDays className="h-4 w-4" aria-hidden />
-                Book a Session
-              </Link>
-              <Link className="sl-action" href="/student/mock-exams">
-                <GraduationCap className="h-4 w-4" aria-hidden />
-                Take a Mock Exam
-              </Link>
-              <Link className="sl-action" href="/student/resources">
-                <Download className="h-4 w-4" aria-hidden />
-                Download Materials
-              </Link>
-              <Link className="sl-action" href="/student/support">
-                <Headset className="h-4 w-4" aria-hidden />
-                Support
-              </Link>
-              <Link className="sl-action" href="/student/messages">
-                <MessageSquare className="h-4 w-4" aria-hidden />
-                Messages
-              </Link>
-              <Link className="sl-action" href="/student/certificates">
-                <Award className="h-4 w-4" aria-hidden />
-                Certificates
-              </Link>
+          <section className="sl-card" aria-labelledby="achievements-title">
+            <div className="sl-card-head">
+              <h2 id="achievements-title">Achievements</h2>
+              <Link href="/student/certificates">Recent certificates</Link>
+            </div>
+            <div className="sl-achievements">
+              <div className="sl-badge">
+                <Trophy className="h-4 w-4" aria-hidden />
+                <strong>{certificates.length}</strong>
+                <span className="sl-muted">Certificates</span>
+              </div>
+              <div className="sl-badge">
+                <Flame className="h-4 w-4" aria-hidden />
+                <strong>{streak}</strong>
+                <span className="sl-muted">Learning streak</span>
+              </div>
+              <div className="sl-badge">
+                <Zap className="h-4 w-4" aria-hidden />
+                <strong>{xp}</strong>
+                <span className="sl-muted">XP points</span>
+              </div>
+              <div className="sl-badge">
+                <BookOpen className="h-4 w-4" aria-hidden />
+                <strong>{formatHours(overview.learningHours)}</strong>
+                <span className="sl-muted">Study hours</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="sl-card" aria-labelledby="heatmap-title">
+            <div className="sl-card-head">
+              <h2 id="heatmap-title">Learning heatmap</h2>
+              <span className="sl-muted">Last 12 weeks</span>
+            </div>
+            <div className="sl-heatmap" aria-hidden>
+              {Array.from({ length: 12 }, (_, week) => (
+                <div key={week} className="sl-heat-col">
+                  {heatmap.slice(week * 7, week * 7 + 7).map((cell) => (
+                    <span
+                      key={cell.key}
+                      className="sl-heat"
+                      data-level={
+                        cell.count >= 3 ? "3" : cell.count >= 2 ? "2" : cell.count ? "1" : "0"
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
             </div>
           </section>
         </div>
