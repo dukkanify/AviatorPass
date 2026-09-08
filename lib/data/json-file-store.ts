@@ -88,6 +88,9 @@ export function getJsonStoreStatus(): {
   }
 }
 
+const CHUNK_CHARS = 12_000;
+const CHUNK_READ_PAGE = 4;
+
 function ensureTable(): void {
   if (tableReady) return;
   neonSql(`
@@ -97,7 +100,66 @@ function ensureTable(): void {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  neonSql(`
+    CREATE TABLE IF NOT EXISTS aep_json_store_chunks (
+      key TEXT NOT NULL,
+      chunk_index INT NOT NULL,
+      data TEXT NOT NULL,
+      PRIMARY KEY (key, chunk_index)
+    )
+  `);
   tableReady = true;
+}
+
+function readChunkedValue(key: string): unknown | undefined {
+  const meta = neonSql<{ max: number | string | null }>(
+    "SELECT COALESCE(MAX(chunk_index), -1) AS max FROM aep_json_store_chunks WHERE key = $1",
+    [key],
+  );
+  const max = Number(meta[0]?.max ?? -1);
+  if (max < 0) return undefined;
+  let text = "";
+  for (let start = 0; start <= max; start += CHUNK_READ_PAGE) {
+    const rows = neonSql<{ chunk_index: number; data: string }>(
+      `SELECT chunk_index, data FROM aep_json_store_chunks
+       WHERE key = $1 AND chunk_index >= $2 AND chunk_index < $3
+       ORDER BY chunk_index`,
+      [key, start, start + CHUNK_READ_PAGE],
+    );
+    for (const row of rows) text += row.data ?? "";
+  }
+  return JSON.parse(text) as unknown;
+}
+
+function writeChunkedValue(key: string, value: unknown): void {
+  const text = JSON.stringify(value);
+  neonSql("DELETE FROM aep_json_store_chunks WHERE key = $1", [key]);
+  const values: unknown[] = [];
+  const placeholders: string[] = [];
+  let idx = 0;
+  const flush = () => {
+    if (!placeholders.length) return;
+    neonSql(
+      `INSERT INTO aep_json_store_chunks (key, chunk_index, data) VALUES ${placeholders.join(",")}`,
+      values,
+    );
+    values.length = 0;
+    placeholders.length = 0;
+  };
+  for (let i = 0; i < text.length; i += CHUNK_CHARS) {
+    const base = values.length;
+    placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
+    values.push(key, idx, text.slice(i, i + CHUNK_CHARS));
+    idx += 1;
+    if (placeholders.length >= 8) flush();
+  }
+  flush();
+  neonSql(
+    `INSERT INTO aep_json_store (key, value, updated_at)
+     VALUES ($1, $2::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [key, JSON.stringify({ chunked: true, bytes: text.length, chunks: idx })],
+  );
 }
 
 function hydrateKeyFromPostgres(filePath: string): void {
@@ -105,26 +167,42 @@ function hydrateKeyFromPostgres(filePath: string): void {
   const key = storeKeyFromPath(filePath);
   if (hydratedKeys.has(key)) return;
   ensureTable();
-  const rows = neonSql<{ value: unknown }>("SELECT value FROM aep_json_store WHERE key = $1", [
-    key,
-  ]);
-  const row = rows[0];
-  if (row && row.value !== undefined) {
-    rawMemory.set(filePath, JSON.stringify(row.value));
-    parsedMemory.set(filePath, row.value);
+
+  try {
+    const chunked = readChunkedValue(key);
+    if (chunked !== undefined) {
+      rawMemory.set(filePath, JSON.stringify(chunked));
+      parsedMemory.set(filePath, chunked);
+      hydratedKeys.add(key);
+      return;
+    }
+  } catch (error) {
+    console.error("[data] chunked hydrate failed", key, error);
+  }
+
+  try {
+    const rows = neonSql<{ value: unknown }>("SELECT value FROM aep_json_store WHERE key = $1", [
+      key,
+    ]);
+    const value = rows[0]?.value;
+    if (value && typeof value === "object" && value !== null && "chunked" in value) {
+      hydratedKeys.add(key);
+      return;
+    }
+    if (value !== undefined) {
+      rawMemory.set(filePath, JSON.stringify(value));
+      parsedMemory.set(filePath, value);
+    }
+  } catch (error) {
+    // Oversized legacy JSONB rows can truncate over Neon HTTP — treat as missing.
+    console.error("[data] jsonb hydrate skipped", key, error);
   }
   hydratedKeys.add(key);
 }
 
 function persistToPostgres(filePath: string, value: unknown): void {
   ensureTable();
-  const key = storeKeyFromPath(filePath);
-  neonSql(
-    `INSERT INTO aep_json_store (key, value, updated_at)
-     VALUES ($1, $2::jsonb, NOW())
-     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-    [key, JSON.stringify(value)],
-  );
+  writeChunkedValue(storeKeyFromPath(filePath), value);
 }
 
 function writeLocalFile(filePath: string, raw: string): boolean {
@@ -152,13 +230,6 @@ export function readJsonFile<T>(filePath: string, fallback: () => T): T {
     try {
       hydrateKeyFromPostgres(filePath);
     } catch (error) {
-      if (requireDurableWrites()) {
-        throw error instanceof PostgresStoreError
-          ? error
-          : new PostgresStoreError(
-              error instanceof Error ? error.message : "Failed to hydrate JSON store",
-            );
-      }
       console.error("[data] postgres hydrate failed; using local fallback", error);
     }
   }
