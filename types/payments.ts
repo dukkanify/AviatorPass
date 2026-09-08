@@ -92,6 +92,8 @@ export interface CatalogProduct {
   priceAmount: number;
   compareAtAmount: number | null;
   currency: string;
+  /** Minor-unit amounts keyed by ISO currency. Country checkout never reuses a foreign amount. */
+  pricesByCurrency?: Record<string, number>;
   isFree: boolean;
   active: boolean;
   metadata: Record<string, unknown>;

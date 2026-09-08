@@ -8,6 +8,11 @@ import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listCourses } from "@/services/courses/course-service";
+import {
+  ATPL_PACKAGE_PRICES,
+  atplCompareForCurrency,
+  atplPriceForCurrency,
+} from "@/services/payments/country-pricing";
 import { majorToMinor } from "@/services/payments/money";
 import { ensureCustomerJourneyProducts } from "@/services/journeys/customer-journey-catalog";
 import { defaultRegionalPaymentRules } from "@/services/payments/regional-rules-service";
@@ -131,9 +136,10 @@ export function ensurePaymentsSeeded(): void {
       pricingModel: "package",
       courseId: courses.find((c) => c.code === "ATPL-010")?.id ?? courses[0]!.id,
       instructorId: instructor.id,
-      priceAmount: majorToMinor(480, currency),
-      compareAtAmount: majorToMinor(560, currency),
+      priceAmount: atplPriceForCurrency(currency),
+      compareAtAmount: atplCompareForCurrency(currency),
       currency,
+      pricesByCurrency: { ...ATPL_PACKAGE_PRICES },
       isFree: false,
       active: true,
       metadata: {
@@ -385,9 +391,20 @@ function ensureAtplPackageAndRegionalRules(): void {
     if (d.regionalRules.length === 0) {
       d.regionalRules = defaultRegionalPaymentRules(d.settings.currency);
     }
-    const hasAtpl = d.products.some((p) => p.metadata?.sku === "ATPL-PACKAGE");
-    if (hasAtpl || !instructor) return;
     const stamp = new Date().toISOString();
+    const existing = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
+    if (existing) {
+      const next = { ...ATPL_PACKAGE_PRICES, ...existing.pricesByCurrency };
+      const missing = Object.keys(ATPL_PACKAGE_PRICES).some(
+        (code) => typeof existing.pricesByCurrency?.[code] !== "number",
+      );
+      if (missing) {
+        existing.pricesByCurrency = next;
+        existing.updatedAt = stamp;
+      }
+      return;
+    }
+    if (!instructor) return;
     const currency = d.settings.currency;
     d.products.push({
       id: generateId(),
@@ -397,9 +414,10 @@ function ensureAtplPackageAndRegionalRules(): void {
       pricingModel: "package",
       courseId: courses.find((c) => c.code === "ATPL-010")?.id ?? courses[0]?.id ?? null,
       instructorId: instructor.id,
-      priceAmount: majorToMinor(480, currency),
-      compareAtAmount: majorToMinor(560, currency),
+      priceAmount: atplPriceForCurrency(currency),
+      compareAtAmount: atplCompareForCurrency(currency),
       currency,
+      pricesByCurrency: { ...ATPL_PACKAGE_PRICES },
       isFree: false,
       active: true,
       metadata: {

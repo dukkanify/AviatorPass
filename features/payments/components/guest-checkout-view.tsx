@@ -9,7 +9,6 @@ import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import type { CatalogProduct, PaymentMethodBrand } from "@/types/payments";
@@ -29,10 +28,11 @@ type Quote = {
     id: PaymentMethodBrand;
     label: string;
     available: boolean;
-    comingSoon?: boolean;
     processor: string;
   }>;
   countries: Array<{ code: string; name: string; dialCode: string }>;
+  detectedCountry?: string | null;
+  detectedCurrency?: string;
 };
 
 type PayResult = {
@@ -79,7 +79,7 @@ function GuestCheckoutView() {
     lastName: "",
     email: "",
     phone: "",
-    country: "KW",
+    country: search.get("country")?.toUpperCase() ?? "",
     billingAddress: "",
     methodBrand: "card" as PaymentMethodBrand,
   });
@@ -91,7 +91,7 @@ function GuestCheckoutView() {
     setLoadingQuote(true);
     const params = new URLSearchParams();
     if (productId) params.set("productId", productId);
-    params.set("country", form.country);
+    if (form.country) params.set("country", form.country);
     try {
       const res = await fetch(`/api/public/checkout?${params.toString()}`, {
         credentials: "include",
@@ -108,10 +108,12 @@ function GuestCheckoutView() {
       setQuote(json.data);
       setLoadError(null);
       const data = json.data;
-      const firstAvailable = data.methods.find((m) => m.available)?.id ?? "card";
+      const visible = data.methods.filter((m) => m.available);
+      const firstAvailable = visible[0]?.id ?? "card";
       setForm((prev) => ({
         ...prev,
-        methodBrand: data.methods.some((m) => m.id === prev.methodBrand && m.available)
+        country: prev.country || data.detectedCountry || "US",
+        methodBrand: visible.some((m) => m.id === prev.methodBrand)
           ? prev.methodBrand
           : firstAvailable,
       }));
@@ -332,37 +334,36 @@ function GuestCheckoutView() {
           <div className="space-y-3">
             <p className="text-sm font-medium">Payment method</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {(quote?.methods ?? []).map((method) => {
-                const Icon = methodIcon(method.id);
-                const disabled = !method.available;
-                return (
-                  <button
-                    key={method.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => setForm((f) => ({ ...f, methodBrand: method.id }))}
-                    className={`flex min-h-11 items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
-                      form.methodBrand === method.id && !disabled
-                        ? "border-accent bg-accent/10"
-                        : "border-border"
-                    } ${disabled ? "cursor-not-allowed opacity-55" : "hover:border-accent/60"}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      {method.id === "tamara" ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src="/partners/tamara.svg" alt="" className="h-5 w-auto" />
-                      ) : method.id === "taly" ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src="/partners/taly.svg" alt="" className="h-5 w-auto" />
-                      ) : (
-                        <Icon className="size-4" />
-                      )}
-                      {methodLabel(method)}
-                    </span>
-                    {method.comingSoon ? <Badge variant="secondary">Soon</Badge> : null}
-                  </button>
-                );
-              })}
+              {(quote?.methods ?? [])
+                .filter((method) => method.available)
+                .map((method) => {
+                  const Icon = methodIcon(method.id);
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, methodBrand: method.id }))}
+                      className={`flex min-h-11 items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                        form.methodBrand === method.id
+                          ? "border-accent bg-accent/10"
+                          : "border-border hover:border-accent/60"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {method.id === "tamara" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src="/partners/tamara.svg" alt="" className="h-5 w-auto" />
+                        ) : method.id === "taly" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src="/partners/taly.svg" alt="" className="h-5 w-auto" />
+                        ) : (
+                          <Icon className="size-4" />
+                        )}
+                        {methodLabel(method)}
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
             <p className="text-xs text-muted-foreground">
               Stripe is available in every country. Tamara appears for the United Arab Emirates and
@@ -403,6 +404,18 @@ function GuestCheckoutView() {
             </p>
           </div>
           <dl className="space-y-2 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <dt>Country</dt>
+              <dd>
+                {(quote?.countries ?? []).find((c) => c.code === form.country)?.name ??
+                  form.country ??
+                  "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <dt>Currency</dt>
+              <dd>{quote?.currency ?? quote?.detectedCurrency ?? "—"}</dd>
+            </div>
             <div className="flex justify-between font-medium">
               <dt>Total due today</dt>
               <dd className="font-display text-xl">{quote?.totalLabel ?? "—"}</dd>

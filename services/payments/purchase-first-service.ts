@@ -52,9 +52,11 @@ import {
 } from "@/services/payments/installment-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
 import {
-  assertPaymentMethodAllowedForCountry,
-  routedBnplProviders,
-} from "@/services/payments/regional-rules-service";
+  assertBnplCurrency,
+  checkoutPlanForCountry,
+  resolveCountryPrice,
+} from "@/services/payments/country-pricing";
+import { assertPaymentMethodAllowedForCountry } from "@/services/payments/regional-rules-service";
 import { isStripeConfigured } from "@/services/payments/stripe-client";
 import {
   blankStripePaymentFields,
@@ -152,44 +154,36 @@ export function getAtplPackageProduct(): CatalogProduct | null {
 
 export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMethod[] {
   const settings = readPaymentsDb().settings;
-  const processor = settings.provider;
-  const cc = countryCode.toUpperCase();
-  const madaMarkets = new Set(["KW", "SA", "BH", "QA", "AE", "OM"]);
-  const bnpl = routedBnplProviders(cc);
-  const allowTamara = bnpl.includes("tamara");
-  const allowTaly = bnpl.includes("taly");
-
+  const plan = checkoutPlanForCountry(countryCode);
   const row = (
     id: PaymentMethodBrand,
     available: boolean,
-    comingSoon?: boolean,
-    methodProcessor = processor,
+    methodProcessor: string,
   ): GuestCheckoutMethod => ({
     id,
     label: PAYMENT_METHOD_LABELS[id],
     available,
-    comingSoon,
     processor: methodProcessor,
   });
 
-  const methods: GuestCheckoutMethod[] = [
-    row("card", true),
-    row("apple_pay", settings.allowApplePay !== false),
-    row("google_pay", settings.allowGooglePay !== false),
-    row("mada", madaMarkets.has(cc), !madaMarkets.has(cc)),
-  ];
-
-  if (allowTamara) {
-    const live = isTamaraConfigured();
-    methods.push(row("tamara", live, !live, live ? "tamara" : processor));
+  const methods: GuestCheckoutMethod[] = [];
+  for (const id of plan.methods) {
+    if (id === "card") methods.push(row("card", true, "stripe"));
+    if (id === "apple_pay" && settings.allowApplePay !== false) {
+      methods.push(row("apple_pay", true, "stripe"));
+    }
+    if (id === "google_pay" && settings.allowGooglePay !== false) {
+      methods.push(row("google_pay", true, "stripe"));
+    }
+    if (id === "tamara") {
+      if (!isTamaraConfigured()) continue;
+      methods.push(row("tamara", true, "tamara"));
+    }
+    if (id === "taly") {
+      if (!isTalyConfigured()) continue;
+      methods.push(row("taly", true, "taly"));
+    }
   }
-  if (allowTaly) {
-    const live = isTalyConfigured();
-    methods.push(row("taly", live, !live, live ? "taly" : processor));
-  }
-  if (processor === "myfatoorah") methods.push(row("myfatoorah", true));
-  if (processor === "manual") methods.push(row("manual", true));
-
   return methods;
 }
 
@@ -199,8 +193,9 @@ export function quoteGuestCheckout(productId?: string | null, country = "KW"): G
     throw new PaymentError("The ATPL Course is not available for purchase right now", 404);
   }
   const settings = readPaymentsDb().settings;
+  const priced = resolveCountryPrice(product, country);
   const detection = detectCheckoutCurrency({ country });
-  const subtotal = product.isFree ? 0 : product.priceAmount;
+  const subtotal = priced.amount;
   const taxAmount = calcTax(subtotal, settings.taxRatePercent);
   const totalAmount = subtotal + taxAmount;
   const brand = getPublicBrandConfig();
@@ -208,21 +203,21 @@ export function quoteGuestCheckout(productId?: string | null, country = "KW"): G
   const hosted = isStripeConfigured();
   return {
     product,
-    currency: product.currency || settings.currency,
+    currency: priced.currency,
     subtotalAmount: subtotal,
     taxAmount,
     taxRatePercent: settings.taxRatePercent,
     totalAmount,
-    totalLabel: formatMinor(totalAmount, product.currency || settings.currency),
+    totalLabel: formatMinor(totalAmount, priced.currency),
     methods: listGuestCheckoutMethods(country),
     processor: hosted ? "stripe" : settings.provider,
     supportEmail: brand.supportEmail,
     loginUrl: `${origin}${routes.login}`,
     courseAccessUrl: `${origin}/student/courses`,
     hostedCheckout: hosted,
-    detectedCountry: detection.country,
-    detectedCurrency: detection.currency,
-    detectionSource: detection.source,
+    detectedCountry: priced.country,
+    detectedCurrency: priced.currency,
+    detectionSource: detection.source === "explicit" ? "billing" : detection.source,
     stripePriceId: null,
   };
 }
@@ -241,9 +236,9 @@ export async function quotePublicCheckout(input: {
   const base = quoteGuestCheckout(input.productId, detection.country ?? "US");
   return {
     ...base,
-    detectedCountry: detection.country,
-    detectedCurrency: base.currency,
-    detectionSource: "course",
+    detectedCountry: base.detectedCountry,
+    detectedCurrency: base.detectedCurrency,
+    detectionSource: detection.source,
     stripePriceId: null,
   };
 }
@@ -317,7 +312,10 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
   const methods = listGuestCheckoutMethods(input.country);
   const selected = methods.find((m) => m.id === methodBrand);
   if (!selected?.available) {
-    throw new PaymentError("That payment method is not available yet. Choose Credit Card.");
+    throw new PaymentError("That payment method is not available. Choose another option.");
+  }
+  if (methodBrand === "tamara" || methodBrand === "taly") {
+    assertBnplCurrency(methodBrand, input.country, quote.currency);
   }
 
   const existingUser = findUserByEmail(email);
@@ -359,7 +357,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
     courseId: product.courseId,
     instructorId: product.instructorId,
     pricingModel: product.pricingModel,
-    unitAmount: product.priceAmount,
+    unitAmount: quote.subtotalAmount,
     quantity: 1,
     discountAmount: 0,
     taxAmount: quote.taxAmount,
@@ -373,6 +371,12 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       if (!o) return;
       o.status = "pending";
       o.failureReason = null;
+      o.currency = quote.currency;
+      o.subtotalAmount = quote.subtotalAmount;
+      o.taxAmount = quote.taxAmount;
+      o.taxRatePercent = quote.taxRatePercent;
+      o.totalAmount = quote.totalAmount;
+      o.items = [item];
       o.billingName = billingName;
       o.billingEmail = email;
       o.billingCountry = input.country.toUpperCase();
@@ -1016,7 +1020,7 @@ export async function startHostedCheckout(input: {
       hostedCheckout: true,
       guestCountry: country,
       detectedCurrency: quote.currency,
-      detectionSource: "course",
+      detectionSource: detection.source,
       platform: "AviatorPass",
     },
     createdAt: stamp,

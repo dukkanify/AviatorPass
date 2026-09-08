@@ -11,6 +11,7 @@ import { readAuthDb } from "@/services/auth/store";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
 import { assertCanCheckout, assertOwnOrder, PaymentError } from "@/services/payments/access";
 import { getProduct, validateCoupon } from "@/services/payments/catalog-service";
+import { resolveCountryPrice } from "@/services/payments/country-pricing";
 import { getPaymentGateway } from "@/services/payments/gateway";
 import { assertPaymentMethodAllowedForCountry } from "@/services/payments/regional-rules-service";
 import { tamaraCancelUrl, tamaraSuccessUrl } from "@/services/payments/tamara-config";
@@ -150,7 +151,9 @@ export async function createCheckoutOrder(input: {
 
   const settings = readPaymentsDb().settings;
   const stamp = nowIso();
-  const subtotal = product.isFree ? 0 : product.priceAmount;
+  const billedCountry = (input.billingCountry || "KW").toUpperCase();
+  const priced = resolveCountryPrice(product, billedCountry);
+  const subtotal = product.isFree ? 0 : priced.amount;
   let discountAmount = 0;
   let couponId: string | null = null;
   let couponCode: string | null = null;
@@ -178,7 +181,7 @@ export async function createCheckoutOrder(input: {
     courseId: product.courseId,
     instructorId: product.instructorId,
     pricingModel: product.pricingModel,
-    unitAmount: product.priceAmount,
+    unitAmount: priced.amount,
     quantity: 1,
     discountAmount,
     taxAmount,
@@ -192,7 +195,7 @@ export async function createCheckoutOrder(input: {
     studentName: input.user.fullName || input.user.email,
     studentEmail: input.billingEmail || input.user.email,
     status: "pending",
-    currency: product.currency || settings.currency,
+    currency: priced.currency,
     subtotalAmount: subtotal,
     discountAmount,
     taxAmount,
@@ -202,7 +205,7 @@ export async function createCheckoutOrder(input: {
     couponCode,
     billingName: input.billingName || input.user.fullName || input.user.email,
     billingEmail: input.billingEmail || input.user.email,
-    billingCountry: input.billingCountry || "KW",
+    billingCountry: billedCountry,
     billingAddress: input.billingAddress || "",
     items: [item],
     paymentId: null,

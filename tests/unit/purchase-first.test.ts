@@ -47,17 +47,16 @@ describe("purchase-first ATPL enrollment", () => {
   it("quotes ATPL with Stripe methods and country-routed BNPL only", () => {
     const quote = quoteGuestCheckout(undefined, "KW");
     expect(quote.product.metadata?.sku).toBe("ATPL-PACKAGE");
+    expect(quote.currency).toBe("KWD");
     expect(quote.totalAmount).toBeGreaterThan(0);
     expect(quote.hostedCheckout).toBe(false);
     const ids = quote.methods.map((m) => m.id);
-    expect(ids).toEqual(
-      expect.arrayContaining(["card", "apple_pay", "google_pay", "mada", "taly"]),
-    );
+    expect(ids).toEqual(expect.arrayContaining(["card", "apple_pay", "google_pay"]));
+    expect(ids).not.toContain("mada");
     expect(ids).not.toContain("tamara");
     expect(ids).not.toContain("tabby");
     expect(quote.methods.find((m) => m.id === "card")?.available).toBe(true);
-    expect(quote.methods.find((m) => m.id === "taly")?.comingSoon).toBe(true);
-    expect(quote.methods.find((m) => m.id === "taly")?.available).toBe(false);
+    expect(quote.methods.find((m) => m.id === "taly")).toBeUndefined();
   });
 
   it("offers Taly only for Kuwait when merchant keys are configured", () => {
@@ -68,7 +67,6 @@ describe("purchase-first ATPL enrollment", () => {
     try {
       const kuwait = quoteGuestCheckout(undefined, "KW");
       expect(kuwait.methods.find((m) => m.id === "taly")?.available).toBe(true);
-      expect(kuwait.methods.find((m) => m.id === "taly")?.comingSoon).toBe(false);
       const us = quoteGuestCheckout(undefined, "US");
       expect(us.methods.find((m) => m.id === "taly")).toBeUndefined();
     } finally {
@@ -86,7 +84,6 @@ describe("purchase-first ATPL enrollment", () => {
       const quote = quoteGuestCheckout(undefined, "AE");
       const tamara = quote.methods.find((m) => m.id === "tamara");
       expect(tamara?.available).toBe(true);
-      expect(tamara?.comingSoon).toBe(false);
     } finally {
       if (previous === undefined) delete process.env.TAMARA_API_TOKEN;
       else process.env.TAMARA_API_TOKEN = previous;

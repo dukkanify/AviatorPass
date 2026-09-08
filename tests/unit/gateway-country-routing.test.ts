@@ -82,6 +82,12 @@ describe("country gateway routing", () => {
 
     expect(listGuestCheckoutMethods("SA").some((m) => m.id === "tamara" && m.available)).toBe(true);
     expect(listGuestCheckoutMethods("BH").some((m) => m.id === "tamara")).toBe(false);
+
+    expect(quoteGuestCheckout(undefined, "AE").currency).toBe("AED");
+    expect(quoteGuestCheckout(undefined, "SA").currency).toBe("SAR");
+    expect(quoteGuestCheckout(undefined, "KW").currency).toBe("KWD");
+    expect(quoteGuestCheckout(undefined, "US").currency).toBe("USD");
+    expect(quoteGuestCheckout(undefined, "AE").currency).not.toBe("KWD");
   });
 
   it("allows Stripe brands everywhere and rejects the wrong BNPL country", () => {

@@ -11,25 +11,19 @@ export const TAMARA_WEBHOOK_URL = `${PRODUCTION_SITE_URL}${TAMARA_WEBHOOK_PATH}`
 export const TAMARA_SANDBOX_BASE_URL = "https://api-sandbox.tamara.co";
 export const TAMARA_PRODUCTION_BASE_URL = "https://api.tamara.co";
 
-export const TAMARA_COUNTRY_CODES = ["SA", "AE", "BH", "KW", "OM"] as const;
+export const TAMARA_COUNTRY_CODES = ["SA", "AE"] as const;
 export type TamaraCountryCode = (typeof TAMARA_COUNTRY_CODES)[number];
 
-export const TAMARA_CURRENCIES = ["SAR", "AED", "BHD", "KWD", "OMR"] as const;
+export const TAMARA_CURRENCIES = ["SAR", "AED"] as const;
 
 const CITY_BY_COUNTRY: Record<TamaraCountryCode, string> = {
   SA: "Riyadh",
   AE: "Dubai",
-  BH: "Manama",
-  KW: "Kuwait City",
-  OM: "Muscat",
 };
 
 const DIAL_BY_COUNTRY: Record<TamaraCountryCode, string> = {
   SA: "966",
   AE: "971",
-  BH: "973",
-  KW: "965",
-  OM: "968",
 };
 
 function isProductionRuntime(): boolean {
