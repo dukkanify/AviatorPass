@@ -14,7 +14,7 @@ export const ATPL_LANDING_HERO = {
     "Worldwide checkout in your local currency",
   ],
   primaryCta: "Enrol in Aviator Pass",
-  secondaryCta: "See course features",
+  secondaryCta: "See the 13 ATPL Subjects",
 } as const;
 
 export const COURSE_OVERVIEW = {

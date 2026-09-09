@@ -15,13 +15,28 @@ import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing"
 describe("ATPL course landing conversion path", () => {
   it("keeps thirteen ATPL subjects and purchase-first FAQs", () => {
     expect(ATPL_SUBJECTS_13).toHaveLength(13);
+    expect(ATPL_SUBJECTS_13.map((s) => s.title)).toEqual([
+      "Air Law",
+      "AGK — Airframe & Systems",
+      "AGK — Instrumentation",
+      "Mass & Balance",
+      "Performance",
+      "Flight Planning",
+      "Human Performance",
+      "Meteorology",
+      "General Navigation",
+      "Radio Navigation",
+      "Operational Procedures",
+      "Principles of Flight",
+      "Communications",
+    ]);
     expect(ATPL_FAQS.some((item) => /account before/i.test(item.q))).toBe(true);
     expect(ATPL_FAQS.some((item) => /Which platform will you teach me from/i.test(item.q))).toBe(
       true,
     );
     expect(ATPL_LANDING_HERO.primaryCta).toBe("Enrol in Aviator Pass");
     expect(PRICING.cta).toBe("Enrol in Aviator Pass");
-    expect(ATPL_LANDING_HERO.secondaryCta).toBe("See course features");
+    expect(ATPL_LANDING_HERO.secondaryCta).toBe("See the 13 ATPL Subjects");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",
       "Instruction only",

@@ -8,6 +8,7 @@ import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
 import {
   ATPL_LANDING_HERO,
+  ATPL_SUBJECTS_13,
   COURSE_BENEFITS,
   COURSE_OVERVIEW,
   PRICING,
@@ -78,7 +79,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
               className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               asChild
             >
-              <Link href="#features">{ATPL_LANDING_HERO.secondaryCta}</Link>
+              <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
             </Button>
             {priceLabel ? (
               <p className="text-sm font-medium text-white/70">
@@ -105,6 +106,40 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
                 <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="subjects"
+        className="atpl-section atpl-section-light scroll-mt-28"
+        aria-labelledby="subjects-heading"
+      >
+        <div className="container-app">
+          <p className="atpl-kicker">13 ATPL Subjects</p>
+          <h2 id="subjects-heading" className="atpl-heading mt-4 max-w-[22ch]">
+            Every theory paper in one enrolment
+          </h2>
+          <p className="mt-4 max-w-2xl text-muted-foreground">
+            13 Theory Subjects for the Airline Transport Pilot License. Included with the ATPL
+            Course — no separate purchases.
+          </p>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {ATPL_SUBJECTS_13.map((subject) => (
+              <article key={subject.code} className="atpl-subject-card">
+                <span className="atpl-subject-code">{subject.code}</span>
+                <h3 className="mt-3 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
+                  {subject.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {subject.shortDescription}
+                </p>
+                <span className="atpl-subject-badge">Included</span>
+              </article>
+            ))}
+          </div>
+          <div className="mt-12">
+            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
           </div>
         </div>
       </section>
