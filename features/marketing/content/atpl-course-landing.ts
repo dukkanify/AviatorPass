@@ -24,8 +24,6 @@ export const COURSE_OVERVIEW = {
   stats: [
     { value: "13", label: "ATPL Subjects" },
     { value: "LIVE", label: "Instruction only" },
-    { value: "1", label: "Unified enrolment" },
-    { value: "Global", label: "Stripe checkout" },
   ],
 } as const;
 
