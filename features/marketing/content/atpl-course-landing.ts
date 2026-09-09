@@ -7,14 +7,14 @@ export const ATPL_LANDING_HERO = {
   kicker: "Aviator Pass · ATPL Course · Live airline theory",
   headline: "The ATPL course built for pilots who train like professionals",
   subheadline:
-    "One enrolment. 13 ATPL Subjects. Live instructors. A structured path from first lesson to exam-ready competence — without creating an account before you pay.",
+    "One enrolment. The official ATPL theory syllabus. Live instructors. A structured path from first lesson to exam-ready competence — without creating an account before you pay.",
   proof: [
     "Pay first — account created automatically",
     "Sessions are LIVE — recordings are not available to students",
     "Worldwide checkout in your local currency",
   ],
   primaryCta: "Enrol in Aviator Pass",
-  secondaryCta: "See the 13 ATPL Subjects",
+  secondaryCta: "See the ATPL Subjects",
 } as const;
 
 export const COURSE_OVERVIEW = {
@@ -22,7 +22,7 @@ export const COURSE_OVERVIEW = {
   title: "Complete ATPL theory in one professional programme",
   body: "The Aviator Pass ATPL Course is a single Airline Transport Pilot License theory programme. You enrol once, receive every subject module, and train live with EASA Certified Instructors. Progression is competency-based: you move forward when you demonstrate mastery, not when a calendar says so.",
   stats: [
-    { value: "13", label: "ATPL Subjects" },
+    { value: "Syllabus", label: "ATPL Subjects" },
     { value: "LIVE", label: "Instruction only" },
   ],
 } as const;
@@ -64,75 +64,6 @@ export const LEARNING_OUTCOMES = {
     "Sit mock examinations with measurable scores and instructor debriefs",
   ],
 } as const;
-
-/** EASA ATPL theory set used on the conversion page (13 Theory Subjects). */
-export const ATPL_SUBJECTS_13 = [
-  {
-    code: "010",
-    title: "Air Law",
-    shortDescription: "ICAO framework, licensing, rules of the air, and regulatory operations.",
-  },
-  {
-    code: "021",
-    title: "AGK — Airframe & Systems",
-    shortDescription: "Airframe, electrics, hydraulics, powerplant, and aircraft systems.",
-  },
-  {
-    code: "022",
-    title: "AGK — Instrumentation",
-    shortDescription: "Flight instruments, automatic flight, and cockpit warning systems.",
-  },
-  {
-    code: "031",
-    title: "Mass & Balance",
-    shortDescription: "Mass definitions, limits, loading, and documentation.",
-  },
-  {
-    code: "032",
-    title: "Performance",
-    shortDescription: "Take-off, climb, cruise, landing performance, and limitations.",
-  },
-  {
-    code: "033",
-    title: "Flight Planning",
-    shortDescription: "Fuel, routes, ATC flight plans, and in-flight monitoring.",
-  },
-  {
-    code: "040",
-    title: "Human Performance",
-    shortDescription: "Physiology, psychology, CRM, and threat-and-error management.",
-  },
-  {
-    code: "050",
-    title: "Meteorology",
-    shortDescription: "Atmosphere, weather hazards, charts, and operational forecasting.",
-  },
-  {
-    code: "061",
-    title: "General Navigation",
-    shortDescription: "Charts, dead reckoning, and navigation fundamentals.",
-  },
-  {
-    code: "062",
-    title: "Radio Navigation",
-    shortDescription: "NDB, VOR, ILS, GNSS, and radio-aid procedures.",
-  },
-  {
-    code: "070",
-    title: "Operational Procedures",
-    shortDescription: "Airline operations, emergencies, and all-weather procedures.",
-  },
-  {
-    code: "081",
-    title: "Principles of Flight",
-    shortDescription: "Aerodynamics, stability, and high-performance aeroplane theory.",
-  },
-  {
-    code: "090",
-    title: "Communications",
-    shortDescription: "VFR and IFR phraseology, clearances, procedures, and professional R/T.",
-  },
-] as const;
 
 export const COURSE_STRUCTURE = {
   kicker: "Course structure",
@@ -179,7 +110,7 @@ export const COURSE_BENEFITS = {
   items: [
     {
       title: "One purchase, full access",
-      body: "All 13 ATPL Subjects are included. No subject-by-subject checkout.",
+      body: "The official ATPL syllabus is included. No subject-by-subject checkout.",
     },
     {
       title: "Account after payment",
@@ -249,8 +180,8 @@ export const ATPL_FAQS = [
     a: "Stripe selects the Price for your country (for example USD, GBP, EUR, AED, SAR, KWD). We never convert rates inside the app.",
   },
   {
-    q: "Are all 13 ATPL Subjects included?",
-    a: "Yes. One ATPL Course enrolment covers the full 13 Theory Subjects. There are no separate subject checkouts.",
+    q: "Are all ATPL Subjects included?",
+    a: "Yes. One ATPL Course enrolment covers the official ATPL syllabus configured for the programme. There are no separate subject checkouts.",
   },
   {
     q: "Is training live or recorded?",
@@ -279,9 +210,9 @@ export const PRICING = {
   title: "One programme. Transparent checkout.",
   name: "ATPL Course",
   blurb:
-    "Full ATPL theory programme with EASA Certified Instructors, all 13 Theory Subjects, mock exams, and platform access. You pay first; registration is automatic.",
+    "Full ATPL theory programme with EASA Certified Instructors, the official ATPL syllabus, mock exams, and platform access. You pay first; registration is automatic.",
   bullets: [
-    "All 13 ATPL Subjects",
+    "Official ATPL syllabus included",
     "Live instructor-led sessions — no student recordings",
     "Student dashboard, progress, and certificates",
     "Invoice issued after payment",

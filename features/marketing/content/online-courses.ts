@@ -16,9 +16,9 @@ export const ONLINE_COURSE_PROGRAMMES = [
     enrollLabel: "View ATPL Course",
     modes: [{ label: "Live", href: routes.atpl }],
     summary:
-      "13 Theory Subjects. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
+      "Official ATPL syllabus. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
     points: [
-      "13 ATPL Subjects in one enrolment",
+      "Official ATPL syllabus in one enrolment",
       "EASA Certified Instructors",
       "Live sessions only — no student recordings",
       "Internal recording, if any, is for quality assurance",

@@ -4,11 +4,8 @@ import { siteStatic } from "@/config/site-static";
 import { NAV_ITEMS } from "@/constants/navigation";
 import { routes } from "@/constants/routes";
 import { ABOUT, HERO, INSTRUCTORS } from "@/features/marketing/content/atpl-pass-home";
-import {
-  ATPL_FAQS,
-  ATPL_LIVE_TRAINING,
-  ATPL_SUBJECTS_13,
-} from "@/features/marketing/content/atpl-course-landing";
+import { ATPL_FAQS, ATPL_LIVE_TRAINING } from "@/features/marketing/content/atpl-course-landing";
+import { OFFICIAL_ATPL_SUBJECTS } from "@/services/marketing/atpl-subjects-seed";
 import { ONLINE_COURSE_PROGRAMMES } from "@/features/marketing/content/online-courses";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
 
@@ -36,10 +33,11 @@ describe("final client review copy", () => {
     ]);
   });
 
-  it("highlights EASA Certified Instructors and 13 ATPL Subjects", () => {
+  it("highlights EASA Certified Instructors and the official ATPL syllabus", () => {
     expect(INSTRUCTORS.title).toBe("EASA Certified Instructors");
-    expect(ATPL_SUBJECTS_13).toHaveLength(13);
-    expect(ATPL_SUBJECTS_13.some((s) => s.code === "090")).toBe(true);
+    expect(OFFICIAL_ATPL_SUBJECTS).toHaveLength(16);
+    expect(OFFICIAL_ATPL_SUBJECTS.some((s) => s.code === "090")).toBe(true);
+    expect(OFFICIAL_ATPL_SUBJECTS.some((s) => s.title === "Dynamic Management")).toBe(true);
     expect(ATPL_LIVE_TRAINING.body).toMatch(/Recordings are not available to students/i);
     expect(ATPL_LIVE_TRAINING.body).toMatch(/quality assurance/i);
   });
@@ -60,7 +58,7 @@ describe("final client review copy", () => {
     expect(NAV_ITEMS.some((item) => /private session/i.test(item.label))).toBe(false);
     expect(NAV_ITEMS[0]?.href).toBe(routes.onlineCourses);
     expect(NAV_ITEMS[0]?.children?.map((child) => child.hint ?? "")).toEqual([
-      "LIVE · 13 theory subjects",
+      "LIVE · official syllabus",
       "Recorded",
       "Online Course",
       "",

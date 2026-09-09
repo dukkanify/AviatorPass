@@ -1,4 +1,5 @@
 export { CourseManagementView } from "@/features/courses/components/course-management-view";
+export { AtplSubjectManager } from "@/features/courses/components/atpl-subject-manager";
 export { CourseDetailView } from "@/features/courses/components/course-detail-view";
 export { CategoryManager } from "@/features/courses/components/category-manager";
 export { CourseCatalogView } from "@/features/courses/components/course-catalog-view";
