@@ -46,8 +46,11 @@ export interface CourseCategory {
   description: string;
   parentId: string | null;
   icon: string;
+  imageUrl: string | null;
   order: number;
   visible: boolean;
+  seoTitle: string;
+  metaDescription: string;
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -126,6 +129,10 @@ export interface Course {
   enrollmentOpen: boolean;
   /** When true, course is hidden from all public surfaces even if published */
   hidden: boolean;
+  /** Highlighted in public category catalogs */
+  featured: boolean;
+  /** Lower numbers appear first within a category */
+  displayOrder: number;
   status: CourseStatus;
   scheduledPublishAt: string | null;
   primaryInstructorId: string | null;
@@ -243,7 +250,7 @@ export interface CourseFilters {
   includeDeleted?: boolean;
   page?: number;
   pageSize?: number;
-  sortBy?: "title" | "code" | "updatedAt" | "createdAt" | "status";
+  sortBy?: "title" | "code" | "updatedAt" | "createdAt" | "status" | "displayOrder";
   sortDir?: "asc" | "desc";
 }
 

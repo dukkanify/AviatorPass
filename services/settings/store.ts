@@ -14,6 +14,7 @@ import {
   LEGACY_CLIENT_NAME_RE,
   PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
+  remapAtplpassMailbox,
 } from "@/lib/branding/legacy-client-identity";
 
 interface SettingsDatabase {
@@ -143,11 +144,17 @@ function migrateBrandingAssets(settings: PlatformSettings): PlatformSettings {
 }
 
 function remapSupportEmail(value: string): string {
+  const remapped = remapAtplpassMailbox(value);
+  if (remapped !== value.trim()) return remapped;
   if (isLegacySupportMailbox(value)) return PROJECT_SUPPORT_EMAIL;
   return value;
 }
 
 function remapContactEmail(value: string): string {
+  const remapped = remapAtplpassMailbox(value);
+  if (remapped !== value.trim()) {
+    return remapped.toLowerCase() === PROJECT_SUPPORT_EMAIL ? PROJECT_CONTACT_EMAIL : remapped;
+  }
   const normalized = value.trim().toLowerCase();
   if (isLegacySupportMailbox(value) || normalized === PROJECT_SUPPORT_EMAIL) {
     return PROJECT_CONTACT_EMAIL;

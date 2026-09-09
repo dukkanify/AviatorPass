@@ -276,8 +276,11 @@ model CourseCategory {
   description String   @default("")
   parentId    String?  @map("parent_id") @db.Uuid
   icon        String   @default("Folder")
+  imageUrl    String?  @map("image_url")
   sortOrder   Int      @default(0) @map("sort_order")
   visible     Boolean  @default(true)
+  seoTitle    String   @default("") @map("seo_title")
+  metaDescription String @default("") @map("meta_description")
   metadata    Json     @default("{}")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -303,6 +306,8 @@ model Course {
   language                  String         @default("en")
   estimatedDurationMinutes  Int            @default(0) @map("estimated_duration_minutes")
   enrollmentMode            EnrollmentMode @default(manual) @map("enrollment_mode")
+  featured                  Boolean        @default(false)
+  displayOrder              Int            @default(0) @map("display_order")
   status                    CourseStatus   @default(draft)
   scheduledPublishAt        DateTime?      @map("scheduled_publish_at") @db.Timestamptz(6)
   primaryInstructorId       String?        @map("primary_instructor_id") @db.Uuid

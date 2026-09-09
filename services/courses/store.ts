@@ -45,6 +45,17 @@ function emptyDb(): CoursesDatabase {
   };
 }
 
+function normalizeCategory(category: CourseCategory): CourseCategory {
+  return {
+    ...category,
+    imageUrl: category.imageUrl ?? null,
+    seoTitle: category.seoTitle ?? "",
+    metaDescription: category.metaDescription ?? "",
+    order: Number.isFinite(category.order) ? category.order : 0,
+    visible: category.visible !== false,
+  };
+}
+
 function normalizeCourse(course: Course): Course {
   const deliveryType =
     course.deliveryType === "live" || course.deliveryType === "recorded"
@@ -63,11 +74,17 @@ function normalizeCourse(course: Course): Course {
   const currencyRaw =
     (typeof course.currency === "string" && course.currency.trim()) ||
     (typeof course.metadata?.currency === "string" ? course.metadata.currency : "");
+  const displayOrder =
+    typeof course.displayOrder === "number" && Number.isFinite(course.displayOrder)
+      ? course.displayOrder
+      : 0;
   return {
     ...course,
     deliveryType,
     enrollmentOpen,
     hidden: Boolean(course.hidden),
+    featured: Boolean(course.featured),
+    displayOrder,
     priceAmount,
     currency: currencyRaw ? currencyRaw.trim().toUpperCase() : null,
   };
@@ -75,7 +92,7 @@ function normalizeCourse(course: Course): Course {
 
 function normalize(raw: Partial<CoursesDatabase> | null | undefined): CoursesDatabase {
   return {
-    categories: raw?.categories ?? [],
+    categories: (raw?.categories ?? []).map((c) => normalizeCategory(c as CourseCategory)),
     courses: (raw?.courses ?? []).map((c) => normalizeCourse(c as Course)),
     modules: raw?.modules ?? [],
     lessons: raw?.lessons ?? [],

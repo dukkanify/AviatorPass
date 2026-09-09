@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "@/components/ui/app-link";
-import { Award, Plus } from "lucide-react";
+import { Award, Pencil, Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CERTIFICATE_STATUS_LABELS } from "@/constants/certificates";
+import { CertificateEditDialog } from "@/features/certificates/components/certificate-edit-dialog";
 import { certFetch, certJson } from "@/features/certificates/lib/api";
 import type { Certificate, CertificateTemplate } from "@/types/certificates";
 
@@ -26,6 +27,7 @@ function CertificateManageView({
   const [templates, setTemplates] = React.useState<CertificateTemplate[]>([]);
   const [studentId, setStudentId] = React.useState("");
   const [courseId, setCourseId] = React.useState("");
+  const [editing, setEditing] = React.useState<Certificate | null>(null);
 
   const load = React.useCallback(async () => {
     const [c, t] = await Promise.all([
@@ -123,6 +125,10 @@ function CertificateManageView({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{CERTIFICATE_STATUS_LABELS[cert.status]}</Badge>
+                <Button size="sm" variant="outline" onClick={() => setEditing(cert)}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
                 {cert.status === "pending_approval" ? (
                   <Button size="sm" onClick={() => void action(cert.id, "approve")}>
                     Approve
@@ -162,6 +168,15 @@ function CertificateManageView({
           <p className="text-sm text-muted-foreground">No certificates yet.</p>
         ) : null}
       </div>
+
+      <CertificateEditDialog
+        certificate={editing}
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        onSaved={() => void load()}
+      />
 
       <p className="text-xs text-muted-foreground">
         Templates available: {templates.length}. Default branding pulls from platform settings.

@@ -1,5 +1,5 @@
 /**
- * Category service — main + subcategories with ordering and visibility.
+ * Category service — main + subcategories with ordering, SEO, and visibility.
  */
 
 import { generateId } from "@/lib/security/crypto";
@@ -17,6 +17,20 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+export type CategoryWriteInput = {
+  name: string;
+  description?: string;
+  parentId?: string | null;
+  icon?: string;
+  imageUrl?: string | null;
+  slug?: string;
+  order?: number;
+  visible?: boolean;
+  seoTitle?: string;
+  metaDescription?: string;
+  metadata?: Record<string, unknown>;
+};
 
 export function listCategories(options?: { includeHidden?: boolean }): CourseCategory[] {
   ensureCoursesSeeded();
@@ -39,25 +53,26 @@ export function getCategoryById(id: string): CourseCategory | null {
   return readCoursesDb().categories.find((c) => c.id === id) ?? null;
 }
 
-export async function createCategory(input: {
-  name: string;
-  description?: string;
-  parentId?: string | null;
-  icon?: string;
-  order?: number;
-  visible?: boolean;
-  metadata?: Record<string, unknown>;
-  actorId: string | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-}): Promise<CourseCategory> {
+function assertUniqueSlug(slug: string, excludeId?: string) {
+  const db = readCoursesDb();
+  if (db.categories.some((c) => c.slug === slug && c.id !== excludeId)) {
+    throw new CourseValidationError("A category with this slug already exists");
+  }
+}
+
+export async function createCategory(
+  input: CategoryWriteInput & {
+    actorId: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  },
+): Promise<CourseCategory> {
   ensureCoursesSeeded();
   const name = assertNonEmptyTitle("Category", input.name);
-  const slug = slugify(name);
+  const slug = slugify(input.slug?.trim() || name);
+  if (!slug) throw new CourseValidationError("Slug is required");
+  assertUniqueSlug(slug);
   const db = readCoursesDb();
-  if (db.categories.some((c) => c.slug === slug)) {
-    throw new CourseValidationError("A category with this name already exists");
-  }
   if (input.parentId && !db.categories.some((c) => c.id === input.parentId)) {
     throw new CourseValidationError("Parent category not found");
   }
@@ -70,8 +85,11 @@ export async function createCategory(input: {
     description: input.description?.trim() ?? "",
     parentId: input.parentId ?? null,
     icon: input.icon?.trim() || "Folder",
+    imageUrl: input.imageUrl?.trim() || null,
     order: input.order ?? db.categories.length + 1,
     visible: input.visible ?? true,
+    seoTitle: input.seoTitle?.trim() ?? "",
+    metaDescription: input.metaDescription?.trim() ?? "",
     metadata: input.metadata ?? {},
     createdAt: now,
     updatedAt: now,
@@ -97,7 +115,20 @@ export async function createCategory(input: {
 export async function updateCategory(input: {
   id: string;
   patch: Partial<
-    Pick<CourseCategory, "name" | "description" | "parentId" | "icon" | "order" | "visible" | "metadata">
+    Pick<
+      CourseCategory,
+      | "name"
+      | "description"
+      | "parentId"
+      | "icon"
+      | "imageUrl"
+      | "slug"
+      | "order"
+      | "visible"
+      | "seoTitle"
+      | "metaDescription"
+      | "metadata"
+    >
   >;
   actorId: string | null;
   ipAddress?: string | null;
@@ -107,14 +138,31 @@ export async function updateCategory(input: {
   const existing = getCategoryById(input.id);
   if (!existing) throw new CourseValidationError("Category not found");
 
+  const name =
+    input.patch.name !== undefined
+      ? assertNonEmptyTitle("Category", input.patch.name)
+      : existing.name;
+  const slug = slugify(
+    input.patch.slug?.trim() || (input.patch.name !== undefined ? name : existing.slug),
+  );
+  if (!slug) throw new CourseValidationError("Slug is required");
+  assertUniqueSlug(slug, existing.id);
+
   const next: CourseCategory = {
     ...existing,
     ...input.patch,
-    name: input.patch.name !== undefined ? assertNonEmptyTitle("Category", input.patch.name) : existing.name,
-    slug:
-      input.patch.name !== undefined
-        ? slugify(assertNonEmptyTitle("Category", input.patch.name))
-        : existing.slug,
+    name,
+    slug,
+    description:
+      input.patch.description !== undefined ? input.patch.description.trim() : existing.description,
+    icon: input.patch.icon !== undefined ? input.patch.icon.trim() || "Folder" : existing.icon,
+    imageUrl:
+      input.patch.imageUrl !== undefined ? input.patch.imageUrl?.trim() || null : existing.imageUrl,
+    seoTitle: input.patch.seoTitle !== undefined ? input.patch.seoTitle.trim() : existing.seoTitle,
+    metaDescription:
+      input.patch.metaDescription !== undefined
+        ? input.patch.metaDescription.trim()
+        : existing.metaDescription,
     updatedAt: new Date().toISOString(),
   };
 
@@ -138,6 +186,38 @@ export async function updateCategory(input: {
   });
 
   return next;
+}
+
+export async function reorderCategories(input: {
+  ids: string[];
+  actorId: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<CourseCategory[]> {
+  ensureCoursesSeeded();
+  const unique = [...new Set(input.ids.filter(Boolean))];
+  if (!unique.length) throw new CourseValidationError("No categories to reorder");
+
+  writeCoursesDb((d) => {
+    unique.forEach((id, index) => {
+      const row = d.categories.find((c) => c.id === id);
+      if (!row) return;
+      row.order = index + 1;
+      row.updatedAt = new Date().toISOString();
+    });
+  });
+
+  await logActivity({
+    actorId: input.actorId,
+    action: ACTIVITY_ACTIONS.CATEGORY_UPDATED,
+    entityType: "course_category",
+    entityId: unique[0] ?? null,
+    metadata: { reordered: unique.length },
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent,
+  });
+
+  return listCategories({ includeHidden: true });
 }
 
 export async function deleteCategory(input: {

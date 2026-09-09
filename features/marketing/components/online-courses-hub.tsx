@@ -4,6 +4,7 @@ import { ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
 import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
+import { PublicCourseCatalog } from "@/features/courses/components/public-course-catalog";
 import {
   ONLINE_COURSE_PROGRAMMES,
   ONLINE_COURSES_FAQ,
@@ -64,6 +65,12 @@ function OnlineCoursesHub() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="atpl-section atpl-section-light">
+        <div className="container-app">
+          <PublicCourseCatalog />
         </div>
       </section>
 

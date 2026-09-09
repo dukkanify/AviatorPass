@@ -22,8 +22,8 @@ describe("final client review copy", () => {
   });
 
   it("uses the approved contact and support mailboxes", () => {
-    expect(siteStatic.contactEmail).toBe("info@atplpass.com");
-    expect(siteStatic.supportEmail).toBe("support@atplpass.com");
+    expect(siteStatic.contactEmail).toBe("info@aviatorpass.com");
+    expect(siteStatic.supportEmail).toBe("support@aviatorpass.com");
   });
 
   it("lists the four academy locations", () => {

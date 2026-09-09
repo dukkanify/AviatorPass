@@ -15,8 +15,8 @@ import { JOURNEY_COURSES } from "@/services/journeys/customer-journey-catalog";
 
 describe("AviatorPass project branding", () => {
   it("uses the configured support and contact emails in static, settings, and marketing copy", () => {
-    expect(PROJECT_SUPPORT_EMAIL).toBe("support@atplpass.com");
-    expect(PROJECT_CONTACT_EMAIL).toBe("info@atplpass.com");
+    expect(PROJECT_SUPPORT_EMAIL).toBe("support@aviatorpass.com");
+    expect(PROJECT_CONTACT_EMAIL).toBe("info@aviatorpass.com");
     expect(siteStatic.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(siteStatic.contactEmail).toBe(PROJECT_CONTACT_EMAIL);
     expect(ATPL_PASS.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
@@ -64,6 +64,7 @@ describe("AviatorPass project branding", () => {
   it("does not publish the retired personal support mailbox", () => {
     expect(siteStatic.supportEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
     expect(siteStatic.contactEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
-    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toBe("support@atplpass.com");
+    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toBe("support@aviatorpass.com");
+    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).not.toContain("atplpass.com");
   });
 });

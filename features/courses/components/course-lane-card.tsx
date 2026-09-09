@@ -1,7 +1,7 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight, Clock3 } from "lucide-react";
 
-import { DIFFICULTY_LABELS } from "@/constants/courses";
+import { DIFFICULTY_LABELS, COURSE_DELIVERY_LABELS } from "@/constants/courses";
 import { publicCourseHref } from "@/lib/courses/public-course-path";
 import { cn } from "@/lib/utils";
 import type { InstructorCourseGroup } from "@/services/courses/course-service";
@@ -82,6 +82,8 @@ function CourseLaneCard({
         <CourseLaneCover course={course} tone={tone} />
         <div className="course-lane-body">
           <div className="course-lane-tags">
+            <span className="text-primary/85">{COURSE_DELIVERY_LABELS[course.deliveryType]}</span>
+            {course.featured ? <span className="text-accent">Featured</span> : null}
             {course.categoryName ? (
               <span className="text-primary/85">{course.categoryName}</span>
             ) : null}
@@ -133,18 +135,20 @@ function InstructorCourseGrid({
   ctaLabel,
   showInstructorOnCard = true,
   descriptionLines = 3,
+  kicker = "Instructor",
 }: {
   group: InstructorCourseGroup;
   groupIndex: number;
   ctaLabel?: string;
   showInstructorOnCard?: boolean;
   descriptionLines?: 2 | 3;
+  kicker?: string;
 }) {
   return (
     <div>
       <div className="course-instructor-rail">
         <div>
-          <p className="landing-kicker text-muted-foreground">Instructor</p>
+          <p className="landing-kicker text-muted-foreground">{kicker}</p>
           <h3 className="course-instructor-name mt-2 text-foreground">{group.instructorName}</h3>
         </div>
         <p className="course-instructor-count">

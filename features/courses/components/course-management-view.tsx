@@ -54,6 +54,7 @@ import { DataTable, type DataTableColumn } from "@/components/dashboard/data-tab
 import {
   COURSE_STATUS_LABELS,
   COURSE_STATUSES,
+  COURSE_DELIVERY_LABELS,
   DIFFICULTY_LABELS,
   DIFFICULTY_LEVELS,
   ENROLLMENT_MODE_LABELS,
@@ -243,6 +244,27 @@ function CourseManagementView({
       header: "Instructor",
       sortable: true,
       cell: (row) => row.primaryInstructorName ?? "—",
+    },
+    {
+      id: "categoryName",
+      header: "Category",
+      cell: (row) => row.categoryName ?? "—",
+    },
+    {
+      id: "deliveryType",
+      header: "Badge",
+      cell: (row) => COURSE_DELIVERY_LABELS[row.deliveryType],
+    },
+    {
+      id: "featured",
+      header: "Featured",
+      cell: (row) => (row.featured ? "Yes" : "—"),
+    },
+    {
+      id: "displayOrder",
+      header: "Order",
+      sortable: true,
+      cell: (row) => row.displayOrder,
     },
     {
       id: "students",

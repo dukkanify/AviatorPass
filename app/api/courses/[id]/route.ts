@@ -37,6 +37,8 @@ function stripPublishingFields(
   delete patch.deliveryType;
   delete patch.enrollmentOpen;
   delete patch.hidden;
+  delete patch.featured;
+  delete patch.displayOrder;
   return patch;
 }
 

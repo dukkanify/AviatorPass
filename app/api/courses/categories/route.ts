@@ -46,8 +46,12 @@ export async function POST(request: Request) {
       description: body.description != null ? String(body.description) : undefined,
       parentId: (body.parentId as string | null | undefined) ?? null,
       icon: body.icon != null ? String(body.icon) : undefined,
+      imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
+      slug: body.slug != null ? String(body.slug) : undefined,
       order: body.order != null ? Number(body.order) : undefined,
       visible: body.visible != null ? Boolean(body.visible) : undefined,
+      seoTitle: body.seoTitle != null ? String(body.seoTitle) : undefined,
+      metaDescription: body.metaDescription != null ? String(body.metaDescription) : undefined,
       actorId: user.id,
       ...ctx,
     });
