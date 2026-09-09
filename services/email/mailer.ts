@@ -46,6 +46,19 @@ export function isEmailDeliveryConfigured(): boolean {
   return smtpConfigured() || resendConfigured();
 }
 
+/** Resend allows this From address without a verified custom domain. */
+export const RESEND_ONBOARDING_MAILBOX = "beth.t@example.com";
+
+export function isUnverifiedResendDomainError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  const text = error.toLowerCase();
+  return text.includes("domain is not verified") || text.includes("not a verified domain");
+}
+
+function resendOnboardingFrom(displayName: string): string {
+  return `${displayName} <${RESEND_ONBOARDING_MAILBOX}>`;
+}
+
 function isProductionRuntime(): boolean {
   return (
     process.env.NEXT_PUBLIC_APP_ENV === "production" || process.env.VERCEL_ENV === "production"
@@ -165,44 +178,69 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const errors: string[] = [];
 
   if (resendConfigured()) {
-    try {
-      const info = await sendViaResend({
-        from,
-        to,
-        replyTo,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-      });
-      const record = recordOutboundEmail({
-        to,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-        from,
-        replyTo,
-        provider: "resend",
-        mode: "resend",
-        error: null,
-        queueStatus: "none",
-        meta: { ...(input.meta ?? {}), resendId: info.id },
-      });
-      logEmailEvent(
-        "email_sent",
-        { to, subject: input.subject, mode: "resend", outboxId: record.id, resendId: info.id },
-        typeof input.meta?.userId === "string" ? input.meta.userId : null,
-      );
-      return {
-        success: true,
-        delivered: true,
-        mode: "resend",
-        messageId: info.id,
-        outboxId: record.id,
-        error: null,
-        record,
-      };
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : "Resend send failed");
+    const displayName = email.senderName || settings.general.platformName;
+    const fromAttempts: { from: string; fallback: boolean }[] = [{ from, fallback: false }];
+    const fallbackFrom = resendOnboardingFrom(displayName);
+    if (!from.toLowerCase().includes(RESEND_ONBOARDING_MAILBOX)) {
+      fromAttempts.push({ from: fallbackFrom, fallback: true });
+    }
+
+    for (const attempt of fromAttempts) {
+      try {
+        const info = await sendViaResend({
+          from: attempt.from,
+          to,
+          replyTo,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+        });
+        const record = recordOutboundEmail({
+          to,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+          from: attempt.from,
+          replyTo,
+          provider: "resend",
+          mode: "resend",
+          error: null,
+          queueStatus: "none",
+          meta: {
+            ...(input.meta ?? {}),
+            resendId: info.id,
+            ...(attempt.fallback
+              ? { resendFromFallback: true, resendFallbackReason: "custom_domain_unverified" }
+              : {}),
+          },
+        });
+        logEmailEvent(
+          "email_sent",
+          {
+            to,
+            subject: input.subject,
+            mode: "resend",
+            outboxId: record.id,
+            resendId: info.id,
+            resendFromFallback: attempt.fallback,
+          },
+          typeof input.meta?.userId === "string" ? input.meta.userId : null,
+        );
+        return {
+          success: true,
+          delivered: true,
+          mode: "resend",
+          messageId: info.id,
+          outboxId: record.id,
+          error: null,
+          record,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Resend send failed";
+        errors.push(message);
+        const tryFallback = !attempt.fallback && isUnverifiedResendDomainError(message);
+        if (!tryFallback) break;
+      }
     }
   }
 
@@ -282,7 +320,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     });
     logEmailEvent(
       "email_failed",
-      { to, subject: input.subject, error: message, outboxId: record.id, queued: record.queueStatus },
+      {
+        to,
+        subject: input.subject,
+        error: message,
+        outboxId: record.id,
+        queued: record.queueStatus,
+      },
       typeof input.meta?.userId === "string" ? input.meta.userId : null,
     );
     if (record.queueStatus === "queued") {

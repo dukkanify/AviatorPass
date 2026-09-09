@@ -117,6 +117,9 @@ export async function middleware(request: NextRequest) {
     "/enrol": "/checkout",
     "/enroll": "/checkout",
     "/enroll-atpl": "/checkout",
+    "/terms": "/legal/terms",
+    "/privacy": "/legal/privacy",
+    "/tos": "/legal/terms",
   };
   const aliasTarget = aliases[pathname.toLowerCase()];
   if (aliasTarget && aliasTarget !== pathname) {
@@ -145,7 +148,11 @@ export async function middleware(request: NextRequest) {
       lower === "/payment/success" ||
       lower === "/payment/cancel" ||
       lower === "/enrol" ||
-      lower === "/enroll"
+      lower === "/enroll" ||
+      lower === "/legal/terms" ||
+      lower === "/legal/privacy" ||
+      lower === "/terms" ||
+      lower === "/privacy"
     ) {
       const url = request.nextUrl.clone();
       url.pathname = lower;

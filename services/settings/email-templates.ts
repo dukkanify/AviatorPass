@@ -99,6 +99,11 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
               <a href="mailto:${general.contactEmail}" style="color:${accent};">${general.contactEmail}</a>
               ·
               <a href="mailto:${general.supportEmail}" style="color:${accent};">${general.supportEmail}</a>
+              <div style="margin-top:10px;">
+                <a href="${site}/legal/terms" style="color:${accent};">Terms of Service</a>
+                ·
+                <a href="${site}/legal/privacy" style="color:${accent};">Privacy Policy</a>
+              </div>
               <div style="margin-top:12px;">${social}</div>
             </td>
           </tr>
@@ -135,7 +140,7 @@ export function otpEmailTemplate(
     bodyHtml: `<p>Use this one-time code to ${purpose}:</p>
       <p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#143048;margin:24px 0;">${code}</p>
       <p>This code expires in <strong>${expiresInMinutes} minutes</strong> and can only be used once.</p>
-      <p style="color:#64748b;font-size:13px;">If you did not request this code, you can ignore this email. Never share your code with anyone.</p>
+      <p style="color:#64748b;font-size:13px;">If you do not see this message in your inbox, check spam or junk. If you did not request this code, you can ignore this email. Never share your code with anyone.</p>
       <p style="color:#64748b;font-size:13px;margin-top:16px;">Need help? Contact support via the address in this email footer.</p>`,
   });
 }
@@ -342,7 +347,8 @@ export function instructorAssignmentEmailTemplate(input: {
 }
 
 export function liveClassEmailTemplate(input: {
-  kind: "created" | "updated" | "cancelled" | "started" | "finished" | "reminder_24h" | "reminder_2h";
+  kind:
+    "created" | "updated" | "cancelled" | "started" | "finished" | "reminder_24h" | "reminder_2h";
   title: string;
   when?: string;
   joinUrl?: string;
@@ -356,7 +362,9 @@ export function liveClassEmailTemplate(input: {
     reminder_24h: "Reminder — class in 24 hours",
     reminder_2h: "Reminder — class in 2 hours",
   };
-  const join = input.joinUrl ? `<p><a href="${escapeHtml(input.joinUrl)}">Join Zoom class</a></p>` : "";
+  const join = input.joinUrl
+    ? `<p><a href="${escapeHtml(input.joinUrl)}">Join Zoom class</a></p>`
+    : "";
   return renderBrandedEmail({
     title: labels[input.kind],
     preheader: `${input.title}${input.when ? ` · ${input.when}` : ""}`,
