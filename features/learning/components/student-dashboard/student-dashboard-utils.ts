@@ -1,15 +1,14 @@
 import type { LearningCalendarItem, LearningHistoryEvent, StudyGoal } from "@/types/learning";
 
 export const AVIATION_THUMBS = [
-  "https://images.unsplash.com/photo-1436491865331-4ffd7ba14f70?auto=format&fit=crop&w=900&q=70",
+  "/images/student-hero.jpg",
+  "/images/student-promo.jpg",
   "https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=900&q=70",
-  "https://images.unsplash.com/photo-1464037866556-6812c9d1c72f?auto=format&fit=crop&w=900&q=70",
   "https://images.unsplash.com/photo-1529074963764-98f45c47344b?auto=format&fit=crop&w=900&q=70",
   "/images/hero-aviation.svg",
 ] as const;
 
-export const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1464037866556-6812c9d1c72f?auto=format&fit=crop&w=2000&q=80";
+export const HERO_IMAGE = "/images/student-hero.jpg";
 
 const MOTIVATION_QUOTES = [
   "A good pilot is always a student.",
