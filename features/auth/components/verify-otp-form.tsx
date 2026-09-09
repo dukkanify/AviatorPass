@@ -56,6 +56,7 @@ function VerifyOtpForm() {
   const emailFailed = searchParams.get("emailFailed") === "1";
   const isRegistration = purpose === "register";
   const [deliveryFailed, setDeliveryFailed] = React.useState(emailFailed);
+  const autoRetryStarted = React.useRef(false);
   const changeHref =
     purpose === "register"
       ? routes.register
@@ -142,7 +143,7 @@ function VerifyOtpForm() {
     }
   };
 
-  const onResend = async () => {
+  const onResend = React.useCallback(async () => {
     if (resendIn > 0 || !email) return;
     setResending(true);
     setErrorMsg(null);
@@ -181,7 +182,13 @@ function VerifyOtpForm() {
     } finally {
       setResending(false);
     }
-  };
+  }, [email, purpose, resendIn]);
+
+  React.useEffect(() => {
+    if (!emailFailed || !email || autoRetryStarted.current) return;
+    autoRetryStarted.current = true;
+    void onResend();
+  }, [email, emailFailed, onResend]);
 
   const expiryLabel = `${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, "0")}`;
 

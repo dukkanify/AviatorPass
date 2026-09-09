@@ -172,5 +172,6 @@ describe("registration verification flow", () => {
     );
     expect(verify).toContain("Resend Verification Email");
     expect(verify).toContain("couldn't send the verification email");
+    expect(verify).toContain("autoRetryStarted");
   });
 });
