@@ -10,16 +10,16 @@ The aviatorpass.com domain is not verified. Please, add and verify your domain o
 
 What is already true in Vercel Production:
 
-| Item | Status |
-| --- | --- |
-| `RESEND_API_KEY` | Present (health: `Resend API configured`) |
-| `EMAIL_FROM` / sender | `noreply@aviatorpass.com` |
-| SMTP | Not configured (`smtpHost` empty) |
-| Provider stored in settings | `smtp` (ignored when only Resend is set) |
-| SPF | `v=spf1 +a +mx +ip4:162.0.229.206 include:spf.web-hosting.com ~all` (Namecheap mail, **not** Resend) |
-| DKIM for Resend | **Missing** (`resend._domainkey.aviatorpass.com` NXDOMAIN) |
-| DMARC | `v=DMARC1; p=none;` |
-| DNS host | Namecheap (`dns1.namecheaphosting.com`) |
+| Item                        | Status                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`            | Present (health: `Resend API configured`)                                                            |
+| `EMAIL_FROM` / sender       | `noreply@aviatorpass.com`                                                                            |
+| SMTP                        | Not configured (`smtpHost` empty)                                                                    |
+| Provider stored in settings | `smtp` (ignored when only Resend is set)                                                             |
+| SPF                         | `v=spf1 +a +mx +ip4:162.0.229.206 include:spf.web-hosting.com ~all` (Namecheap mail, **not** Resend) |
+| DKIM for Resend             | **Missing** (`resend._domainkey.aviatorpass.com` NXDOMAIN)                                           |
+| DMARC                       | `v=DMARC1; p=none;`                                                                                  |
+| DNS host                    | Namecheap (`dns1.namecheaphosting.com`)                                                              |
 
 The mailer calls Resend, Resend rejects the From domain, OTP `failClosed` rolls back the challenge, and the API returns **We could not send the verification email.**
 
@@ -42,7 +42,7 @@ Until step 4 succeeds, Gmail and Outlook delivery **cannot** work. Resend will k
 ## Runtime behaviour after this change
 
 - Resend is tried first when `RESEND_API_KEY` is set; SMTP is the fallback.
-- Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (every 5 minutes).
+- Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro).
 - Non-OTP notification emails go through the automation catalog (in-app + email). OTP itself is still sent only by the existing OTP engine — no second “code sent” email.
 - Super Admin → Email shows Resend domain status and DNS records.
 

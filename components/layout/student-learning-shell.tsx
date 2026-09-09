@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
@@ -41,6 +40,7 @@ import {
 
 import Link from "@/components/ui/app-link";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { CommandPalette } from "@/components/navigation/command-palette";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
@@ -60,21 +60,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 import "@/styles/student-learning.css";
 
-const CommandPalette = dynamic(
-  () =>
-    import("@/components/navigation/command-palette").then((m) => ({
-      default: m.CommandPalette,
-    })),
-  { ssr: false },
-);
-
-const FloatingAiAssistant = dynamic(
-  () =>
-    import("@/features/ai").then((m) => ({
-      default: m.FloatingAiAssistant,
-    })),
-  { ssr: false },
-);
+import { FloatingAiAssistant } from "@/features/ai";
 
 const iconMap: Record<DashboardIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
