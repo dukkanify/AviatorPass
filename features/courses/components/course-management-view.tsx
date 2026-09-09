@@ -6,6 +6,8 @@ import {
   Archive,
   BookOpen,
   Copy,
+  DollarSign,
+  Download,
   Eye,
   Grid3X3,
   List,
@@ -39,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -55,21 +58,21 @@ import {
   DIFFICULTY_LEVELS,
   ENROLLMENT_MODE_LABELS,
 } from "@/constants/courses";
+import { COURSE_CURRENCIES } from "@/features/courses/lib/course-studio";
 import { courseFetch } from "@/features/courses/lib/api";
-import { CourseFormDialog } from "@/features/courses/components/course-form-dialog";
 import { CourseStatsWidgets } from "@/features/courses/components/course-stats-widgets";
+import { formatRelative } from "@/utils/format";
+import { cn } from "@/lib/utils";
+import { formatMinor, majorToMinor } from "@/services/payments/money";
 import type { CourseCategory, CourseListItem, CourseStats } from "@/types/courses";
-import type { UserProfile } from "@/types";
 
-const statusVariant: Record<
-  string,
-  "success" | "warning" | "secondary" | "outline" | "destructive"
-> = {
-  published: "success",
-  draft: "secondary",
-  private: "outline",
-  scheduled: "warning",
-  archived: "destructive",
+const statusClass: Record<string, string> = {
+  published: "course-studio-status-published",
+  draft: "course-studio-status-draft",
+  review: "course-studio-status-review",
+  private: "course-studio-status-private",
+  scheduled: "course-studio-status-scheduled",
+  archived: "course-studio-status-archived",
 };
 
 interface CourseManagementViewProps {
@@ -87,17 +90,18 @@ function CourseManagementView({
   const [courses, setCourses] = React.useState<CourseListItem[]>([]);
   const [stats, setStats] = React.useState<CourseStats | null>(null);
   const [categories, setCategories] = React.useState<CourseCategory[]>([]);
-  const [instructors, setInstructors] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [view, setView] = React.useState<"table" | "grid">("table");
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("all");
   const [difficulty, setDifficulty] = React.useState("all");
   const [categoryId, setCategoryId] = React.useState("all");
-  const [formOpen, setFormOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<CourseListItem | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [priceOpen, setPriceOpen] = React.useState(false);
+  const [bulkPrice, setBulkPrice] = React.useState("");
+  const [bulkCurrency, setBulkCurrency] = React.useState("AED");
+  const importRef = React.useRef<HTMLInputElement>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -107,18 +111,17 @@ function CourseManagementView({
     if (difficulty !== "all") params.set("difficulty", difficulty);
     if (categoryId !== "all") params.set("categoryId", categoryId);
     params.set("pageSize", "100");
+    params.set("sortBy", "updatedAt");
 
-    const [listRes, statsRes, catRes, instRes] = await Promise.all([
+    const [listRes, statsRes, catRes] = await Promise.all([
       courseFetch<{ data: CourseListItem[] }>(`/api/courses?${params}`),
       courseFetch<CourseStats>("/api/courses/stats"),
       courseFetch<CourseCategory[]>("/api/courses/categories?includeHidden=1"),
-      courseFetch<UserProfile[]>("/api/users?role=instructor"),
     ]);
 
     setCourses(listRes.data?.data ?? []);
     setStats(statsRes.data);
     setCategories(catRes.data ?? []);
-    setInstructors(instRes.data ?? []);
     setLoading(false);
   }, [q, status, difficulty, categoryId]);
 
@@ -139,8 +142,8 @@ function CourseManagementView({
     void load();
   }
 
-  async function runBulk(action: string) {
-    if (!selected.length) {
+  async function runBulk(action: string, extra?: Record<string, unknown>, ids = selected) {
+    if (action !== "import" && !ids.length) {
       toast.error("Select at least one course");
       return;
     }
@@ -148,7 +151,7 @@ function CourseManagementView({
       "/api/courses/bulk",
       {
         method: "POST",
-        body: JSON.stringify({ action, courseIds: selected }),
+        body: JSON.stringify({ action, courseIds: ids, ...extra }),
       },
     );
     if (!result.success) {
@@ -173,57 +176,118 @@ function CourseManagementView({
     void load();
   }
 
+  async function duplicateSelected() {
+    if (!selected.length) {
+      toast.error("Select at least one course");
+      return;
+    }
+    let affected = 0;
+    for (const id of selected) {
+      const result = await courseFetch(`/api/courses/${id}/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action: "duplicate" }),
+      });
+      if (result.success) affected += 1;
+    }
+    toast.success(`Duplicated ${affected} courses`);
+    setSelected([]);
+    void load();
+  }
+
+  async function onImportFile(file: File) {
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      const rows = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { data?: unknown }).data)
+          ? (parsed as { data: unknown[] }).data
+          : null;
+      if (!rows) {
+        toast.error("Import file must be a JSON array of courses");
+        return;
+      }
+      await runBulk("import", { importRows: rows }, []);
+    } catch {
+      toast.error("Could not parse import file");
+    }
+  }
+
   const columns: DataTableColumn<CourseListItem>[] = [
     {
       id: "title",
-      header: "Course",
+      header: "Title",
       sortable: true,
       cell: (row) => (
-        <div>
-          <Link href={`${basePath}/${row.id}`} className="font-medium text-primary hover:underline">
-            {row.title}
-          </Link>
-          <p className="text-xs text-muted-foreground">{row.code}</p>
+        <div className="flex min-w-52 items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog thumb */}
+          <img
+            src={row.coverImageUrl || row.thumbnailUrl || "/images/hero-aviation.svg"}
+            alt=""
+            loading="lazy"
+            className="h-12 w-20 rounded-lg object-cover"
+          />
+          <div>
+            <Link
+              href={`${basePath}/${row.id}/edit`}
+              className="font-medium text-primary hover:underline"
+            >
+              {row.title}
+            </Link>
+            <p className="text-xs text-muted-foreground">{row.code}</p>
+          </div>
         </div>
       ),
     },
     {
-      id: "status",
-      header: "Status",
-      cell: (row) => (
-        <Badge variant={statusVariant[row.status] ?? "secondary"}>
-          {COURSE_STATUS_LABELS[row.status]}
-        </Badge>
-      ),
-    },
-    {
-      id: "categoryName",
-      header: "Category",
-      cell: (row) => row.categoryName ?? "—",
-    },
-    {
       id: "primaryInstructorName",
       header: "Instructor",
+      sortable: true,
       cell: (row) => row.primaryInstructorName ?? "—",
     },
     {
-      id: "difficulty",
-      header: "Level",
-      cell: (row) => DIFFICULTY_LABELS[row.difficulty],
+      id: "students",
+      header: "Students",
+      cell: (row) => row.counts.activeEnrollments,
     },
     {
-      id: "counts",
-      header: "Structure",
+      id: "revenue",
+      header: "Revenue",
+      cell: (row) =>
+        formatMinor((row.priceAmount ?? 0) * row.counts.activeEnrollments, row.currency || "AED"),
+    },
+    {
+      id: "priceAmount",
+      header: "Price",
+      sortable: true,
+      cell: (row) =>
+        row.priceAmount != null ? formatMinor(row.priceAmount, row.currency || "AED") : "—",
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
       cell: (row) => (
-        <span className="text-xs text-muted-foreground">
-          {row.counts.modules} mod · {row.counts.lessons} les · {row.counts.activeEnrollments}{" "}
-          students
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+            statusClass[row.status],
+          )}
+        >
+          {COURSE_STATUS_LABELS[row.status]}
         </span>
       ),
     },
     {
+      id: "updatedAt",
+      header: "Updated",
+      sortable: true,
+      cell: (row) => (
+        <span className="text-xs text-muted-foreground">{formatRelative(row.updatedAt)}</span>
+      ),
+    },
+    {
       id: "actions",
-      header: "",
+      header: "Actions",
       className: "w-12",
       cell: (row) => (
         <DropdownMenu>
@@ -235,16 +299,11 @@ function CourseManagementView({
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <Link href={`${basePath}/${row.id}`}>
-                <Eye className="mr-2 h-4 w-4" /> Open
+                <Eye className="mr-2 h-4 w-4" /> Open curriculum
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setEditing(row);
-                setFormOpen(true);
-              }}
-            >
-              Edit details
+            <DropdownMenuItem asChild>
+              <Link href={`${basePath}/${row.id}/edit`}>Edit course</Link>
             </DropdownMenuItem>
             {canManagePublishing ? (
               <>
@@ -276,7 +335,7 @@ function CourseManagementView({
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        description="Manage curriculum catalog, structure, and enrollments."
+        description="Create, price, publish, and manage the AviatorPass catalogue."
         breadcrumbs={[{ label: roleLabel }, { label: "Courses" }]}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -288,13 +347,10 @@ function CourseManagementView({
             <Button variant="outline" asChild>
               <Link href={`${basePath}/categories`}>Categories</Link>
             </Button>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Create course
+            <Button asChild>
+              <Link href={`${basePath}/new`}>
+                <Plus className="mr-2 h-4 w-4" /> Create course
+              </Link>
             </Button>
           </div>
         }
@@ -302,13 +358,13 @@ function CourseManagementView({
 
       <CourseStatsWidgets stats={stats} loading={loading} />
 
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle className="text-base">Catalog</CardTitle>
               <CardDescription>
-                Filter, search, and run bulk actions across courses.
+                Search, filter, sort, and run bulk actions without reloading the page.
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -380,23 +436,49 @@ function CourseManagementView({
             </Select>
           </div>
 
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void onImportFile(file);
+              e.currentTarget.value = "";
+            }}
+          />
+
           <div className="flex flex-wrap gap-2">
             {canManagePublishing ? (
-              <>
-                <Button size="sm" variant="outline" onClick={() => void runBulk("publish")}>
-                  Bulk publish
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void runBulk("archive")}>
-                  Bulk archive
-                </Button>
-              </>
+              <Button size="sm" variant="outline" onClick={() => void runBulk("publish")}>
+                Bulk publish
+              </Button>
             ) : null}
-            <Button size="sm" variant="outline" onClick={() => void runBulk("delete")}>
-              Bulk delete
+            <Button size="sm" variant="outline" onClick={() => void duplicateSelected()}>
+              <Copy className="mr-1 h-3.5 w-3.5" />
+              Duplicate
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void runBulk("archive")}>
+              <Archive className="mr-1 h-3.5 w-3.5" />
+              Archive
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPriceOpen(true)}>
+              <DollarSign className="mr-1 h-3.5 w-3.5" />
+              Bulk price
             </Button>
             <Button size="sm" variant="outline" onClick={() => void runBulk("export")}>
-              Bulk export
+              <Download className="mr-1 h-3.5 w-3.5" />
+              Export
             </Button>
+            <Button size="sm" variant="outline" onClick={() => importRef.current?.click()}>
+              <Upload className="mr-1 h-3.5 w-3.5" />
+              Import
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void runBulk("delete")}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              Delete
+            </Button>
+            {selected.length ? <Badge variant="secondary">{selected.length} selected</Badge> : null}
           </div>
 
           {loading ? (
@@ -409,65 +491,69 @@ function CourseManagementView({
             <EmptyState
               icon={<BookOpen className="h-6 w-6" />}
               title="No courses yet"
-              description="Create your first ATPL course to start building the curriculum."
+              description="Create your first course in the new studio — media, SEO, pricing, and live preview included."
               actionLabel="Create course"
-              onAction={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
+              actionHref={`${basePath}/new`}
             />
           ) : view === "table" ? (
             <DataTable
               columns={columns}
               data={courses}
-              searchKeys={["title", "code"]}
+              searchKeys={["title", "code", "primaryInstructorName"]}
               searchPlaceholder="Filter rows…"
               emptyMessage="No courses match filters"
-              onExport={() => void runBulk("export")}
-              bulkActions={
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setSelected(courses.map((c) => c.id))}
-                >
-                  Select all ({courses.length})
-                </Button>
+              onSelectedIdsChange={setSelected}
+              onExport={() =>
+                void runBulk(
+                  "export",
+                  undefined,
+                  courses.map((c) => c.id),
+                )
               }
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {courses.map((course) => (
-                <Card key={course.id} className="overflow-hidden">
-                  <div
-                    className="h-28 bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url(${course.coverImageUrl || course.thumbnailUrl || "/images/hero-aviation.svg"})`,
-                    }}
+                <Card key={course.id} className="overflow-hidden rounded-2xl shadow-soft">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- catalog card */}
+                  <img
+                    src={course.coverImageUrl || course.thumbnailUrl || "/images/hero-aviation.svg"}
+                    alt=""
+                    loading="lazy"
+                    className="h-36 w-full object-cover"
                   />
                   <CardHeader className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base leading-snug">
-                        <Link href={`${basePath}/${course.id}`} className="hover:underline">
+                        <Link href={`${basePath}/${course.id}/edit`} className="hover:underline">
                           {course.title}
                         </Link>
                       </CardTitle>
-                      <Badge variant={statusVariant[course.status] ?? "secondary"}>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium",
+                          statusClass[course.status],
+                        )}
+                      >
                         {COURSE_STATUS_LABELS[course.status]}
-                      </Badge>
+                      </span>
                     </div>
                     <CardDescription>{course.shortDescription}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted-foreground">
                     <p>
-                      {course.code} · {DIFFICULTY_LABELS[course.difficulty]} ·{" "}
-                      {ENROLLMENT_MODE_LABELS[course.enrollmentMode]}
+                      {course.primaryInstructorName ?? "Unassigned"} ·{" "}
+                      {course.counts.activeEnrollments} students
                     </p>
                     <p>
-                      {course.counts.modules} modules · {course.counts.lessons} lessons ·{" "}
-                      {course.counts.activeEnrollments} enrolled
+                      {course.priceAmount != null
+                        ? formatMinor(course.priceAmount, course.currency || "AED")
+                        : "No price"}{" "}
+                      · {DIFFICULTY_LABELS[course.difficulty]} ·{" "}
+                      {ENROLLMENT_MODE_LABELS[course.enrollmentMode]}
                     </p>
                     <Button asChild size="sm" variant="outline" className="w-full">
-                      <Link href={`${basePath}/${course.id}`}>Manage</Link>
+                      <Link href={`${basePath}/${course.id}/edit`}>Edit course</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -489,30 +575,26 @@ function CourseManagementView({
                 className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0"
               >
                 <div>
-                  <Link href={`${basePath}/${c.id}`} className="font-medium hover:underline">
+                  <Link href={`${basePath}/${c.id}/edit`} className="font-medium hover:underline">
                     {c.title}
                   </Link>
                   <p className="text-xs text-muted-foreground">
                     {c.code} · updated {new Date(c.updatedAt).toLocaleString()}
                   </p>
                 </div>
-                <Badge variant={statusVariant[c.status] ?? "secondary"}>
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+                    statusClass[c.status],
+                  )}
+                >
                   {COURSE_STATUS_LABELS[c.status]}
-                </Badge>
+                </span>
               </div>
             ))}
           </CardContent>
         </Card>
       ) : null}
-
-      <CourseFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        course={editing}
-        categories={categories}
-        instructors={instructors}
-        onSaved={() => void load()}
-      />
 
       <AlertDialog open={Boolean(deleteId)} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
@@ -545,6 +627,59 @@ function CourseManagementView({
               }}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={priceOpen} onOpenChange={setPriceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk price update</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apply a new price to {selected.length || 0} selected courses.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-price">Price</Label>
+              <Input
+                id="bulk-price"
+                type="number"
+                min={0}
+                step="0.01"
+                value={bulkPrice}
+                onChange={(e) => setBulkPrice(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={bulkCurrency} onValueChange={setBulkCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COURSE_CURRENCIES.map((item) => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {item.flag} {item.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void runBulk("update_price", {
+                  priceAmount: majorToMinor(Number(bulkPrice) || 0, bulkCurrency),
+                  currency: bulkCurrency,
+                }).then(() => setPriceOpen(false));
+              }}
+            >
+              Update prices
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

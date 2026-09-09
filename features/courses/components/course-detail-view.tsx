@@ -27,14 +27,7 @@ import {
   ENROLLMENT_STATUS_LABELS,
 } from "@/constants/courses";
 import { courseFetch } from "@/features/courses/lib/api";
-import { CourseFormDialog } from "@/features/courses/components/course-form-dialog";
-import type {
-  CourseCategory,
-  CourseDetail,
-  CourseModule,
-  EnrollmentWithStudent,
-  Lesson,
-} from "@/types/courses";
+import type { CourseDetail, CourseModule, EnrollmentWithStudent, Lesson } from "@/types/courses";
 import type { UserProfile } from "@/types";
 
 interface CourseDetailViewProps {
@@ -54,10 +47,7 @@ function CourseDetailView({
   const [course, setCourse] = React.useState<CourseDetail | null>(null);
   const [enrollments, setEnrollments] = React.useState<EnrollmentWithStudent[]>([]);
   const [students, setStudents] = React.useState<UserProfile[]>([]);
-  const [categories, setCategories] = React.useState<CourseCategory[]>([]);
-  const [instructors, setInstructors] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [editOpen, setEditOpen] = React.useState(false);
   const [moduleTitle, setModuleTitle] = React.useState("");
   const [lessonTitle, setLessonTitle] = React.useState("");
   const [targetModuleId, setTargetModuleId] = React.useState<string>("");
@@ -67,18 +57,14 @@ function CourseDetailView({
 
   const load = React.useCallback(async () => {
     setLoading(true);
-    const [detail, enroll, studs, cats, inst] = await Promise.all([
+    const [detail, enroll, studs] = await Promise.all([
       courseFetch<CourseDetail>(`/api/courses/${courseId}`),
       courseFetch<EnrollmentWithStudent[]>(`/api/courses/${courseId}/enrollments`),
       courseFetch<UserProfile[]>("/api/users?role=student"),
-      courseFetch<CourseCategory[]>("/api/courses/categories?includeHidden=1"),
-      courseFetch<UserProfile[]>("/api/users?role=instructor"),
     ]);
     setCourse(detail.data);
     setEnrollments(enroll.data ?? []);
     setStudents(studs.data ?? []);
-    setCategories(cats.data ?? []);
-    setInstructors(inst.data ?? []);
     if (detail.data?.modules[0]) {
       setTargetModuleId(detail.data.modules[0].id);
       const firstLesson = detail.data.modules[0].lessons[0];
@@ -254,8 +240,8 @@ function CourseDetailView({
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
-            <Button variant="outline" onClick={() => setEditOpen(true)}>
-              Edit details
+            <Button variant="outline" asChild>
+              <Link href={`${basePath}/${course.id}/edit`}>Edit course</Link>
             </Button>
             {canManagePublishing ? (
               <>
@@ -576,15 +562,6 @@ function CourseDetailView({
           </div>
         </TabsContent>
       </Tabs>
-
-      <CourseFormDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        course={course}
-        categories={categories}
-        instructors={instructors}
-        onSaved={() => void load()}
-      />
     </div>
   );
 }

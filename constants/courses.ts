@@ -15,6 +15,7 @@ import type {
 
 export const COURSE_STATUSES: CourseStatus[] = [
   "draft",
+  "review",
   "published",
   "private",
   "scheduled",
@@ -23,6 +24,7 @@ export const COURSE_STATUSES: CourseStatus[] = [
 
 export const COURSE_STATUS_LABELS: Record<CourseStatus, string> = {
   draft: "Draft",
+  review: "Review",
   published: "Published",
   private: "Private",
   scheduled: "Scheduled",

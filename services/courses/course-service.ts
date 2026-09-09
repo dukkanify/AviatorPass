@@ -376,6 +376,7 @@ export type CreateCourseInput = {
   scheduledPublishAt?: string | null;
   primaryInstructorId?: string | null;
   tags?: string[];
+  metadata?: Record<string, unknown>;
   priceAmount?: number | null;
   currency?: string | null;
   actorId: string | null;
@@ -438,7 +439,7 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
     priceAmount: pricing.priceAmount,
     currency: pricing.currency,
     tags: input.tags ?? [],
-    metadata: {},
+    metadata: input.metadata ?? {},
     createdById: input.actorId,
     createdAt: now,
     updatedAt: now,
@@ -582,6 +583,9 @@ export async function updateCourse(input: {
     priceAmount: pricing.priceAmount,
     currency: pricing.currency,
     tags: input.patch.tags ?? existing.tags,
+    metadata: input.patch.metadata
+      ? { ...existing.metadata, ...input.patch.metadata }
+      : existing.metadata,
     updatedAt: now,
     publishedAt:
       status === "published"
@@ -975,59 +979,101 @@ export async function bulkCourseAction(input: {
   courseIds: string[];
   instructorId?: string;
   categoryId?: string | null;
+  priceAmount?: number | null;
+  currency?: string | null;
+  importRows?: Array<Partial<CreateCourseInput> & { title?: string; code?: string }>;
   actorId: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<{ affected: number; exportRows?: CourseListItem[] }> {
   const ids = [...new Set(input.courseIds)];
-  if (!ids.length) throw new CourseValidationError("No courses selected");
-
   let affected = 0;
   let exportRows: CourseListItem[] | undefined;
 
-  if (input.action === "export") {
-    exportRows = ids
-      .map((id) => getCourseById(id))
-      .filter((c): c is Course => Boolean(c))
-      .map(toListItem);
-    affected = exportRows.length;
-  } else {
-    for (const id of ids) {
+  if (input.action === "import") {
+    for (const row of input.importRows ?? []) {
       try {
-        if (input.action === "publish") {
-          await publishCourse(id, input.actorId, input);
-          affected += 1;
-        } else if (input.action === "archive") {
-          await archiveCourse(id, input.actorId, input);
-          affected += 1;
-        } else if (input.action === "delete") {
-          await softDeleteCourse(id, input.actorId, input);
-          affected += 1;
-        } else if (input.action === "assign_instructor") {
-          if (!input.instructorId) {
-            throw new CourseValidationError("instructorId required for bulk assign");
-          }
-          await assignInstructor({
-            courseId: id,
-            userId: input.instructorId,
-            role: "primary",
-            actorId: input.actorId,
-            ipAddress: input.ipAddress,
-            userAgent: input.userAgent,
-          });
-          affected += 1;
-        } else if (input.action === "change_category") {
-          await updateCourse({
-            id,
-            patch: { categoryId: input.categoryId ?? null },
-            actorId: input.actorId,
-            ipAddress: input.ipAddress,
-            userAgent: input.userAgent,
-          });
-          affected += 1;
-        }
+        await createCourse({
+          title: row.title ?? "Imported course",
+          code: row.code ?? `IMP-${generateId().slice(0, 6).toUpperCase()}`,
+          shortDescription: row.shortDescription,
+          fullDescription: row.fullDescription,
+          categoryId: row.categoryId,
+          thumbnailUrl: row.thumbnailUrl,
+          coverImageUrl: row.coverImageUrl,
+          difficulty: row.difficulty,
+          enrollmentMode: row.enrollmentMode,
+          priceAmount: row.priceAmount,
+          currency: row.currency,
+          primaryInstructorId: row.primaryInstructorId ?? input.instructorId,
+          actorId: input.actorId,
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent,
+        });
+        affected += 1;
       } catch {
-        // continue other ids
+        // skip invalid import rows
+      }
+    }
+  } else {
+    if (!ids.length) throw new CourseValidationError("No courses selected");
+
+    if (input.action === "export") {
+      exportRows = ids
+        .map((id) => getCourseById(id))
+        .filter((c): c is Course => Boolean(c))
+        .map(toListItem);
+      affected = exportRows.length;
+    } else {
+      for (const id of ids) {
+        try {
+          if (input.action === "publish") {
+            await publishCourse(id, input.actorId, input);
+            affected += 1;
+          } else if (input.action === "archive") {
+            await archiveCourse(id, input.actorId, input);
+            affected += 1;
+          } else if (input.action === "delete") {
+            await softDeleteCourse(id, input.actorId, input);
+            affected += 1;
+          } else if (input.action === "assign_instructor") {
+            if (!input.instructorId) {
+              throw new CourseValidationError("instructorId required for bulk assign");
+            }
+            await assignInstructor({
+              courseId: id,
+              userId: input.instructorId,
+              role: "primary",
+              actorId: input.actorId,
+              ipAddress: input.ipAddress,
+              userAgent: input.userAgent,
+            });
+            affected += 1;
+          } else if (input.action === "change_category") {
+            await updateCourse({
+              id,
+              patch: { categoryId: input.categoryId ?? null },
+              actorId: input.actorId,
+              ipAddress: input.ipAddress,
+              userAgent: input.userAgent,
+            });
+            affected += 1;
+          } else if (input.action === "update_price") {
+            await updateCourse({
+              id,
+              patch: {
+                priceAmount: input.priceAmount ?? null,
+                currency: input.currency ?? undefined,
+              },
+              actorId: input.actorId,
+              ipAddress: input.ipAddress,
+              userAgent: input.userAgent,
+            });
+            affected += 1;
+          }
+        } catch {
+          // continue other ids
+        }
       }
     }
   }

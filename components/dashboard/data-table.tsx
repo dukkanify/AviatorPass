@@ -44,6 +44,7 @@ interface DataTableProps<T extends { id: string }> {
   emptyMessage?: string;
   className?: string;
   filters?: React.ReactNode;
+  onSelectedIdsChange?: (ids: string[]) => void;
 }
 
 function DataTable<T extends { id: string }>({
@@ -58,12 +59,17 @@ function DataTable<T extends { id: string }>({
   emptyMessage = "No results found",
   className,
   filters,
+  onSelectedIdsChange,
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = React.useState<string | null>(null);
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
+
+  React.useEffect(() => {
+    onSelectedIdsChange?.(Array.from(selected));
+  }, [selected, onSelectedIdsChange]);
 
   const filtered = React.useMemo(() => {
     let rows = data;

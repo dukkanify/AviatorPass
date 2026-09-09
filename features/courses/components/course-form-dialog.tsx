@@ -29,6 +29,8 @@ import {
   ENROLLMENT_MODES,
 } from "@/constants/courses";
 import { courseFetch } from "@/features/courses/lib/api";
+import { CourseMediaUploader } from "@/features/courses/components/course-studio/course-media-uploader";
+import { COURSE_CURRENCIES, formatDurationHours } from "@/features/courses/lib/course-studio";
 import { currencyExponent, majorToMinor } from "@/services/payments/money";
 import type { CourseCategory, CourseListItem } from "@/types/courses";
 import type { UserProfile } from "@/types";
@@ -275,6 +277,9 @@ function CourseFormDialog({
                 value={estimatedDurationMinutes}
                 onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                {formatDurationHours(Number(estimatedDurationMinutes) || 0).label}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="course-price">Price</Label>
@@ -295,23 +300,20 @@ function CourseFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from(new Set(["AED", "USD", "KWD", "SAR", "EUR", "GBP", currency])).map(
-                    (code) => (
-                      <SelectItem key={code} value={code}>
-                        {code}
-                      </SelectItem>
-                    ),
-                  )}
+                  {COURSE_CURRENCIES.map((item) => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {item.flag} {item.code} ({item.label})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="course-image">Image URL</Label>
-              <Input
-                id="course-image"
+              <CourseMediaUploader
                 value={thumbnailUrl}
-                onChange={(e) => setThumbnailUrl(e.target.value)}
-                placeholder="https://…"
+                onChange={setThumbnailUrl}
+                courseId={course?.id}
+                label="Course image"
               />
             </div>
           </div>

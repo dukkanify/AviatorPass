@@ -1,0 +1,123 @@
+.course-studio {
+  --cs-gold: #cca04c;
+}
+
+.course-studio-tabs [data-state="active"] {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.course-studio-status-draft {
+  background: #f3f4f6;
+  color: #374151;
+}
+.course-studio-status-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+.course-studio-status-scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.course-studio-status-published {
+  background: #dcfce7;
+  color: #166534;
+}
+.course-studio-status-private {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.course-studio-status-archived {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cs-uploader {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cs-uploader__drop {
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+  min-height: 220px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1.5px dashed color-mix(in srgb, var(--border) 100%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  cursor: pointer;
+}
+
+.cs-uploader__drop.is-dragging,
+.cs-uploader__drop:focus-visible {
+  border-color: var(--cs-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cs-gold) 25%, transparent);
+}
+
+.cs-uploader__preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+}
+
+.cs-uploader__preview img {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  object-fit: cover;
+}
+
+.cs-uploader__actions {
+  position: absolute;
+  inset-inline: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cs-uploader__progress {
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.cs-uploader__progress span {
+  display: block;
+  height: 0.5rem;
+  background: linear-gradient(90deg, #9e712e, #cca04c, #f6c36c);
+}
+
+.cs-uploader__progress p {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.dark .course-studio-status-draft {
+  background: #1f2937;
+  color: #d1d5db;
+}
+.dark .course-studio-status-review {
+  background: #78350f;
+  color: #fde68a;
+}
+.dark .course-studio-status-scheduled {
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+.dark .course-studio-status-published {
+  background: #14532d;
+  color: #bbf7d0;
+}
+.dark .course-studio-status-private {
+  background: #4c1d95;
+  color: #ddd6fe;
+}
+.dark .course-studio-status-archived {
+  background: #7f1d1d;
+  color: #fecaca;
+}

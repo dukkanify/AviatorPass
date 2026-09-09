@@ -14,12 +14,24 @@ export function stableCourseId(code: string): string {
 }
 
 /** Path segment for /courses/[ref] — code when present, else id. */
-export function publicCourseRef(course: { id: string; code?: string | null }): string {
+export function publicCourseRef(course: {
+  id: string;
+  code?: string | null;
+  metadata?: Record<string, unknown>;
+}): string {
+  const slug = String(course.metadata?.slug ?? "")
+    .trim()
+    .toLowerCase();
+  if (slug) return slug;
   const code = course.code?.trim();
   if (code) return code;
   return course.id;
 }
 
-export function publicCourseHref(course: { id: string; code?: string | null }): string {
+export function publicCourseHref(course: {
+  id: string;
+  code?: string | null;
+  metadata?: Record<string, unknown>;
+}): string {
   return `/courses/${encodeURIComponent(publicCourseRef(course))}`;
 }
