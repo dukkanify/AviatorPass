@@ -112,8 +112,8 @@ describe("rewriteAppAbsoluteUrl / appJoinUrl", () => {
     expect(publicCertificateVerifyUrl("ABC")).toBe(
       "https://www.aviatorpass.com/verify/certificate?code=ABC",
     );
-    expect(canonicalCertificateVerifyUrl("http://localhost:3000/verify/certificate?code=ABC")).toBe(
-      "https://www.aviatorpass.com/verify/certificate?code=ABC",
-    );
+    expect(
+      canonicalCertificateVerifyUrl("http://localhost:3000/verify/certificate?code=ABC"),
+    ).toBe("https://www.aviatorpass.com/verify/certificate?code=ABC");
   });
 });

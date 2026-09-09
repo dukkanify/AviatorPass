@@ -6,6 +6,7 @@
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import { canonicalCertificateVerifyUrl } from "@/lib/site-origin";
 import type { Certificate, CertificateTemplate, CompletionRecord } from "@/types/certificates";
 
 export interface CertificatesDatabase {
@@ -29,11 +30,15 @@ function emptyDb(): CertificatesDatabase {
 }
 
 function normalizeDb(raw: Partial<CertificatesDatabase>): CertificatesDatabase {
+  const certificates = (raw.certificates ?? []).map((cert) => ({
+    ...cert,
+    qrPayload: canonicalCertificateVerifyUrl(cert.qrPayload, cert.verificationCode),
+  }));
   return {
     ...emptyDb(),
     ...raw,
     templates: raw.templates ?? [],
-    certificates: raw.certificates ?? [],
+    certificates,
     completions: raw.completions ?? [],
     seeded: Boolean(raw.seeded),
   };
@@ -41,7 +46,13 @@ function normalizeDb(raw: Partial<CertificatesDatabase>): CertificatesDatabase {
 
 export function ensureCertificatesStore(): CertificatesDatabase {
   const raw = readJsonFile<Partial<CertificatesDatabase>>(dataFile(), emptyDb);
-  return normalizeDb(raw);
+  const db = normalizeDb(raw);
+  const dirty = (raw.certificates ?? []).some(
+    (cert) =>
+      cert.qrPayload !== canonicalCertificateVerifyUrl(cert.qrPayload, cert.verificationCode),
+  );
+  if (dirty) writeJsonFile(dataFile(), db);
+  return db;
 }
 
 export function readCertificatesDb(): CertificatesDatabase {
