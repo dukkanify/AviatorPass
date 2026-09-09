@@ -59,6 +59,14 @@ describe("final client review copy", () => {
     ]);
     expect(NAV_ITEMS.some((item) => /private session/i.test(item.label))).toBe(false);
     expect(NAV_ITEMS[0]?.href).toBe(routes.onlineCourses);
+    expect(NAV_ITEMS[0]?.children?.map((child) => child.hint ?? "")).toEqual([
+      "LIVE · 13 theory subjects",
+      "Recorded",
+      "Online Course",
+      "",
+      "LIVE",
+      "Online Course",
+    ]);
     expect(ONLINE_COURSE_PROGRAMMES.map((p) => p.title)).toEqual([
       "ATPL Course",
       "Basics of Aviation",

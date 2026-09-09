@@ -129,7 +129,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
             {COURSE_OVERVIEW.title}
           </h2>
           <p className="mt-5 max-w-2xl text-muted-foreground">{COURSE_OVERVIEW.body}</p>
-          <div className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mt-12 grid max-w-xl grid-cols-2 gap-4">
             {COURSE_OVERVIEW.stats.map((stat) => (
               <div key={stat.label} className="atpl-stat-card">
                 <p className="font-display text-3xl font-semibold text-[var(--landing-ink-soft)]">
