@@ -41,6 +41,7 @@ import {
   accountCreatedEmailTemplate,
   verificationSuccessEmailTemplate,
 } from "@/services/settings/email-templates";
+import { logRegistrationEvent } from "@/services/auth/registration-log";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 
 export interface RegistrationRequestContext {
@@ -81,6 +82,7 @@ export async function startEnterpriseRegistration(
     resendAvailableInSeconds: number;
     emailDelivery?: "smtp" | "resend" | "outbox" | "failed";
     emailOutboxId?: string;
+    verificationEmailSent?: boolean;
   }>
 > {
   const email = sanitizeEmail(input.email);
@@ -88,6 +90,7 @@ export async function startEnterpriseRegistration(
 
   const rl = rateLimit(`register:${email}`, 5, 15 * 60_000);
   if (!rl.allowed) {
+    logRegistrationEvent("registration_rate_limited", { email }, "warn");
     return {
       success: false,
       data: null,
@@ -96,18 +99,22 @@ export async function startEnterpriseRegistration(
   }
 
   if (findUserByEmail(email)) {
+    logRegistrationEvent("registration_duplicate_email", { email }, "warn");
     return {
       success: false,
       data: null,
       error: "An account with this email already exists. Please sign in.",
+      field: "email",
     };
   }
 
   if (findUserByPhone(phone)) {
+    logRegistrationEvent("registration_duplicate_phone", { email, phone }, "warn");
     return {
       success: false,
       data: null,
       error: "An account with this phone number already exists. Please sign in.",
+      field: "phone",
     };
   }
 
@@ -115,10 +122,12 @@ export async function startEnterpriseRegistration(
     (p) => normalizePhone(p.phone) === phone && new Date(p.expiresAt).getTime() > Date.now(),
   );
   if (pendingPhoneClash && pendingPhoneClash.email !== email) {
+    logRegistrationEvent("registration_duplicate_pending_phone", { email, phone }, "warn");
     return {
       success: false,
       data: null,
       error: "This phone number is already used on a pending registration.",
+      field: "phone",
     };
   }
 
@@ -162,6 +171,12 @@ export async function startEnterpriseRegistration(
     metadata: { email, role, countryCode: pending.countryCode },
     ...ctx,
   });
+  logRegistrationEvent("registration_started", {
+    email,
+    pendingId,
+    role,
+    countryCode: pending.countryCode,
+  });
 
   const issued = await issueAndSendOtp({
     email,
@@ -174,28 +189,34 @@ export async function startEnterpriseRegistration(
       role,
       phone,
     },
-    failClosed: true,
+    failClosed: false,
     ctx,
   });
 
   if (!issued.success || !issued.data) {
-    writeAuthDb((db) => {
-      db.pendingRegistrations = db.pendingRegistrations.filter((p) => p.id !== pendingId);
-    });
-    await logActivity({
-      actorId: null,
-      action: ACTIVITY_ACTIONS.REGISTRATION_CANCELLED,
-      entityType: "registration",
-      entityId: pendingId,
-      metadata: { email, reason: "otp_email_failed" },
-      ...ctx,
-    });
+    logRegistrationEvent(
+      "registration_otp_blocked",
+      { email, pendingId, error: issued.error },
+      "warn",
+    );
     return {
       success: false,
       data: null,
-      error: issued.error ?? "We could not send the verification email. Please try again.",
+      error: issued.error ?? "Unable to start verification. Please try again.",
     };
   }
+
+  const verificationEmailSent = issued.data.emailDelivery !== "failed";
+  logRegistrationEvent(
+    verificationEmailSent ? "registration_otp_sent" : "registration_otp_email_failed",
+    {
+      email,
+      pendingId,
+      emailDelivery: issued.data.emailDelivery,
+      outboxId: issued.data.emailOutboxId,
+    },
+    verificationEmailSent ? "info" : "error",
+  );
 
   return {
     success: true,
@@ -205,6 +226,7 @@ export async function startEnterpriseRegistration(
       resendAvailableInSeconds: issued.data.resendAvailableInSeconds,
       emailDelivery: issued.data.emailDelivery,
       emailOutboxId: issued.data.emailOutboxId,
+      verificationEmailSent,
       ...(issued.data.demoOtp ? { demoOtp: issued.data.demoOtp } : {}),
     },
     error: null,
@@ -222,6 +244,7 @@ export async function resendRegistrationOtp(
     resendAvailableInSeconds: number;
     emailDelivery?: "smtp" | "resend" | "outbox" | "failed";
     emailOutboxId?: string;
+    verificationEmailSent?: boolean;
   }>
 > {
   const email = sanitizeEmail(emailRaw);
@@ -245,7 +268,7 @@ export async function resendRegistrationOtp(
       role: pending.role,
       phone: pending.phone,
     },
-    failClosed: true,
+    failClosed: false,
     requireExisting: true,
     ctx,
   });
@@ -262,6 +285,7 @@ export async function resendRegistrationOtp(
       resendAvailableInSeconds: issued.data.resendAvailableInSeconds,
       emailDelivery: issued.data.emailDelivery,
       emailOutboxId: issued.data.emailOutboxId,
+      verificationEmailSent: issued.data.emailDelivery !== "failed",
       ...(issued.data.demoOtp ? { demoOtp: issued.data.demoOtp } : {}),
     },
     error: null,

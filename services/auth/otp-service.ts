@@ -284,26 +284,83 @@ export async function issueAndSendOtp(input: IssueOtpInput): Promise<ApiResponse
   const template = otpEmailTemplate(code, purposeLabel(purpose), {
     expiresInMinutes: policy.expirationMinutes,
   });
-  const mail = await sendEmail({
-    to: email,
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    meta: { kind: "otp", purpose, system: true, challengeId: challenge.id },
+  console.info("[otp] generated", {
+    email,
+    purpose,
+    challengeId: challenge.id,
+    isResend: Boolean(input.isResend),
+    demo: demoOtpEnabled(),
   });
 
+  const sendOtpMail = () =>
+    sendEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      meta: { kind: "otp", purpose, system: true, challengeId: challenge.id },
+    });
+
+  let mail = await sendOtpMail();
   if (mail.mode === "failed") {
+    console.warn("[otp] email_send_retry", {
+      email,
+      purpose,
+      challengeId: challenge.id,
+      error: mail.error,
+    });
+    mail = await sendOtpMail();
+  }
+
+  if (mail.mode === "failed") {
+    console.error("[otp] email_failed", {
+      email,
+      purpose,
+      challengeId: challenge.id,
+      error: mail.error,
+      outboxId: mail.outboxId,
+    });
     if (failClosed) {
       writeAuthDb((db) => {
         db.otps = db.otps.filter((o) => o.id !== challenge.id);
       });
+      return {
+        success: false,
+        data: null,
+        error: "We could not send the verification email. Please try again in a moment.",
+      };
     }
+    await logActivity({
+      actorId: input.userId ?? null,
+      action: input.isResend ? ACTIVITY_ACTIONS.OTP_RESENT : ACTIVITY_ACTIONS.OTP_SENT,
+      entityType: "otp",
+      entityId: challenge.id,
+      metadata: { email, purpose, emailMode: "failed", error: mail.error },
+      ...input.ctx,
+    });
     return {
-      success: false,
-      data: null,
-      error: "We could not send the verification email. Please try again in a moment.",
+      success: true,
+      data: {
+        email,
+        challengeId: challenge.id,
+        expiresInMinutes: policy.expirationMinutes,
+        resendAvailableInSeconds: 0,
+        emailDelivery: "failed",
+        emailOutboxId: mail.outboxId,
+        ...(demoOtpEnabled() ? { demoOtp: code } : {}),
+      },
+      error: null,
     };
   }
+
+  console.info("[otp] email_sent", {
+    email,
+    purpose,
+    challengeId: challenge.id,
+    mode: mail.mode,
+    messageId: mail.messageId,
+    outboxId: mail.outboxId,
+  });
 
   await logActivity({
     actorId: input.userId ?? null,
