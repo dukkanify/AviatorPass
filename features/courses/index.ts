@@ -4,6 +4,7 @@ export { CategoryManager } from "@/features/courses/components/category-manager"
 export { CourseCatalogView } from "@/features/courses/components/course-catalog-view";
 export { CourseStatsWidgets } from "@/features/courses/components/course-stats-widgets";
 export { CourseFormDialog } from "@/features/courses/components/course-form-dialog";
+export { CourseStudioView } from "@/features/courses/components/course-studio/course-studio-view";
 export { CoursePublishingPanel } from "@/features/courses/components/course-publishing-panel";
 export { InstructorCoursesManager } from "@/features/courses/components/instructor-courses-manager";
 export { PublicCourseCatalog } from "@/features/courses/components/public-course-catalog";

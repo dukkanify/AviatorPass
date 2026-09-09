@@ -16,9 +16,18 @@ export async function POST(request: Request) {
       courseIds?: string[];
       instructorId?: string;
       categoryId?: string | null;
+      priceAmount?: number | null;
+      currency?: string | null;
+      importRows?: Array<Record<string, unknown>>;
     } | null;
 
-    if (!body?.action || !Array.isArray(body.courseIds)) {
+    if (!body?.action) {
+      return NextResponse.json(
+        { success: false, data: null, error: "action is required" },
+        { status: 400 },
+      );
+    }
+    if (body.action !== "import" && !Array.isArray(body.courseIds)) {
       return NextResponse.json(
         { success: false, data: null, error: "action and courseIds required" },
         { status: 400 },
@@ -35,9 +44,12 @@ export async function POST(request: Request) {
     const ctx = getRequestContext(request);
     const result = await bulkCourseAction({
       action: body.action,
-      courseIds: body.courseIds,
+      courseIds: body.courseIds ?? [],
       instructorId: body.instructorId,
       categoryId: body.categoryId,
+      priceAmount: body.priceAmount,
+      currency: body.currency,
+      importRows: body.importRows as never,
       actorId: user.id,
       ...ctx,
     });

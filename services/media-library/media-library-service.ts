@@ -175,6 +175,45 @@ export function updateMediaAsset(
   return updated;
 }
 
+export function registerExistingMediaAsset(input: {
+  title: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  tags?: string[];
+  actorId: string | null;
+}): MediaLibraryAsset {
+  const now = new Date().toISOString();
+  const asset: MediaLibraryAsset = {
+    id: generateId(),
+    title: input.title,
+    description: "",
+    categoryId: "atpl_training",
+    kind: "media",
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    url: input.url,
+    altText: input.title,
+    seoTitle: input.title,
+    seoDescription: "",
+    width: null,
+    height: null,
+    tags: input.tags ?? [],
+    uploadedBy: input.actorId,
+    createdAt: now,
+    updatedAt: now,
+  };
+  writeMediaLibraryDb((db) => {
+    if (!db.categories.some((c) => c.id === "atpl_training")) {
+      asset.categoryId = db.categories[0]?.id ?? "atpl_training";
+    }
+    db.assets.unshift(asset);
+  });
+  return asset;
+}
+
 export function deleteMediaAsset(id: string): boolean {
   let found = false;
   writeMediaLibraryDb((db) => {

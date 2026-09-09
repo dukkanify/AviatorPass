@@ -3,7 +3,22 @@
  * Runtime store: .data/aep-courses.json — SQL/Prisma mirrors production shape.
  */
 
-export type CourseStatus = "draft" | "published" | "private" | "scheduled" | "archived";
+export type CourseStatus = "draft" | "review" | "published" | "private" | "scheduled" | "archived";
+
+export type CourseSeo = {
+  metaTitle: string;
+  metaDescription: string;
+  ogImageUrl: string;
+  focusKeyword: string;
+};
+
+export type CourseMediaVariants = {
+  original: string;
+  thumbnail: string;
+  medium: string;
+  large: string;
+  webp: string;
+};
 
 export type DifficultyLevel = "beginner" | "intermediate" | "advanced" | "expert";
 
@@ -233,4 +248,11 @@ export interface CourseFilters {
 }
 
 export type BulkCourseAction =
-  "publish" | "archive" | "delete" | "assign_instructor" | "change_category" | "export";
+  | "publish"
+  | "archive"
+  | "delete"
+  | "assign_instructor"
+  | "change_category"
+  | "export"
+  | "import"
+  | "update_price";

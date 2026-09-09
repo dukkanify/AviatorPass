@@ -42,12 +42,22 @@ export async function uploadCourseMedia(input: {
   actorId: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
-}): Promise<{ path: string; publicUrl: string; mimeType: string; sizeBytes: number; fileName: string }> {
+}): Promise<{
+  path: string;
+  publicUrl: string;
+  mimeType: string;
+  sizeBytes: number;
+  fileName: string;
+}> {
   const settings = getPlatformSettings();
   const maxBytes = settings.security.maxUploadSizeMb * 1024 * 1024;
-  if (input.file.size > maxBytes) {
+  const imageMimes = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
+  const limitBytes = imageMimes.has(input.file.type) ? 10 * 1024 * 1024 : maxBytes;
+  if (input.file.size > limitBytes) {
     throw new CourseValidationError(
-      `File exceeds ${settings.security.maxUploadSizeMb}MB limit`,
+      imageMimes.has(input.file.type)
+        ? "Image exceeds the 10MB limit"
+        : `File exceeds ${settings.security.maxUploadSizeMb}MB limit`,
     );
   }
 
