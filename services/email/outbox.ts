@@ -130,5 +130,7 @@ export function isRetryableEmailError(error: string | null | undefined): boolean
   const text = error.toLowerCase();
   if (text.includes("missing recipient")) return false;
   if (text.includes("disabled in platform settings")) return false;
+  if (text.includes("domain is not verified")) return false;
+  if (text.includes("not a verified domain")) return false;
   return true;
 }

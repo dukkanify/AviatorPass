@@ -1,6 +1,8 @@
 export {
   sendEmail,
   isEmailDeliveryConfigured,
+  isUnverifiedResendDomainError,
+  RESEND_ONBOARDING_MAILBOX,
   type SendEmailInput,
   type SendEmailResult,
 } from "@/services/email/mailer";

@@ -17,6 +17,11 @@ export const routes = {
   registerInstructor: "/register/instructor",
   instructorPending: "/instructor-pending",
 
+  legal: {
+    terms: "/legal/terms",
+    privacy: "/legal/privacy",
+  },
+
   // Auth
   login: "/login",
   register: "/register",

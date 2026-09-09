@@ -121,6 +121,14 @@ function Footer() {
             © {year} {siteStatic.name}
             <span className="site-footer-dot" aria-hidden />
             English only
+            <span className="site-footer-dot" aria-hidden />
+            <Link href={routes.legal.terms} className="site-footer-legal-link">
+              Terms of Service
+            </Link>
+            <span className="site-footer-dot" aria-hidden />
+            <Link href={routes.legal.privacy} className="site-footer-legal-link">
+              Privacy Policy
+            </Link>
           </p>
           <p className="site-footer-motto">
             <span>Train</span>

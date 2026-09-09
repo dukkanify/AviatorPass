@@ -21,6 +21,7 @@ import {
   describeDeviceFromUserAgent,
 } from "@/lib/security/device-fingerprint";
 import type { UserProfile } from "@/types";
+import { siteStatic } from "@/config/site-static";
 
 const RESEND_DEFAULT_SECONDS = 60;
 const EXPIRY_DEFAULT_SECONDS = 10 * 60;
@@ -157,7 +158,7 @@ function VerifyOtpForm() {
       setResendIn(result.data?.resendAvailableInSeconds ?? RESEND_DEFAULT_SECONDS);
       setExpiresIn((result.data?.expiresInMinutes ?? 10) * 60);
       // Never surface OTP codes in the UI — even in demo, prefer email/outbox only.
-      toast.success("A new verification code was sent");
+      toast.success("A new verification code was sent. Check inbox and spam.");
     } catch {
       triggerError("Network error. Please retry.");
     } finally {
@@ -240,9 +241,25 @@ function VerifyOtpForm() {
             {errorMsg}
           </p>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Enter the 6-digit code sent to your email. Codes are single-use.
-          </p>
+          <>
+            <p className="text-xs text-muted-foreground">
+              Enter the 6-digit code sent to your email. Codes are single-use.
+              {purpose === "register"
+                ? " Check spam if it is not in your inbox. The message may come from Aviator Pass or our mail provider."
+                : ""}
+            </p>
+            {purpose === "register" ? (
+              <p className="text-xs text-muted-foreground">
+                Still no code?{" "}
+                <a
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                  href={`mailto:${siteStatic.supportEmail}`}
+                >
+                  {siteStatic.supportEmail}
+                </a>
+              </p>
+            ) : null}
+          </>
         )}
       </div>
 

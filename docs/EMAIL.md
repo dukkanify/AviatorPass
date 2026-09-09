@@ -23,6 +23,12 @@ What is already true in Vercel Production:
 
 The mailer calls Resend, Resend rejects the From domain, OTP `failClosed` rolls back the challenge, and the API returns **We could not send the verification email.**
 
+## Code fallback (in this repo)
+
+If Resend rejects the custom From domain as unverified, the mailer **retries once** using Resend’s onboarding sender (`AviatorPass <beth.t@example.com>`) and keeps `reply_to` as `support@aviatorpass.com`. That lets registration OTP, welcome, and other transactional mail deliver while DNS is unfinished. Messages may show a Resend envelope and can land in spam — the verification screen tells students to check junk.
+
+Unverified-domain errors are **not** retried from the outbox with the same From address (they would fail forever).
+
 Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
 
 ## Fix required outside this repo (human / DNS)
@@ -37,7 +43,7 @@ Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
 5. Confirm `EMAIL_FROM` / Platform sender is `AviatorPass <noreply@aviatorpass.com>` (or another mailbox on the verified domain).
 6. Optional: set `ADMIN_NOTIFICATION_EMAIL` to the ops inbox that should receive registration / purchase / payment / refund copies.
 
-Until step 4 succeeds, Gmail and Outlook delivery **cannot** work. Resend will keep returning the same domain error.
+Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fail at Resend. The onboarding-sender fallback above is the in-app workaround so OTP still leaves Resend. Gmail and Outlook inboxing is still better after DNS is verified.
 
 ## Runtime behaviour after this change
 

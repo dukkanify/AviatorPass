@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, GraduationCap, Presentation } from "lucide-react";
 import { toast } from "sonner";
+import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -200,7 +201,7 @@ function RegisterForm({
       if (result.data?.demoOtp) {
         toast.message(`Demo OTP: ${result.data.demoOtp}`);
       } else {
-        toast.success("Check your email for a one-time verification code");
+        toast.success("Check your inbox and spam folder for the 6-digit code");
       }
 
       const params = new URLSearchParams({
@@ -209,6 +210,8 @@ function RegisterForm({
         role: parsed.data.role,
       });
       router.push(`${routes.verifyOtp}?${params.toString()}`);
+    } catch {
+      toast.error("Network error. Please retry.");
     } finally {
       setPending(false);
     }
@@ -485,12 +488,14 @@ function RegisterForm({
             />
             <span>
               I accept the{" "}
-              <a
-                href="/legal/terms"
+              <Link
+                href={routes.legal.terms}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="font-medium text-primary underline-offset-2 hover:underline"
               >
                 Terms of Service
-              </a>
+              </Link>
             </span>
           </label>
           {errors.acceptTerms ? (
@@ -508,12 +513,14 @@ function RegisterForm({
             />
             <span>
               I accept the{" "}
-              <a
-                href="/legal/privacy"
+              <Link
+                href={routes.legal.privacy}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="font-medium text-primary underline-offset-2 hover:underline"
               >
                 Privacy Policy
-              </a>
+              </Link>
             </span>
           </label>
           {errors.acceptPrivacy ? (

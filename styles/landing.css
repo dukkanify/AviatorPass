@@ -1514,6 +1514,17 @@
   background: rgba(204, 160, 76, 0.55);
 }
 
+.site-footer-legal-link {
+  color: rgba(255, 255, 255, 0.42);
+  text-decoration: none;
+}
+
+.site-footer-legal-link:hover {
+  color: #f0c56a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .site-footer-cta {
     transition: none;
