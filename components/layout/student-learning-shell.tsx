@@ -121,6 +121,7 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = React.useState(false);
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (isLoading || !user) return;
@@ -183,13 +184,29 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="sl-nav" aria-label="Learning workspace">
-          {STUDENT_LEARNING_NAV_GROUPS.map((group) =>
-            group.items.length === 0 ? null : (
+          {STUDENT_LEARNING_NAV_GROUPS.map((group) => {
+            if (group.items.length === 0) return null;
+            const hiddenMore = group.id === "more" && !moreOpen;
+            return (
               <div key={group.id} className="sl-nav-group">
-                <p className="sl-nav-label">{group.label}</p>
-                {group.items.map((item) => {
+                {group.id === "more" ? (
+                  <button
+                    type="button"
+                    className="sl-nav-more"
+                    aria-expanded={moreOpen}
+                    onClick={() => setMoreOpen((open) => !open)}
+                  >
+                    {group.label}
+                    <span aria-hidden>{moreOpen ? "–" : "+"}</span>
+                  </button>
+                ) : (
+                  <p className="sl-nav-label">{group.label}</p>
+                )}
+                {(hiddenMore ? [] : group.items).map((item) => {
                   const Icon = iconMap[item.icon] ?? LayoutDashboard;
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const active =
+                    pathname === item.href.split("#")[0] ||
+                    pathname.startsWith(`${item.href.split("#")[0]}/`);
                   return (
                     <Link
                       key={item.href}
@@ -207,8 +224,8 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </div>
-            ),
-          )}
+            );
+          })}
         </nav>
 
         <button

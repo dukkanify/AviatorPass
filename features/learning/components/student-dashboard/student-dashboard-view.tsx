@@ -206,21 +206,34 @@ function LearningDashboardView() {
       ? `Lesson ${Math.max(1, completedLessons + 1)} of ${totalLessons}`
       : "Open your next briefing");
 
+  const schedulePicks = [
+    todayItems.find((item) => item.type === "live_class") ?? liveItem,
+    todayItems.find((item) => item.type === "study_session" || item.type === "lesson"),
+    todayItems.find((item) => item.type === "deadline") ??
+      plannerItems.find((item) => item.type === "deadline"),
+  ].filter((item, index, list): item is LearningCalendarItem => {
+    return Boolean(item) && list.findIndex((candidate) => candidate?.id === item?.id) === index;
+  });
+
+  const mappedSchedule = (
+    schedulePicks.length >= 2 ? schedulePicks.slice(0, 3) : todayItems.slice(0, 3)
+  ).map((item) => ({
+    id: item.id,
+    time: new Date(item.startsAt).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    title: calendarKindLabel(item.type),
+    detail: item.title,
+    href: item.href ?? (item.type === "live_class" ? "/student/calendar" : resumeHref),
+    live: item.type === "live_class",
+    action: item.type === "live_class" ? "Join" : item.type === "deadline" ? "Start" : null,
+  }));
+
   const schedule =
-    todayItems.length > 0
-      ? todayItems.slice(0, 3).map((item) => ({
-          id: item.id,
-          time: new Date(item.startsAt).toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          }),
-          title: calendarKindLabel(item.type),
-          detail: item.title,
-          href: item.href ?? (item.type === "live_class" ? "/student/calendar" : resumeHref),
-          live: item.type === "live_class",
-          action: item.type === "live_class" ? "Join" : item.type === "deadline" ? "Start" : null,
-        }))
+    mappedSchedule.length > 0
+      ? mappedSchedule
       : [
           {
             id: "live",
