@@ -59,6 +59,7 @@ import {
   DIFFICULTY_LEVELS,
   ENROLLMENT_MODE_LABELS,
 } from "@/constants/courses";
+import { routes } from "@/constants/routes";
 import { COURSE_CURRENCIES } from "@/features/courses/lib/course-studio";
 import { courseFetch } from "@/features/courses/lib/api";
 import { CourseStatsWidgets } from "@/features/courses/components/course-stats-widgets";
@@ -369,6 +370,11 @@ function CourseManagementView({
             <Button variant="outline" asChild>
               <Link href={`${basePath}/categories`}>Categories</Link>
             </Button>
+            {canManagePublishing ? (
+              <Button variant="outline" asChild>
+                <Link href={routes.superAdminAtplSubjects}>ATPL subjects</Link>
+              </Button>
+            ) : null}
             <Button asChild>
               <Link href={`${basePath}/new`}>
                 <Plus className="mr-2 h-4 w-4" /> Create course

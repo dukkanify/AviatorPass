@@ -4,11 +4,10 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { AtplPassHomepage } from "@/features/marketing/components/atpl-pass-homepage";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
-import { ATPL_SUBJECTS_13 } from "@/features/marketing/content/atpl-course-landing";
 import { APP_METADATA } from "@/constants/navigation";
+import { listPublicAtplSubjects } from "@/services/marketing/atpl-subjects-service";
 
-/** Cache public marketing HTML briefly — catalog IDs are stable enough for short ISR. */
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
@@ -47,11 +46,7 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const subjects = ATPL_SUBJECTS_13.map((s) => ({
-    code: s.code,
-    title: s.title,
-    shortDescription: s.shortDescription,
-  }));
+  const subjects = listPublicAtplSubjects();
 
   return (
     <div className="landing-root home-premium">
@@ -81,7 +76,7 @@ export default function HomePage() {
               "@type": "Course",
               name: "ATPL Course",
               description:
-                "Complete Airline Transport Pilot License preparation with live instructor-led training across 13 ATPL Subjects.",
+                "Complete Airline Transport Pilot License preparation with live instructor-led training across the official ATPL syllabus.",
               provider: { "@type": "Organization", name: siteConfig.name, url: siteConfig.url },
               url: `${siteConfig.url}${routes.atpl}`,
               educationalLevel: "Professional",

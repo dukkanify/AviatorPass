@@ -61,6 +61,10 @@ export const ACTIVITY_ACTIONS = {
   CATEGORY_CREATED: "courses.category_created",
   CATEGORY_UPDATED: "courses.category_updated",
   CATEGORY_DELETED: "courses.category_deleted",
+  ATPL_SUBJECT_CREATED: "marketing.atpl_subject_created",
+  ATPL_SUBJECT_UPDATED: "marketing.atpl_subject_updated",
+  ATPL_SUBJECT_DELETED: "marketing.atpl_subject_deleted",
+  ATPL_SUBJECT_REORDERED: "marketing.atpl_subject_reordered",
   INSTRUCTOR_ASSIGNED: "courses.instructor_assigned",
   MEDIA_UPLOADED: "courses.media_uploaded",
   // Live classes / Zoom

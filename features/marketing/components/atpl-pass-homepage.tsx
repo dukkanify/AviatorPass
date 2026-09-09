@@ -34,8 +34,9 @@ import {
 } from "@/features/marketing/content/atpl-pass-home";
 import { siteStatic } from "@/config/site-static";
 import { routes } from "@/constants/routes";
-import { cn } from "@/lib/utils";
+import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
+import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 const FEATURE_ICONS = [
   Video,
@@ -63,7 +64,7 @@ const PLATFORM_ICONS = [
 ] as const;
 
 type AtplPassHomepageProps = {
-  subjects: Array<{ code: string; title: string; shortDescription: string }>;
+  subjects: AtplLandingSubjectPublic[];
   courseHref: string;
 };
 
@@ -303,30 +304,13 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
         <div className="container-app">
           <SectionKicker>Included Modules</SectionKicker>
           <h2 className="atpl-heading mt-4 max-w-[22ch]">
-            13 ATPL Subjects, included in one program
+            {subjects.length} ATPL Subjects, included in one program
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            All 13 Theory Subjects below are modules within the ATPL Course — not separate products.
-            Enrol once and access everything.
+            All {subjects.length} Theory Subjects below are modules within the ATPL Course — not
+            separate products. Enrol once and access everything.
           </p>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {subjects.map((subject, i) => (
-              <article
-                key={subject.code}
-                className={cn("atpl-subject-card atpl-reveal")}
-                style={{ animationDelay: `${i * 40}ms` }}
-              >
-                <span className="atpl-subject-code">{subject.code}</span>
-                <h3 className="mt-3 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
-                  {subject.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {subject.shortDescription}
-                </p>
-                <span className="atpl-subject-badge">Included in ATPL Program</span>
-              </article>
-            ))}
-          </div>
+          <AtplSubjectGrid subjects={subjects} reveal />
         </div>
       </section>
 

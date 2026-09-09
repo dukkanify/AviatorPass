@@ -32,7 +32,7 @@ export const ABOUT = {
   vision:
     "To be the trusted aviation education platform for students across Dubai, Copenhagen, Kuwait, Qatar, and beyond — recognised for EASA Certified Instructors, complete programme coverage, and graduates who meet international professional standards.",
   history:
-    "Aviator Pass was built because aviation students needed more than a single ATPL video library. We assembled a full academy: recorded and live pathways for Basics of Aviation and Private Pilot License, a live ATPL theory programme covering 13 theory subjects, and live ELP mock exams — all taught to airline-grade standards with EASA Certified Instructors.",
+    "Aviator Pass was built because aviation students needed more than a single ATPL video library. We assembled a full academy: recorded and live pathways for Basics of Aviation and Private Pilot License, a live ATPL theory programme covering the official syllabus, and live ELP mock exams — all taught to airline-grade standards with EASA Certified Instructors.",
   values: [
     {
       title: "Safety & Standards",
@@ -146,10 +146,10 @@ export const PROGRAM = {
   kicker: "Online Courses",
   title: "One platform. Every aviation pathway.",
   description:
-    "Explore Online Courses to choose the programme that matches your stage: Basics of Aviation, Private Pilot License, the live ATPL Course, and ELP Mock Exams Live. Enrol in the ATPL Course for 13 theory subjects in one purchase.",
+    "Explore Online Courses to choose the programme that matches your stage: Basics of Aviation, Private Pilot License, the live ATPL Course, and ELP Mock Exams Live. Enrol in the ATPL Course for the official ATPL syllabus in one purchase.",
   includes: [
     "EASA Certified Instructors on every programme",
-    "ATPL Course — 13 theory subjects, live instruction",
+    "ATPL Course — official syllabus, live instruction",
     "Basics of Aviation — recorded and live one-to-one",
     "Private Pilot License — recorded and live one-to-one",
     "ELP Mock Exams Live",

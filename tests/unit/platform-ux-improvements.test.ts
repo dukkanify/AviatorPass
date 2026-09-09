@@ -42,7 +42,7 @@ describe("platform UX improvements", () => {
     ).toBe(`${PRODUCTION_SITE_URL}/verify/certificate?code=70A8DBAE45594680`);
   });
 
-  it("keeps ATPL landing conversion sections and lists all 13 subject names", () => {
+  it("keeps ATPL landing conversion sections and renders CMS subject cards", () => {
     const source = readFileSync(
       path.join(process.cwd(), "features/marketing/components/atpl-program-page.tsx"),
       "utf8",
@@ -50,7 +50,8 @@ describe("platform UX improvements", () => {
     expect(source).not.toContain("WHO_SHOULD_JOIN");
     expect(source).not.toContain("LEARNING_OUTCOMES");
     expect(source).not.toContain("STUDENT_REVIEWS");
-    expect(source).toContain("ATPL_SUBJECTS_13");
+    expect(source).not.toContain("ATPL_SUBJECTS_13");
+    expect(source).toContain("AtplSubjectGrid");
     expect(source).toContain('id="subjects"');
     expect(source).toContain("COURSE_OVERVIEW");
     expect(source).toContain("COURSE_BENEFITS");

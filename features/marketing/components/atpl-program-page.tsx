@@ -6,17 +6,19 @@ import { routes } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
+import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import {
   ATPL_LANDING_HERO,
-  ATPL_SUBJECTS_13,
   COURSE_BENEFITS,
   COURSE_OVERVIEW,
   PRICING,
 } from "@/features/marketing/content/atpl-course-landing";
+import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 type AtplProgramPageProps = {
   enrollHref: string;
   priceLabel: string | null;
+  subjects: AtplLandingSubjectPublic[];
 };
 
 function EnrolButton({
@@ -38,7 +40,14 @@ function EnrolButton({
   );
 }
 
-function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps) {
+function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgramPageProps) {
+  const subjectCount = subjects.length;
+  const subjectLabel = subjectCount === 1 ? "ATPL Subject" : "ATPL Subjects";
+  const overviewStats = [
+    { value: String(subjectCount || "—"), label: subjectLabel },
+    ...COURSE_OVERVIEW.stats.slice(1),
+  ];
+
   return (
     <>
       <section className="atpl-program-hero relative isolate overflow-hidden">
@@ -98,7 +107,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
           </h2>
           <p className="mt-5 max-w-2xl text-muted-foreground">{COURSE_OVERVIEW.body}</p>
           <div className="mt-10 grid max-w-xl grid-cols-2 gap-4">
-            {COURSE_OVERVIEW.stats.map((stat) => (
+            {overviewStats.map((stat) => (
               <div key={stat.label} className="atpl-stat-card">
                 <p className="font-display text-3xl font-semibold text-[var(--landing-ink-soft)]">
                   {stat.value}
@@ -116,28 +125,15 @@ function AtplProgramPageContent({ enrollHref, priceLabel }: AtplProgramPageProps
         aria-labelledby="subjects-heading"
       >
         <div className="container-app">
-          <p className="atpl-kicker">13 ATPL Subjects</p>
+          <p className="atpl-kicker">Courses / Subjects</p>
           <h2 id="subjects-heading" className="atpl-heading mt-4 max-w-[22ch]">
             Every theory paper in one enrolment
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            13 Theory Subjects for the Airline Transport Pilot License. Included with the ATPL
-            Course — no separate purchases.
+            {subjectCount} Theory Subjects for the Airline Transport Pilot License. Included with
+            the ATPL Course — no separate purchases.
           </p>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ATPL_SUBJECTS_13.map((subject) => (
-              <article key={subject.code} className="atpl-subject-card">
-                <span className="atpl-subject-code">{subject.code}</span>
-                <h3 className="mt-3 font-display text-base font-semibold text-[var(--landing-ink-soft)]">
-                  {subject.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {subject.shortDescription}
-                </p>
-                <span className="atpl-subject-badge">Included</span>
-              </article>
-            ))}
-          </div>
+          <AtplSubjectGrid subjects={subjects} />
           <div className="mt-12">
             <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
           </div>

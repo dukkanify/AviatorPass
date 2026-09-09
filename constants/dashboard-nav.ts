@@ -61,6 +61,7 @@ export const SUPER_ADMIN_NAV: DashboardNavItem[] = [
   { label: "Instructors", href: "/super-admin/instructors", icon: "instructors" },
   { label: "Students", href: "/super-admin/students", icon: "students" },
   { label: "Courses", href: "/super-admin/courses", icon: "courses" },
+  { label: "ATPL subjects", href: "/super-admin/courses/atpl-subjects", icon: "courses" },
   { label: "Course publishing", href: "/super-admin/courses/publishing", icon: "courses" },
   { label: "Quizzes", href: "/super-admin/quizzes", icon: "quizzes" },
   { label: "Certificates", href: "/super-admin/certificates", icon: "certificates" },

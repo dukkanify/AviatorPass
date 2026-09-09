@@ -20,7 +20,7 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
     label: "Online Courses",
     href: routes.onlineCourses,
     children: [
-      { label: "ATPL Course", href: routes.atpl, hint: "LIVE · 13 theory subjects" },
+      { label: "ATPL Course", href: routes.atpl, hint: "LIVE · official syllabus" },
       {
         label: "Basics of Aviation",
         href: `${routes.onlineCoursesBasics}?mode=recorded`,
