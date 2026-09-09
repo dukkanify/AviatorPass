@@ -110,6 +110,20 @@ export type InstructorCourseGroup = {
   courses: CourseListItem[];
 };
 
+export type CategoryCourseGroup = {
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    icon: string;
+    imageUrl: string | null;
+    seoTitle: string;
+    metaDescription: string;
+  } | null;
+  courses: CourseListItem[];
+};
+
 /** Promote scheduled courses whose publish time has passed. */
 export function applyDueScheduledPublishes(): number {
   ensureCoursesSeeded();
@@ -198,6 +212,53 @@ export function listPublishedCoursesGroupedByInstructor(pageSize = 100): Instruc
   return Array.from(groups.values()).sort((a, b) =>
     a.instructorName.localeCompare(b.instructorName),
   );
+}
+
+export function listPublishedCoursesGroupedByCategory(pageSize = 100): CategoryCourseGroup[] {
+  applyDueScheduledPublishes();
+  const deliveryFilter = getPublicDeliveryFilter();
+  const { data } = listCourses({
+    status: "published",
+    pageSize: Math.max(pageSize, 200),
+    sortBy: "displayOrder",
+    sortDir: "asc",
+  });
+  const categories = [...readCoursesDb().categories]
+    .filter((c) => c.visible)
+    .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+
+  const listed = data.filter(
+    (course) =>
+      !isPublicCatalogFixture(course) && isCoursePubliclyListed(course, { deliveryFilter }),
+  );
+
+  const groups: CategoryCourseGroup[] = categories.map((category) => ({
+    category: {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      imageUrl: category.imageUrl,
+      seoTitle: category.seoTitle,
+      metaDescription: category.metaDescription,
+    },
+    courses: listed
+      .filter((course) => course.categoryId === category.id)
+      .sort((a, b) => Number(b.featured) - Number(a.featured) || a.displayOrder - b.displayOrder),
+  }));
+
+  const uncategorized = listed.filter((course) => !course.categoryId);
+  if (uncategorized.length) {
+    groups.push({
+      category: null,
+      courses: uncategorized.sort(
+        (a, b) => Number(b.featured) - Number(a.featured) || a.displayOrder - b.displayOrder,
+      ),
+    });
+  }
+
+  return groups.filter((group) => group.courses.length > 0);
 }
 
 export function getCourseDetail(id: string): CourseDetail | null {
@@ -295,6 +356,12 @@ export function listCourses(filters: CourseFilters = {}): {
   const sortBy = filters.sortBy ?? "updatedAt";
   const sortDir = filters.sortDir ?? "desc";
   rows = [...rows].sort((a, b) => {
+    if (sortBy === "displayOrder") {
+      const featuredCmp = Number(b.featured) - Number(a.featured);
+      if (featuredCmp) return featuredCmp;
+      const orderCmp = a.displayOrder - b.displayOrder;
+      if (orderCmp) return sortDir === "asc" ? orderCmp : -orderCmp;
+    }
     const av = String(a[sortBy] ?? "");
     const bv = String(b[sortBy] ?? "");
     const cmp = av.localeCompare(bv);
@@ -372,6 +439,8 @@ export type CreateCourseInput = {
   deliveryType?: string;
   enrollmentOpen?: boolean;
   hidden?: boolean;
+  featured?: boolean;
+  displayOrder?: number;
   status?: string;
   scheduledPublishAt?: string | null;
   primaryInstructorId?: string | null;
@@ -399,6 +468,8 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
     enrollmentMode === "open",
   );
   const hidden = assertBooleanFlag("hidden", input.hidden, false);
+  const featured = assertBooleanFlag("featured", input.featured, false);
+  const displayOrder = Math.max(0, Number(input.displayOrder) || 0);
   const scheduledPublishAt = assertScheduledPublish(status, input.scheduledPublishAt ?? null);
   assertInstructorExists(input.primaryInstructorId);
   const pricing = normalizeCoursePrice({
@@ -433,6 +504,8 @@ export async function createCourse(input: CreateCourseInput): Promise<CourseList
     deliveryType,
     enrollmentOpen,
     hidden,
+    featured,
+    displayOrder,
     status,
     scheduledPublishAt,
     primaryInstructorId: input.primaryInstructorId ?? null,
@@ -521,6 +594,14 @@ export async function updateCourse(input: {
     input.patch.hidden !== undefined
       ? assertBooleanFlag("hidden", input.patch.hidden, existing.hidden)
       : existing.hidden;
+  const featured =
+    input.patch.featured !== undefined
+      ? assertBooleanFlag("featured", input.patch.featured, existing.featured)
+      : existing.featured;
+  const displayOrder =
+    input.patch.displayOrder !== undefined
+      ? Math.max(0, Number(input.patch.displayOrder) || 0)
+      : existing.displayOrder;
   const scheduledPublishAt = assertScheduledPublish(
     status,
     input.patch.scheduledPublishAt !== undefined
@@ -577,6 +658,8 @@ export async function updateCourse(input: {
     deliveryType,
     enrollmentOpen,
     hidden,
+    featured,
+    displayOrder,
     status,
     scheduledPublishAt,
     primaryInstructorId,

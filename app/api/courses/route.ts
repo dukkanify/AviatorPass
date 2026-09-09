@@ -127,6 +127,9 @@ export async function POST(request: Request) {
       enrollmentOpen:
         isSuperAdmin && typeof body.enrollmentOpen === "boolean" ? body.enrollmentOpen : undefined,
       hidden: isSuperAdmin && typeof body.hidden === "boolean" ? body.hidden : false,
+      featured: isSuperAdmin && typeof body.featured === "boolean" ? body.featured : false,
+      displayOrder:
+        isSuperAdmin && body.displayOrder != null ? Number(body.displayOrder) : undefined,
       status,
       scheduledPublishAt: isSuperAdmin
         ? ((body.scheduledPublishAt as string | null | undefined) ?? null)

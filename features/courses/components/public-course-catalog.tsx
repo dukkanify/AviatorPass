@@ -2,13 +2,13 @@ import { BookOpen } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { InstructorCourseGrid } from "@/features/courses/components/course-lane-card";
-import { listPublishedCoursesGroupedByInstructor } from "@/services/courses/course-service";
+import { listPublishedCoursesGroupedByCategory } from "@/services/courses/course-service";
 
-/** Server-rendered public catalog — no client fetch, always shows published lanes. */
+/** Server-rendered public catalog grouped by Super Admin categories. */
 function PublicCourseCatalog() {
-  let groups: ReturnType<typeof listPublishedCoursesGroupedByInstructor> = [];
+  let groups: ReturnType<typeof listPublishedCoursesGroupedByCategory> = [];
   try {
-    groups = listPublishedCoursesGroupedByInstructor(100);
+    groups = listPublishedCoursesGroupedByCategory(100);
   } catch (error) {
     console.error("[public-course-catalog]", error);
     return (
@@ -26,7 +26,7 @@ function PublicCourseCatalog() {
       <EmptyState
         icon={<BookOpen className="h-6 w-6" />}
         title="No published courses yet"
-        description="Published ATPL programs will appear here for learners and visitors."
+        description="Published programmes will appear here once they are listed and assigned to a category."
       />
     );
   }
@@ -35,19 +35,19 @@ function PublicCourseCatalog() {
     <div className="catalog-deck">
       <header className="catalog-deck-header">
         <div>
-          <p className="landing-kicker text-primary">Published lanes</p>
+          <p className="landing-kicker text-primary">Course catalog</p>
           <h2 className="catalog-deck-title">
-            {total} course{total === 1 ? "" : "s"} ready to fly
+            {total} course{total === 1 ? "" : "s"} by category
           </h2>
           <p className="catalog-deck-lead">
-            Browse by instructor, open a lane for the syllabus, then enter AviatorPass to enroll or
-            book live Zoom coaching.
+            Browse published lanes by category. Featured courses appear first, with live or recorded
+            badges from Super Admin.
           </p>
         </div>
-        <div className="catalog-deck-stat" aria-label={`${groups.length} instructors`}>
+        <div className="catalog-deck-stat" aria-label={`${groups.length} categories`}>
           <span className="catalog-deck-stat-value">{groups.length}</span>
           <span className="catalog-deck-stat-label">
-            instructor{groups.length === 1 ? "" : "s"}
+            categor{groups.length === 1 ? "y" : "ies"}
           </span>
         </div>
       </header>
@@ -57,9 +57,14 @@ function PublicCourseCatalog() {
       <div className="catalog-deck-groups">
         {groups.map((group, groupIndex) => (
           <InstructorCourseGrid
-            key={group.instructorId ?? group.instructorName}
-            group={group}
+            key={group.category?.id ?? "uncategorized"}
+            group={{
+              instructorId: group.category?.id ?? null,
+              instructorName: group.category?.name ?? "Uncategorized",
+              courses: group.courses,
+            }}
             groupIndex={groupIndex}
+            kicker={group.category ? "Category" : "Other"}
             ctaLabel="View course"
             showInstructorOnCard
             descriptionLines={3}

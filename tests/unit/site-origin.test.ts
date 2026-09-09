@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   PRODUCTION_SITE_URL,
   appJoinUrl,
+  canonicalCertificateVerifyUrl,
   getBaseUrl,
   publicAppOrigin,
   publicAppUrl,
+  publicCertificateVerifyUrl,
   rewriteAppAbsoluteUrl,
 } from "@/lib/site-origin";
 
@@ -99,6 +101,18 @@ describe("rewriteAppAbsoluteUrl / appJoinUrl", () => {
       "https://www.aviatorpass.com/join/class-1?host=1&mid=123456789",
     );
     expect(publicAppUrl("/verify/certificate?code=ABC")).toBe(
+      "https://www.aviatorpass.com/verify/certificate?code=ABC",
+    );
+  });
+
+  it("always uses production for certificate verification URLs", () => {
+    delete process.env.NEXT_PUBLIC_APP_ENV;
+    delete process.env.VERCEL_ENV;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    expect(publicCertificateVerifyUrl("ABC")).toBe(
+      "https://www.aviatorpass.com/verify/certificate?code=ABC",
+    );
+    expect(canonicalCertificateVerifyUrl("http://localhost:3000/verify/certificate?code=ABC")).toBe(
       "https://www.aviatorpass.com/verify/certificate?code=ABC",
     );
   });

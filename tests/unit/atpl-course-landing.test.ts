@@ -21,6 +21,7 @@ describe("ATPL course landing conversion path", () => {
     );
     expect(ATPL_LANDING_HERO.primaryCta).toBe("Enrol in Aviator Pass");
     expect(PRICING.cta).toBe("Enrol in Aviator Pass");
+    expect(ATPL_LANDING_HERO.secondaryCta).toBe("See course features");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",
       "Instruction only",

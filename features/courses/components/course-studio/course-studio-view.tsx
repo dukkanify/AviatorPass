@@ -76,6 +76,8 @@ type StudioPayload = {
   deliveryType: CourseDeliveryType;
   enrollmentOpen: boolean;
   hidden: boolean;
+  featured: boolean;
+  displayOrder: number;
   status: CourseStatus;
   scheduledPublishAt: string | null;
   metadata: {
@@ -135,6 +137,8 @@ export function CourseStudioView({
   const [deliveryType, setDeliveryType] = useState<CourseDeliveryType>("recorded");
   const [enrollmentOpen, setEnrollmentOpen] = useState(true);
   const [hidden, setHidden] = useState(false);
+  const [featured, setFeatured] = useState(false);
+  const [displayOrder, setDisplayOrder] = useState(0);
 
   const applyCourse = useCallback((course: CourseDetail) => {
     skipAutosave.current = true;
@@ -166,6 +170,8 @@ export function CourseStudioView({
     setDeliveryType(course.deliveryType);
     setEnrollmentOpen(course.enrollmentOpen);
     setHidden(course.hidden);
+    setFeatured(Boolean(course.featured));
+    setDisplayOrder(course.displayOrder ?? 0);
     setSaveState("saved");
   }, []);
 
@@ -235,6 +241,8 @@ export function CourseStudioView({
       deliveryType,
       enrollmentOpen,
       hidden,
+      featured,
+      displayOrder,
       status,
       scheduledPublishAt: scheduledPublishAt ? new Date(scheduledPublishAt).toISOString() : null,
       metadata: {
@@ -271,6 +279,8 @@ export function CourseStudioView({
     deliveryType,
     enrollmentOpen,
     hidden,
+    featured,
+    displayOrder,
     status,
     scheduledPublishAt,
     slug,
@@ -803,6 +813,31 @@ export function CourseStudioView({
                       <SelectItem value="hidden">Hidden</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Featured course</Label>
+                  <Select
+                    value={featured ? "featured" : "standard"}
+                    onValueChange={(value) => setFeatured(value === "featured")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="featured">Featured</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cs-order">Display order</Label>
+                  <Input
+                    id="cs-order"
+                    type="number"
+                    min={0}
+                    value={displayOrder}
+                    onChange={(e) => setDisplayOrder(Number(e.target.value) || 0)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cs-pub">Scheduled publish at</Label>

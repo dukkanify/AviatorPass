@@ -14,7 +14,7 @@ export const ATPL_LANDING_HERO = {
     "Worldwide checkout in your local currency",
   ],
   primaryCta: "Enrol in Aviator Pass",
-  secondaryCta: "See the 13 ATPL Subjects",
+  secondaryCta: "See course features",
 } as const;
 
 export const COURSE_OVERVIEW = {
@@ -174,7 +174,7 @@ export const ATPL_LIVE_TRAINING = {
 } as const;
 
 export const COURSE_BENEFITS = {
-  kicker: "Course benefits",
+  kicker: "Course features",
   title: "Why candidates enrol in the ATPL Course",
   items: [
     {
@@ -250,7 +250,7 @@ export const ATPL_FAQS = [
   },
   {
     q: "Are all 13 ATPL Subjects included?",
-    a: "Yes. One ATPL Course enrolment covers the full 13 Theory Subjects listed on this page. There are no separate subject checkouts.",
+    a: "Yes. One ATPL Course enrolment covers the full 13 Theory Subjects. There are no separate subject checkouts.",
   },
   {
     q: "Is training live or recorded?",

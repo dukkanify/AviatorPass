@@ -8,17 +8,20 @@ import { siteStatic } from "@/config/site-static";
 export const PROJECT_SUPPORT_EMAIL = siteStatic.supportEmail;
 export const PROJECT_CONTACT_EMAIL = siteStatic.contactEmail;
 
-/** Retired AviatorPass-domain mailbox — remap persisted settings to the canonical support address. */
-export const LEGACY_AVIATORPASS_SUPPORT_EMAIL = ["support@", "aviatorpass.com"].join("");
+/** Retired AviatorPass-domain mailbox that used to be remapped away — now canonical. */
+export const CANONICAL_AVIATORPASS_SUPPORT_EMAIL = PROJECT_SUPPORT_EMAIL;
+
+/** Retired ATPL Pass domain mailboxes — remap persisted settings to aviatorpass.com. */
+export const LEGACY_ATPLPASS_SUPPORT_EMAIL = ["support@", "atplpass.com"].join("");
+export const LEGACY_ATPLPASS_CONTACT_EMAIL = ["info@", "atplpass.com"].join("");
 
 /**
- * Canonical student-support mailbox (`support@atplpass.com`).
- * Kept as a named constant so seed/remap code can compare hosts without treating it as dirty.
+ * Canonical student-support mailbox (`support@aviatorpass.com`).
  */
 export const CANONICAL_ATPLPASS_SUPPORT_EMAIL = PROJECT_SUPPORT_EMAIL;
 
-/** @deprecated Use CANONICAL_ATPLPASS_SUPPORT_EMAIL — this address is now the live support mailbox. */
-export const LEGACY_ATPLPASS_SUPPORT_EMAIL = CANONICAL_ATPLPASS_SUPPORT_EMAIL;
+/** @deprecated Use PROJECT_SUPPORT_EMAIL. */
+export const LEGACY_AVIATORPASS_SUPPORT_EMAIL = PROJECT_SUPPORT_EMAIL;
 
 /** Retired personal mailbox — remap persisted settings only; never show in UI. */
 export const LEGACY_PERSONAL_SUPPORT_EMAIL = [
@@ -37,10 +40,23 @@ export const LEGACY_CLIENT_NAME_RE = new RegExp(
   "i",
 );
 
+export function isLegacyAtplpassMailbox(value: string): boolean {
+  return /@atplpass\.com$/i.test(value.trim());
+}
+
+export function remapAtplpassMailbox(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!isLegacyAtplpassMailbox(normalized)) return value.trim();
+  const local = normalized.split("@")[0] ?? "";
+  if (local === "support") return PROJECT_SUPPORT_EMAIL;
+  if (local === "info" || local === "contact") return PROJECT_CONTACT_EMAIL;
+  return `${local}@aviatorpass.com`;
+}
+
 export function isLegacySupportMailbox(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return (
-    normalized === LEGACY_AVIATORPASS_SUPPORT_EMAIL ||
+    isLegacyAtplpassMailbox(normalized) ||
     normalized === LEGACY_PERSONAL_SUPPORT_EMAIL ||
     LEGACY_CLIENT_NAME_RE.test(normalized)
   );

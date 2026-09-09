@@ -355,6 +355,8 @@ export function ensureCustomerJourneyCourses(): void {
         deliveryType: def.deliveryType,
         enrollmentOpen: true,
         hidden: false,
+        featured: /ATPL/i.test(def.code),
+        displayOrder: d.courses.length + 1,
         status: "published",
         scheduledPublishAt: null,
         primaryInstructorId: instructorId,

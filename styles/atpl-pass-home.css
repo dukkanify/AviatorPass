@@ -455,6 +455,10 @@
   padding-bottom: 7.75rem;
 }
 
+.atpl-landing-page .atpl-section {
+  padding-block: clamp(2.75rem, 5.5vw, 4.5rem);
+}
+
 @media (min-width: 640px) {
   .atpl-landing-page {
     padding-bottom: 5.25rem;

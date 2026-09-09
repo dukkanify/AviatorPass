@@ -122,3 +122,28 @@ export function publicAppUrl(pathname: string, request?: BaseUrlRequest): string
   const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return `${getBaseUrl(request)}${path}`;
 }
+
+/** Certificate QR / share links always use production — never localhost. */
+export function publicCertificateVerifyUrl(code: string): string {
+  return `${PRODUCTION_SITE_URL}/verify/certificate?code=${encodeURIComponent(code)}`;
+}
+
+/** Rewrite stored certificate verify URLs (localhost, Vercel, apex) to www.aviatorpass.com. */
+export function canonicalCertificateVerifyUrl(
+  url: string | null | undefined,
+  code?: string,
+): string {
+  if (code?.trim()) return publicCertificateVerifyUrl(code.trim());
+  if (!url) return PRODUCTION_SITE_URL + "/verify/certificate";
+  try {
+    const parsed = new URL(url);
+    const verifyCode = parsed.searchParams.get("code") ?? parsed.searchParams.get("number") ?? "";
+    if (verifyCode) return publicCertificateVerifyUrl(verifyCode);
+    if (parsed.pathname.includes("/verify/certificate")) {
+      return `${PRODUCTION_SITE_URL}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return rewriteAppAbsoluteUrl(url);
+}

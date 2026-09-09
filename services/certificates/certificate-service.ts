@@ -6,7 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import QRCode from "qrcode";
 
 import { generateId } from "@/lib/security/crypto";
-import { publicAppUrl } from "@/lib/site-origin";
+import { canonicalCertificateVerifyUrl, publicCertificateVerifyUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { siteConfig } from "@/config/site";
 import { logActivity } from "@/services/auth/activity-log";
@@ -40,7 +40,14 @@ function signCertificatePayload(payload: string): string {
 }
 
 function publicVerifyUrl(code: string): string {
-  return publicAppUrl(`/verify/certificate?code=${encodeURIComponent(code)}`);
+  return publicCertificateVerifyUrl(code);
+}
+
+function withCanonicalQr(cert: Certificate): Certificate {
+  return {
+    ...cert,
+    qrPayload: canonicalCertificateVerifyUrl(cert.qrPayload, cert.verificationCode),
+  };
 }
 
 export function listCertificates(filters?: {
@@ -54,23 +61,24 @@ export function listCertificates(filters?: {
   if (filters?.status && filters.status !== "all") {
     rows = rows.filter((c) => c.status === filters.status);
   }
-  return [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withCanonicalQr);
 }
 
 export function getCertificateById(id: string): Certificate | null {
-  return readCertificatesDb().certificates.find((c) => c.id === id) ?? null;
+  const cert = readCertificatesDb().certificates.find((c) => c.id === id) ?? null;
+  return cert ? withCanonicalQr(cert) : null;
 }
 
 export function findCertificateByVerification(query: string): Certificate | null {
   const q = query.trim().toUpperCase();
-  return (
+  const cert =
     readCertificatesDb().certificates.find(
       (c) =>
         c.verificationCode.toUpperCase() === q ||
         c.certificateNumber.toUpperCase() === q ||
         c.id === query.trim(),
-    ) ?? null
-  );
+    ) ?? null;
+  return cert ? withCanonicalQr(cert) : null;
 }
 
 export async function createCertificate(input: {
@@ -349,6 +357,94 @@ export async function reissueCertificate(input: {
   });
 
   return getCertificateById(fresh.id)!;
+}
+
+export async function updateCertificate(input: {
+  user: UserProfile;
+  id: string;
+  patch: {
+    studentName?: string;
+    certificateNumber?: string;
+    courseName?: string;
+    courseId?: string | null;
+    issueDate?: string | null;
+    status?: CertificateStatus;
+    instructorName?: string;
+    instructorId?: string | null;
+    verificationCode?: string;
+    qrPayload?: string | null;
+  };
+}): Promise<Certificate> {
+  assertCanManageCertificates(input.user);
+  const existing = getCertificateById(input.id);
+  if (!existing) throw new CertificateError("Certificate not found", 404);
+
+  const studentName = input.patch.studentName?.trim() || existing.studentName;
+  const certificateNumber = (
+    input.patch.certificateNumber?.trim() || existing.certificateNumber
+  ).toUpperCase();
+  const verificationCode = (input.patch.verificationCode?.trim() || existing.verificationCode)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!studentName) throw new CertificateError("Student name is required");
+  if (!certificateNumber) throw new CertificateError("Certificate number is required");
+  if (verificationCode.length < 6) {
+    throw new CertificateError("Verification code must be at least 6 characters");
+  }
+
+  if (
+    input.patch.status &&
+    !["draft", "pending_approval", "issued", "revoked", "expired", "reissued"].includes(
+      input.patch.status,
+    )
+  ) {
+    throw new CertificateError("Invalid certificate status", 400);
+  }
+
+  const duplicates = readCertificatesDb().certificates.filter((row) => row.id !== existing.id);
+  if (duplicates.some((row) => row.certificateNumber.toUpperCase() === certificateNumber)) {
+    throw new CertificateError("Certificate number already in use");
+  }
+  if (duplicates.some((row) => row.verificationCode.toUpperCase() === verificationCode)) {
+    throw new CertificateError("Verification code already in use");
+  }
+
+  const qrPayload = publicVerifyUrl(verificationCode);
+  const next: Certificate = {
+    ...existing,
+    studentName,
+    certificateNumber,
+    courseName: input.patch.courseName?.trim() || existing.courseName,
+    courseId: input.patch.courseId !== undefined ? input.patch.courseId : existing.courseId,
+    issueDate:
+      input.patch.issueDate !== undefined
+        ? input.patch.issueDate
+          ? input.patch.issueDate.slice(0, 10)
+          : null
+        : existing.issueDate,
+    status: input.patch.status ?? existing.status,
+    instructorName: input.patch.instructorName?.trim() || existing.instructorName,
+    instructorId:
+      input.patch.instructorId !== undefined ? input.patch.instructorId : existing.instructorId,
+    verificationCode,
+    qrPayload,
+    updatedAt: nowIso(),
+  };
+
+  writeCertificatesDb((d) => {
+    const idx = d.certificates.findIndex((c) => c.id === existing.id);
+    if (idx >= 0) d.certificates[idx] = next;
+  });
+
+  await logActivity({
+    actorId: input.user.id,
+    action: ACTIVITY_ACTIONS.CERTIFICATE_UPDATED,
+    entityType: "certificate",
+    entityId: next.id,
+    metadata: { certificateNumber: next.certificateNumber },
+  });
+
+  return getCertificateById(next.id)!;
 }
 
 export async function renderCertificateHtml(certificateId: string): Promise<{

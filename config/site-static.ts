@@ -14,8 +14,8 @@ export const siteStatic = {
   secondaryTagline: "COMPLETE AVIATION EDUCATION",
   locale: "en",
   direction: "ltr" as const,
-  contactEmail: "info@atplpass.com",
-  supportEmail: "support@atplpass.com",
+  contactEmail: "info@aviatorpass.com",
+  supportEmail: "support@aviatorpass.com",
   locations: ["Dubai", "Copenhagen", "Kuwait", "Qatar"] as const,
   socialHandle: "",
   social: {

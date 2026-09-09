@@ -126,6 +126,7 @@ export const ACTIVITY_ACTIONS = {
   CERTIFICATE_ISSUED: "certificates.issued",
   CERTIFICATE_REVOKED: "certificates.revoked",
   CERTIFICATE_REISSUED: "certificates.reissued",
+  CERTIFICATE_UPDATED: "certificates.updated",
   CERTIFICATE_TEMPLATE_UPDATED: "certificates.template_updated",
   TRANSCRIPT_GENERATED: "reports.transcript_generated",
   REPORT_EXPORTED: "reports.exported",
