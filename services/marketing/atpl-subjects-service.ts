@@ -100,7 +100,6 @@ export async function updateAtplLandingSubject(
     patch: Partial<AtplLandingSubjectWrite>;
   } & ActorCtx,
 ): Promise<AtplLandingSubject> {
-  let updated: AtplLandingSubject | null = null;
   writeAtplMarketingDb((db) => {
     const row = db.subjects.find((item) => item.id === input.id);
     if (!row) throw new CourseValidationError("Subject not found");
@@ -124,8 +123,10 @@ export async function updateAtplLandingSubject(
     }
     if (typeof input.patch.visible === "boolean") row.visible = input.patch.visible;
     row.updatedAt = new Date().toISOString();
-    updated = { ...row };
   });
+  const updated = listAtplLandingSubjects({ includeHidden: true }).find(
+    (item) => item.id === input.id,
+  );
   if (!updated) throw new CourseValidationError("Subject not found");
 
   await logActivity({
