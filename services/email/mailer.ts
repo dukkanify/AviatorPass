@@ -179,7 +179,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 
   if (resendConfigured()) {
     const displayName = email.senderName || settings.general.platformName;
-    const fromAttempts = [{ from, fallback: false as const }];
+    const fromAttempts: { from: string; fallback: boolean }[] = [{ from, fallback: false }];
     const fallbackFrom = resendOnboardingFrom(displayName);
     if (!from.toLowerCase().includes(RESEND_ONBOARDING_MAILBOX)) {
       fromAttempts.push({ from: fallbackFrom, fallback: true });
