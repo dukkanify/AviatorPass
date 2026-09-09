@@ -35,9 +35,10 @@ describe("student learning navigation", () => {
   });
 
   it("groups the primary learning destinations", () => {
+    const main = STUDENT_LEARNING_NAV_GROUPS.find((group) => group.id === "main");
     const learning = STUDENT_LEARNING_NAV_GROUPS.find((group) => group.id === "learning");
+    expect(main?.items.map((item) => item.href)).toEqual(["/student/dashboard"]);
     expect(learning?.items.map((item) => item.href)).toEqual([
-      "/student/dashboard",
       "/student/courses",
       "/student/calendar",
       "/student/planner",
@@ -105,11 +106,11 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("Continue Learning");
     expect(view).toContain("today-learning-title");
     expect(view).toContain("Upcoming Live Session");
-    expect(view).toContain("Study Planner");
-    expect(view).toContain("Quick Actions");
-    expect(view).toContain("Student Level");
-    expect(view).toContain("Learning heatmap");
-    expect(view).toContain("Notifications");
+    expect(view).toContain("Need Help?");
+    expect(view).toContain("Recent Activity");
+    expect(view).toContain("Achievements");
+    expect(view).toContain("Explore Courses");
+    expect(view).toContain("Join Live Session");
   });
 
   it("gives the student shell a collapsible sidebar and profile menu", () => {
