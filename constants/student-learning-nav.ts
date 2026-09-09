@@ -1,6 +1,7 @@
 import { STUDENT_NAV, type DashboardNavItem } from "@/constants/dashboard-nav";
 
-export type StudentNavGroupId = "learning" | "progress" | "communication" | "account" | "more";
+export type StudentNavGroupId =
+  "main" | "learning" | "progress" | "communication" | "account" | "more";
 
 export type StudentNavGroup = {
   id: StudentNavGroupId;
@@ -8,8 +9,9 @@ export type StudentNavGroup = {
   items: DashboardNavItem[];
 };
 
+const MAIN_HREFS = ["/student/dashboard"] as const;
+
 const LEARNING_HREFS = [
-  "/student/dashboard",
   "/student/courses",
   "/student/calendar",
   "/student/planner",
@@ -19,11 +21,16 @@ const LEARNING_HREFS = [
 
 const PROGRESS_HREFS = ["/student/progress", "/student/certificates"] as const;
 
-const COMMUNICATION_HREFS = ["/student/messages", "/student/support"] as const;
+const COMMUNICATION_HREFS = [
+  "/student/messages",
+  "/student/announcements",
+  "/student/support",
+] as const;
 
 const ACCOUNT_HREFS = ["/student/profile"] as const;
 
 const PRIORITY_HREFS = new Set<string>([
+  ...MAIN_HREFS,
   ...LEARNING_HREFS,
   ...PROGRESS_HREFS,
   ...COMMUNICATION_HREFS,
@@ -40,6 +47,7 @@ const LABEL_OVERRIDES: Record<string, string> = {
   "/student/progress": "Progress",
   "/student/certificates": "Certificates",
   "/student/messages": "Messages",
+  "/student/announcements": "Announcements",
   "/student/support": "Support",
   "/student/profile": "Profile",
 };
@@ -64,6 +72,11 @@ function remainingItems(): DashboardNavItem[] {
 
 export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
   {
+    id: "main",
+    label: "",
+    items: MAIN_HREFS.map(itemByHref),
+  },
+  {
     id: "learning",
     label: "Learning",
     items: LEARNING_HREFS.map(itemByHref),
@@ -71,7 +84,14 @@ export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
   {
     id: "progress",
     label: "Progress",
-    items: PROGRESS_HREFS.map(itemByHref),
+    items: [
+      ...PROGRESS_HREFS.map(itemByHref),
+      {
+        label: "Achievements",
+        href: "/student/certificates#achievements",
+        icon: "certificates",
+      },
+    ],
   },
   {
     id: "communication",
@@ -81,7 +101,14 @@ export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
   {
     id: "account",
     label: "Account",
-    items: ACCOUNT_HREFS.map(itemByHref),
+    items: [
+      ...ACCOUNT_HREFS.map(itemByHref),
+      {
+        label: "Settings",
+        href: "/student/profile#settings",
+        icon: "settings",
+      },
+    ],
   },
   {
     id: "more",

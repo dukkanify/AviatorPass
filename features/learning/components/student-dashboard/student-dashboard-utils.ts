@@ -9,7 +9,7 @@ export const AVIATION_THUMBS = [
 ] as const;
 
 export const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1436491865331-4ffd7ba14f70?auto=format&fit=crop&w=2000&q=70";
+  "https://images.unsplash.com/photo-1464037866556-6812c9d1c72f?auto=format&fit=crop&w=2000&q=80";
 
 const MOTIVATION_QUOTES = [
   "A good pilot is always a student.",
@@ -22,13 +22,20 @@ const MOTIVATION_QUOTES = [
 
 const WEATHER_BY_COUNTRY: Record<
   string,
-  { city: string; tempC: number; sky: string; windKt: number }
+  { city: string; country: string; tempC: number; sky: string; windKt: number; icon: string }
 > = {
-  KW: { city: "Kuwait", tempC: 34, sky: "Clear", windKt: 8 },
-  AE: { city: "Dubai", tempC: 36, sky: "Haze", windKt: 10 },
-  SA: { city: "Riyadh", tempC: 38, sky: "Sunny", windKt: 12 },
-  US: { city: "Fair weather", tempC: 22, sky: "Few clouds", windKt: 6 },
-  GB: { city: "London", tempC: 16, sky: "Overcast", windKt: 14 },
+  KW: {
+    city: "Kuwait City",
+    country: "Kuwait",
+    tempC: 34,
+    sky: "Clear Sky",
+    windKt: 8,
+    icon: "☀️",
+  },
+  AE: { city: "Dubai", country: "UAE", tempC: 32, sky: "Clear Sky", windKt: 10, icon: "☀️" },
+  SA: { city: "Riyadh", country: "Saudi Arabia", tempC: 38, sky: "Sunny", windKt: 12, icon: "☀️" },
+  US: { city: "Fair weather", country: "USA", tempC: 22, sky: "Few clouds", windKt: 6, icon: "⛅" },
+  GB: { city: "London", country: "UK", tempC: 16, sky: "Overcast", windKt: 14, icon: "☁️" },
 };
 
 export type PilotLevel = {
@@ -79,6 +86,40 @@ export function clampPercent(value: number): number {
 export function formatHours(hours: number): string {
   if (!Number.isFinite(hours)) return "0h";
   return `${Number(hours.toFixed(hours >= 10 ? 0 : 1))}h`;
+}
+
+export function formatHoursMinutes(hours: number): string {
+  if (!Number.isFinite(hours) || hours <= 0) return "0h";
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+export function formatHeroClock(now: Date): string {
+  return now.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+export function relativeTime(iso: string, now = Date.now()): string {
+  const diff = now - Date.parse(iso);
+  if (!Number.isFinite(diff)) return "";
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
 export function formatRemainingLessons(completed: number, total: number): string {
@@ -218,16 +259,18 @@ export function dailyMotivationQuote(now = new Date()): string {
 
 export function weatherForCountry(countryCode?: string | null): {
   city: string;
+  country: string;
   tempC: number;
   sky: string;
   windKt: number;
+  icon: string;
   label: string;
 } {
   const code = (countryCode ?? "KW").toUpperCase();
   const row = WEATHER_BY_COUNTRY[code] ?? WEATHER_BY_COUNTRY.KW!;
   return {
     ...row,
-    label: `${row.city} · ${row.tempC}°C · ${row.sky} · ${row.windKt} kt`,
+    label: `${row.city}, ${row.country} · ${row.tempC}°C · ${row.sky} · ${row.windKt} kt`,
   };
 }
 

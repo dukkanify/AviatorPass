@@ -225,9 +225,10 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
           )}
         </button>
 
-        <div className="sl-promo" aria-hidden>
-          <h2>Next Stop Your Goals</h2>
-          <p>Discipline today, Pilot tomorrow.</p>
+        <div className="sl-promo">
+          <p className="sl-promo-kicker">Keep Going</p>
+          <h2>Discipline today.</h2>
+          <p>A brighter aviation tomorrow.</p>
         </div>
       </aside>
 
@@ -302,6 +303,9 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/student/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/student/profile#settings">Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/student/certificates">Certificates</Link>
