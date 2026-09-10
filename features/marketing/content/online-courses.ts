@@ -1,3 +1,4 @@
+import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 
 export const ONLINE_COURSES_HUB = {
@@ -11,9 +12,10 @@ export const ONLINE_COURSES_HUB = {
 export const ONLINE_COURSE_PROGRAMMES = [
   {
     id: "atpl",
-    title: "ATPL Course",
+    title: PROGRAMME_TERMS.atpl.title,
+    commonName: PROGRAMME_TERMS.atpl.commonName,
     href: routes.atpl,
-    enrollLabel: "View ATPL Course",
+    enrollLabel: ACTION_LABELS.viewAtplCourse,
     modes: [{ label: "Live", href: routes.atpl }],
     summary:
       "Official ATPL syllabus. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
@@ -26,9 +28,10 @@ export const ONLINE_COURSE_PROGRAMMES = [
   },
   {
     id: "basics",
-    title: "Basics of Aviation",
+    title: PROGRAMME_TERMS.basics.title,
+    commonName: PROGRAMME_TERMS.basics.commonName,
     href: routes.onlineCoursesBasics,
-    enrollLabel: "Explore Basics of Aviation",
+    enrollLabel: "View Basics of Aviation",
     modes: [
       { label: "Recorded", href: `${routes.onlineCoursesBasics}?mode=recorded` },
       { label: "Live One-to-One", href: `${routes.onlineCoursesBasics}?mode=live` },
@@ -44,9 +47,10 @@ export const ONLINE_COURSE_PROGRAMMES = [
   },
   {
     id: "elp",
-    title: "ELP Mock Exams Live",
+    title: PROGRAMME_TERMS.elp.titleLive,
+    commonName: PROGRAMME_TERMS.elp.commonName,
     href: routes.onlineCoursesElp,
-    enrollLabel: "Explore ELP Mock Exams",
+    enrollLabel: "View ELP mock exams",
     modes: [{ label: "Live", href: routes.onlineCoursesElp }],
     summary:
       "Live English Language Proficiency mock examinations with an instructor — scheduled windows and a certificate after completion.",
@@ -59,9 +63,10 @@ export const ONLINE_COURSE_PROGRAMMES = [
   },
   {
     id: "ppl",
-    title: "Private Pilot License",
+    title: PROGRAMME_TERMS.ppl.title,
+    commonName: PROGRAMME_TERMS.ppl.commonName,
     href: routes.onlineCoursesPpl,
-    enrollLabel: "Explore Private Pilot License",
+    enrollLabel: "View Private Pilot License",
     modes: [
       { label: "Recorded", href: `${routes.onlineCoursesPpl}?mode=recorded` },
       { label: "Live One-to-One", href: `${routes.onlineCoursesPpl}?mode=live` },

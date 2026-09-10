@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { NAV_ITEMS, type MarketingNavItem } from "@/constants/navigation";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ function Header() {
   const isHome = pathname === "/";
   const onAtplCourse = pathname === routes.atpl;
   const enrolHref = onAtplCourse ? routes.checkout : routes.onlineCourses;
-  const enrolLabel = onAtplCourse ? "Enrol now" : "Explore courses";
+  const enrolLabel = onAtplCourse ? ACTION_LABELS.enrolNow : ACTION_LABELS.browseCourses;
   const solid = !(isHome && !scrolled && !open);
 
   React.useEffect(() => {

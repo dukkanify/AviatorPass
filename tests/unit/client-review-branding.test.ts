@@ -58,12 +58,12 @@ describe("final client review copy", () => {
     expect(NAV_ITEMS.some((item) => /private session/i.test(item.label))).toBe(false);
     expect(NAV_ITEMS[0]?.href).toBe(routes.onlineCourses);
     expect(NAV_ITEMS[0]?.children?.map((child) => child.hint ?? "")).toEqual([
-      "LIVE · official syllabus",
-      "Recorded",
-      "Online Course",
-      "",
-      "LIVE",
-      "Online Course",
+      "Airline Transport Pilot License · Live",
+      "Introduction to aviation · Recorded",
+      "Introduction to aviation · Live one-to-one",
+      "English Language Proficiency · Live",
+      "PPL ground school · Recorded",
+      "PPL ground school · Live one-to-one",
     ]);
     expect(ONLINE_COURSE_PROGRAMMES.map((p) => p.title)).toEqual([
       "ATPL Course",

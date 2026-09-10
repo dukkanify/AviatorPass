@@ -38,6 +38,7 @@ function OnlineCoursesHub() {
                 <h2 className="font-display text-2xl font-semibold text-[var(--landing-ink-soft)]">
                   {programme.title}
                 </h2>
+                <p className="mt-1 text-sm font-medium text-accent">{programme.commonName}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {programme.modes.map((mode) => (
                     <Link key={mode.href} href={mode.href} className="online-course-mode">

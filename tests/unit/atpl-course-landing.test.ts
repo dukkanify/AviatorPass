@@ -38,12 +38,28 @@ describe("ATPL course landing conversion path", () => {
     expect(
       NAV_ITEMS[0]?.children?.map((child) => [child.label, child.hint ?? "", child.href]),
     ).toEqual([
-      ["ATPL Course", "LIVE · official syllabus", routes.atpl],
-      ["Basics of Aviation", "Recorded", `${routes.onlineCoursesBasics}?mode=recorded`],
-      ["Basics of Aviation", "Online Course", `${routes.onlineCoursesBasics}?mode=live`],
-      ["ELP Mock Exams Live", "", routes.onlineCoursesElp],
-      ["Private Pilot License", "LIVE", `${routes.onlineCoursesPpl}?mode=recorded`],
-      ["Private Pilot License", "Online Course", `${routes.onlineCoursesPpl}?mode=live`],
+      ["ATPL Course", "Airline Transport Pilot License · Live", routes.atpl],
+      [
+        "Basics of Aviation",
+        "Introduction to aviation · Recorded",
+        `${routes.onlineCoursesBasics}?mode=recorded`,
+      ],
+      [
+        "Basics of Aviation",
+        "Introduction to aviation · Live one-to-one",
+        `${routes.onlineCoursesBasics}?mode=live`,
+      ],
+      ["ELP Mock Exams Live", "English Language Proficiency · Live", routes.onlineCoursesElp],
+      [
+        "Private Pilot License",
+        "PPL ground school · Recorded",
+        `${routes.onlineCoursesPpl}?mode=recorded`,
+      ],
+      [
+        "Private Pilot License",
+        "PPL ground school · Live one-to-one",
+        `${routes.onlineCoursesPpl}?mode=live`,
+      ],
     ]);
     const marketing = getAtplProgramMarketing();
     expect(marketing.landingHref).toBe("/atpl");

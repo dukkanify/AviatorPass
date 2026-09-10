@@ -6,6 +6,7 @@ import { GraduationCap, Compass, Headset, Clock3 } from "lucide-react";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { learningFetch } from "@/features/learning/lib/api";
 import type { CourseOffer } from "@/services/learning/course-offers-service";
@@ -31,6 +32,7 @@ function OfferCard({ offer, recommended }: { offer: CourseOffer; recommended?: b
       </div>
       <CardHeader className="space-y-1.5">
         <CardTitle className="font-display text-lg leading-tight">{offer.title}</CardTitle>
+        <p className="text-xs font-medium text-accent">{offer.commonName}</p>
         <CardDescription className="line-clamp-3">{offer.description}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto space-y-4">
@@ -43,10 +45,10 @@ function OfferCard({ offer, recommended }: { offer: CourseOffer; recommended?: b
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" className="hero-cta-primary">
-            <Link href={offer.enrollHref}>Enrol now</Link>
+            <Link href={offer.enrollHref}>{ACTION_LABELS.enrolNow}</Link>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <Link href={offer.href}>View course</Link>
+            <Link href={offer.href}>{ACTION_LABELS.viewCourse}</Link>
           </Button>
         </div>
       </CardContent>
@@ -103,15 +105,15 @@ function MyCoursesEmptyState() {
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
             <Button asChild className="hero-cta-primary min-w-[10rem]">
-              <Link href={routes.courses}>Browse Courses</Link>
+              <Link href={routes.courses}>{ACTION_LABELS.browseCourses}</Link>
             </Button>
             <Button asChild variant="outline" className="min-w-[10rem]">
-              <Link href={routes.atpl}>Explore ATPL Course</Link>
+              <Link href={routes.atpl}>{ACTION_LABELS.viewAtplCourse}</Link>
             </Button>
             <Button asChild variant="ghost" className="min-w-[10rem]">
               <Link href={routes.contact}>
                 <Headset className="size-4" aria-hidden />
-                Contact Advisor
+                {ACTION_LABELS.contactAdvisor}
               </Link>
             </Button>
           </div>
@@ -128,12 +130,13 @@ function MyCoursesEmptyState() {
               <h3 id="recommended-title" className="font-display text-xl">
                 {recommendedLead.title}
               </h3>
+              <p className="text-sm font-medium text-foreground/80">{recommendedLead.commonName}</p>
               <p className="text-sm text-muted-foreground">{recommendedLead.reason}</p>
             </div>
             <Button asChild variant="outline" size="sm">
               <Link href={recommendedLead.href}>
                 <Compass className="size-4" aria-hidden />
-                View
+                {ACTION_LABELS.viewCourse}
               </Link>
             </Button>
           </div>

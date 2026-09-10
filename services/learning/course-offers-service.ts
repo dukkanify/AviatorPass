@@ -2,6 +2,7 @@
  * Featured and recommended course offers for students with no enrolments.
  */
 
+import { PROGRAMME_TERMS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { findUserById } from "@/services/auth/store";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
@@ -13,6 +14,7 @@ import type { JourneySku } from "@/services/journeys/customer-journey-catalog";
 export type CourseOffer = {
   id: string;
   title: string;
+  commonName: string;
   description: string;
   durationLabel: string;
   priceLabel: string;
@@ -28,51 +30,55 @@ const GCC_COUNTRIES = new Set(["KW", "AE", "QA", "SA", "BH", "OM"]);
 const OFFER_DEFS = [
   {
     id: "atpl",
-    title: "ATPL Course",
+    title: PROGRAMME_TERMS.atpl.title,
+    commonName: PROGRAMME_TERMS.atpl.commonName,
     description:
-      "Official ATPL syllabus. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
+      "Official Airline Transport Pilot License syllabus. Sessions are live. Recordings are not available to students. Purchase first — your account is created automatically.",
     href: routes.atpl,
     sku: "ATPL-PACKAGE" as JourneySku,
     durationLabel: "230 hours",
     imageUrl: "/brand/og.png?v=brand-guide-4",
     featured: true,
-    defaultReason: "Featured airline theory pathway",
+    defaultReason: "The standard airline-pilot theory programme",
   },
   {
     id: "basics",
-    title: "Basics of Aviation",
+    title: PROGRAMME_TERMS.basics.title,
+    commonName: PROGRAMME_TERMS.basics.commonName,
     description:
-      "A foundation programme for new aviation students — available as a recorded course or live one-to-one with an EASA Certified Instructor.",
+      "An introduction to aviation for new students — recorded or live one-to-one with an EASA Certified Instructor.",
     href: routes.onlineCoursesBasics,
     sku: "BASICS-RECORDED" as JourneySku,
     durationLabel: "10 hours",
     imageUrl: "/images/hero-aviation.svg",
     featured: true,
-    defaultReason: "Best first step for new students",
+    defaultReason: "The usual first step for new students",
   },
   {
     id: "ppl",
-    title: "Private Pilot License",
+    title: PROGRAMME_TERMS.ppl.title,
+    commonName: PROGRAMME_TERMS.ppl.commonName,
     description:
-      "PPL ground school as a recorded programme or live one-to-one training with an EASA Certified Instructor.",
+      "Private Pilot License (PPL) ground school — recorded or live one-to-one with an EASA Certified Instructor.",
     href: routes.onlineCoursesPpl,
     sku: "PPL-RECORDED" as JourneySku,
     durationLabel: "100 hours",
     imageUrl: "/images/hero-aviation.svg",
     featured: true,
-    defaultReason: "Private Pilot ground school",
+    defaultReason: "The standard private-pilot theory course",
   },
   {
     id: "elp",
-    title: "ELP Mock Exams",
+    title: PROGRAMME_TERMS.elp.title,
+    commonName: PROGRAMME_TERMS.elp.commonName,
     description:
-      "Live English Language Proficiency mock examinations with an instructor — scheduled windows and a certificate after completion.",
+      "Live English Language Proficiency (ELP) mock exams with an instructor — scheduled windows and a certificate after completion.",
     href: routes.onlineCoursesElp,
     sku: "ELP-MOCK" as JourneySku,
     durationLabel: "Live mock exam",
     imageUrl: "/images/hero-aviation.svg",
     featured: true,
-    defaultReason: "English proficiency practice",
+    defaultReason: "The usual English-proficiency exam practice",
   },
 ] as const;
 
@@ -94,6 +100,7 @@ function buildOffers(): CourseOffer[] {
     return {
       id: def.id,
       title: def.title,
+      commonName: def.commonName,
       description: def.description,
       durationLabel: def.durationLabel,
       priceLabel: pricing.priceLabel,

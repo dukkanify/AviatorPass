@@ -33,6 +33,12 @@ describe("my courses empty state", () => {
       "Private Pilot License",
       "ELP Mock Exams",
     ]);
+    expect(featured.map((offer) => offer.commonName)).toEqual([
+      "Airline Transport Pilot License",
+      "Introduction to aviation",
+      "PPL ground school",
+      "English Language Proficiency",
+    ]);
     for (const offer of featured) {
       expect(offer.description.length).toBeGreaterThan(20);
       expect(offer.durationLabel.length).toBeGreaterThan(2);
@@ -100,11 +106,12 @@ describe("my courses empty state", () => {
       "utf8",
     );
     expect(empty).toContain("No courses yet");
-    expect(empty).toContain("Browse Courses");
-    expect(empty).toContain("Explore ATPL Course");
-    expect(empty).toContain("Contact Advisor");
+    expect(empty).toContain("ACTION_LABELS.browseCourses");
+    expect(empty).toContain("ACTION_LABELS.viewAtplCourse");
+    expect(empty).toContain("ACTION_LABELS.contactAdvisor");
     expect(empty).toContain("Recommended for you");
-    expect(empty).toContain("Enrol now");
+    expect(empty).toContain("ACTION_LABELS.enrolNow");
+    expect(empty).toContain("offer.commonName");
     const dash = readFileSync(
       path.join(
         process.cwd(),
@@ -115,8 +122,8 @@ describe("my courses empty state", () => {
     expect(dash).toContain("Welcome to Aviator Pass!");
     expect(dash).toContain("Start by enrolling in your first course.");
     expect(dash).not.toContain("ATPL 010 — Air Law (Live)");
-    expect(dash).toContain("Enrol to unlock live sessions");
-    expect(dash).toContain("Enrol in a course");
+    expect(dash).toContain("ACTION_LABELS.enrolToUnlockLive");
+    expect(dash).toContain("ACTION_LABELS.enrolInACourse");
     const contact = readFileSync(
       path.join(process.cwd(), "app/(marketing)/contact/page.tsx"),
       "utf8",
