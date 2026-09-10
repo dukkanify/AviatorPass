@@ -214,6 +214,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
               : {}),
           },
         });
+        console.info("[email:resend]", {
+          to,
+          subject: input.subject,
+          messageId: info.id,
+          from: attempt.from,
+          fallback: attempt.fallback,
+        });
         logEmailEvent(
           "email_sent",
           {
@@ -237,6 +244,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Resend send failed";
+        console.error("[email:resend]", { to, subject: input.subject, error: message });
         errors.push(message);
         const tryFallback = !attempt.fallback && isUnverifiedResendDomainError(message);
         if (!tryFallback) break;
@@ -284,11 +292,21 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         queueStatus: "none",
         meta: { ...(input.meta ?? {}), smtpMessageId: info.messageId },
       });
+      console.info("[email:smtp]", {
+        to,
+        subject: input.subject,
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        response: info.response,
+      });
       logEmailEvent("email_sent", {
         to,
         subject: input.subject,
         mode: "smtp",
         outboxId: record.id,
+        smtpMessageId: info.messageId,
+        smtpResponse: info.response,
       });
       return {
         success: true,
@@ -300,7 +318,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         record,
       };
     } catch (error) {
-      errors.push(error instanceof Error ? error.message : "SMTP send failed");
+      const message = error instanceof Error ? error.message : "SMTP send failed";
+      console.error("[email:smtp]", { to, subject: input.subject, error: message });
+      errors.push(message);
     }
   }
 

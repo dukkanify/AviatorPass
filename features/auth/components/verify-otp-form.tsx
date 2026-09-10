@@ -45,12 +45,18 @@ function VerifyOtpForm() {
   const [token, setToken] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [resending, setResending] = React.useState(false);
-  const [resendIn, setResendIn] = React.useState(RESEND_DEFAULT_SECONDS);
+  const [resendIn, setResendIn] = React.useState(
+    searchParams.get("emailFailed") === "1" ? 0 : RESEND_DEFAULT_SECONDS,
+  );
   const [expiresIn, setExpiresIn] = React.useState(EXPIRY_DEFAULT_SECONDS);
   const [shake, setShake] = React.useState(false);
   const [successFlash, setSuccessFlash] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const purpose = (searchParams.get("purpose") ?? "login") as OtpPurpose;
+  const emailFailed = searchParams.get("emailFailed") === "1";
+  const isRegistration = purpose === "register";
+  const [deliveryFailed, setDeliveryFailed] = React.useState(emailFailed);
+  const autoRetryStarted = React.useRef(false);
   const changeHref =
     purpose === "register"
       ? routes.register
@@ -137,7 +143,7 @@ function VerifyOtpForm() {
     }
   };
 
-  const onResend = async () => {
+  const onResend = React.useCallback(async () => {
     if (resendIn > 0 || !email) return;
     setResending(true);
     setErrorMsg(null);
@@ -146,6 +152,7 @@ function VerifyOtpForm() {
         demoOtp?: string;
         resendAvailableInSeconds?: number;
         expiresInMinutes?: number;
+        verificationEmailSent?: boolean;
       }>(routes.api.auth.resendOtp, {
         method: "POST",
         body: JSON.stringify({ email, purpose }),
@@ -157,19 +164,49 @@ function VerifyOtpForm() {
       setToken("");
       setResendIn(result.data?.resendAvailableInSeconds ?? RESEND_DEFAULT_SECONDS);
       setExpiresIn((result.data?.expiresInMinutes ?? 10) * 60);
-      // Never surface OTP codes in the UI — even in demo, prefer email/outbox only.
+      if (
+        result.data &&
+        "verificationEmailSent" in result.data &&
+        result.data.verificationEmailSent === false
+      ) {
+        setDeliveryFailed(true);
+        toast.error(
+          "Your account has been created successfully, but we couldn't send the verification email. Please click 'Resend Verification Email'.",
+        );
+        return;
+      }
+      setDeliveryFailed(false);
       toast.success("A new verification code was sent. Check inbox and spam.");
     } catch {
       triggerError("Network error. Please retry.");
     } finally {
       setResending(false);
     }
-  };
+  }, [email, purpose, resendIn]);
+
+  React.useEffect(() => {
+    if (!emailFailed || !email || autoRetryStarted.current) return;
+    autoRetryStarted.current = true;
+    void onResend();
+  }, [email, emailFailed, onResend]);
 
   const expiryLabel = `${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, "0")}`;
 
+  const resendLabel = isRegistration ? "Resend Verification Email" : "Resend verification code";
+
   return (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
+      {isRegistration && deliveryFailed ? (
+        <div
+          className="rounded-xl border border-amber-500/30 bg-amber-50 px-3.5 py-3 text-sm text-amber-950"
+          role="status"
+        >
+          <p>
+            Your account has been created successfully, but we couldn&apos;t send the verification
+            email. Please click &apos;Resend Verification Email&apos;.
+          </p>
+        </div>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -290,7 +327,7 @@ function VerifyOtpForm() {
             disabled={resending || !email}
             className="font-medium text-primary underline-offset-2 hover:underline disabled:opacity-60"
           >
-            {resending ? "Sending…" : "Resend verification code"}
+            {resending ? "Sending…" : resendLabel}
           </button>
         )}
       </div>

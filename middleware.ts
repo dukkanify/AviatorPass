@@ -142,6 +142,7 @@ export async function middleware(request: NextRequest) {
       lower === "/register" ||
       lower === "/register/instructor" ||
       lower === "/verify-otp" ||
+      lower === "/verify-email" ||
       lower === "/blog" ||
       lower === "/checkout" ||
       lower === "/welcome" ||

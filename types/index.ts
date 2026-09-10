@@ -142,6 +142,8 @@ export interface ApiResponse<T = unknown> {
   data: T | null;
   error: string | null;
   success: boolean;
+  /** Field to highlight when validation fails (for example email or phone). */
+  field?: string | null;
 }
 
 export interface PaginatedResponse<T> {
