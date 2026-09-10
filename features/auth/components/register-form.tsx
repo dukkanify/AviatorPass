@@ -13,7 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { REGISTRATION_COUNTRIES } from "@/constants/countries";
 import {
+  firstPasswordIssue,
+  hasPasswordSpecialCharacter,
   PASSWORD_REQUIREMENTS,
+  PASSWORD_SPECIAL_ERROR,
   passwordMeetsAllRequirements,
   passwordsMatch,
   passwordStrength,
@@ -127,6 +130,8 @@ function RegisterForm({
   const [honeypot, setHoneypot] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [passwordBlurred, setPasswordBlurred] = React.useState(false);
+  const [submitAttempted, setSubmitAttempted] = React.useState(false);
   const firstNameRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -169,6 +174,37 @@ function RegisterForm({
   };
   const formReady = registerSchema.safeParse(formDraft).success;
   const canSubmit = formReady && passwordValid && confirmMatches && !pending;
+  const revealPasswordError = passwordBlurred || submitAttempted;
+  const passwordFieldError =
+    revealPasswordError && errors.password
+      ? errors.password === PASSWORD_SPECIAL_ERROR && hasPasswordSpecialCharacter(password)
+        ? undefined
+        : errors.password
+      : undefined;
+
+  const syncPasswordError = (value: string, reveal: boolean) => {
+    const issue = firstPasswordIssue(value);
+    const hideSpecial =
+      issue?.id === "special" && hasPasswordSpecialCharacter(value) ? undefined : issue;
+    setErrors((prev) => {
+      if (!reveal) {
+        if (prev.password === PASSWORD_SPECIAL_ERROR && hasPasswordSpecialCharacter(value)) {
+          const next = { ...prev };
+          delete next.password;
+          return next;
+        }
+        return prev;
+      }
+      if (!hideSpecial) {
+        if (!prev.password) return prev;
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      }
+      if (prev.password === hideSpecial.message) return prev;
+      return { ...prev, password: hideSpecial.message };
+    });
+  };
 
   const selectRole = (next: RegisterRole) => {
     if (next === "instructor") {
@@ -197,17 +233,26 @@ function RegisterForm({
       return;
     }
 
+    setSubmitAttempted(true);
     const parsed = registerSchema.safeParse(formDraft);
 
     if (!parsed.success) {
       const next: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
         const key = String(issue.path[0] ?? "form");
+        if (
+          key === "password" &&
+          issue.message === PASSWORD_SPECIAL_ERROR &&
+          hasPasswordSpecialCharacter(formDraft.password)
+        ) {
+          continue;
+        }
         if (!next[key]) next[key] = issue.message;
       }
       setErrors(next);
       focusFirstInvalidField(Object.keys(next));
-      toast.error(parsed.error.issues[0]?.message ?? "Please fix the highlighted fields");
+      const toastMessage = Object.values(next)[0] ?? parsed.error.issues[0]?.message;
+      toast.error(toastMessage ?? "Please fix the highlighted fields");
       return;
     }
 
@@ -469,10 +514,15 @@ function RegisterForm({
               autoComplete="new-password"
               value={password}
               onChange={(e) => {
-                setPassword(e.target.value);
-                clearFieldError(setErrors, "password");
+                const next = e.target.value;
+                setPassword(next);
+                syncPasswordError(next, revealPasswordError);
               }}
-              aria-invalid={Boolean(errors.password)}
+              onBlur={() => {
+                setPasswordBlurred(true);
+                syncPasswordError(password, true);
+              }}
+              aria-invalid={Boolean(passwordFieldError)}
               aria-describedby="password-requirements password-strength"
               className="pr-10"
               required
@@ -541,14 +591,17 @@ function RegisterForm({
                   <span>
                     {met ? "✓ " : ""}
                     {rule.label}
+                    {rule.id === "special" && !met && "hint" in rule ? (
+                      <span className="text-muted-foreground"> ({rule.hint})</span>
+                    ) : null}
                   </span>
                 </li>
               );
             })}
           </ul>
-          {errors.password ? (
+          {passwordFieldError ? (
             <p className="text-xs text-destructive" role="alert">
-              {errors.password}
+              {passwordFieldError}
             </p>
           ) : null}
         </div>

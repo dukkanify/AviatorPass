@@ -165,7 +165,9 @@ describe("registration verification flow", () => {
     expect(form).toContain("Passwords match");
     expect(form).toContain("disabled={!canSubmit}");
     expect(form).toContain("routes.verifyEmail");
-    expect(form).not.toContain("Password must include a special character");
+    expect(form).toContain("passwordBlurred");
+    expect(form).toContain("PASSWORD_SPECIAL_ERROR");
+    expect(form).not.toMatch(/"Password must include a special character"/);
     const verify = readFileSync(
       path.join(process.cwd(), "features/auth/components/verify-otp-form.tsx"),
       "utf8",

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { REGISTRATION_COUNTRIES } from "@/constants/countries";
+import { passwordIssues } from "@/utils/password-rules";
 import { validateRegistrationPhoneE164 } from "@/utils/registration-phone";
 
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
@@ -56,12 +57,12 @@ export const phoneSchema = internationalPhoneSchema.optional().or(z.literal(""))
 
 export const passwordSchema = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(128)
-  .regex(/[a-z]/, "Password must include a lowercase letter")
-  .regex(/[A-Z]/, "Password must include an uppercase letter")
-  .regex(/[0-9]/, "Password must include a number")
-  .regex(/[^A-Za-z0-9]/, "Password must include a special character");
+  .max(128, "Use 128 characters or fewer")
+  .superRefine((value, ctx) => {
+    for (const issue of passwordIssues(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message });
+    }
+  });
 
 export const loginSchema = z.object({
   email: emailSchema,
