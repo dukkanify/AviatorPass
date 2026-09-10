@@ -115,6 +115,8 @@ describe("my courses empty state", () => {
     expect(dash).toContain("Welcome to Aviator Pass!");
     expect(dash).toContain("Start by enrolling in your first course.");
     expect(dash).not.toContain("ATPL 010 — Air Law (Live)");
+    expect(dash).toContain("Enrol to unlock live sessions");
+    expect(dash).toContain("Enrol in a course");
     const contact = readFileSync(
       path.join(process.cwd(), "app/(marketing)/contact/page.tsx"),
       "utf8",

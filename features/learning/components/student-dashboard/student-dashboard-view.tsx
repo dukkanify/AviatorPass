@@ -168,18 +168,26 @@ function LearningDashboardView() {
     (sum, course) => sum + (course.learning?.totalLessons ?? 0),
     0,
   );
-  const plannerItems = calendar.length > 0 ? calendar : sessions.map(sessionToCalendar);
+  const hasEnrolledCourses = courses.length > 0;
+  const plannerItems = hasEnrolledCourses
+    ? calendar.length > 0
+      ? calendar
+      : sessions.map(sessionToCalendar)
+    : [];
   const todayItems = plannerItems.filter((item) => sameDay(item.startsAt, now));
-  const liveItem =
-    calendar.find(
-      (item) =>
-        item.type === "live_class" &&
-        (overview?.upcomingLiveClassId
-          ? item.id.endsWith(overview.upcomingLiveClassId)
-          : item.status === "upcoming"),
-    ) ?? calendar.find((item) => item.type === "live_class");
+  const liveItem = hasEnrolledCourses
+    ? (calendar.find(
+        (item) =>
+          item.type === "live_class" &&
+          (overview?.upcomingLiveClassId
+            ? item.id.endsWith(overview.upcomingLiveClassId)
+            : item.status === "upcoming"),
+      ) ?? calendar.find((item) => item.type === "live_class"))
+    : undefined;
   const liveStartsAt = liveItem?.startsAt ?? null;
-  const instructorName = currentCourse?.primaryInstructorName ?? "Khalid Al Rashid";
+  const instructorName = hasEnrolledCourses
+    ? (currentCourse?.primaryInstructorName ?? "Instructor")
+    : "Academy team";
   const activityDates = [
     ...(overview?.recentActivity.map((event) => event.createdAt) ?? []),
     ...sessions.map((session) => session.scheduledStart),
@@ -196,7 +204,6 @@ function LearningDashboardView() {
   const quote = dailyMotivationQuote(new Date(now));
   const streak = Math.max(learningStreak(activityDates, new Date(now)), overview ? 1 : 0);
   const gpa = academicGpa(overview?.progressPercent ?? 0, completedLessons);
-  const hasEnrolledCourses = courses.length > 0;
   const continueTitle = resume?.courseTitle ?? currentCourse?.title ?? "Start your first course";
   const continueProgress = clampPercent(
     currentCourse?.learning?.progressPercent ?? overview?.progressPercent ?? 0,
