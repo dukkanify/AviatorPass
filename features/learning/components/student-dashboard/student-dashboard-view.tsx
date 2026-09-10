@@ -196,7 +196,8 @@ function LearningDashboardView() {
   const quote = dailyMotivationQuote(new Date(now));
   const streak = Math.max(learningStreak(activityDates, new Date(now)), overview ? 1 : 0);
   const gpa = academicGpa(overview?.progressPercent ?? 0, completedLessons);
-  const continueTitle = resume?.courseTitle ?? currentCourse?.title ?? "ATPL 010 — Air Law";
+  const hasEnrolledCourses = courses.length > 0;
+  const continueTitle = resume?.courseTitle ?? currentCourse?.title ?? "Start your first course";
   const continueProgress = clampPercent(
     currentCourse?.learning?.progressPercent ?? overview?.progressPercent ?? 0,
   );
@@ -328,6 +329,29 @@ function LearningDashboardView() {
 
   return (
     <div className="sl-dashboard">
+      {!hasEnrolledCourses ? (
+        <section
+          className="sl-card"
+          aria-label="Welcome to Aviator Pass"
+          style={{ marginBottom: 16 }}
+        >
+          <p className="sl-kicker" style={{ color: "var(--sl-gold-deep)" }}>
+            Welcome to Aviator Pass!
+          </p>
+          <h2 style={{ marginTop: 6 }}>Start by enrolling in your first course.</h2>
+          <p className="sl-muted">
+            Browse available programmes or open the ATPL course to begin your aviation journey.
+          </p>
+          <div className="sl-hero-actions" style={{ marginTop: 14 }}>
+            <Link className="sl-btn-gold" href="/courses">
+              Browse Courses
+            </Link>
+            <Link className="sl-btn-ghost" href="/atpl">
+              Explore ATPL Course
+            </Link>
+          </div>
+        </section>
+      ) : null}
       <motion.section
         className="sl-hero sl-hero--command"
         aria-label="Welcome back"
@@ -462,18 +486,26 @@ function LearningDashboardView() {
               </div>
               <div>
                 <p className="sl-kicker" style={{ color: "var(--sl-gold-deep)" }}>
-                  In progress
+                  {hasEnrolledCourses ? "In progress" : "Get started"}
                 </p>
                 <h3>{continueTitle}</h3>
-                <p className="sl-muted">{continueLesson}</p>
-                <div className="sl-progress" aria-hidden>
-                  <i style={{ width: `${continueProgress}%` }} />
-                </div>
-                <p className="sl-muted">{continueProgress}% complete</p>
+                <p className="sl-muted">
+                  {hasEnrolledCourses
+                    ? continueLesson
+                    : "Browse available courses and enrol to unlock lessons here."}
+                </p>
+                {hasEnrolledCourses ? (
+                  <>
+                    <div className="sl-progress" aria-hidden>
+                      <i style={{ width: `${continueProgress}%` }} />
+                    </div>
+                    <p className="sl-muted">{continueProgress}% complete</p>
+                  </>
+                ) : null}
               </div>
-              <Link className="sl-btn-navy" href={resumeHref}>
+              <Link className="sl-btn-navy" href={hasEnrolledCourses ? resumeHref : "/courses"}>
                 <PlayCircle className="h-4 w-4" aria-hidden />
-                Continue Lesson
+                {hasEnrolledCourses ? "Continue Lesson" : "Browse Courses"}
               </Link>
             </div>
           </section>

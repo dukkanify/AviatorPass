@@ -159,6 +159,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     defaultBody: "You are enrolled and can open your course.",
     audiences: ["student"],
   },
+  "course.onboarding": {
+    type: "course.onboarding",
+    category: "course",
+    priority: "medium",
+    delivery: "immediate",
+    emailDefault: false,
+    defaultTitle: "Welcome to Aviator Pass!",
+    defaultBody: "Start by enrolling in your first course.",
+    audiences: ["student"],
+  },
   "course.atpl_enrolled": {
     type: "course.atpl_enrolled",
     category: "course",

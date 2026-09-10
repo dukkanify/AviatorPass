@@ -136,6 +136,7 @@ export async function middleware(request: NextRequest) {
       lower === "/book" ||
       lower === "/courses" ||
       lower === "/atpl" ||
+      lower === "/contact" ||
       lower === "/flightpath" ||
       lower === "/live" ||
       lower === "/login" ||

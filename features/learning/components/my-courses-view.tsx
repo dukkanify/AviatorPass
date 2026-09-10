@@ -5,8 +5,8 @@ import Link from "@/components/ui/app-link";
 import { Bookmark, PlayCircle, Search, Star } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { MyCoursesEmptyState } from "@/features/learning/components/my-courses-empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,27 +81,29 @@ function MyCoursesView() {
         breadcrumbs={[{ label: "Student" }, { label: "My Courses" }]}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Search courses…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+      {loading || error || courses.length > 0 ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Search courses…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+          <select
+            className="h-10 rounded-xl border border-border bg-card px-3 text-sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="Sort courses"
+          >
+            <option value="recent">Recently accessed</option>
+            <option value="title">Title</option>
+            <option value="progress">Progress</option>
+          </select>
         </div>
-        <select
-          className="h-10 rounded-xl border border-border bg-card px-3 text-sm"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as typeof sort)}
-          aria-label="Sort courses"
-        >
-          <option value="recent">Recently accessed</option>
-          <option value="title">Title</option>
-          <option value="progress">Progress</option>
-        </select>
-      </div>
+      ) : null}
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2">
@@ -112,11 +114,7 @@ function MyCoursesView() {
       ) : error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : courses.length === 0 ? (
-        <EmptyState
-          icon={<PlayCircle className="h-6 w-6" />}
-          title="No enrolled courses"
-          description="When you enroll in a program it will appear here."
-        />
+        <MyCoursesEmptyState />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {courses.map((course) => {
