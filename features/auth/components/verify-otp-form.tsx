@@ -206,10 +206,6 @@ function VerifyOtpForm() {
             email. Please click &apos;Resend Verification Email&apos;.
           </p>
         </div>
-      ) : isRegistration ? (
-        <p className="text-sm text-muted-foreground">
-          Account created successfully. Enter the 6-digit code we sent to your inbox.
-        </p>
       ) : null}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>

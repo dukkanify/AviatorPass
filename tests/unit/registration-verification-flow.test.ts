@@ -173,5 +173,6 @@ describe("registration verification flow", () => {
     expect(verify).toContain("Resend Verification Email");
     expect(verify).toContain("couldn't send the verification email");
     expect(verify).toContain("autoRetryStarted");
+    expect(verify).not.toContain("Enter the 6-digit code we sent to your inbox.");
   });
 });
