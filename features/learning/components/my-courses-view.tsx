@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "@/components/ui/app-link";
 import { Bookmark, PlayCircle, Search, Star } from "lucide-react";
 
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { MyCoursesEmptyState } from "@/features/learning/components/my-courses-empty-state";
@@ -155,7 +156,7 @@ function MyCoursesView() {
                     <Button asChild size="sm">
                       <Link href={href}>
                         <PlayCircle className="size-4" />
-                        Continue
+                        {ACTION_LABELS.continueLesson}
                       </Link>
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => void toggleFavorite(course)}>

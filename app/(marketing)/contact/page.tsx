@@ -5,11 +5,13 @@ import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import { siteStatic } from "@/config/site-static";
+import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 
 export const metadata: Metadata = {
   title: "Contact an advisor",
-  description: "Speak with Aviator Pass about ATPL, PPL, Basics of Aviation, or ELP mock exams.",
+  description:
+    "Speak with Aviator Pass about ATPL (Airline Transport Pilot License), PPL (Private Pilot License), Basics of Aviation, or ELP (English Language Proficiency) mock exams.",
   alternates: { canonical: routes.contact },
   openGraph: {
     title: `Contact an advisor | ${siteConfig.name}`,
@@ -25,8 +27,10 @@ export default function ContactPage() {
           <p className="atpl-kicker">{siteStatic.tagline}</p>
           <h1 className="atpl-heading-light mt-4">Contact an advisor</h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">
-            Tell us where you are in your aviation journey. We will help you choose ATPL, Basics of
-            Aviation, Private Pilot License, or ELP mock exams.
+            Tell us where you are in your aviation journey. We will help you choose the{" "}
+            {PROGRAMME_TERMS.atpl.title} ({PROGRAMME_TERMS.atpl.commonName}),{" "}
+            {PROGRAMME_TERMS.basics.title}, {PROGRAMME_TERMS.ppl.title} ({PROGRAMME_TERMS.ppl.short}
+            ), or {PROGRAMME_TERMS.elp.title} ({PROGRAMME_TERMS.elp.commonName}).
           </p>
         </div>
       </section>
@@ -65,10 +69,10 @@ export default function ContactPage() {
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <Button asChild className="hero-cta-primary">
-                <Link href={routes.courses}>Browse Courses</Link>
+                <Link href={routes.courses}>{ACTION_LABELS.browseCourses}</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href={routes.atpl}>Explore ATPL Course</Link>
+                <Link href={routes.atpl}>{ACTION_LABELS.viewAtplCourse}</Link>
               </Button>
             </div>
           </aside>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import Link from "@/components/ui/app-link";
+import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
 import { learningFetch } from "@/features/learning/lib/api";
 import { safePath } from "@/lib/links/safe-href";
 import { useAuth } from "@/providers/auth-provider";
@@ -276,11 +277,11 @@ function LearningDashboardView() {
             {
               id: "enrol",
               time: "Today",
-              title: "Enrol in a course",
+              title: ACTION_LABELS.enrolInACourse,
               detail: "Browse programmes and start your first enrolment.",
               href: "/courses",
               live: false,
-              action: "Browse",
+              action: ACTION_LABELS.browseCourses,
             },
           ];
 
@@ -359,14 +360,15 @@ function LearningDashboardView() {
           </p>
           <h2 style={{ marginTop: 6 }}>Start by enrolling in your first course.</h2>
           <p className="sl-muted">
-            Browse available programmes or open the ATPL course to begin your aviation journey.
+            Browse all courses, or open the ATPL Course ({PROGRAMME_TERMS.atpl.commonName}) to
+            start.
           </p>
           <div className="sl-hero-actions" style={{ marginTop: 14 }}>
             <Link className="sl-btn-gold" href="/courses">
-              Browse Courses
+              {ACTION_LABELS.browseCourses}
             </Link>
             <Link className="sl-btn-ghost" href="/atpl">
-              Explore ATPL Course
+              {ACTION_LABELS.viewAtplCourse}
             </Link>
           </div>
         </section>
@@ -524,7 +526,7 @@ function LearningDashboardView() {
               </div>
               <Link className="sl-btn-navy" href={hasEnrolledCourses ? resumeHref : "/courses"}>
                 <PlayCircle className="h-4 w-4" aria-hidden />
-                {hasEnrolledCourses ? "Continue Lesson" : "Browse Courses"}
+                {hasEnrolledCourses ? ACTION_LABELS.continueLesson : ACTION_LABELS.browseCourses}
               </Link>
             </div>
           </section>
@@ -640,7 +642,7 @@ function LearningDashboardView() {
             <h2 id="live-session-title">
               {hasEnrolledCourses
                 ? (overview.upcomingLiveClass ?? liveItem?.title ?? "No live class booked")
-                : "Enrol to unlock live sessions"}
+                : ACTION_LABELS.enrolToUnlockLive}
             </h2>
             <p className="sl-muted">
               {hasEnrolledCourses
@@ -660,7 +662,7 @@ function LearningDashboardView() {
               </button>
             ) : (
               <Link className="sl-btn-gold" href="/courses">
-                Browse Courses
+                {ACTION_LABELS.browseCourses}
               </Link>
             )}
           </section>

@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@/constants/permissions";
+import { PROGRAMME_TERMS } from "@/constants/programme-terms";
 import type { Permission } from "@/constants/permissions";
 import type { Role } from "@/constants/roles";
 import { routes } from "@/constants/routes";
@@ -20,27 +21,35 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
     label: "Online Courses",
     href: routes.onlineCourses,
     children: [
-      { label: "ATPL Course", href: routes.atpl, hint: "LIVE · official syllabus" },
       {
-        label: "Basics of Aviation",
+        label: PROGRAMME_TERMS.atpl.title,
+        href: routes.atpl,
+        hint: `${PROGRAMME_TERMS.atpl.commonName} · Live`,
+      },
+      {
+        label: PROGRAMME_TERMS.basics.title,
         href: `${routes.onlineCoursesBasics}?mode=recorded`,
-        hint: "Recorded",
+        hint: `${PROGRAMME_TERMS.basics.commonName} · Recorded`,
       },
       {
-        label: "Basics of Aviation",
+        label: PROGRAMME_TERMS.basics.title,
         href: `${routes.onlineCoursesBasics}?mode=live`,
-        hint: "Online Course",
+        hint: `${PROGRAMME_TERMS.basics.commonName} · Live one-to-one`,
       },
-      { label: "ELP Mock Exams Live", href: routes.onlineCoursesElp },
       {
-        label: "Private Pilot License",
+        label: PROGRAMME_TERMS.elp.titleLive,
+        href: routes.onlineCoursesElp,
+        hint: `${PROGRAMME_TERMS.elp.commonName} · Live`,
+      },
+      {
+        label: PROGRAMME_TERMS.ppl.title,
         href: `${routes.onlineCoursesPpl}?mode=recorded`,
-        hint: "LIVE",
+        hint: `${PROGRAMME_TERMS.ppl.commonName} · Recorded`,
       },
       {
-        label: "Private Pilot License",
+        label: PROGRAMME_TERMS.ppl.title,
         href: `${routes.onlineCoursesPpl}?mode=live`,
-        hint: "Online Course",
+        hint: `${PROGRAMME_TERMS.ppl.commonName} · Live one-to-one`,
       },
     ],
   },

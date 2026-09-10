@@ -197,9 +197,9 @@ export const STUDENT_NAV: DashboardNavItem[] = [
   { label: "Community", href: "/student/community", icon: "communities" },
   { label: "Announcements", href: "/student/announcements", icon: "megaphone" },
   { label: "Support", href: "/student/support", icon: "support" },
-  { label: "Checkout", href: "/student/checkout", icon: "payments" },
-  { label: "Billing", href: "/student/billing", icon: "wallet" },
-  { label: "Comm Search", href: "/student/comm-search", icon: "search" },
+  { label: "Course checkout", href: "/student/checkout", icon: "payments" },
+  { label: "Billing & invoices", href: "/student/billing", icon: "wallet" },
+  { label: "Search messages", href: "/student/comm-search", icon: "search" },
   { label: "Notifications", href: "/student/notifications", icon: "notifications" },
   { label: "Profile", href: "/student/profile", icon: "profile" },
 ];
