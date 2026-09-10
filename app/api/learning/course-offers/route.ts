@@ -4,6 +4,7 @@ import { PERMISSIONS } from "@/constants/permissions";
 import { requirePermission } from "@/services/auth/guards";
 import { listHistory } from "@/services/learning/history-service";
 import {
+  deriveStudentType,
   ensureCourseOnboardingNotification,
   listCourseOffers,
 } from "@/services/learning/course-offers-service";
@@ -19,6 +20,10 @@ export async function GET() {
       userId: user.id,
       countryCode: user.countryCode,
       activityHints: hints,
+      studentType: deriveStudentType({
+        profileComplete: user.profileComplete,
+        createdAt: user.createdAt,
+      }),
     });
     if (!data.hasEnrollments) {
       await ensureCourseOnboardingNotification(user.id);

@@ -33,7 +33,7 @@ const OFFER_DEFS = [
       "Official ATPL syllabus. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
     href: routes.atpl,
     sku: "ATPL-PACKAGE" as JourneySku,
-    durationLabel: "Live ATPL programme",
+    durationLabel: "230 hours",
     imageUrl: "/brand/og.png?v=brand-guide-4",
     featured: true,
     defaultReason: "Featured airline theory pathway",
@@ -108,13 +108,21 @@ function buildOffers(): CourseOffer[] {
 
 function scoreOffer(
   offer: CourseOffer,
-  input: { countryCode?: string | null; activityHints?: string[] },
+  input: {
+    countryCode?: string | null;
+    activityHints?: string[];
+    studentType?: "new" | "returning";
+  },
 ): number {
   let score = offer.featured ? 10 : 0;
   const country = (input.countryCode ?? "").toUpperCase();
   const blob = (input.activityHints ?? []).join(" ").toLowerCase();
   if (GCC_COUNTRIES.has(country) && offer.id === "atpl") score += 8;
-  if (!GCC_COUNTRIES.has(country) && offer.id === "basics") score += 6;
+  if (!GCC_COUNTRIES.has(country) && offer.id === "basics" && input.studentType !== "returning") {
+    score += 6;
+  }
+  if (input.studentType === "new" && offer.id === "basics") score += 5;
+  if (input.studentType === "returning" && offer.id === "atpl") score += 3;
   if (blob.includes(offer.id) || blob.includes(offer.title.toLowerCase())) score += 12;
   if (blob.includes("atpl") && offer.id === "atpl") score += 6;
   if (blob.includes("ppl") && offer.id === "ppl") score += 6;
@@ -128,10 +136,22 @@ export function studentHasActiveEnrolment(userId: string): boolean {
   );
 }
 
+export function deriveStudentType(input: {
+  profileComplete?: boolean | null;
+  createdAt?: string | null;
+}): "new" | "returning" {
+  if (input.profileComplete === false) return "new";
+  const createdAt = input.createdAt ? Date.parse(input.createdAt) : Number.NaN;
+  if (!Number.isFinite(createdAt)) return "new";
+  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+  return Date.now() - createdAt < fourteenDays ? "new" : "returning";
+}
+
 export function listCourseOffers(input: {
   userId: string;
   countryCode?: string | null;
   activityHints?: string[];
+  studentType?: "new" | "returning";
 }): { featured: CourseOffer[]; recommended: CourseOffer[]; hasEnrollments: boolean } {
   const featured = buildOffers();
   const recommended = [...featured]

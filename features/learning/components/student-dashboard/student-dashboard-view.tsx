@@ -235,35 +235,47 @@ function LearningDashboardView() {
   const schedule =
     mappedSchedule.length > 0
       ? mappedSchedule
-      : [
-          {
-            id: "live",
-            time: "10:00 AM",
-            title: "Live Class",
-            detail: continueTitle,
-            href: "/student/calendar",
-            live: true,
-            action: "Join",
-          },
-          {
-            id: "study",
-            time: "02:00 PM",
-            title: "Self Study",
-            detail: continueTitle,
-            href: resumeHref,
-            live: false,
-            action: null,
-          },
-          {
-            id: "exam",
-            time: "05:00 PM",
-            title: "Mock Exam",
-            detail: "Timed practice paper",
-            href: "/student/mock-exams",
-            live: false,
-            action: "Start",
-          },
-        ];
+      : hasEnrolledCourses
+        ? [
+            {
+              id: "live",
+              time: "10:00 AM",
+              title: "Live Class",
+              detail: continueTitle,
+              href: "/student/calendar",
+              live: true,
+              action: "Join",
+            },
+            {
+              id: "study",
+              time: "02:00 PM",
+              title: "Self Study",
+              detail: continueTitle,
+              href: resumeHref,
+              live: false,
+              action: null,
+            },
+            {
+              id: "exam",
+              time: "05:00 PM",
+              title: "Mock Exam",
+              detail: "Timed practice paper",
+              href: "/student/mock-exams",
+              live: false,
+              action: "Start",
+            },
+          ]
+        : [
+            {
+              id: "enrol",
+              time: "Today",
+              title: "Enrol in a course",
+              detail: "Browse programmes and start your first enrolment.",
+              href: "/courses",
+              live: false,
+              action: "Browse",
+            },
+          ];
 
   const achievements = [
     {
@@ -619,21 +631,31 @@ function LearningDashboardView() {
               </div>
             </div>
             <h2 id="live-session-title">
-              {overview.upcomingLiveClass ?? liveItem?.title ?? "ATPL 010 — Air Law (Live)"}
+              {hasEnrolledCourses
+                ? (overview.upcomingLiveClass ?? liveItem?.title ?? "No live class booked")
+                : "Enrol to unlock live sessions"}
             </h2>
             <p className="sl-muted">
-              {liveStartsAt
-                ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
-                : "No live class is booked yet — open the calendar to reserve a seat."}
+              {hasEnrolledCourses
+                ? liveStartsAt
+                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
+                  : "No live class is booked yet — open the calendar to reserve a seat."
+                : "Live classes appear here after you enrol in a programme."}
             </p>
-            <button
-              type="button"
-              className="sl-btn-gold"
-              onClick={() => void joinLive()}
-              disabled={joining}
-            >
-              {joining ? "Joining…" : "Join Live Session"}
-            </button>
+            {hasEnrolledCourses ? (
+              <button
+                type="button"
+                className="sl-btn-gold"
+                onClick={() => void joinLive()}
+                disabled={joining}
+              >
+                {joining ? "Joining…" : "Join Live Session"}
+              </button>
+            ) : (
+              <Link className="sl-btn-gold" href="/courses">
+                Browse Courses
+              </Link>
+            )}
           </section>
 
           <section className="sl-card sl-help-card">

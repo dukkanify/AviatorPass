@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { routes } from "@/constants/routes";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
-import { listCourseOffers } from "@/services/learning/course-offers-service";
+import { deriveStudentType, listCourseOffers } from "@/services/learning/course-offers-service";
 import { NOTIFICATION_CATALOG } from "@/types/notifications";
 
 describe("my courses empty state", () => {
@@ -50,6 +50,34 @@ describe("my courses empty state", () => {
     expect(other.recommended[0]?.id).toBe("basics");
   });
 
+  it("uses student type when ranking recommendations", () => {
+    ensurePaymentsSeeded();
+    const returning = listCourseOffers({
+      userId: "user-returning",
+      countryCode: "US",
+      studentType: "returning",
+    });
+    expect(returning.recommended[0]?.id).toBe("atpl");
+    const fresh = listCourseOffers({
+      userId: "user-new",
+      countryCode: "US",
+      studentType: "new",
+    });
+    expect(fresh.recommended[0]?.id).toBe("basics");
+  });
+
+  it("treats incomplete or recent accounts as new students", () => {
+    expect(
+      deriveStudentType({ profileComplete: false, createdAt: "2020-01-01T00:00:00.000Z" }),
+    ).toBe("new");
+    expect(deriveStudentType({ profileComplete: true, createdAt: new Date().toISOString() })).toBe(
+      "new",
+    );
+    expect(
+      deriveStudentType({ profileComplete: true, createdAt: "2020-01-01T00:00:00.000Z" }),
+    ).toBe("returning");
+  });
+
   it("uses previous activity when ranking recommendations", () => {
     ensurePaymentsSeeded();
     const ranked = listCourseOffers({
@@ -86,5 +114,13 @@ describe("my courses empty state", () => {
     );
     expect(dash).toContain("Welcome to Aviator Pass!");
     expect(dash).toContain("Start by enrolling in your first course.");
+    expect(dash).not.toContain("ATPL 010 — Air Law (Live)");
+    const contact = readFileSync(
+      path.join(process.cwd(), "app/(marketing)/contact/page.tsx"),
+      "utf8",
+    );
+    expect(contact).toContain("Contact an advisor");
+    expect(contact).toContain("mailto:");
+    expect(contact).not.toContain("Open homepage contact");
   });
 });
