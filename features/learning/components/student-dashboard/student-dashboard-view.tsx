@@ -168,18 +168,26 @@ function LearningDashboardView() {
     (sum, course) => sum + (course.learning?.totalLessons ?? 0),
     0,
   );
-  const plannerItems = calendar.length > 0 ? calendar : sessions.map(sessionToCalendar);
+  const hasEnrolledCourses = courses.length > 0;
+  const plannerItems = hasEnrolledCourses
+    ? calendar.length > 0
+      ? calendar
+      : sessions.map(sessionToCalendar)
+    : [];
   const todayItems = plannerItems.filter((item) => sameDay(item.startsAt, now));
-  const liveItem =
-    calendar.find(
-      (item) =>
-        item.type === "live_class" &&
-        (overview?.upcomingLiveClassId
-          ? item.id.endsWith(overview.upcomingLiveClassId)
-          : item.status === "upcoming"),
-    ) ?? calendar.find((item) => item.type === "live_class");
+  const liveItem = hasEnrolledCourses
+    ? (calendar.find(
+        (item) =>
+          item.type === "live_class" &&
+          (overview?.upcomingLiveClassId
+            ? item.id.endsWith(overview.upcomingLiveClassId)
+            : item.status === "upcoming"),
+      ) ?? calendar.find((item) => item.type === "live_class"))
+    : undefined;
   const liveStartsAt = liveItem?.startsAt ?? null;
-  const instructorName = currentCourse?.primaryInstructorName ?? "Khalid Al Rashid";
+  const instructorName = hasEnrolledCourses
+    ? (currentCourse?.primaryInstructorName ?? "Instructor")
+    : "Academy team";
   const activityDates = [
     ...(overview?.recentActivity.map((event) => event.createdAt) ?? []),
     ...sessions.map((session) => session.scheduledStart),
@@ -196,7 +204,7 @@ function LearningDashboardView() {
   const quote = dailyMotivationQuote(new Date(now));
   const streak = Math.max(learningStreak(activityDates, new Date(now)), overview ? 1 : 0);
   const gpa = academicGpa(overview?.progressPercent ?? 0, completedLessons);
-  const continueTitle = resume?.courseTitle ?? currentCourse?.title ?? "ATPL 010 — Air Law";
+  const continueTitle = resume?.courseTitle ?? currentCourse?.title ?? "Start your first course";
   const continueProgress = clampPercent(
     currentCourse?.learning?.progressPercent ?? overview?.progressPercent ?? 0,
   );
@@ -234,35 +242,47 @@ function LearningDashboardView() {
   const schedule =
     mappedSchedule.length > 0
       ? mappedSchedule
-      : [
-          {
-            id: "live",
-            time: "10:00 AM",
-            title: "Live Class",
-            detail: continueTitle,
-            href: "/student/calendar",
-            live: true,
-            action: "Join",
-          },
-          {
-            id: "study",
-            time: "02:00 PM",
-            title: "Self Study",
-            detail: continueTitle,
-            href: resumeHref,
-            live: false,
-            action: null,
-          },
-          {
-            id: "exam",
-            time: "05:00 PM",
-            title: "Mock Exam",
-            detail: "Timed practice paper",
-            href: "/student/mock-exams",
-            live: false,
-            action: "Start",
-          },
-        ];
+      : hasEnrolledCourses
+        ? [
+            {
+              id: "live",
+              time: "10:00 AM",
+              title: "Live Class",
+              detail: continueTitle,
+              href: "/student/calendar",
+              live: true,
+              action: "Join",
+            },
+            {
+              id: "study",
+              time: "02:00 PM",
+              title: "Self Study",
+              detail: continueTitle,
+              href: resumeHref,
+              live: false,
+              action: null,
+            },
+            {
+              id: "exam",
+              time: "05:00 PM",
+              title: "Mock Exam",
+              detail: "Timed practice paper",
+              href: "/student/mock-exams",
+              live: false,
+              action: "Start",
+            },
+          ]
+        : [
+            {
+              id: "enrol",
+              time: "Today",
+              title: "Enrol in a course",
+              detail: "Browse programmes and start your first enrolment.",
+              href: "/courses",
+              live: false,
+              action: "Browse",
+            },
+          ];
 
   const achievements = [
     {
@@ -328,6 +348,29 @@ function LearningDashboardView() {
 
   return (
     <div className="sl-dashboard">
+      {!hasEnrolledCourses ? (
+        <section
+          className="sl-card"
+          aria-label="Welcome to Aviator Pass"
+          style={{ marginBottom: 16 }}
+        >
+          <p className="sl-kicker" style={{ color: "var(--sl-gold-deep)" }}>
+            Welcome to Aviator Pass!
+          </p>
+          <h2 style={{ marginTop: 6 }}>Start by enrolling in your first course.</h2>
+          <p className="sl-muted">
+            Browse available programmes or open the ATPL course to begin your aviation journey.
+          </p>
+          <div className="sl-hero-actions" style={{ marginTop: 14 }}>
+            <Link className="sl-btn-gold" href="/courses">
+              Browse Courses
+            </Link>
+            <Link className="sl-btn-ghost" href="/atpl">
+              Explore ATPL Course
+            </Link>
+          </div>
+        </section>
+      ) : null}
       <motion.section
         className="sl-hero sl-hero--command"
         aria-label="Welcome back"
@@ -462,18 +505,26 @@ function LearningDashboardView() {
               </div>
               <div>
                 <p className="sl-kicker" style={{ color: "var(--sl-gold-deep)" }}>
-                  In progress
+                  {hasEnrolledCourses ? "In progress" : "Get started"}
                 </p>
                 <h3>{continueTitle}</h3>
-                <p className="sl-muted">{continueLesson}</p>
-                <div className="sl-progress" aria-hidden>
-                  <i style={{ width: `${continueProgress}%` }} />
-                </div>
-                <p className="sl-muted">{continueProgress}% complete</p>
+                <p className="sl-muted">
+                  {hasEnrolledCourses
+                    ? continueLesson
+                    : "Browse available courses and enrol to unlock lessons here."}
+                </p>
+                {hasEnrolledCourses ? (
+                  <>
+                    <div className="sl-progress" aria-hidden>
+                      <i style={{ width: `${continueProgress}%` }} />
+                    </div>
+                    <p className="sl-muted">{continueProgress}% complete</p>
+                  </>
+                ) : null}
               </div>
-              <Link className="sl-btn-navy" href={resumeHref}>
+              <Link className="sl-btn-navy" href={hasEnrolledCourses ? resumeHref : "/courses"}>
                 <PlayCircle className="h-4 w-4" aria-hidden />
-                Continue Lesson
+                {hasEnrolledCourses ? "Continue Lesson" : "Browse Courses"}
               </Link>
             </div>
           </section>
@@ -587,21 +638,31 @@ function LearningDashboardView() {
               </div>
             </div>
             <h2 id="live-session-title">
-              {overview.upcomingLiveClass ?? liveItem?.title ?? "ATPL 010 — Air Law (Live)"}
+              {hasEnrolledCourses
+                ? (overview.upcomingLiveClass ?? liveItem?.title ?? "No live class booked")
+                : "Enrol to unlock live sessions"}
             </h2>
             <p className="sl-muted">
-              {liveStartsAt
-                ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
-                : "No live class is booked yet — open the calendar to reserve a seat."}
+              {hasEnrolledCourses
+                ? liveStartsAt
+                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
+                  : "No live class is booked yet — open the calendar to reserve a seat."
+                : "Live classes appear here after you enrol in a programme."}
             </p>
-            <button
-              type="button"
-              className="sl-btn-gold"
-              onClick={() => void joinLive()}
-              disabled={joining}
-            >
-              {joining ? "Joining…" : "Join Live Session"}
-            </button>
+            {hasEnrolledCourses ? (
+              <button
+                type="button"
+                className="sl-btn-gold"
+                onClick={() => void joinLive()}
+                disabled={joining}
+              >
+                {joining ? "Joining…" : "Join Live Session"}
+              </button>
+            ) : (
+              <Link className="sl-btn-gold" href="/courses">
+                Browse Courses
+              </Link>
+            )}
           </section>
 
           <section className="sl-card sl-help-card">
