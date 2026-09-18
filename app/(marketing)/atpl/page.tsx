@@ -6,14 +6,14 @@ import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { ATPL_FAQS } from "@/features/marketing/content/atpl-course-landing";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
-import { listPublicAtplSubjects } from "@/services/marketing/atpl-subjects-service";
+import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "ATPL Course",
   description:
-    "Enrol in the Aviator Pass ATPL Course — official ATPL syllabus, live instructor-led training, and purchase-first checkout. Sessions are LIVE. Recordings are not available to students.",
+    "Review the Aviator Pass ATPL Complete Package — 13 ATPL theory subjects, joining terms, then choose your study start at checkout. Sessions are LIVE. Recordings are not available to students.",
   alternates: { canonical: routes.atpl },
   openGraph: {
     title: "ATPL Course | Aviator Pass",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function AtplCoursePage() {
   const { enrollHref, priceLabel } = getAtplProgramMarketing();
-  const subjects = listPublicAtplSubjects();
+  const subjects = listAtplPackageReviewSubjects();
 
   return (
     <div className="landing-root home-premium atpl-landing-page">

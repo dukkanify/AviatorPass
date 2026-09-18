@@ -27,6 +27,7 @@ import {
   quoteGuestCheckout,
   startHostedCheckout,
 } from "@/services/payments/purchase-first-service";
+import { validAtplPackageSchedule } from "@/constants/atpl-complete-package";
 import { passwordSchema } from "@/utils/validation";
 
 describe("purchase-first ATPL enrollment", () => {
@@ -101,6 +102,7 @@ describe("purchase-first ATPL enrollment", () => {
       country: "KW",
       billingName: "Fail Case",
       billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
       methodBrand: "card",
       paymentToken: "fail",
       simulateFailure: true,
@@ -122,6 +124,7 @@ describe("purchase-first ATPL enrollment", () => {
       country: "KW",
       billingName: "Laila Hassan",
       billingAddress: "Salmiya",
+      ...validAtplPackageSchedule(),
       methodBrand: "card",
       paymentToken: "tok_4242",
       idempotencyKey: `ok-${Date.now()}`,
@@ -206,6 +209,7 @@ describe("purchase-first ATPL enrollment", () => {
       country: "KW",
       billingName: "Existing Pilot",
       billingAddress: "Kuwait",
+      ...validAtplPackageSchedule(),
       methodBrand: "apple_pay",
       paymentToken: "tok_apple",
       idempotencyKey: `attach-${Date.now()}`,
@@ -226,6 +230,7 @@ describe("purchase-first ATPL enrollment", () => {
 
   it("exposes a welcome snapshot after a new guest purchase", async () => {
     const email = `welcome.guest.${Date.now()}@aviatorpass.test`;
+    const schedule = validAtplPackageSchedule();
     const result = await payGuestCheckout({
       firstName: "Nora",
       lastName: "Rivera",
@@ -234,6 +239,7 @@ describe("purchase-first ATPL enrollment", () => {
       country: "KW",
       billingName: "Nora Rivera",
       billingAddress: "Kuwait City",
+      ...schedule,
       methodBrand: "card",
       paymentToken: "tok_4242",
       idempotencyKey: `welcome-${Date.now()}`,
@@ -244,6 +250,10 @@ describe("purchase-first ATPL enrollment", () => {
     expect(welcome?.courseAssigned).toBe(true);
     expect(welcome?.emailSent).toBe(true);
     expect(welcome?.invoicePrintUrl).toContain(result.order.id);
+    expect(welcome?.studyStartDate).toBe(schedule.studyStartDate);
+    expect(welcome?.firstLectureTime).toBe(schedule.firstLectureTime);
+    expect(welcome?.scheduleProvisional).toBe(true);
+    expect(welcome?.scheduleNotice).toMatch(/TKI 1/);
   });
 
   it("refuses Stripe hosted checkout when the secret key is not configured", async () => {

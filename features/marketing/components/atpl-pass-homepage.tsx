@@ -33,6 +33,8 @@ import {
   WHY_CHOOSE,
 } from "@/features/marketing/content/atpl-pass-home";
 import { siteStatic } from "@/config/site-static";
+import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
@@ -283,7 +285,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               asChild
             >
               <Link href={courseHref}>
-                View the ATPL Course
+                {ACTION_LABELS.chooseAtplPackage}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -302,13 +304,14 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
       {/* —— ATPL Subjects —— */}
       <section className="atpl-section atpl-section-light">
         <div className="container-app">
-          <SectionKicker>Included Modules</SectionKicker>
+          <SectionKicker>ATPL Complete Package</SectionKicker>
           <h2 className="atpl-heading mt-4 max-w-[22ch]">
-            {subjects.length} ATPL Subjects, included in one program
+            {subjects.length} ATPL subjects in one package
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            All {subjects.length} Theory Subjects below are modules within the ATPL Course — not
-            separate products. Enrol once and access everything.
+            All {subjects.length} theory subjects below are included in the{" "}
+            {ATPL_COMPLETE_PACKAGE_NAME} — not separate products. Choose the package to review
+            descriptions and joining terms.
           </p>
           <AtplSubjectGrid subjects={subjects} reveal />
         </div>

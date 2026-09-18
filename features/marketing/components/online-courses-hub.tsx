@@ -38,6 +38,11 @@ function OnlineCoursesHub() {
                 <h2 className="font-display text-2xl font-semibold text-[var(--landing-ink-soft)]">
                   {programme.title}
                 </h2>
+                {"packageName" in programme && programme.packageName ? (
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {programme.packageName}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-sm font-medium text-accent">{programme.commonName}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {programme.modes.map((mode) => (

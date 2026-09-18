@@ -5,6 +5,7 @@ import { BookOpen, CalendarClock, GraduationCap, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/dashboard";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +31,18 @@ type Snapshot = {
     email: string;
     firstSubjectCode: string | null;
     enrollmentCount: number;
+    requestedFirstLectureLabel: string | null;
+    confirmedFirstLectureLabel: string | null;
+    scheduleProvisional: boolean;
+  }>;
+  pendingFirstLectures: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    requestedFirstLectureLabel: string | null;
+    requestedStudyStartDate: string | null;
+    requestedFirstLectureTime: string | null;
+    scheduleProvisional: boolean;
   }>;
   instructors: Array<{
     instructorId: string;
@@ -57,6 +70,69 @@ async function cgiPost(body: Record<string, unknown>) {
   const json = (await res.json()) as { success: boolean; data: unknown; error: string | null };
   if (!res.ok || !json.success) throw new Error(json.error ?? "Request failed");
   return json.data;
+}
+
+function ProvisionalFirstLectureCard({
+  student,
+  busy,
+  onConfirmRequested,
+  onConfirmDifferent,
+}: {
+  student: Snapshot["pendingFirstLectures"][number];
+  busy: boolean;
+  onConfirmRequested: () => void;
+  onConfirmDifferent: (date: string, time: string) => void;
+}) {
+  const [date, setDate] = React.useState(student.requestedStudyStartDate ?? "");
+  const [time, setTime] = React.useState(student.requestedFirstLectureTime ?? "");
+
+  return (
+    <li className="rounded-xl border border-border bg-card px-4 py-3">
+      <p className="font-medium">{student.name}</p>
+      <p className="text-muted-foreground">{student.email}</p>
+      <p className="mt-1">
+        Requested: <span className="font-medium">{student.requestedFirstLectureLabel ?? "—"}</span>
+        <span className="ml-2 text-xs uppercase tracking-wide text-accent">Provisional</span>
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <Button size="sm" disabled={busy} onClick={onConfirmRequested}>
+          {ACTION_LABELS.confirmRequestedFirstLecture}
+        </Button>
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor={`confirm-date-${student.studentId}`}>
+            Different date
+          </Label>
+          <Input
+            id={`confirm-date-${student.studentId}`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-[11rem]"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor={`confirm-time-${student.studentId}`}>
+            Different time
+          </Label>
+          <Input
+            id={`confirm-time-${student.studentId}`}
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="h-9 w-[8rem]"
+          />
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => onConfirmDifferent(date, time)}
+        >
+          {ACTION_LABELS.confirmDifferentFirstLecture}
+        </Button>
+      </div>
+    </li>
+  );
 }
 
 export function CgiConsoleView({ initial }: { initial: Snapshot }) {
@@ -105,7 +181,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
     <div className="space-y-8">
       <PageHeader
         title="Chief Ground Instructor"
-        description="ATPL journey control — subject distribution, lectures, instructors, and student follow-up."
+        description="ATPL journey control — subject distribution, lectures, instructors, and TKI 1 coordination of provisional first lectures."
         breadcrumbs={[{ label: "CGI" }, { label: "Dashboard" }]}
       />
 
@@ -121,6 +197,45 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Provisional first lectures (TKI 1)</h2>
+        <p className="text-sm text-muted-foreground">
+          Students requested these start dates at checkout. Confirm the requested time, or set a
+          different final time. The student is notified when you confirm.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {data.pendingFirstLectures.length === 0 ? (
+            <li className="text-muted-foreground">No requested first-lecture times yet.</li>
+          ) : (
+            data.pendingFirstLectures.map((s) => (
+              <ProvisionalFirstLectureCard
+                key={s.studentId}
+                student={s}
+                busy={busy}
+                onConfirmRequested={() =>
+                  void run(() =>
+                    cgiPost({
+                      action: "confirm_first_lecture",
+                      studentId: s.studentId,
+                    }),
+                  )
+                }
+                onConfirmDifferent={(studyStartDate, firstLectureTime) =>
+                  void run(() =>
+                    cgiPost({
+                      action: "confirm_first_lecture",
+                      studentId: s.studentId,
+                      studyStartDate,
+                      firstLectureTime,
+                    }),
+                  )
+                }
+              />
+            ))
+          )}
+        </ul>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">
@@ -349,6 +464,11 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   <span className="text-muted-foreground"> · {s.email}</span>
                   <div className="text-muted-foreground">
                     First: {s.firstSubjectCode ?? "—"} · {s.enrollmentCount} enrollments
+                    {s.scheduleProvisional && s.requestedFirstLectureLabel
+                      ? ` · requested ${s.requestedFirstLectureLabel}`
+                      : s.confirmedFirstLectureLabel
+                        ? ` · confirmed ${s.confirmedFirstLectureLabel}`
+                        : ""}
                   </div>
                 </li>
               ))

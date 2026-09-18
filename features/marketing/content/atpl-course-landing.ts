@@ -4,17 +4,18 @@
  */
 
 export const ATPL_LANDING_HERO = {
-  kicker: "Aviator Pass · ATPL Course · Live airline theory",
+  kicker: "Aviator Pass · ATPL Complete Package · Live airline theory",
   headline: "The ATPL course built for pilots who train like professionals",
   subheadline:
-    "One enrolment. The official ATPL theory syllabus. Live instructors. A structured path from first lesson to exam-ready competence — without creating an account before you pay.",
+    "One package. Thirteen ATPL theory subjects. Live instructors. Review every subject, accept the joining terms, then choose your study start on checkout.",
   proof: [
+    "13 ATPL subjects included in one package",
     "Pay first — account created automatically",
     "Sessions are LIVE — recordings are not available to students",
-    "Worldwide checkout in your local currency",
+    "Start date and first lecture chosen at checkout (72-hour minimum)",
   ],
-  primaryCta: "Enrol in Aviator Pass",
-  secondaryCta: "See the ATPL Subjects",
+  primaryCta: "Choose this package",
+  secondaryCta: "Review the 13 ATPL Subjects",
 } as const;
 
 export const COURSE_OVERVIEW = {
@@ -169,11 +170,15 @@ export const STUDENT_REVIEWS = {
 export const ATPL_FAQS = [
   {
     q: "Do I need an account before I pay?",
-    a: "No. Enrol in Aviator Pass opens Stripe Checkout immediately. After a successful payment we create your student account automatically and email a password setup link.",
+    a: "No. Choose this package, complete checkout with your start date and first-lecture time, then pay. After a successful payment we create your student account automatically and email a password setup link.",
   },
   {
     q: "What happens after payment?",
-    a: "You land on a welcome page. Your course is activated, an invoice is available, and you can continue to the student dashboard once you set your password. Please wait for the assigned instructor to contact you directly to arrange your schedule.",
+    a: "You land on a welcome page. Your course is activated, an invoice is available, and you can continue to the student dashboard once you set your password. The start date and first-lecture time you chose at checkout are provisional until TKI 1 confirms the final schedule.",
+  },
+  {
+    q: "Can I choose when I start?",
+    a: "Yes. On the payment page you choose a study start date and a suitable time for the first lecture. The choice must be at least 72 hours from the moment you pay. That request is provisional and subject to final coordination with the Chief Theoretical Knowledge Instructor (TKI 1).",
   },
   {
     q: "Which currency will I be charged in?",
@@ -181,7 +186,7 @@ export const ATPL_FAQS = [
   },
   {
     q: "Are all ATPL Subjects included?",
-    a: "Yes. One ATPL Course enrolment covers the official ATPL syllabus configured for the programme. There are no separate subject checkouts.",
+    a: "Yes. The ATPL Complete Package includes all 13 ATPL theory subjects listed on the review page. There are no separate subject checkouts.",
   },
   {
     q: "Is training live or recorded?",
@@ -208,16 +213,17 @@ export const ATPL_FAQS = [
 export const PRICING = {
   kicker: "Pricing",
   title: "One programme. Transparent checkout.",
-  name: "ATPL Course",
+  name: "ATPL Complete Package",
   blurb:
-    "Full ATPL theory programme with EASA Certified Instructors, the official ATPL syllabus, mock exams, and platform access. You pay first; registration is automatic.",
+    "Full ATPL theory programme with EASA Certified Instructors, all 13 package subjects, mock exams, and platform access. You review the package, pay first, and registration is automatic.",
   bullets: [
-    "Official ATPL syllabus included",
+    "13 ATPL subjects included",
     "Live instructor-led sessions — no student recordings",
+    "Study start date and first lecture chosen at checkout",
     "Student dashboard, progress, and certificates",
     "Invoice issued after payment",
     "Account created automatically — no pre-registration",
   ],
   note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible.",
-  cta: "Enrol in Aviator Pass",
+  cta: "Choose this package",
 } as const;

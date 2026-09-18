@@ -3,6 +3,8 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight } from "lucide-react";
 
+import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { Button } from "@/components/ui/button";
 
 type AtplStickyEnrolProps = {
@@ -16,10 +18,11 @@ function AtplStickyEnrol({ enrollHref, priceLabel }: AtplStickyEnrolProps) {
       <div className="container-app flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-            ATPL Course
+            {ATPL_COMPLETE_PACKAGE_NAME}
           </p>
           <p className="break-words text-sm leading-snug text-white/75">
-            {priceLabel ? `From ${priceLabel} · ` : ""}Pay first — account created after payment
+            {priceLabel ? `From ${priceLabel} · ` : ""}13 subjects · pay first — account after
+            payment
           </p>
         </div>
         <Button
@@ -29,7 +32,7 @@ function AtplStickyEnrol({ enrollHref, priceLabel }: AtplStickyEnrolProps) {
           asChild
         >
           <Link href={enrollHref}>
-            Enrol in Aviator Pass
+            {ACTION_LABELS.chooseThisPackage}
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </Button>

@@ -5,6 +5,11 @@
 
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import {
+  ATPL_PACKAGE_TKI_NOTICE,
+  atplPackageScheduleIssue,
+  combineLocalDateAndTime,
+} from "@/constants/atpl-complete-package";
 import { COUNTRIES } from "@/constants/countries";
 import { ORDER_EXPIRY_MINUTES, PAYMENT_METHOD_LABELS } from "@/constants/payments";
 import { ROLES } from "@/constants/roles";
@@ -24,6 +29,7 @@ import {
   findUserByEmail,
   findUserById,
   isStudentProfileComplete,
+  readAuthDb,
   toUserProfile,
   writeAuthDb,
   type StoredUser,
@@ -250,6 +256,22 @@ export function listPurchaseFirstOrders(limit = 50): Order[] {
     .slice(0, limit);
 }
 
+function packageScheduleMetadata(input: GuestCheckoutInput) {
+  const firstLectureAt = combineLocalDateAndTime(
+    input.studyStartDate,
+    input.firstLectureTime,
+  ).toISOString();
+  return {
+    studyStartDate: input.studyStartDate,
+    firstLectureTime: input.firstLectureTime,
+    firstLectureAt,
+    requestedStudyStartDate: input.studyStartDate,
+    requestedFirstLectureTime: input.firstLectureTime,
+    scheduleProvisional: true,
+    scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
+  };
+}
+
 export function publicOrderSnapshot(order: Order) {
   return {
     id: order.id,
@@ -272,6 +294,29 @@ export function publicOrderSnapshot(order: Order) {
       typeof order.metadata.checkoutSessionId === "string"
         ? order.metadata.checkoutSessionId
         : null,
+    studyStartDate:
+      typeof order.metadata.studyStartDate === "string" ? order.metadata.studyStartDate : null,
+    firstLectureTime:
+      typeof order.metadata.firstLectureTime === "string" ? order.metadata.firstLectureTime : null,
+    firstLectureAt:
+      typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
+    requestedStudyStartDate:
+      typeof order.metadata.requestedStudyStartDate === "string"
+        ? order.metadata.requestedStudyStartDate
+        : typeof order.metadata.studyStartDate === "string"
+          ? order.metadata.studyStartDate
+          : null,
+    requestedFirstLectureTime:
+      typeof order.metadata.requestedFirstLectureTime === "string"
+        ? order.metadata.requestedFirstLectureTime
+        : typeof order.metadata.firstLectureTime === "string"
+          ? order.metadata.firstLectureTime
+          : null,
+    scheduleProvisional: order.metadata.scheduleProvisional === true,
+    scheduleNotice:
+      typeof order.metadata.scheduleNotice === "string"
+        ? order.metadata.scheduleNotice
+        : ATPL_PACKAGE_TKI_NOTICE,
   };
 }
 
@@ -299,6 +344,11 @@ function alreadyOwnsProduct(studentId: string, productId: string): boolean {
 }
 
 export async function payGuestCheckout(input: GuestCheckoutInput): Promise<GuestPayResult> {
+  const scheduleIssue = atplPackageScheduleIssue(input.studyStartDate, input.firstLectureTime);
+  if (scheduleIssue) {
+    throw new PaymentError(scheduleIssue, 400);
+  }
+
   const email = sanitizeEmail(input.email);
   const rl = rateLimit(`guest-checkout:${email}`, 8, 15 * 60_000);
   if (!rl.allowed) {
@@ -392,6 +442,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
         guestLastName: sanitizeString(input.lastName),
         guestPhone: normalizePhone(input.phone),
         guestCountry: input.country.toUpperCase(),
+        ...packageScheduleMetadata(input),
       };
     });
     order = getOrder(existing.id)!;
@@ -429,6 +480,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
         guestLastName: sanitizeString(input.lastName),
         guestPhone: normalizePhone(input.phone),
         guestCountry: input.country.toUpperCase(),
+        ...packageScheduleMetadata(input),
       },
       createdAt: stamp,
       updatedAt: stamp,
@@ -764,11 +816,35 @@ export async function fulfillGuestPaidOrder(
   await dispatchRoleAlert({
     event: "admin_alert",
     title: "New purchase-first enrollment",
-    detail: `${bound.orderNumber} · ${formatMinor(bound.totalAmount, bound.currency)} · ${email} · student ${provisioned.accountCreated ? "created automatically" : "attached to existing account"} · email ${emailSent ? "sent" : "queued"} · course ${enrolled ? "assigned" : "pending"}.`,
+    detail: `${bound.orderNumber} · ${formatMinor(bound.totalAmount, bound.currency)} · ${email} · student ${provisioned.accountCreated ? "created automatically" : "attached to existing account"} · email ${emailSent ? "sent" : "queued"} · course ${enrolled ? "assigned" : "pending"}${
+      typeof bound.metadata.studyStartDate === "string" &&
+      typeof bound.metadata.firstLectureTime === "string"
+        ? ` · requested first lecture ${bound.metadata.studyStartDate} ${bound.metadata.firstLectureTime} (provisional, TKI 1)`
+        : ""
+    }.`,
     reference: bound.orderNumber,
     actorId: user.id,
     system: true,
   });
+
+  const cgiIds = readAuthDb()
+    .users.filter((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR && u.status === "active")
+    .map((u) => u.id);
+  if (
+    cgiIds.length &&
+    typeof bound.metadata.studyStartDate === "string" &&
+    typeof bound.metadata.firstLectureTime === "string"
+  ) {
+    await dispatchRoleAlert({
+      event: "instructor_alert",
+      title: "Provisional ATPL first lecture to coordinate (TKI 1)",
+      detail: `${bound.studentName} (${email}) requested ${bound.metadata.studyStartDate} at ${bound.metadata.firstLectureTime}. ${ATPL_PACKAGE_TKI_NOTICE}`,
+      reference: bound.orderNumber,
+      actorId: user.id,
+      userIds: cgiIds,
+      system: true,
+    });
+  }
 
   await logActivity({
     actorId: user.id,

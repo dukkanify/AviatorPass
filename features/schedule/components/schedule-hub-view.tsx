@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ScheduleOverview, ScheduleSession, TimelineEvent } from "@/types/schedule";
+import type { AtplPackageScheduleSnapshot } from "@/constants/atpl-complete-package";
 
 type HubRole = "student" | "instructor" | "cgi" | "admin";
 
@@ -60,6 +61,7 @@ export function ScheduleHubView({
   const [source, setSource] = React.useState<"all" | "live_course" | "atpl">("all");
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [atplSchedule, setAtplSchedule] = React.useState<AtplPackageScheduleSnapshot | null>(null);
 
   const [title, setTitle] = React.useState("");
   const [startsAt, setStartsAt] = React.useState("");
@@ -70,9 +72,21 @@ export function ScheduleHubView({
 
   const load = React.useCallback(async () => {
     const q = source === "all" ? "?view=overview" : `?view=overview&source=${source}`;
-    const data = await apiGet<ScheduleOverview>(q);
+    const [data, schedule] = await Promise.all([
+      apiGet<ScheduleOverview>(q),
+      role === "student"
+        ? fetch("/api/learning/atpl-schedule", { cache: "no-store" }).then(async (res) => {
+            const json = (await res.json()) as {
+              success: boolean;
+              data: AtplPackageScheduleSnapshot | null;
+            };
+            return res.ok && json.success ? json.data : null;
+          })
+        : Promise.resolve(null),
+    ]);
     setOverview(data);
-  }, [source]);
+    if (schedule) setAtplSchedule(schedule);
+  }, [role, source]);
 
   React.useEffect(() => {
     void load().catch((err: Error) => setError(err.message));
@@ -149,6 +163,22 @@ export function ScheduleHubView({
       />
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      {role === "student" && atplSchedule?.orderId ? (
+        <section className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+            {atplSchedule.scheduleProvisional
+              ? "Provisional first lecture"
+              : "Confirmed first lecture"}
+          </p>
+          <p className="mt-1 font-medium">
+            {atplSchedule.scheduleProvisional
+              ? atplSchedule.requestedFirstLectureLabel
+              : atplSchedule.confirmedFirstLectureLabel}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-muted-foreground">Source</Label>

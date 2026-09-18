@@ -3,6 +3,14 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import {
+  ATPL_PACKAGE_CONFIRMED_NOTICE,
+  ATPL_PACKAGE_TKI_NOTICE,
+  EMPTY_ATPL_PACKAGE_SCHEDULE,
+  combineLocalDateAndTime,
+  formatAtplPackageScheduleLabel,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -11,8 +19,10 @@ import {
   listStudentEnrollments,
   updateEnrollmentStatus,
 } from "@/services/courses/enrollment-service";
+import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
-import { readPaymentsDb } from "@/services/payments/store";
+import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
   rescheduleLiveClass,
@@ -483,6 +493,158 @@ export async function rescheduleAtplClass(input: {
   return result;
 }
 
+function latestPaidPackageOrder(studentId: string, email: string) {
+  const needle = email.trim().toLowerCase();
+  return (
+    readPaymentsDb()
+      .orders.filter(
+        (order) =>
+          order.status === "paid" &&
+          Boolean(order.metadata?.purchaseFirst) &&
+          typeof order.metadata?.studyStartDate === "string" &&
+          (order.studentId === studentId ||
+            order.studentEmail?.toLowerCase() === needle ||
+            order.billingEmail?.toLowerCase() === needle),
+      )
+      .sort((a, b) => (b.paidAt ?? b.updatedAt).localeCompare(a.paidAt ?? a.updatedAt))[0] ?? null
+  );
+}
+
+function packageScheduleFromOrder(
+  order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
+): AtplPackageScheduleSnapshot {
+  const requestedDate = String(
+    order.metadata.requestedStudyStartDate ?? order.metadata.studyStartDate,
+  );
+  const requestedTime = String(
+    order.metadata.requestedFirstLectureTime ?? order.metadata.firstLectureTime ?? "",
+  );
+  const currentDate = String(order.metadata.studyStartDate);
+  const currentTime = String(order.metadata.firstLectureTime ?? "");
+  const provisional = order.metadata.scheduleProvisional !== false;
+  return {
+    orderId: order.id,
+    requestedStudyStartDate: requestedDate,
+    requestedFirstLectureTime: requestedTime || null,
+    requestedFirstLectureLabel:
+      requestedDate && requestedTime
+        ? formatAtplPackageScheduleLabel(requestedDate, requestedTime)
+        : requestedDate,
+    requestedFirstLectureAt:
+      typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
+    confirmedStudyStartDate: provisional ? null : currentDate,
+    confirmedFirstLectureTime: provisional ? null : currentTime || null,
+    confirmedFirstLectureLabel:
+      !provisional && currentDate && currentTime
+        ? formatAtplPackageScheduleLabel(currentDate, currentTime)
+        : null,
+    scheduleProvisional: provisional,
+    scheduleNotice:
+      typeof order.metadata.scheduleNotice === "string"
+        ? order.metadata.scheduleNotice
+        : provisional
+          ? ATPL_PACKAGE_TKI_NOTICE
+          : ATPL_PACKAGE_CONFIRMED_NOTICE,
+    scheduleConfirmedAt:
+      typeof order.metadata.scheduleConfirmedAt === "string"
+        ? order.metadata.scheduleConfirmedAt
+        : null,
+  };
+}
+
+function latestPaidPackageSchedule(studentId: string, email: string): AtplPackageScheduleSnapshot {
+  const order = latestPaidPackageOrder(studentId, email);
+  if (!order) return EMPTY_ATPL_PACKAGE_SCHEDULE;
+  return packageScheduleFromOrder(order);
+}
+
+export function getStudentAtplPackageSchedule(studentId: string, email: string) {
+  return latestPaidPackageSchedule(studentId, email);
+}
+
+export async function confirmAtplPackageSchedule(input: {
+  studentId: string;
+  actorId: string;
+  studyStartDate?: string;
+  firstLectureTime?: string;
+}) {
+  const student = findUserById(input.studentId);
+  if (!student) throw new CgiError("Student not found", 404);
+  const order = latestPaidPackageOrder(input.studentId, student.email);
+  if (!order) throw new CgiError("No ATPL package schedule to confirm", 404);
+
+  const requestedDate = String(
+    order.metadata.requestedStudyStartDate ?? order.metadata.studyStartDate,
+  );
+  const requestedTime = String(
+    order.metadata.requestedFirstLectureTime ?? order.metadata.firstLectureTime ?? "",
+  );
+  const studyStartDate = (input.studyStartDate ?? requestedDate).trim();
+  const firstLectureTime = (input.firstLectureTime ?? requestedTime).trim();
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(studyStartDate) ||
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(firstLectureTime)
+  ) {
+    throw new CgiError("Enter a valid study start date and first-lecture time");
+  }
+  const when = combineLocalDateAndTime(studyStartDate, firstLectureTime);
+  if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+    throw new CgiError("Confirmed first lecture must be in the future");
+  }
+
+  const stamp = nowIso();
+  writePaymentsDb((db) => {
+    const row = db.orders.find((item) => item.id === order.id);
+    if (!row) return;
+    row.metadata = {
+      ...row.metadata,
+      requestedStudyStartDate: requestedDate,
+      requestedFirstLectureTime: requestedTime,
+      studyStartDate,
+      firstLectureTime,
+      firstLectureAt: when.toISOString(),
+      scheduleProvisional: false,
+      scheduleConfirmedAt: stamp,
+      scheduleConfirmedById: input.actorId,
+      scheduleNotice: ATPL_PACKAGE_CONFIRMED_NOTICE,
+    };
+    row.updatedAt = stamp;
+  });
+
+  audit(
+    "cgi.schedule.confirm_first_lecture",
+    input.actorId,
+    "order",
+    order.id,
+    `Confirmed first lecture for ${student.email} → ${studyStartDate} ${firstLectureTime}`,
+  );
+
+  const brand = getPublicBrandConfig();
+  const label = formatAtplPackageScheduleLabel(studyStartDate, firstLectureTime);
+  try {
+    await dispatchEmailEvent({
+      event: "schedule",
+      userIds: [student.id],
+      to: student.email,
+      subject: "Your ATPL first lecture is confirmed",
+      data: {
+        recipientName:
+          [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
+        title: "First lecture confirmed by TKI 1",
+        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) confirmed your first lecture for ${label}.`,
+        supportEmail: brand.supportEmail,
+        reference: order.orderNumber,
+      },
+      actorId: input.actorId,
+      system: true,
+    });
+  } catch {
+    // Confirmation is already stored; email is best-effort.
+  }
+
+  return latestPaidPackageSchedule(input.studentId, student.email);
+}
+
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
@@ -509,9 +671,11 @@ export function listAtplStudents() {
       const user = auth.find((u) => u.id === studentId);
       const plan = listStudentSubjectPlan(studentId);
       const first = plan.find((p) => p.sortOrder === 1) ?? null;
+      const email = user?.email ?? "";
+      const schedule = latestPaidPackageSchedule(studentId, email);
       return {
         studentId,
-        email: user?.email ?? "",
+        email,
         name: user
           ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email
           : "Unknown",
@@ -520,6 +684,7 @@ export function listAtplStudents() {
         firstSubjectCode: first?.subjectCode ?? null,
         planCount: plan.length,
         status: user?.status ?? "unknown",
+        ...schedule,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -604,7 +769,10 @@ export function getCgiDashboardSnapshot() {
     defaultFirstSubjectCourseId: settings.defaultFirstSubjectCourseId,
     recentAudit: readCgiDb().audit.slice(0, 12),
     subjects,
-    students: students.slice(0, 8),
+    students: students.slice(0, 12),
+    pendingFirstLectures: students.filter(
+      (s) => s.scheduleProvisional && Boolean(s.requestedFirstLectureLabel),
+    ),
     instructors,
   };
 }

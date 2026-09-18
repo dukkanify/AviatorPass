@@ -18,9 +18,9 @@ describe("ATPL course landing conversion path", () => {
       true,
     );
     expect(ATPL_FAQS.some((item) => /Are all ATPL Subjects included/i.test(item.q))).toBe(true);
-    expect(ATPL_LANDING_HERO.primaryCta).toBe("Enrol in Aviator Pass");
-    expect(PRICING.cta).toBe("Enrol in Aviator Pass");
-    expect(ATPL_LANDING_HERO.secondaryCta).toBe("See the ATPL Subjects");
+    expect(ATPL_LANDING_HERO.primaryCta).toBe("Choose this package");
+    expect(PRICING.cta).toBe("Choose this package");
+    expect(ATPL_LANDING_HERO.secondaryCta).toBe("Review the 13 ATPL Subjects");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",
       "Instruction only",

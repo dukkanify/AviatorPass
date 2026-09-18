@@ -13,17 +13,18 @@ export const ONLINE_COURSE_PROGRAMMES = [
   {
     id: "atpl",
     title: PROGRAMME_TERMS.atpl.title,
+    packageName: PROGRAMME_TERMS.atpl.packageName,
     commonName: PROGRAMME_TERMS.atpl.commonName,
     href: routes.atpl,
-    enrollLabel: ACTION_LABELS.viewAtplCourse,
+    enrollLabel: ACTION_LABELS.chooseAtplPackage,
     modes: [{ label: "Live", href: routes.atpl }],
     summary:
-      "Official ATPL syllabus. Sessions are LIVE. Recordings are not available to students. Purchase first — your account is created automatically.",
+      "ATPL Complete Package — 13 theory subjects. Sessions are LIVE. Recordings are not available to students. Review the package, then pay first — your account is created automatically.",
     points: [
-      "Official ATPL syllabus in one enrolment",
+      "13 ATPL subjects in one package",
       "EASA Certified Instructors",
       "Live sessions only — no student recordings",
-      "Internal recording, if any, is for quality assurance",
+      "Start date and first lecture chosen at checkout",
     ],
   },
   {

@@ -1,0 +1,281 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  ATPL_COMPLETE_PACKAGE_SUBJECTS,
+  ATPL_PACKAGE_CONFIRMED_NOTICE,
+  ATPL_PACKAGE_JOINING_TERMS,
+  ATPL_PACKAGE_MIN_NOTICE_HOURS,
+  ATPL_PACKAGE_TKI_NOTICE,
+  atplPackageScheduleIssue,
+  formatLocalDateInput,
+  validAtplPackageSchedule,
+} from "@/constants/atpl-complete-package";
+import { ACTION_LABELS } from "@/constants/programme-terms";
+import { ROLES } from "@/constants/roles";
+import { HERO } from "@/features/marketing/content/atpl-pass-home";
+import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
+import {
+  listPublicAtplSubjects,
+  updateAtplLandingSubject,
+} from "@/services/marketing/atpl-subjects-service";
+import { resetAtplMarketingDbForTests } from "@/services/marketing/atpl-subjects-store";
+import { ensureCoursesSeeded } from "@/services/courses/seed";
+import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
+import { readAuthDb } from "@/services/auth/store";
+import { ensurePaymentsSeeded } from "@/services/payments/seed";
+import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
+import {
+  confirmAtplPackageSchedule,
+  getCgiDashboardSnapshot,
+  getStudentAtplPackageSchedule,
+  listAtplStudents,
+} from "@/services/cgi/journey-service";
+import { guestCheckoutSchema } from "@/utils/validation";
+
+const CLIENT_TITLES = [
+  "Instrumentation",
+  "General Navigation",
+  "Radio Navigation",
+  "Meteorology",
+  "Human Performance and Limitations",
+  "Aircraft General Knowledge",
+  "Air Law",
+  "Flight Planning and Monitoring",
+  "Performance",
+  "Operational Procedures",
+  "Principles of Flight",
+  "Mass and Balance",
+  "Communications",
+];
+
+describe("ATPL Complete Package journey", () => {
+  beforeEach(() => {
+    resetAtplMarketingDbForTests();
+  });
+
+  it("reviews the client's 13 subjects in the agreed order", () => {
+    expect(ATPL_COMPLETE_PACKAGE_SUBJECTS).toHaveLength(13);
+    expect(ATPL_COMPLETE_PACKAGE_SUBJECTS.map((s) => s.title)).toEqual(CLIENT_TITLES);
+    const review = listAtplPackageReviewSubjects();
+    expect(review).toHaveLength(13);
+    expect(review.map((s) => s.title)).toEqual(CLIENT_TITLES);
+    expect(review.every((s) => s.shortDescription.trim().length > 0)).toBe(true);
+    expect(review.map((s) => s.title)).not.toContain("Dynamic Management");
+    expect(listPublicAtplSubjects()).toHaveLength(16);
+  });
+
+  it("keeps hidden CMS extras off the package review without dropping a required subject", async () => {
+    const airLaw = listPublicAtplSubjects().find((s) => s.code === "010");
+    expect(airLaw).toBeTruthy();
+    await updateAtplLandingSubject({
+      id: airLaw!.id,
+      patch: { visible: false },
+    });
+    expect(listPublicAtplSubjects().some((s) => s.code === "010")).toBe(false);
+    expect(
+      listAtplPackageReviewSubjects().some((s) => s.code === "010" && s.title === "Air Law"),
+    ).toBe(true);
+  });
+
+  it("requires a first lecture at least 72 hours ahead", () => {
+    const tooSoon = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    expect(atplPackageScheduleIssue(formatLocalDateInput(tooSoon), "10:00")).toMatch(/72 hours/);
+    const ok = validAtplPackageSchedule();
+    expect(atplPackageScheduleIssue(ok.studyStartDate, ok.firstLectureTime)).toBeNull();
+    expect(ATPL_PACKAGE_MIN_NOTICE_HOURS).toBe(72);
+    expect(ATPL_PACKAGE_TKI_NOTICE).toMatch(/TKI 1/);
+    expect(ATPL_PACKAGE_JOINING_TERMS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("rejects guest checkout payloads without a valid package schedule", () => {
+    const base = {
+      firstName: "Lina",
+      lastName: "Pilot",
+      email: "lina.schedule@aviatorpass.test",
+      phone: "+96550001111",
+      country: "KW",
+    };
+    expect(guestCheckoutSchema.safeParse(base).success).toBe(false);
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...base,
+        studyStartDate: formatLocalDateInput(new Date()),
+        firstLectureTime: "09:00",
+      }).success,
+    ).toBe(false);
+    expect(guestCheckoutSchema.safeParse({ ...base, ...validAtplPackageSchedule() }).success).toBe(
+      true,
+    );
+  });
+
+  it("stores the requested start on the paid order and welcome snapshot", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    const schedule = validAtplPackageSchedule();
+    const result = await payGuestCheckout({
+      firstName: "Huda",
+      lastName: "Farid",
+      email: `package.schedule.${Date.now()}@aviatorpass.test`,
+      phone: "+96550007777",
+      country: "KW",
+      billingName: "Huda Farid",
+      billingAddress: "Kuwait City",
+      ...schedule,
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `package-schedule-${Date.now()}`,
+    });
+    expect(result.order.status).toBe("paid");
+    expect(result.order.metadata.studyStartDate).toBe(schedule.studyStartDate);
+    expect(result.order.metadata.firstLectureTime).toBe(schedule.firstLectureTime);
+    expect(result.order.metadata.scheduleProvisional).toBe(true);
+    expect(result.order.metadata.requestedStudyStartDate).toBe(schedule.studyStartDate);
+    expect(result.order.metadata.requestedFirstLectureTime).toBe(schedule.firstLectureTime);
+    expect(String(result.order.metadata.scheduleNotice)).toMatch(/TKI 1/);
+    const welcome = getWelcomeByOrderId(result.order.id);
+    expect(welcome?.studyStartDate).toBe(schedule.studyStartDate);
+    expect(welcome?.firstLectureTime).toBe(schedule.firstLectureTime);
+    const cgiStudent = listAtplStudents().find((s) => s.email === result.order.studentEmail);
+    expect(cgiStudent?.requestedStudyStartDate).toBe(schedule.studyStartDate);
+    expect(cgiStudent?.requestedFirstLectureTime).toBe(schedule.firstLectureTime);
+    expect(cgiStudent?.scheduleProvisional).toBe(true);
+    expect(cgiStudent?.requestedFirstLectureLabel).toBeTruthy();
+  });
+
+  it("keeps checkout on the guest form so the schedule is collected before Stripe", () => {
+    const checkoutPage = readFileSync(
+      path.join(process.cwd(), "app/(marketing)/checkout/page.tsx"),
+      "utf8",
+    );
+    expect(checkoutPage).toContain("GuestCheckoutView");
+    expect(checkoutPage).not.toContain("startHostedCheckout");
+    expect(checkoutPage).not.toContain("StripeCheckoutRedirect");
+
+    const checkoutView = readFileSync(
+      path.join(process.cwd(), "features/payments/components/guest-checkout-view.tsx"),
+      "utf8",
+    );
+    expect(checkoutView).toContain("studyStartDate");
+    expect(checkoutView).toContain("firstLectureTime");
+    expect(checkoutView).toContain("ATPL_PACKAGE_TKI_NOTICE");
+
+    const program = readFileSync(
+      path.join(process.cwd(), "features/marketing/components/atpl-program-page.tsx"),
+      "utf8",
+    );
+    expect(program).toContain("joining-terms");
+    expect(program).toContain("ATPL_PACKAGE_JOINING_TERMS");
+    expect(program).toContain("ACTION_LABELS.chooseThisPackage");
+    expect(ACTION_LABELS.chooseThisPackage).toBe("Choose this package");
+    expect(ACTION_LABELS.chooseAtplPackage).toBe("Choose ATPL Complete Package");
+    expect(HERO.secondaryCta).toBe("Choose ATPL Complete Package");
+
+    const homePage = readFileSync(path.join(process.cwd(), "app/(marketing)/page.tsx"), "utf8");
+    expect(homePage).toContain("listAtplPackageReviewSubjects");
+    expect(listAtplPackageReviewSubjects()).toHaveLength(13);
+  });
+
+  it("lets TKI 1 confirm the requested first lecture or a different time", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+    const requested = validAtplPackageSchedule();
+    const paid = await payGuestCheckout({
+      firstName: "Rami",
+      lastName: "Nasser",
+      email: `tki.confirm.${Date.now()}@aviatorpass.test`,
+      phone: "+96550008888",
+      country: "KW",
+      billingName: "Rami Nasser",
+      billingAddress: "Kuwait City",
+      ...requested,
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `tki-confirm-${Date.now()}`,
+    });
+    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+    expect(student?.studentId).toBeTruthy();
+    expect(
+      getCgiDashboardSnapshot().pendingFirstLectures.some(
+        (s) => s.email === paid.order.studentEmail,
+      ),
+    ).toBe(true);
+
+    const confirmed = await confirmAtplPackageSchedule({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+    });
+    expect(confirmed.scheduleProvisional).toBe(false);
+    expect(confirmed.confirmedStudyStartDate).toBe(requested.studyStartDate);
+    expect(confirmed.confirmedFirstLectureTime).toBe(requested.firstLectureTime);
+    expect(confirmed.scheduleNotice).toBe(ATPL_PACKAGE_CONFIRMED_NOTICE);
+    expect(
+      getCgiDashboardSnapshot().pendingFirstLectures.some(
+        (s) => s.email === paid.order.studentEmail,
+      ),
+    ).toBe(false);
+    expect(
+      getStudentAtplPackageSchedule(student!.studentId, paid.order.studentEmail!).orderId,
+    ).toBe(paid.order.id);
+
+    const later = validAtplPackageSchedule();
+    const paidAgain = await payGuestCheckout({
+      firstName: "Sara",
+      lastName: "Hadi",
+      email: `tki.replace.${Date.now()}@aviatorpass.test`,
+      phone: "+96550009999",
+      country: "KW",
+      billingName: "Sara Hadi",
+      billingAddress: "Kuwait City",
+      ...later,
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `tki-replace-${Date.now()}`,
+    });
+    const studentTwo = listAtplStudents().find((s) => s.email === paidAgain.order.studentEmail)!;
+    const newDate = formatLocalDateInput(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000));
+    const replaced = await confirmAtplPackageSchedule({
+      studentId: studentTwo.studentId,
+      actorId: cgi.id,
+      studyStartDate: newDate,
+      firstLectureTime: "19:30",
+    });
+    expect(replaced.requestedStudyStartDate).toBe(later.studyStartDate);
+    expect(replaced.requestedFirstLectureTime).toBe(later.firstLectureTime);
+    expect(replaced.confirmedStudyStartDate).toBe(newDate);
+    expect(replaced.confirmedFirstLectureTime).toBe("19:30");
+    expect(replaced.scheduleProvisional).toBe(false);
+  });
+
+  it("keeps TKI 1 confirmation on the CGI console and student surfaces", () => {
+    const cgiRoute = readFileSync(path.join(process.cwd(), "app/api/cgi/route.ts"), "utf8");
+    const cgiView = readFileSync(
+      path.join(process.cwd(), "features/cgi/components/cgi-console-view.tsx"),
+      "utf8",
+    );
+    const dash = readFileSync(
+      path.join(
+        process.cwd(),
+        "features/learning/components/student-dashboard/student-dashboard-view.tsx",
+      ),
+      "utf8",
+    );
+    const scheduleHub = readFileSync(
+      path.join(process.cwd(), "features/schedule/components/schedule-hub-view.tsx"),
+      "utf8",
+    );
+    expect(cgiRoute).toContain("confirm_first_lecture");
+    expect(cgiView).toContain("confirm_first_lecture");
+    expect(cgiView).toContain("ACTION_LABELS.confirmRequestedFirstLecture");
+    expect(ACTION_LABELS.confirmRequestedFirstLecture).toBe("Confirm requested time");
+    expect(ACTION_LABELS.confirmDifferentFirstLecture).toBe("Confirm a different time");
+    expect(dash).toContain("/api/learning/atpl-schedule");
+    expect(dash).toContain("First lecture");
+    expect(scheduleHub).toContain("/api/learning/atpl-schedule");
+  });
+});
