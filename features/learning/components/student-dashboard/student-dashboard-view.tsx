@@ -608,6 +608,9 @@ function LearningDashboardView() {
                 </strong>
               </p>
               <p className="sl-muted">{atplSchedule.scheduleNotice}</p>
+              {!atplSchedule.scheduleProvisional && atplSchedule.firstLectureLiveClassId ? (
+                <p className="sl-muted">It is now on your timetable.</p>
+              ) : null}
             </section>
           ) : null}
           <section className="sl-card" aria-labelledby="today-learning-title">

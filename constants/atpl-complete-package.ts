@@ -14,6 +14,9 @@ export const ATPL_PACKAGE_TKI_NOTICE =
 export const ATPL_PACKAGE_CONFIRMED_NOTICE =
   "The first lecture time has been confirmed by the Chief Theoretical Knowledge Instructor (TKI 1).";
 
+export const ATPL_PACKAGE_FIRST_LECTURE_TITLE = "ATPL first lecture";
+export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
+
 export type AtplPackageScheduleSnapshot = {
   orderId: string | null;
   requestedStudyStartDate: string | null;
@@ -26,6 +29,7 @@ export type AtplPackageScheduleSnapshot = {
   scheduleProvisional: boolean;
   scheduleNotice: string;
   scheduleConfirmedAt: string | null;
+  firstLectureLiveClassId: string | null;
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -40,6 +44,7 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   scheduleProvisional: false,
   scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
   scheduleConfirmedAt: null,
+  firstLectureLiveClassId: null,
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [

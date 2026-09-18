@@ -33,6 +33,7 @@ import {
   getStudentAtplPackageSchedule,
   listAtplStudents,
 } from "@/services/cgi/journey-service";
+import { listScheduleSessions } from "@/services/schedule/dynamic-schedule-service";
 import { guestCheckoutSchema } from "@/utils/validation";
 
 const CLIENT_TITLES = [
@@ -214,6 +215,13 @@ describe("ATPL Complete Package journey", () => {
     expect(confirmed.confirmedStudyStartDate).toBe(requested.studyStartDate);
     expect(confirmed.confirmedFirstLectureTime).toBe(requested.firstLectureTime);
     expect(confirmed.scheduleNotice).toBe(ATPL_PACKAGE_CONFIRMED_NOTICE);
+    expect(confirmed.firstLectureLiveClassId).toBeTruthy();
+    const booked = listScheduleSessions({
+      userId: student!.studentId,
+      role: ROLES.STUDENT,
+      from: new Date().toISOString(),
+    });
+    expect(booked.some((session) => session.id === confirmed.firstLectureLiveClassId)).toBe(true);
     expect(
       getCgiDashboardSnapshot().pendingFirstLectures.some(
         (s) => s.email === paid.order.studentEmail,
@@ -250,6 +258,15 @@ describe("ATPL Complete Package journey", () => {
     expect(replaced.confirmedStudyStartDate).toBe(newDate);
     expect(replaced.confirmedFirstLectureTime).toBe("19:30");
     expect(replaced.scheduleProvisional).toBe(false);
+    expect(replaced.firstLectureLiveClassId).toBeTruthy();
+    const replacedSessions = listScheduleSessions({
+      userId: studentTwo.studentId,
+      role: ROLES.STUDENT,
+      from: new Date().toISOString(),
+    });
+    expect(
+      replacedSessions.some((session) => session.id === replaced.firstLectureLiveClassId),
+    ).toBe(true);
   });
 
   it("keeps TKI 1 confirmation on the CGI console and student surfaces", () => {
@@ -272,6 +289,7 @@ describe("ATPL Complete Package journey", () => {
     expect(cgiRoute).toContain("confirm_first_lecture");
     expect(cgiView).toContain("confirm_first_lecture");
     expect(cgiView).toContain("ACTION_LABELS.confirmRequestedFirstLecture");
+    expect(cgiView).toContain("books the first lecture");
     expect(ACTION_LABELS.confirmRequestedFirstLecture).toBe("Confirm requested time");
     expect(ACTION_LABELS.confirmDifferentFirstLecture).toBe("Confirm a different time");
     expect(dash).toContain("/api/learning/atpl-schedule");

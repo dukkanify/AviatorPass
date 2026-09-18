@@ -202,7 +202,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
         <h2 className="text-lg font-semibold tracking-tight">Provisional first lectures (TKI 1)</h2>
         <p className="text-sm text-muted-foreground">
           Students requested these start dates at checkout. Confirm the requested time, or set a
-          different final time. The student is notified when you confirm.
+          different final time. Confirmation books the first lecture on the student’s timetable and
+          notifies them.
         </p>
         <ul className="space-y-2 text-sm">
           {data.pendingFirstLectures.length === 0 ? (
