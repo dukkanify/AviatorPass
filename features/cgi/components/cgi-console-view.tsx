@@ -34,6 +34,7 @@ type Snapshot = {
     requestedFirstLectureLabel: string | null;
     confirmedFirstLectureLabel: string | null;
     scheduleProvisional: boolean;
+    firstLectureOnTimetable?: boolean;
   }>;
   pendingFirstLectures: Array<{
     studentId: string;
@@ -43,6 +44,13 @@ type Snapshot = {
     requestedStudyStartDate: string | null;
     requestedFirstLectureTime: string | null;
     scheduleProvisional: boolean;
+  }>;
+  confirmedFirstLectures: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    confirmedFirstLectureLabel: string | null;
+    firstLectureOnTimetable?: boolean;
   }>;
   instructors: Array<{
     instructorId: string;
@@ -202,7 +210,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
         <h2 className="text-lg font-semibold tracking-tight">Provisional first lectures (TKI 1)</h2>
         <p className="text-sm text-muted-foreground">
           Students requested these start dates at checkout. Confirm the requested time, or set a
-          different final time. The student is notified when you confirm.
+          different final time. Confirmation books the first lecture on the student’s timetable and
+          notifies them.
         </p>
         <ul className="space-y-2 text-sm">
           {data.pendingFirstLectures.length === 0 ? (
@@ -232,6 +241,31 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   )
                 }
               />
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Confirmed first lectures</h2>
+        <p className="text-sm text-muted-foreground">
+          TKI 1 has confirmed these times. They are booked on the student timetable.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {data.confirmedFirstLectures.length === 0 ? (
+            <li className="text-muted-foreground">No confirmed first lectures yet.</li>
+          ) : (
+            data.confirmedFirstLectures.map((s) => (
+              <li key={s.studentId} className="rounded-xl border border-border bg-card px-4 py-3">
+                <p className="font-medium">{s.name}</p>
+                <p className="text-muted-foreground">{s.email}</p>
+                <p className="mt-1">
+                  {s.confirmedFirstLectureLabel}
+                  <span className="ml-2 text-xs uppercase tracking-wide text-accent">
+                    {s.firstLectureOnTimetable ? "On timetable" : "Confirmed"}
+                  </span>
+                </p>
+              </li>
             ))
           )}
         </ul>

@@ -272,6 +272,10 @@ function addParticipants(liveClassId: string, userIds: string[], role: MeetingPa
   });
 }
 
+export function enrollStudentsInLiveClass(liveClassId: string, studentIds: string[]) {
+  addParticipants(liveClassId, studentIds, "participant");
+}
+
 async function notifyUsers(
   userIds: string[],
   title: string,

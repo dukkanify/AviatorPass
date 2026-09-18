@@ -18,7 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ScheduleOverview, ScheduleSession, TimelineEvent } from "@/types/schedule";
-import type { AtplPackageScheduleSnapshot } from "@/constants/atpl-complete-package";
+import {
+  ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
 
 type HubRole = "student" | "instructor" | "cgi" | "admin";
 
@@ -219,6 +222,17 @@ export function ScheduleHubView({
                 Instructor: {overview?.nextSession.pendingInstructorReminders ?? 0}
               </span>
             </div>
+          </div>
+        ) : atplSchedule &&
+          !atplSchedule.scheduleProvisional &&
+          atplSchedule.confirmedFirstLectureLabel ? (
+          <div className="space-y-2">
+            <p className="text-2xl font-semibold tracking-tight">
+              {ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {atplSchedule.confirmedFirstLectureLabel} · upcoming · ATPL
+            </p>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No upcoming session.</p>

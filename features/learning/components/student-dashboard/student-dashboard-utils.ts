@@ -159,6 +159,33 @@ export function sameDay(a: string | number | Date, b: string | number | Date): b
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
+export function isLiveWindow(
+  startsAt: string | number | Date,
+  now = Date.now(),
+  durationMs = 60 * 60 * 1000,
+): boolean {
+  const start = new Date(startsAt).getTime();
+  if (Number.isNaN(start)) return false;
+  const joinEarlyMs = 15 * 60 * 1000;
+  return now >= start - joinEarlyMs && now <= start + durationMs;
+}
+
+export function formatDashboardEventTime(
+  startsAt: string | number | Date,
+  now = Date.now(),
+): string {
+  const when = new Date(startsAt);
+  if (Number.isNaN(when.getTime())) return "";
+  const time = when.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  if (sameDay(when, now)) return time;
+  const date = when.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${date} · ${time}`;
+}
+
 export function calendarKindLabel(type: LearningCalendarItem["type"]): string {
   switch (type) {
     case "live_class":

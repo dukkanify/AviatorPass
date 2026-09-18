@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 
+import { ROLES } from "@/constants/roles";
 import { requireAuth } from "@/services/auth/guards";
+import { ensureConfirmedFirstLectureOnTimetable } from "@/services/cgi/journey-service";
 import { getAgendaForUser, getCalendarEventsForUser } from "@/services/classes/calendar-service";
 import { classErrorResponse } from "@/app/api/classes/_utils";
 
 export async function GET(request: Request) {
   try {
     const user = await requireAuth();
+    if (user.role === ROLES.STUDENT) {
+      await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
+    }
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "month";
     const from = searchParams.get("from") ?? undefined;

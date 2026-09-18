@@ -5,12 +5,15 @@
 import { generateId } from "@/lib/security/crypto";
 import {
   ATPL_PACKAGE_CONFIRMED_NOTICE,
+  ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+  ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
   combineLocalDateAndTime,
   formatAtplPackageScheduleLabel,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
+import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -25,9 +28,12 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
+  enrollStudentsInLiveClass,
+  getLiveClass,
   rescheduleLiveClass,
   canManageClass,
 } from "@/services/classes/class-service";
+import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
@@ -510,8 +516,31 @@ function latestPaidPackageOrder(studentId: string, email: string) {
   );
 }
 
+function liveClassIdFromOrder(
+  order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
+): string | null {
+  return typeof order.metadata.firstLectureLiveClassId === "string"
+    ? order.metadata.firstLectureLiveClassId
+    : null;
+}
+
+function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
+  return readClassesDb().participants.some(
+    (row) =>
+      row.liveClassId === liveClassId && row.userId === studentId && row.role === "participant",
+  );
+}
+
+function firstLectureIsOnTimetable(studentId: string, liveClassId: string | null): boolean {
+  if (!liveClassId) return false;
+  const existing = getLiveClass(liveClassId);
+  if (!existing || existing.status === "cancelled") return false;
+  return studentIsInLiveClass(liveClassId, studentId);
+}
+
 function packageScheduleFromOrder(
   order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
+  studentId?: string,
 ): AtplPackageScheduleSnapshot {
   const requestedDate = String(
     order.metadata.requestedStudyStartDate ?? order.metadata.studyStartDate,
@@ -522,6 +551,11 @@ function packageScheduleFromOrder(
   const currentDate = String(order.metadata.studyStartDate);
   const currentTime = String(order.metadata.firstLectureTime ?? "");
   const provisional = order.metadata.scheduleProvisional !== false;
+  const liveClassId = liveClassIdFromOrder(order);
+  const confirmedAt =
+    !provisional && typeof order.metadata.firstLectureAt === "string"
+      ? order.metadata.firstLectureAt
+      : null;
   return {
     orderId: order.id,
     requestedStudyStartDate: requestedDate,
@@ -538,6 +572,7 @@ function packageScheduleFromOrder(
       !provisional && currentDate && currentTime
         ? formatAtplPackageScheduleLabel(currentDate, currentTime)
         : null,
+    confirmedFirstLectureAt: confirmedAt,
     scheduleProvisional: provisional,
     scheduleNotice:
       typeof order.metadata.scheduleNotice === "string"
@@ -549,17 +584,250 @@ function packageScheduleFromOrder(
       typeof order.metadata.scheduleConfirmedAt === "string"
         ? order.metadata.scheduleConfirmedAt
         : null,
+    firstLectureLiveClassId: liveClassId,
+    firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
   };
 }
 
 function latestPaidPackageSchedule(studentId: string, email: string): AtplPackageScheduleSnapshot {
   const order = latestPaidPackageOrder(studentId, email);
   if (!order) return EMPTY_ATPL_PACKAGE_SCHEDULE;
-  return packageScheduleFromOrder(order);
+  return packageScheduleFromOrder(order, studentId);
 }
 
 export function getStudentAtplPackageSchedule(studentId: string, email: string) {
   return latestPaidPackageSchedule(studentId, email);
+}
+
+/** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */
+export async function ensureConfirmedFirstLectureOnTimetable(
+  studentId: string,
+  email: string,
+): Promise<AtplPackageScheduleSnapshot> {
+  const order = latestPaidPackageOrder(studentId, email);
+  if (!order) return EMPTY_ATPL_PACKAGE_SCHEDULE;
+  const schedule = packageScheduleFromOrder(order, studentId);
+  if (schedule.scheduleProvisional || !schedule.confirmedStudyStartDate) return schedule;
+  if (schedule.firstLectureOnTimetable) return schedule;
+
+  const date = schedule.confirmedStudyStartDate;
+  const time = schedule.confirmedFirstLectureTime;
+  if (!date || !time) return schedule;
+
+  const existingId = schedule.firstLectureLiveClassId;
+  const existing = existingId ? getLiveClass(existingId) : null;
+  if (existing && existing.status !== "cancelled") {
+    enrollStudentsInLiveClass(existing.id, [studentId]);
+    if (existing.courseId) {
+      upsertFirstLectureAssignment({
+        studentId,
+        courseId: existing.courseId,
+        instructorId: existing.instructorId,
+        scheduledAt: existing.startsAt,
+        liveClassId: existing.id,
+        actorId:
+          typeof order.metadata.scheduleConfirmedById === "string"
+            ? order.metadata.scheduleConfirmedById
+            : studentId,
+        notes: ATPL_PACKAGE_CONFIRMED_NOTICE,
+      });
+    }
+    if (firstLectureIsOnTimetable(studentId, existing.id)) {
+      return packageScheduleFromOrder(order, studentId);
+    }
+  }
+
+  try {
+    const actorId =
+      typeof order.metadata.scheduleConfirmedById === "string"
+        ? order.metadata.scheduleConfirmedById
+        : studentId;
+    const liveClassId = await placeConfirmedFirstLecture({
+      studentId,
+      actorId,
+      when: combineLocalDateAndTime(date, time),
+      existingLiveClassId: existingId,
+    });
+    const stamp = nowIso();
+    writePaymentsDb((db) => {
+      const row = db.orders.find((item) => item.id === order.id);
+      if (!row) return;
+      row.metadata = {
+        ...row.metadata,
+        firstLectureLiveClassId: liveClassId,
+      };
+      row.updatedAt = stamp;
+    });
+  } catch {
+    // Confirmation metadata still describes the time; booking is retried on the next load.
+  }
+  return latestPaidPackageSchedule(studentId, email);
+}
+
+const FIRST_LECTURE_LESSON_ID = ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID;
+
+function firstLectureInstructorIds(courseId: string, assignedId: string | null): string[] {
+  const course = listAtplCourses().find((c) => c.id === courseId);
+  const preferred = [assignedId, course?.primaryInstructorId].filter((id): id is string =>
+    Boolean(id),
+  );
+  const rest = listAllInstructors()
+    .map((i) => i.instructorId)
+    .filter((id) => !preferred.includes(id));
+  return [...new Set([...preferred, ...rest])];
+}
+
+function findSharedFirstLecture(startsAt: string, courseId: string) {
+  ensureClassesSeeded();
+  return (
+    readClassesDb().classes.find(
+      (row) =>
+        !row.deletedAt &&
+        row.status === "scheduled" &&
+        row.courseId === courseId &&
+        row.startsAt === startsAt &&
+        row.title.startsWith(ATPL_PACKAGE_FIRST_LECTURE_TITLE),
+    ) ?? null
+  );
+}
+
+function upsertFirstLectureAssignment(input: {
+  studentId: string;
+  courseId: string;
+  instructorId: string;
+  scheduledAt: string;
+  liveClassId: string;
+  actorId: string;
+  notes: string;
+}) {
+  const stamp = nowIso();
+  writeCgiDb((db) => {
+    const existing = db.lectureAssignments.find(
+      (row) => row.studentId === input.studentId && row.lessonId === FIRST_LECTURE_LESSON_ID,
+    );
+    if (existing) {
+      existing.courseId = input.courseId;
+      existing.instructorId = input.instructorId;
+      existing.scheduledAt = input.scheduledAt;
+      existing.liveClassId = input.liveClassId;
+      existing.status = "scheduled";
+      existing.notes = input.notes;
+      existing.updatedAt = stamp;
+      return;
+    }
+    db.lectureAssignments.unshift({
+      id: generateId(),
+      courseId: input.courseId,
+      lessonId: FIRST_LECTURE_LESSON_ID,
+      lessonTitle: ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+      instructorId: input.instructorId,
+      studentId: input.studentId,
+      status: "scheduled",
+      scheduledAt: input.scheduledAt,
+      liveClassId: input.liveClassId,
+      notes: input.notes,
+      assignedById: input.actorId,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+  });
+}
+
+async function placeConfirmedFirstLecture(input: {
+  studentId: string;
+  actorId: string;
+  when: Date;
+  existingLiveClassId?: string | null;
+}): Promise<string> {
+  const startsAt = input.when.toISOString();
+  const endsAt = new Date(
+    input.when.getTime() + DEFAULT_CLASS_DURATION_MINUTES * 60_000,
+  ).toISOString();
+  const plan = ensureStudentSubjectPlan(input.studentId, input.actorId);
+  const first = plan[0];
+  if (!first) throw new CgiError("No ATPL subject is available for the first lecture");
+  const notes = ATPL_PACKAGE_CONFIRMED_NOTICE;
+  const title = `${ATPL_PACKAGE_FIRST_LECTURE_TITLE} · ${first.subjectCode}`;
+
+  const existingId = input.existingLiveClassId?.trim() || "";
+  const existing = existingId ? getLiveClass(existingId) : null;
+  if (existing && existing.status !== "cancelled" && !existing.deletedAt) {
+    const moved = await rescheduleLiveClass({
+      id: existing.id,
+      startsAt,
+      endsAt,
+      actorId: input.actorId,
+    });
+    const liveClassId = moved?.id ?? existing.id;
+    enrollStudentsInLiveClass(liveClassId, [input.studentId]);
+    upsertFirstLectureAssignment({
+      studentId: input.studentId,
+      courseId: first.courseId,
+      instructorId: moved?.instructorId ?? existing.instructorId,
+      scheduledAt: startsAt,
+      liveClassId,
+      actorId: input.actorId,
+      notes,
+    });
+    return liveClassId;
+  }
+
+  const shared = findSharedFirstLecture(startsAt, first.courseId);
+  if (shared) {
+    enrollStudentsInLiveClass(shared.id, [input.studentId]);
+    upsertFirstLectureAssignment({
+      studentId: input.studentId,
+      courseId: first.courseId,
+      instructorId: shared.instructorId,
+      scheduledAt: startsAt,
+      liveClassId: shared.id,
+      actorId: input.actorId,
+      notes,
+    });
+    return shared.id;
+  }
+
+  let lastError: string | null = null;
+  for (const instructorId of firstLectureInstructorIds(
+    first.courseId,
+    first.assignedInstructorId,
+  )) {
+    try {
+      const created = await createLiveClass({
+        title,
+        description: notes,
+        courseId: first.courseId,
+        lessonId: FIRST_LECTURE_LESSON_ID,
+        instructorId,
+        startsAt,
+        durationMinutes: DEFAULT_CLASS_DURATION_MINUTES,
+        enrollStudentIds: [input.studentId],
+        actorId: input.actorId,
+      });
+      if (!created?.id) {
+        lastError = "Could not create the live class";
+        continue;
+      }
+      upsertFirstLectureAssignment({
+        studentId: input.studentId,
+        courseId: first.courseId,
+        instructorId,
+        scheduledAt: startsAt,
+        liveClassId: created.id,
+        actorId: input.actorId,
+        notes,
+      });
+      return created.id;
+    } catch (error) {
+      if (error instanceof ClassValidationError || error instanceof CgiError) {
+        lastError = error.message;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new CgiError(lastError ?? "Could not book the first lecture. Choose a different time.");
 }
 
 export async function confirmAtplPackageSchedule(input: {
@@ -592,6 +860,16 @@ export async function confirmAtplPackageSchedule(input: {
     throw new CgiError("Confirmed first lecture must be in the future");
   }
 
+  const liveClassId = await placeConfirmedFirstLecture({
+    studentId: input.studentId,
+    actorId: input.actorId,
+    when,
+    existingLiveClassId:
+      typeof order.metadata.firstLectureLiveClassId === "string"
+        ? order.metadata.firstLectureLiveClassId
+        : null,
+  });
+
   const stamp = nowIso();
   writePaymentsDb((db) => {
     const row = db.orders.find((item) => item.id === order.id);
@@ -603,6 +881,7 @@ export async function confirmAtplPackageSchedule(input: {
       studyStartDate,
       firstLectureTime,
       firstLectureAt: when.toISOString(),
+      firstLectureLiveClassId: liveClassId,
       scheduleProvisional: false,
       scheduleConfirmedAt: stamp,
       scheduleConfirmedById: input.actorId,
@@ -631,7 +910,7 @@ export async function confirmAtplPackageSchedule(input: {
         recipientName:
           [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
         title: "First lecture confirmed by TKI 1",
-        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) confirmed your first lecture for ${label}.`,
+        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) confirmed your first lecture for ${label}. It is now on your timetable.`,
         supportEmail: brand.supportEmail,
         reference: order.orderNumber,
       },
@@ -772,6 +1051,9 @@ export function getCgiDashboardSnapshot() {
     students: students.slice(0, 12),
     pendingFirstLectures: students.filter(
       (s) => s.scheduleProvisional && Boolean(s.requestedFirstLectureLabel),
+    ),
+    confirmedFirstLectures: students.filter(
+      (s) => !s.scheduleProvisional && Boolean(s.confirmedFirstLectureLabel),
     ),
     instructors,
   };

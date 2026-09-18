@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { requirePermission } from "@/services/auth/guards";
+import { ensureConfirmedFirstLectureOnTimetable } from "@/services/cgi/journey-service";
 import {
   emptyLearningDashboardOverview,
   getLearningDashboard,
@@ -14,6 +15,7 @@ export async function GET() {
   const correlationId = newDashboardCorrelationId();
   try {
     const user = await requirePermission(PERMISSIONS.COURSES_ENROLLED);
+    await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
     const data = getLearningDashboard(user);
     return NextResponse.json({
       success: true,

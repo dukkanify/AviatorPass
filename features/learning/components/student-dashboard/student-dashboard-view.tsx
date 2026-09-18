@@ -19,7 +19,10 @@ import {
 
 import Link from "@/components/ui/app-link";
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
-import type { AtplPackageScheduleSnapshot } from "@/constants/atpl-complete-package";
+import {
+  ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
 import { learningFetch } from "@/features/learning/lib/api";
 import { safePath } from "@/lib/links/safe-href";
 import { useAuth } from "@/providers/auth-provider";
@@ -47,6 +50,8 @@ import {
   greetingForHour,
   HERO_IMAGE,
   initialsOf,
+  isLiveWindow,
+  formatDashboardEventTime,
   learningStreak,
   pilotLevelFromXp,
   relativeTime,
@@ -189,7 +194,11 @@ function LearningDashboardView() {
             : item.status === "upcoming"),
       ) ?? calendar.find((item) => item.type === "live_class"))
     : undefined;
-  const liveStartsAt = liveItem?.startsAt ?? null;
+  const confirmedStartsAt =
+    atplSchedule && !atplSchedule.scheduleProvisional
+      ? (atplSchedule.confirmedFirstLectureAt ?? null)
+      : null;
+  const liveStartsAt = liveItem?.startsAt ?? confirmedStartsAt ?? null;
   const instructorName = hasEnrolledCourses
     ? (currentCourse?.primaryInstructorName ?? "Instructor")
     : "Academy team";
@@ -220,63 +229,80 @@ function LearningDashboardView() {
       : "Open your next briefing");
 
   const schedulePicks = [
-    todayItems.find((item) => item.type === "live_class") ?? liveItem,
+    todayItems.find((item) => item.type === "live_class"),
     todayItems.find((item) => item.type === "study_session" || item.type === "lesson"),
-    todayItems.find((item) => item.type === "deadline") ??
-      plannerItems.find((item) => item.type === "deadline"),
+    todayItems.find((item) => item.type === "deadline"),
   ].filter((item, index, list): item is LearningCalendarItem => {
     return Boolean(item) && list.findIndex((candidate) => candidate?.id === item?.id) === index;
   });
 
+  const liveNow = Boolean(liveStartsAt && isLiveWindow(liveStartsAt, now));
   const mappedSchedule = (
     schedulePicks.length >= 2 ? schedulePicks.slice(0, 3) : todayItems.slice(0, 3)
-  ).map((item) => ({
-    id: item.id,
-    time: new Date(item.startsAt).toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    title: calendarKindLabel(item.type),
-    detail: item.title,
-    href: item.href ?? (item.type === "live_class" ? "/student/calendar" : resumeHref),
-    live: item.type === "live_class",
-    action: item.type === "live_class" ? "Join" : item.type === "deadline" ? "Start" : null,
-  }));
+  ).map((item) => {
+    const live = item.type === "live_class" && isLiveWindow(item.startsAt, now);
+    return {
+      id: item.id,
+      time: formatDashboardEventTime(item.startsAt, now),
+      title: calendarKindLabel(item.type),
+      detail: item.title,
+      href: item.href ?? (item.type === "live_class" ? "/student/schedule" : resumeHref),
+      live,
+      action:
+        item.type === "live_class"
+          ? live
+            ? "Join"
+            : ACTION_LABELS.viewTimetable
+          : item.type === "deadline"
+            ? "Start"
+            : null,
+    };
+  });
+
+  const upcomingLiveRow =
+    liveItem && !todayItems.some((item) => item.id === liveItem.id)
+      ? [
+          {
+            id: liveItem.id,
+            time: formatDashboardEventTime(liveItem.startsAt, now),
+            title: "Upcoming live",
+            detail: liveItem.title,
+            href: "/student/schedule",
+            live: liveNow,
+            action: liveNow ? "Join" : ACTION_LABELS.viewTimetable,
+          },
+        ]
+      : !liveItem && confirmedStartsAt && !sameDay(confirmedStartsAt, now)
+        ? [
+            {
+              id: "atpl-first-lecture",
+              time: formatDashboardEventTime(confirmedStartsAt, now),
+              title: "Upcoming live",
+              detail: ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+              href: "/student/schedule",
+              live: false,
+              action: ACTION_LABELS.viewTimetable,
+            },
+          ]
+        : [];
 
   const schedule =
     mappedSchedule.length > 0
       ? mappedSchedule
       : hasEnrolledCourses
-        ? [
-            {
-              id: "live",
-              time: "10:00 AM",
-              title: "Live Class",
-              detail: continueTitle,
-              href: "/student/calendar",
-              live: true,
-              action: "Join",
-            },
-            {
-              id: "study",
-              time: "02:00 PM",
-              title: "Self Study",
-              detail: continueTitle,
-              href: resumeHref,
-              live: false,
-              action: null,
-            },
-            {
-              id: "exam",
-              time: "05:00 PM",
-              title: "Mock Exam",
-              detail: "Timed practice paper",
-              href: "/student/mock-exams",
-              live: false,
-              action: "Start",
-            },
-          ]
+        ? upcomingLiveRow.length > 0
+          ? upcomingLiveRow
+          : [
+              {
+                id: "study",
+                time: "Next",
+                title: "Self study",
+                detail: continueTitle,
+                href: resumeHref,
+                live: false,
+                action: null,
+              },
+            ]
         : [
             {
               id: "enrol",
@@ -305,8 +331,8 @@ function LearningDashboardView() {
 
   async function joinLive() {
     const classId = overview?.upcomingLiveClassId;
-    if (!classId) {
-      window.location.href = "/student/calendar";
+    if (!classId || !liveStartsAt || !isLiveWindow(liveStartsAt, Date.now())) {
+      window.location.href = "/student/schedule";
       return;
     }
     setJoining(true);
@@ -319,7 +345,7 @@ function LearningDashboardView() {
       window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
-    window.location.href = "/student/calendar";
+    window.location.href = "/student/schedule";
   }
 
   if (loading) {
@@ -416,7 +442,7 @@ function LearningDashboardView() {
             <Link className="sl-btn-ghost" href="/student/planner">
               Open Planner
             </Link>
-            <Link className="sl-btn-ghost" href="/student/calendar">
+            <Link className="sl-btn-ghost" href="/student/schedule">
               View Schedule
             </Link>
             <Link className="sl-btn-ghost" href="/student/courses">
@@ -608,12 +634,16 @@ function LearningDashboardView() {
                 </strong>
               </p>
               <p className="sl-muted">{atplSchedule.scheduleNotice}</p>
+              {!atplSchedule.scheduleProvisional &&
+              (atplSchedule.firstLectureOnTimetable || atplSchedule.firstLectureLiveClassId) ? (
+                <p className="sl-muted">It is now on your timetable.</p>
+              ) : null}
             </section>
           ) : null}
           <section className="sl-card" aria-labelledby="today-learning-title">
             <div className="sl-card-head">
               <h2 id="today-learning-title">Today&apos;s Schedule</h2>
-              <Link href="/student/calendar">Open</Link>
+              <Link href="/student/schedule">Open</Link>
             </div>
             <div className="sl-today-list">
               {schedule.map((item) => (
@@ -653,7 +683,9 @@ function LearningDashboardView() {
               <p className="sl-kicker" style={{ margin: 0 }}>
                 Upcoming Live Session
               </p>
-              <span className="sl-live">{liveStartsAt ? "Live" : "Standby"}</span>
+              <span className="sl-live">
+                {liveNow ? "Live" : liveStartsAt ? "Upcoming" : "Standby"}
+              </span>
             </div>
             <div className="sl-instructor">
               <span className="sl-instructor-fallback" aria-hidden>
@@ -666,25 +698,35 @@ function LearningDashboardView() {
             </div>
             <h2 id="live-session-title">
               {hasEnrolledCourses
-                ? (overview.upcomingLiveClass ?? liveItem?.title ?? "No live class booked")
+                ? (overview.upcomingLiveClass ??
+                  liveItem?.title ??
+                  (confirmedStartsAt ? ATPL_PACKAGE_FIRST_LECTURE_TITLE : "No live class booked"))
                 : ACTION_LABELS.enrolToUnlockLive}
             </h2>
             <p className="sl-muted">
               {hasEnrolledCourses
                 ? liveStartsAt
-                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
-                  : "No live class is booked yet — open the calendar to reserve a seat."
+                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
+                  : atplSchedule?.scheduleProvisional
+                    ? "Waiting for TKI 1 to confirm your first lecture."
+                    : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
                 : "Live classes appear here after you enrol in a programme."}
             </p>
             {hasEnrolledCourses ? (
-              <button
-                type="button"
-                className="sl-btn-gold"
-                onClick={() => void joinLive()}
-                disabled={joining}
-              >
-                {joining ? "Joining…" : "Join Live Session"}
-              </button>
+              liveNow ? (
+                <button
+                  type="button"
+                  className="sl-btn-gold"
+                  onClick={() => void joinLive()}
+                  disabled={joining}
+                >
+                  {joining ? "Joining…" : "Join Live Session"}
+                </button>
+              ) : (
+                <Link className="sl-btn-gold" href="/student/schedule">
+                  {ACTION_LABELS.viewTimetable}
+                </Link>
+              )
             ) : (
               <Link className="sl-btn-gold" href="/courses">
                 {ACTION_LABELS.browseCourses}
