@@ -13,9 +13,10 @@ export const ONLINE_COURSE_PROGRAMMES = [
   {
     id: "atpl",
     title: PROGRAMME_TERMS.atpl.title,
+    packageName: PROGRAMME_TERMS.atpl.packageName,
     commonName: PROGRAMME_TERMS.atpl.commonName,
     href: routes.atpl,
-    enrollLabel: ACTION_LABELS.viewAtplCourse,
+    enrollLabel: ACTION_LABELS.chooseAtplPackage,
     modes: [{ label: "Live", href: routes.atpl }],
     summary:
       "ATPL Complete Package — 13 theory subjects. Sessions are LIVE. Recordings are not available to students. Review the package, then pay first — your account is created automatically.",

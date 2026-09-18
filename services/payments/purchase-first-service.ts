@@ -29,6 +29,7 @@ import {
   findUserByEmail,
   findUserById,
   isStudentProfileComplete,
+  readAuthDb,
   toUserProfile,
   writeAuthDb,
   type StoredUser,
@@ -801,11 +802,35 @@ export async function fulfillGuestPaidOrder(
   await dispatchRoleAlert({
     event: "admin_alert",
     title: "New purchase-first enrollment",
-    detail: `${bound.orderNumber} · ${formatMinor(bound.totalAmount, bound.currency)} · ${email} · student ${provisioned.accountCreated ? "created automatically" : "attached to existing account"} · email ${emailSent ? "sent" : "queued"} · course ${enrolled ? "assigned" : "pending"}.`,
+    detail: `${bound.orderNumber} · ${formatMinor(bound.totalAmount, bound.currency)} · ${email} · student ${provisioned.accountCreated ? "created automatically" : "attached to existing account"} · email ${emailSent ? "sent" : "queued"} · course ${enrolled ? "assigned" : "pending"}${
+      typeof bound.metadata.studyStartDate === "string" &&
+      typeof bound.metadata.firstLectureTime === "string"
+        ? ` · requested first lecture ${bound.metadata.studyStartDate} ${bound.metadata.firstLectureTime} (provisional, TKI 1)`
+        : ""
+    }.`,
     reference: bound.orderNumber,
     actorId: user.id,
     system: true,
   });
+
+  const cgiIds = readAuthDb()
+    .users.filter((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR && u.status === "active")
+    .map((u) => u.id);
+  if (
+    cgiIds.length &&
+    typeof bound.metadata.studyStartDate === "string" &&
+    typeof bound.metadata.firstLectureTime === "string"
+  ) {
+    await dispatchRoleAlert({
+      event: "instructor_alert",
+      title: "Provisional ATPL first lecture to coordinate (TKI 1)",
+      detail: `${bound.studentName} (${email}) requested ${bound.metadata.studyStartDate} at ${bound.metadata.firstLectureTime}. ${ATPL_PACKAGE_TKI_NOTICE}`,
+      reference: bound.orderNumber,
+      actorId: user.id,
+      userIds: cgiIds,
+      system: true,
+    });
+  }
 
   await logActivity({
     actorId: user.id,

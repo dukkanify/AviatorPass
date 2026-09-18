@@ -5,7 +5,7 @@ import { AtplPassHomepage } from "@/features/marketing/components/atpl-pass-home
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { APP_METADATA } from "@/constants/navigation";
-import { listPublicAtplSubjects } from "@/services/marketing/atpl-subjects-service";
+import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const subjects = listPublicAtplSubjects();
+  const subjects = listAtplPackageReviewSubjects();
 
   return (
     <div className="landing-root home-premium">

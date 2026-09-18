@@ -35,6 +35,7 @@ export const PROGRAMME_TERMS = {
 export const ACTION_LABELS = {
   browseCourses: "Browse all courses",
   viewAtplCourse: "View ATPL course",
+  chooseAtplPackage: "Choose ATPL Complete Package",
   chooseThisPackage: "Choose this package",
   contactAdvisor: "Contact an advisor",
   enrolNow: "Enrol now",

@@ -30,6 +30,15 @@ type Snapshot = {
     email: string;
     firstSubjectCode: string | null;
     enrollmentCount: number;
+    requestedFirstLectureLabel: string | null;
+    scheduleProvisional: boolean;
+  }>;
+  pendingFirstLectures: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    requestedFirstLectureLabel: string | null;
+    scheduleProvisional: boolean;
   }>;
   instructors: Array<{
     instructorId: string;
@@ -105,7 +114,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
     <div className="space-y-8">
       <PageHeader
         title="Chief Ground Instructor"
-        description="ATPL journey control — subject distribution, lectures, instructors, and student follow-up."
+        description="ATPL journey control — subject distribution, lectures, instructors, and TKI 1 coordination of provisional first lectures."
         breadcrumbs={[{ label: "CGI" }, { label: "Dashboard" }]}
       />
 
@@ -121,6 +130,35 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Provisional first lectures (TKI 1)</h2>
+        <p className="text-sm text-muted-foreground">
+          Students requested these start dates at checkout. They remain provisional until you
+          confirm the final schedule.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {data.pendingFirstLectures.length === 0 ? (
+            <li className="text-muted-foreground">No requested first-lecture times yet.</li>
+          ) : (
+            data.pendingFirstLectures.map((s) => (
+              <li key={s.studentId} className="rounded-xl border border-border bg-card px-4 py-3">
+                <p className="font-medium">{s.name}</p>
+                <p className="text-muted-foreground">{s.email}</p>
+                <p className="mt-1">
+                  Requested:{" "}
+                  <span className="font-medium">{s.requestedFirstLectureLabel ?? "—"}</span>
+                  {s.scheduleProvisional ? (
+                    <span className="ml-2 text-xs uppercase tracking-wide text-accent">
+                      Provisional
+                    </span>
+                  ) : null}
+                </p>
+              </li>
+            ))
+          )}
+        </ul>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">
@@ -349,6 +387,9 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   <span className="text-muted-foreground"> · {s.email}</span>
                   <div className="text-muted-foreground">
                     First: {s.firstSubjectCode ?? "—"} · {s.enrollmentCount} enrollments
+                    {s.requestedFirstLectureLabel
+                      ? ` · requested ${s.requestedFirstLectureLabel}`
+                      : ""}
                   </div>
                 </li>
               ))

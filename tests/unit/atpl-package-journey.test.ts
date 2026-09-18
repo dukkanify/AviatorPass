@@ -13,6 +13,7 @@ import {
   validAtplPackageSchedule,
 } from "@/constants/atpl-complete-package";
 import { ACTION_LABELS } from "@/constants/programme-terms";
+import { HERO } from "@/features/marketing/content/atpl-pass-home";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 import {
   listPublicAtplSubjects,
@@ -23,6 +24,7 @@ import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
+import { listAtplStudents } from "@/services/cgi/journey-service";
 import { guestCheckoutSchema } from "@/utils/validation";
 
 const CLIENT_TITLES = [
@@ -127,6 +129,11 @@ describe("ATPL Complete Package journey", () => {
     const welcome = getWelcomeByOrderId(result.order.id);
     expect(welcome?.studyStartDate).toBe(schedule.studyStartDate);
     expect(welcome?.firstLectureTime).toBe(schedule.firstLectureTime);
+    const cgiStudent = listAtplStudents().find((s) => s.email === result.order.studentEmail);
+    expect(cgiStudent?.requestedStudyStartDate).toBe(schedule.studyStartDate);
+    expect(cgiStudent?.requestedFirstLectureTime).toBe(schedule.firstLectureTime);
+    expect(cgiStudent?.scheduleProvisional).toBe(true);
+    expect(cgiStudent?.requestedFirstLectureLabel).toBeTruthy();
   });
 
   it("keeps checkout on the guest form so the schedule is collected before Stripe", () => {
@@ -154,5 +161,11 @@ describe("ATPL Complete Package journey", () => {
     expect(program).toContain("ATPL_PACKAGE_JOINING_TERMS");
     expect(program).toContain("ACTION_LABELS.chooseThisPackage");
     expect(ACTION_LABELS.chooseThisPackage).toBe("Choose this package");
+    expect(ACTION_LABELS.chooseAtplPackage).toBe("Choose ATPL Complete Package");
+    expect(HERO.secondaryCta).toBe("Choose ATPL Complete Package");
+
+    const homePage = readFileSync(path.join(process.cwd(), "app/(marketing)/page.tsx"), "utf8");
+    expect(homePage).toContain("listAtplPackageReviewSubjects");
+    expect(listAtplPackageReviewSubjects()).toHaveLength(13);
   });
 });

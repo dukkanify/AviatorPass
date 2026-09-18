@@ -19,7 +19,7 @@ export const HERO = {
     "Aviator Pass is a complete aviation education platform. Train with EASA Certified Instructors across Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams — live one-to-one and selected recorded programmes.",
   audience: `Serving students in ${siteStatic.locations.join(", ")} and worldwide.`,
   primaryCta: "Explore Online Courses",
-  secondaryCta: "View the ATPL Course",
+  secondaryCta: "Choose ATPL Complete Package",
 } as const;
 
 export const ABOUT = {
@@ -146,10 +146,10 @@ export const PROGRAM = {
   kicker: "Online Courses",
   title: "One platform. Every aviation pathway.",
   description:
-    "Explore Online Courses to choose the programme that matches your stage: Basics of Aviation, Private Pilot License, the live ATPL Course, and ELP Mock Exams Live. Enrol in the ATPL Course for the official ATPL syllabus in one purchase.",
+    "Explore Online Courses to choose the programme that matches your stage: Basics of Aviation, Private Pilot License, the live ATPL Complete Package, and ELP Mock Exams Live. Choose the ATPL Complete Package to review all 13 subjects before checkout.",
   includes: [
     "EASA Certified Instructors on every programme",
-    "ATPL Course — official syllabus, live instruction",
+    "ATPL Complete Package — 13 theory subjects, live instruction",
     "Basics of Aviation — recorded and live one-to-one",
     "Private Pilot License — recorded and live one-to-one",
     "ELP Mock Exams Live",

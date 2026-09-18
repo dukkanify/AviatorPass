@@ -3,6 +3,10 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import {
+  ATPL_PACKAGE_TKI_NOTICE,
+  formatAtplPackageScheduleLabel,
+} from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -483,6 +487,49 @@ export async function rescheduleAtplClass(input: {
   return result;
 }
 
+function latestPaidPackageSchedule(studentId: string, email: string) {
+  const needle = email.trim().toLowerCase();
+  const paid = readPaymentsDb()
+    .orders.filter(
+      (order) =>
+        order.status === "paid" &&
+        Boolean(order.metadata?.purchaseFirst) &&
+        typeof order.metadata?.studyStartDate === "string" &&
+        (order.studentId === studentId ||
+          order.studentEmail?.toLowerCase() === needle ||
+          order.billingEmail?.toLowerCase() === needle),
+    )
+    .sort((a, b) => (b.paidAt ?? b.updatedAt).localeCompare(a.paidAt ?? a.updatedAt));
+  const order = paid[0];
+  if (!order) {
+    return {
+      requestedStudyStartDate: null as string | null,
+      requestedFirstLectureTime: null as string | null,
+      requestedFirstLectureLabel: null as string | null,
+      requestedFirstLectureAt: null as string | null,
+      scheduleProvisional: false,
+      scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
+    };
+  }
+  const studyStartDate = String(order.metadata.studyStartDate);
+  const firstLectureTime = String(order.metadata.firstLectureTime ?? "");
+  return {
+    requestedStudyStartDate: studyStartDate,
+    requestedFirstLectureTime: firstLectureTime || null,
+    requestedFirstLectureLabel:
+      studyStartDate && firstLectureTime
+        ? formatAtplPackageScheduleLabel(studyStartDate, firstLectureTime)
+        : studyStartDate,
+    requestedFirstLectureAt:
+      typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
+    scheduleProvisional: order.metadata.scheduleProvisional !== false,
+    scheduleNotice:
+      typeof order.metadata.scheduleNotice === "string"
+        ? order.metadata.scheduleNotice
+        : ATPL_PACKAGE_TKI_NOTICE,
+  };
+}
+
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
@@ -509,9 +556,11 @@ export function listAtplStudents() {
       const user = auth.find((u) => u.id === studentId);
       const plan = listStudentSubjectPlan(studentId);
       const first = plan.find((p) => p.sortOrder === 1) ?? null;
+      const email = user?.email ?? "";
+      const schedule = latestPaidPackageSchedule(studentId, email);
       return {
         studentId,
-        email: user?.email ?? "",
+        email,
         name: user
           ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email
           : "Unknown",
@@ -520,6 +569,7 @@ export function listAtplStudents() {
         firstSubjectCode: first?.subjectCode ?? null,
         planCount: plan.length,
         status: user?.status ?? "unknown",
+        ...schedule,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -604,7 +654,8 @@ export function getCgiDashboardSnapshot() {
     defaultFirstSubjectCourseId: settings.defaultFirstSubjectCourseId,
     recentAudit: readCgiDb().audit.slice(0, 12),
     subjects,
-    students: students.slice(0, 8),
+    students: students.slice(0, 12),
+    pendingFirstLectures: students.filter((s) => Boolean(s.requestedFirstLectureLabel)),
     instructors,
   };
 }
