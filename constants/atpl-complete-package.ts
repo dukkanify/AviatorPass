@@ -191,12 +191,9 @@ export function atplPackageScheduleIssue(
   return null;
 }
 
-export function formatAtplPackageScheduleLabel(
-  studyStartDate: string,
-  firstLectureTime: string,
-): string {
-  const when = combineLocalDateAndTime(studyStartDate, firstLectureTime);
-  if (Number.isNaN(when.getTime())) return `${studyStartDate} · ${firstLectureTime}`;
+export function formatAtplPackageInstant(value: string | Date): string {
+  const when = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(when.getTime())) return String(value);
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -205,4 +202,13 @@ export function formatAtplPackageScheduleLabel(
     hour: "2-digit",
     minute: "2-digit",
   }).format(when);
+}
+
+export function formatAtplPackageScheduleLabel(
+  studyStartDate: string,
+  firstLectureTime: string,
+): string {
+  const when = combineLocalDateAndTime(studyStartDate, firstLectureTime);
+  if (Number.isNaN(when.getTime())) return `${studyStartDate} · ${firstLectureTime}`;
+  return formatAtplPackageInstant(when);
 }

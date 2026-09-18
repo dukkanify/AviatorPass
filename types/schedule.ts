@@ -97,10 +97,24 @@ export interface ScheduleBuilderInput {
   userAgent?: string | null;
 }
 
+export interface AssignedFirstLecture {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  instructorId: string;
+  scheduledAt: string | null;
+  label: string | null;
+  liveClassId: string | null;
+  onTimetable: boolean;
+  courseId: string;
+}
+
 export interface ScheduleOverview {
   nextSession: NextSessionInfo;
   upcoming: ScheduleSession[];
   timeline: TimelineEvent[];
+  firstLectures: AssignedFirstLecture[];
   stats: {
     upcoming: number;
     liveNow: number;

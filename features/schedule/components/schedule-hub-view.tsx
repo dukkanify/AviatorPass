@@ -183,6 +183,33 @@ export function ScheduleHubView({
         </section>
       ) : null}
 
+      {role !== "student" ? (
+        <section className="space-y-3">
+          <h2 className="font-display text-xl tracking-tight">First lectures assigned by TKI 1</h2>
+          <p className="text-sm text-muted-foreground">
+            Confirmed ATPL first lectures on your timetable, with the student name.
+          </p>
+          <ul className="space-y-2 text-sm">
+            {(overview?.firstLectures ?? []).length === 0 ? (
+              <li className="text-muted-foreground">No ATPL first lectures assigned yet.</li>
+            ) : (
+              (overview?.firstLectures ?? []).map((lecture) => (
+                <li key={lecture.id} className="rounded-xl border border-border bg-card px-4 py-3">
+                  <p className="font-medium">{lecture.studentName}</p>
+                  <p className="text-muted-foreground">{lecture.studentEmail}</p>
+                  <p className="mt-1">
+                    {lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+                    <span className="ml-2 text-xs uppercase tracking-wide text-accent">
+                      {lecture.onTimetable ? "On timetable" : "Assigned"}
+                    </span>
+                  </p>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-muted-foreground">Source</Label>
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>

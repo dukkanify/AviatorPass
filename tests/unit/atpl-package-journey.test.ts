@@ -32,10 +32,15 @@ import {
   ensureConfirmedFirstLectureOnTimetable,
   getCgiDashboardSnapshot,
   getStudentAtplPackageSchedule,
+  listAssignedFirstLectures,
   listAtplStudents,
 } from "@/services/cgi/journey-service";
+import { getLiveClass } from "@/services/classes/class-service";
 import { writeClassesDb } from "@/services/classes/store";
-import { listScheduleSessions } from "@/services/schedule/dynamic-schedule-service";
+import {
+  getScheduleOverview,
+  listScheduleSessions,
+} from "@/services/schedule/dynamic-schedule-service";
 import { guestCheckoutSchema } from "@/utils/validation";
 
 const CLIENT_TITLES = [
@@ -316,6 +321,25 @@ describe("ATPL Complete Package journey", () => {
     expect(
       replacedSessions.some((session) => session.id === replaced.firstLectureLiveClassId),
     ).toBe(true);
+    const live = getLiveClass(reenrolled.firstLectureLiveClassId!);
+    expect(live?.instructorId).toBeTruthy();
+    expect(
+      listAssignedFirstLectures({ instructorId: live!.instructorId }).some(
+        (row) => row.studentId === student!.studentId && row.onTimetable,
+      ),
+    ).toBe(true);
+    const instructorOverview = getScheduleOverview({
+      userId: live!.instructorId,
+      role: ROLES.INSTRUCTOR,
+    });
+    expect(
+      instructorOverview.firstLectures.some((row) => row.studentId === student!.studentId),
+    ).toBe(true);
+    expect(
+      instructorOverview.upcoming.some(
+        (session) => session.id === reenrolled.firstLectureLiveClassId,
+      ),
+    ).toBe(true);
   });
 
   it("keeps TKI 1 confirmation on the CGI console and student surfaces", () => {
@@ -346,6 +370,13 @@ describe("ATPL Complete Package journey", () => {
     expect(dash).toContain("confirmedFirstLectureAt");
     expect(scheduleHub).toContain("/api/learning/atpl-schedule");
     expect(scheduleHub).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
+    expect(scheduleHub).toContain("First lectures assigned by TKI 1");
+    const instructorDash = readFileSync(
+      path.join(process.cwd(), "features/dashboard/instructor-dashboard-view.tsx"),
+      "utf8",
+    );
+    expect(instructorDash).toContain("First lectures assigned by TKI 1");
+    expect(instructorDash).toContain("/instructor/schedule");
     expect(cgiView).toContain("Confirmed first lectures");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
   });
