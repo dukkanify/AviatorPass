@@ -26,10 +26,12 @@ export type AtplPackageScheduleSnapshot = {
   confirmedStudyStartDate: string | null;
   confirmedFirstLectureTime: string | null;
   confirmedFirstLectureLabel: string | null;
+  confirmedFirstLectureAt: string | null;
   scheduleProvisional: boolean;
   scheduleNotice: string;
   scheduleConfirmedAt: string | null;
   firstLectureLiveClassId: string | null;
+  firstLectureOnTimetable: boolean;
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -41,10 +43,12 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   confirmedStudyStartDate: null,
   confirmedFirstLectureTime: null,
   confirmedFirstLectureLabel: null,
+  confirmedFirstLectureAt: null,
   scheduleProvisional: false,
   scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
   scheduleConfirmedAt: null,
   firstLectureLiveClassId: null,
+  firstLectureOnTimetable: false,
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [

@@ -129,6 +129,9 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("/api/learning/atpl-schedule");
     expect(view).toContain("First lecture");
     expect(view).toContain("firstLectureLiveClassId");
+    expect(view).toContain("confirmedFirstLectureAt");
+    expect(view).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
+    expect(view).toContain("Waiting for TKI 1 to confirm your first lecture.");
   });
 
   it("gives the student shell a collapsible sidebar and profile menu", () => {

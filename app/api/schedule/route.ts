@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { getRequestContext, requireAuth } from "@/services/auth/guards";
+import { ensureConfirmedFirstLectureOnTimetable } from "@/services/cgi/journey-service";
 import { assertPermission, hasPermission, PermissionError } from "@/services/auth/permissions";
 import {
   assertScheduleAccess,
@@ -39,6 +40,9 @@ export async function GET(request: Request) {
   try {
     const user = await requireAuth();
     assertScheduleAccess(user.role);
+    if (user.role === ROLES.STUDENT) {
+      await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
+    }
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "overview";
     const source = (searchParams.get("source") ?? "all") as ScheduleSource | "all";

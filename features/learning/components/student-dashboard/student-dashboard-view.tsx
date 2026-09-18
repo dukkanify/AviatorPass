@@ -19,7 +19,10 @@ import {
 
 import Link from "@/components/ui/app-link";
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
-import type { AtplPackageScheduleSnapshot } from "@/constants/atpl-complete-package";
+import {
+  ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
 import { learningFetch } from "@/features/learning/lib/api";
 import { safePath } from "@/lib/links/safe-href";
 import { useAuth } from "@/providers/auth-provider";
@@ -191,7 +194,11 @@ function LearningDashboardView() {
             : item.status === "upcoming"),
       ) ?? calendar.find((item) => item.type === "live_class"))
     : undefined;
-  const liveStartsAt = liveItem?.startsAt ?? null;
+  const confirmedStartsAt =
+    atplSchedule && !atplSchedule.scheduleProvisional
+      ? (atplSchedule.confirmedFirstLectureAt ?? null)
+      : null;
+  const liveStartsAt = liveItem?.startsAt ?? confirmedStartsAt ?? null;
   const instructorName = hasEnrolledCourses
     ? (currentCourse?.primaryInstructorName ?? "Instructor")
     : "Academy team";
@@ -265,7 +272,19 @@ function LearningDashboardView() {
             action: liveNow ? "Join" : ACTION_LABELS.viewTimetable,
           },
         ]
-      : [];
+      : !liveItem && confirmedStartsAt && !sameDay(confirmedStartsAt, now)
+        ? [
+            {
+              id: "atpl-first-lecture",
+              time: formatDashboardEventTime(confirmedStartsAt, now),
+              title: "Upcoming live",
+              detail: ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+              href: "/student/schedule",
+              live: false,
+              action: ACTION_LABELS.viewTimetable,
+            },
+          ]
+        : [];
 
   const schedule =
     mappedSchedule.length > 0
@@ -615,7 +634,8 @@ function LearningDashboardView() {
                 </strong>
               </p>
               <p className="sl-muted">{atplSchedule.scheduleNotice}</p>
-              {!atplSchedule.scheduleProvisional && atplSchedule.firstLectureLiveClassId ? (
+              {!atplSchedule.scheduleProvisional &&
+              (atplSchedule.firstLectureOnTimetable || atplSchedule.firstLectureLiveClassId) ? (
                 <p className="sl-muted">It is now on your timetable.</p>
               ) : null}
             </section>
@@ -678,14 +698,18 @@ function LearningDashboardView() {
             </div>
             <h2 id="live-session-title">
               {hasEnrolledCourses
-                ? (overview.upcomingLiveClass ?? liveItem?.title ?? "No live class booked")
+                ? (overview.upcomingLiveClass ??
+                  liveItem?.title ??
+                  (confirmedStartsAt ? ATPL_PACKAGE_FIRST_LECTURE_TITLE : "No live class booked"))
                 : ACTION_LABELS.enrolToUnlockLive}
             </h2>
             <p className="sl-muted">
               {hasEnrolledCourses
                 ? liveStartsAt
-                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? "Live briefing"}`
-                  : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
+                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
+                  : atplSchedule?.scheduleProvisional
+                    ? "Waiting for TKI 1 to confirm your first lecture."
+                    : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
                 : "Live classes appear here after you enrol in a programme."}
             </p>
             {hasEnrolledCourses ? (

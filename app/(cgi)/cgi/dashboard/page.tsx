@@ -28,6 +28,7 @@ const EMPTY_CGI_SNAPSHOT: CgiSnapshot = {
   subjects: [],
   students: [],
   pendingFirstLectures: [],
+  confirmedFirstLectures: [],
   instructors: [],
 };
 

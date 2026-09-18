@@ -29,10 +29,12 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
 import {
   confirmAtplPackageSchedule,
+  ensureConfirmedFirstLectureOnTimetable,
   getCgiDashboardSnapshot,
   getStudentAtplPackageSchedule,
   listAtplStudents,
 } from "@/services/cgi/journey-service";
+import { writeClassesDb } from "@/services/classes/store";
 import { listScheduleSessions } from "@/services/schedule/dynamic-schedule-service";
 import { guestCheckoutSchema } from "@/utils/validation";
 
@@ -216,12 +218,59 @@ describe("ATPL Complete Package journey", () => {
     expect(confirmed.confirmedFirstLectureTime).toBe(requested.firstLectureTime);
     expect(confirmed.scheduleNotice).toBe(ATPL_PACKAGE_CONFIRMED_NOTICE);
     expect(confirmed.firstLectureLiveClassId).toBeTruthy();
+    expect(confirmed.firstLectureOnTimetable).toBe(true);
+    expect(confirmed.confirmedFirstLectureAt).toBeTruthy();
     const booked = listScheduleSessions({
       userId: student!.studentId,
       role: ROLES.STUDENT,
       from: new Date().toISOString(),
     });
     expect(booked.some((session) => session.id === confirmed.firstLectureLiveClassId)).toBe(true);
+
+    const missingId = confirmed.firstLectureLiveClassId!;
+    writeClassesDb((db) => {
+      db.classes = db.classes.filter((row) => row.id !== missingId);
+      db.participants = db.participants.filter((row) => row.liveClassId !== missingId);
+    });
+    expect(
+      listScheduleSessions({
+        userId: student!.studentId,
+        role: ROLES.STUDENT,
+        from: new Date().toISOString(),
+      }).some((session) => session.id === missingId),
+    ).toBe(false);
+    const restored = await ensureConfirmedFirstLectureOnTimetable(
+      student!.studentId,
+      paid.order.studentEmail!,
+    );
+    expect(restored.firstLectureOnTimetable).toBe(true);
+    expect(restored.firstLectureLiveClassId).toBeTruthy();
+    expect(
+      listScheduleSessions({
+        userId: student!.studentId,
+        role: ROLES.STUDENT,
+        from: new Date().toISOString(),
+      }).some((session) => session.id === restored.firstLectureLiveClassId),
+    ).toBe(true);
+
+    const restoredId = restored.firstLectureLiveClassId!;
+    writeClassesDb((db) => {
+      db.participants = db.participants.filter(
+        (row) => !(row.liveClassId === restoredId && row.userId === student!.studentId),
+      );
+    });
+    const reenrolled = await ensureConfirmedFirstLectureOnTimetable(
+      student!.studentId,
+      paid.order.studentEmail!,
+    );
+    expect(reenrolled.firstLectureOnTimetable).toBe(true);
+    expect(
+      listScheduleSessions({
+        userId: student!.studentId,
+        role: ROLES.STUDENT,
+        from: new Date().toISOString(),
+      }).some((session) => session.id === reenrolled.firstLectureLiveClassId),
+    ).toBe(true);
     expect(
       getCgiDashboardSnapshot().pendingFirstLectures.some(
         (s) => s.email === paid.order.studentEmail,
@@ -294,6 +343,10 @@ describe("ATPL Complete Package journey", () => {
     expect(ACTION_LABELS.confirmDifferentFirstLecture).toBe("Confirm a different time");
     expect(dash).toContain("/api/learning/atpl-schedule");
     expect(dash).toContain("First lecture");
+    expect(dash).toContain("confirmedFirstLectureAt");
     expect(scheduleHub).toContain("/api/learning/atpl-schedule");
+    expect(scheduleHub).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
+    expect(cgiView).toContain("Confirmed first lectures");
+    expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
   });
 });
