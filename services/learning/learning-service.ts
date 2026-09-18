@@ -374,7 +374,7 @@ export function getLearningCalendar(studentId: string): LearningCalendarItem[] {
       startsAt: c.startsAt,
       endsAt: c.endsAt,
       status: completed ? "completed" : start > now ? "upcoming" : "past",
-      href: `/student/calendar`,
+      href: `/student/schedule`,
       courseId: c.courseId,
     });
   }

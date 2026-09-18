@@ -45,4 +45,5 @@ export const ACTION_LABELS = {
   enrolToUnlockLive: "Enrol to unlock live sessions",
   confirmRequestedFirstLecture: "Confirm requested time",
   confirmDifferentFirstLecture: "Confirm a different time",
+  viewTimetable: "View timetable",
 } as const;

@@ -21,6 +21,8 @@ import {
   pilotLevelFromXp,
   weatherForCountry,
   weekDays,
+  isLiveWindow,
+  formatDashboardEventTime,
 } from "@/features/learning/components/student-dashboard/student-dashboard-utils";
 
 const root = process.cwd();
@@ -69,6 +71,15 @@ describe("student dashboard copy helpers", () => {
     expect(countdownLabel("2026-09-07T10:45:00.000Z", Date.parse("2026-09-07T10:00:00.000Z"))).toBe(
       "45m",
     );
+    expect(isLiveWindow("2026-09-07T10:00:00.000Z", Date.parse("2026-09-07T10:05:00.000Z"))).toBe(
+      true,
+    );
+    expect(isLiveWindow("2026-09-23T18:00:00.000Z", Date.parse("2026-09-18T10:00:00.000Z"))).toBe(
+      false,
+    );
+    expect(
+      formatDashboardEventTime("2026-09-23T18:00:00.000Z", Date.parse("2026-09-18T10:00:00.000Z")),
+    ).toMatch(/23 Sep/);
   });
 
   it("derives pilot level, weather, and motivation from learning progress", () => {
@@ -111,6 +122,10 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("Achievements");
     expect(view).toContain("Explore Courses");
     expect(view).toContain("Join Live Session");
+    expect(view).toContain('href="/student/schedule"');
+    expect(view).not.toContain('href="/student/calendar"');
+    expect(view).not.toContain('todayItems.find((item) => item.type === "live_class") ?? liveItem');
+    expect(view).toContain("ACTION_LABELS.viewTimetable");
     expect(view).toContain("/api/learning/atpl-schedule");
     expect(view).toContain("First lecture");
     expect(view).toContain("firstLectureLiveClassId");
