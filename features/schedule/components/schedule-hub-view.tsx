@@ -178,6 +178,9 @@ export function ScheduleHubView({
             {atplSchedule.scheduleProvisional
               ? atplSchedule.requestedFirstLectureLabel
               : atplSchedule.confirmedFirstLectureLabel}
+            {atplSchedule.firstLectureSubjectTitle
+              ? ` · ${atplSchedule.firstLectureSubjectTitle}`
+              : ""}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
         </section>
@@ -198,7 +201,9 @@ export function ScheduleHubView({
                   <p className="font-medium">{lecture.studentName}</p>
                   <p className="text-muted-foreground">{lecture.studentEmail}</p>
                   <p className="mt-1">
-                    {lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+                    {lecture.subjectTitle
+                      ? `${lecture.subjectTitle} · ${lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
+                      : (lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE)}
                     <span className="ml-2 text-xs uppercase tracking-wide text-accent">
                       {lecture.onTimetable ? "On timetable" : "Assigned"}
                     </span>

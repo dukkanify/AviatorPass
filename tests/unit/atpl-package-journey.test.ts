@@ -7,7 +7,10 @@ import {
   ATPL_COMPLETE_PACKAGE_SUBJECTS,
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_JOINING_TERMS,
+  ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_MIN_NOTICE_HOURS,
+  ATPL_PACKAGE_OPENING_SUBJECT_CODE,
+  ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
   atplPackageScheduleIssue,
   formatLocalDateInput,
@@ -30,11 +33,14 @@ import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purch
 import {
   confirmAtplPackageSchedule,
   ensureConfirmedFirstLectureOnTimetable,
+  getAtplPackageProduct,
   getCgiDashboardSnapshot,
   getStudentAtplPackageSchedule,
   listAssignedFirstLectures,
+  listAtplCourses,
   listAtplStudents,
 } from "@/services/cgi/journey-service";
+import { writeCgiDb } from "@/services/cgi/store";
 import { getLiveClass } from "@/services/classes/class-service";
 import { writeClassesDb } from "@/services/classes/store";
 import {
@@ -187,10 +193,29 @@ describe("ATPL Complete Package journey", () => {
     expect(listAtplPackageReviewSubjects()).toHaveLength(13);
   });
 
+  it("seeds all 13 package subjects in the LMS and opens with Instrumentation", () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    writeCgiDb((db) => {
+      db.settings.defaultFirstSubjectCourseId = null;
+    });
+    const courses = listAtplCourses();
+    expect(courses.map((course) => course.code)).toEqual([...ATPL_PACKAGE_LMS_COURSE_CODES]);
+    expect(courses[0]?.code).toBe(`ATPL-${ATPL_PACKAGE_OPENING_SUBJECT_CODE}`);
+    expect(courses[0]?.subjectCode).toBe(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
+    const product = getAtplPackageProduct();
+    expect(product?.metadata.courseIds).toHaveLength(13);
+    expect(new Set(product?.metadata.courseIds as string[]).size).toBe(13);
+  });
+
   it("lets TKI 1 confirm the requested first lecture or a different time", async () => {
     ensureDemoUsersSeeded();
     ensureCoursesSeeded();
     ensurePaymentsSeeded();
+    writeCgiDb((db) => {
+      db.settings.defaultFirstSubjectCourseId = null;
+    });
     const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
     const requested = validAtplPackageSchedule();
     const paid = await payGuestCheckout({
@@ -225,12 +250,17 @@ describe("ATPL Complete Package journey", () => {
     expect(confirmed.firstLectureLiveClassId).toBeTruthy();
     expect(confirmed.firstLectureOnTimetable).toBe(true);
     expect(confirmed.confirmedFirstLectureAt).toBeTruthy();
+    expect(confirmed.firstLectureSubjectCode).toBe(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
+    expect(confirmed.firstLectureSubjectTitle).toBe(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
     const booked = listScheduleSessions({
       userId: student!.studentId,
       role: ROLES.STUDENT,
       from: new Date().toISOString(),
     });
     expect(booked.some((session) => session.id === confirmed.firstLectureLiveClassId)).toBe(true);
+    expect(
+      booked.find((session) => session.id === confirmed.firstLectureLiveClassId)?.title,
+    ).toContain(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
 
     const missingId = confirmed.firstLectureLiveClassId!;
     writeClassesDb((db) => {
@@ -325,7 +355,10 @@ describe("ATPL Complete Package journey", () => {
     expect(live?.instructorId).toBeTruthy();
     expect(
       listAssignedFirstLectures({ instructorId: live!.instructorId }).some(
-        (row) => row.studentId === student!.studentId && row.onTimetable,
+        (row) =>
+          row.studentId === student!.studentId &&
+          row.onTimetable &&
+          row.subjectTitle === ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
       ),
     ).toBe(true);
     const instructorOverview = getScheduleOverview({
@@ -378,6 +411,8 @@ describe("ATPL Complete Package journey", () => {
     expect(instructorDash).toContain("First lectures assigned by TKI 1");
     expect(instructorDash).toContain("/instructor/schedule");
     expect(cgiView).toContain("Confirmed first lectures");
+    expect(cgiView).toContain("Instrumentation");
+    expect(dash).toContain("firstLectureSubjectTitle");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
   });
 });

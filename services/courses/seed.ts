@@ -6,6 +6,11 @@ import { generateId } from "@/lib/security/crypto";
 import { stableCourseId } from "@/lib/courses/public-course-path";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
+import {
+  ATPL_COMPLETE_PACKAGE_SUBJECTS,
+  ATPL_PACKAGE_LMS_COURSE_CODES,
+  atplPackageLmsCourseCode,
+} from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { ensureCustomerJourneyCourses } from "@/services/journeys/customer-journey-catalog";
@@ -33,6 +38,26 @@ const PUBLIC_CATALOG_CODES = [
   "ATPL-081",
   "PPL-GS-01",
 ] as const;
+
+const EXISTING_ATPL_LMS_CODES = new Set<string>(
+  PUBLIC_CATALOG_CODES.filter((code) => code.startsWith("ATPL-")),
+);
+
+function officialPackageSubject(easaCode: string) {
+  return ATPL_COMPLETE_PACKAGE_SUBJECTS.find((subject) => subject.code === easaCode);
+}
+
+/** ATPL Complete Package subjects that were missing from the original 7-course LMS seed. */
+const MISSING_ATPL_PACKAGE_LMS = ATPL_COMPLETE_PACKAGE_SUBJECTS.filter(
+  (subject) => !EXISTING_ATPL_LMS_CODES.has(atplPackageLmsCourseCode(subject.code)),
+).map((subject) => ({
+  title: `ATPL ${subject.code} — ${subject.title}`,
+  code: atplPackageLmsCourseCode(subject.code),
+  easa: subject.code,
+  short: subject.shortDescription,
+  full: subject.shortDescription,
+  ops: ["032", "033", "090"].includes(subject.code),
+}));
 
 const SYLLABUS_BY_CODE: Record<
   string,
@@ -292,6 +317,16 @@ function catalogNeedsEnrichment(
   for (const code of PUBLIC_CATALOG_CODES) {
     if (!codes.has(code)) return true;
   }
+  for (const code of ATPL_PACKAGE_LMS_COURSE_CODES) {
+    if (!codes.has(code)) return true;
+  }
+  for (const course of db.courses) {
+    const easa = officialPackageSubject(
+      String(course.metadata?.subjectCode ?? "").replace(/^ATPL-/, "") ||
+        course.code.replace(/^ATPL-/i, ""),
+    );
+    if (easa && course.metadata?.subjectCode !== easa.code) return true;
+  }
   for (const course of db.courses) {
     if (!PUBLIC_CATALOG_CODES.includes(course.code as (typeof PUBLIC_CATALOG_CODES)[number])) {
       continue;
@@ -330,6 +365,16 @@ function ensurePublishedCatalogEnrichment(): void {
   if (!catalogNeedsEnrichment(snapshot, instructorIds)) return;
 
   writeCoursesDb((d) => {
+    for (const course of d.courses) {
+      const easa = officialPackageSubject(
+        String(course.metadata?.subjectCode ?? "").replace(/^ATPL-/i, "") ||
+          course.code.replace(/^ATPL-/i, ""),
+      );
+      if (!easa || course.metadata?.subjectCode === easa.code) continue;
+      course.metadata = { ...course.metadata, subjectCode: easa.code };
+      course.updatedAt = ts;
+    }
+
     // Publish older seed drafts that belong in the public catalog.
     for (const course of d.courses) {
       if (!PUBLIC_CATALOG_CODES.includes(course.code as (typeof PUBLIC_CATALOG_CODES)[number])) {
@@ -401,7 +446,7 @@ function ensurePublishedCatalogEnrichment(): void {
 
     const extras: Array<{
       title: string;
-      code: (typeof PUBLIC_CATALOG_CODES)[number];
+      code: string;
       short: string;
       full: string;
       categoryId: string | null;
@@ -471,6 +516,14 @@ function ensurePublishedCatalogEnrichment(): void {
         categoryId: ops?.id ?? null,
         difficulty: "beginner",
       },
+      ...MISSING_ATPL_PACKAGE_LMS.map((def) => ({
+        title: def.title,
+        code: def.code,
+        short: def.short,
+        full: def.full,
+        categoryId: def.ops ? (ops?.id ?? null) : (theory?.id ?? null),
+        difficulty: "advanced" as Course["difficulty"],
+      })),
     ];
 
     for (const def of extras) {
@@ -501,7 +554,12 @@ function ensurePublishedCatalogEnrichment(): void {
         priceAmount: null,
         currency: null,
         tags: ["atpl", "theory"],
-        metadata: { catalogEnrichment: true },
+        metadata: {
+          catalogEnrichment: true,
+          ...(officialPackageSubject(def.code.replace(/^ATPL-/i, ""))
+            ? { subjectCode: officialPackageSubject(def.code.replace(/^ATPL-/i, ""))!.code }
+            : {}),
+        },
         createdById: actor,
         createdAt: ts,
         updatedAt: ts,
@@ -735,6 +793,16 @@ export function ensureCoursesSeeded(): void {
       difficulty: "advanced",
       enrollmentMode: "open",
     },
+    ...MISSING_ATPL_PACKAGE_LMS.map((def) => ({
+      title: def.title,
+      code: def.code,
+      short: def.short,
+      full: def.full,
+      categoryId: def.ops ? flightOps.id : atplTheory.id,
+      status: "published" as Course["status"],
+      difficulty: "advanced" as Course["difficulty"],
+      enrollmentMode: "open" as Course["enrollmentMode"],
+    })),
     {
       title: "PPL Ground School Essentials",
       code: "PPL-GS-01",
@@ -781,7 +849,9 @@ export function ensureCoursesSeeded(): void {
       priceAmount: null,
       currency: null,
       tags: ["atpl", "theory"],
-      metadata: {},
+      metadata: officialPackageSubject(def.code.replace(/^ATPL-/i, ""))
+        ? { subjectCode: officialPackageSubject(def.code.replace(/^ATPL-/i, ""))!.code }
+        : {},
       createdById: actor,
       createdAt: ts,
       updatedAt: ts,

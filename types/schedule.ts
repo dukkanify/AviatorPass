@@ -108,6 +108,8 @@ export interface AssignedFirstLecture {
   liveClassId: string | null;
   onTimetable: boolean;
   courseId: string;
+  subjectCode?: string | null;
+  subjectTitle?: string;
 }
 
 export interface ScheduleOverview {
