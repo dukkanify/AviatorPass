@@ -9,6 +9,7 @@ import {
   chooseFirstSubject,
   distributeLecture,
   distributeSubjects,
+  confirmAtplPackageSchedule,
   getCgiDashboardSnapshot,
   getJourneySettings,
   listAllInstructors,
@@ -108,6 +109,8 @@ export async function POST(request: Request) {
       liveClassId?: string;
       startsAt?: string;
       endsAt?: string;
+      studyStartDate?: string;
+      firstLectureTime?: string;
       targetType?: "student" | "instructor";
       targetUserId?: string;
       body?: string;
@@ -236,6 +239,26 @@ export async function POST(request: Request) {
           actorId: user.id,
           actorRole: user.role,
           ...ctx,
+        }),
+        error: null,
+      });
+    }
+
+    if (action === "confirm_first_lecture") {
+      await requirePermission(PERMISSIONS.SCHEDULE_MANAGE_ALL);
+      if (!body.studentId) {
+        return NextResponse.json(
+          { success: false, data: null, error: "studentId required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: await confirmAtplPackageSchedule({
+          studentId: body.studentId,
+          actorId: user.id,
+          studyStartDate: body.studyStartDate,
+          firstLectureTime: body.firstLectureTime,
         }),
         error: null,
       });

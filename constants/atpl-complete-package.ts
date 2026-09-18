@@ -11,6 +11,37 @@ export const ATPL_PACKAGE_MIN_NOTICE_MS = ATPL_PACKAGE_MIN_NOTICE_HOURS * 60 * 6
 export const ATPL_PACKAGE_TKI_NOTICE =
   "The requested date and time are provisional and subject to final coordination with the Chief Theoretical Knowledge Instructor (TKI 1).";
 
+export const ATPL_PACKAGE_CONFIRMED_NOTICE =
+  "The first lecture time has been confirmed by the Chief Theoretical Knowledge Instructor (TKI 1).";
+
+export type AtplPackageScheduleSnapshot = {
+  orderId: string | null;
+  requestedStudyStartDate: string | null;
+  requestedFirstLectureTime: string | null;
+  requestedFirstLectureLabel: string | null;
+  requestedFirstLectureAt: string | null;
+  confirmedStudyStartDate: string | null;
+  confirmedFirstLectureTime: string | null;
+  confirmedFirstLectureLabel: string | null;
+  scheduleProvisional: boolean;
+  scheduleNotice: string;
+  scheduleConfirmedAt: string | null;
+};
+
+export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
+  orderId: null,
+  requestedStudyStartDate: null,
+  requestedFirstLectureTime: null,
+  requestedFirstLectureLabel: null,
+  requestedFirstLectureAt: null,
+  confirmedStudyStartDate: null,
+  confirmedFirstLectureTime: null,
+  confirmedFirstLectureLabel: null,
+  scheduleProvisional: false,
+  scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
+  scheduleConfirmedAt: null,
+};
+
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [
   {
     code: "022",

@@ -19,6 +19,7 @@ import {
 
 import Link from "@/components/ui/app-link";
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
+import type { AtplPackageScheduleSnapshot } from "@/constants/atpl-complete-package";
 import { learningFetch } from "@/features/learning/lib/api";
 import { safePath } from "@/lib/links/safe-href";
 import { useAuth } from "@/providers/auth-provider";
@@ -104,6 +105,7 @@ function LearningDashboardView() {
   const [calendar, setCalendar] = React.useState<LearningCalendarItem[]>([]);
   const [sessions, setSessions] = React.useState<StudySession[]>([]);
   const [certificates, setCertificates] = React.useState<Certificate[]>([]);
+  const [atplSchedule, setAtplSchedule] = React.useState<AtplPackageScheduleSnapshot | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
@@ -118,12 +120,13 @@ function LearningDashboardView() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const [dash, courseRes, calRes, sessionRes, certRes] = await Promise.all([
+      const [dash, courseRes, calRes, sessionRes, certRes, scheduleRes] = await Promise.all([
         learningFetch<LearningDashboardOverview>("/api/learning/dashboard"),
         learningFetch<CourseRow[]>("/api/learning/courses?sort=recent"),
         learningFetch<LearningCalendarItem[]>("/api/learning/calendar"),
         learningFetch<StudySession[]>("/api/learning/planner/sessions"),
         learningFetch<Certificate[]>("/api/certificates"),
+        learningFetch<AtplPackageScheduleSnapshot>("/api/learning/atpl-schedule"),
       ]);
       if (cancelled) return;
       if (!dash.success || !dash.data) {
@@ -137,6 +140,7 @@ function LearningDashboardView() {
       setCalendar(calRes.data ?? []);
       setSessions(sessionRes.data ?? []);
       setCertificates(certRes.data ?? []);
+      setAtplSchedule(scheduleRes.data ?? null);
       setLoading(false);
     }
     void load();
@@ -585,6 +589,27 @@ function LearningDashboardView() {
         </div>
 
         <aside className="sl-stack" aria-label="Today and support">
+          {atplSchedule?.orderId ? (
+            <section className="sl-card" aria-labelledby="first-lecture-title">
+              <div className="sl-card-head">
+                <h2 id="first-lecture-title">First lecture</h2>
+                <Link href="/student/schedule">Open</Link>
+              </div>
+              <p className="sl-muted">
+                {atplSchedule.scheduleProvisional
+                  ? "Provisional — waiting for TKI 1"
+                  : "Confirmed by TKI 1"}
+              </p>
+              <p>
+                <strong>
+                  {atplSchedule.scheduleProvisional
+                    ? atplSchedule.requestedFirstLectureLabel
+                    : atplSchedule.confirmedFirstLectureLabel}
+                </strong>
+              </p>
+              <p className="sl-muted">{atplSchedule.scheduleNotice}</p>
+            </section>
+          ) : null}
           <section className="sl-card" aria-labelledby="today-learning-title">
             <div className="sl-card-head">
               <h2 id="today-learning-title">Today&apos;s Schedule</h2>

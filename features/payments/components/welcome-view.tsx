@@ -42,6 +42,7 @@ type WelcomeSnapshot = {
   studyStartDate: string | null;
   firstLectureTime: string | null;
   scheduleNotice: string | null;
+  scheduleProvisional?: boolean;
 };
 
 function WelcomeView() {
@@ -139,7 +140,9 @@ function WelcomeView() {
         </p>
         {data?.studyStartDate && data.firstLectureTime ? (
           <p className="mt-3 text-muted-foreground">
-            Requested first lecture:{" "}
+            {data.scheduleProvisional === false
+              ? "Confirmed first lecture: "
+              : "Requested first lecture: "}
             <span className="font-medium text-foreground">
               {formatAtplPackageScheduleLabel(data.studyStartDate, data.firstLectureTime)}
             </span>

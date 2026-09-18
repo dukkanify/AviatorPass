@@ -43,4 +43,6 @@ export const ACTION_LABELS = {
   continueLesson: "Continue lesson",
   enrolInACourse: "Enrol in a course",
   enrolToUnlockLive: "Enrol to unlock live sessions",
+  confirmRequestedFirstLecture: "Confirm requested time",
+  confirmDifferentFirstLecture: "Confirm a different time",
 } as const;

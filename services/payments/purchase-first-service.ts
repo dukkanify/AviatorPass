@@ -265,6 +265,8 @@ function packageScheduleMetadata(input: GuestCheckoutInput) {
     studyStartDate: input.studyStartDate,
     firstLectureTime: input.firstLectureTime,
     firstLectureAt,
+    requestedStudyStartDate: input.studyStartDate,
+    requestedFirstLectureTime: input.firstLectureTime,
     scheduleProvisional: true,
     scheduleNotice: ATPL_PACKAGE_TKI_NOTICE,
   };
@@ -298,6 +300,18 @@ export function publicOrderSnapshot(order: Order) {
       typeof order.metadata.firstLectureTime === "string" ? order.metadata.firstLectureTime : null,
     firstLectureAt:
       typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
+    requestedStudyStartDate:
+      typeof order.metadata.requestedStudyStartDate === "string"
+        ? order.metadata.requestedStudyStartDate
+        : typeof order.metadata.studyStartDate === "string"
+          ? order.metadata.studyStartDate
+          : null,
+    requestedFirstLectureTime:
+      typeof order.metadata.requestedFirstLectureTime === "string"
+        ? order.metadata.requestedFirstLectureTime
+        : typeof order.metadata.firstLectureTime === "string"
+          ? order.metadata.firstLectureTime
+          : null,
     scheduleProvisional: order.metadata.scheduleProvisional === true,
     scheduleNotice:
       typeof order.metadata.scheduleNotice === "string"
