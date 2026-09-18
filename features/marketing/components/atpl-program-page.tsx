@@ -2,6 +2,11 @@ import Link from "@/components/ui/app-link";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  ATPL_COMPLETE_PACKAGE_NAME,
+  ATPL_PACKAGE_JOINING_TERMS,
+} from "@/constants/atpl-complete-package";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
@@ -33,7 +38,7 @@ function EnrolButton({
   return (
     <Button size={size} variant="accent" className={cn("w-full sm:w-auto", className)} asChild>
       <Link href={enrollHref}>
-        Enrol in Aviator Pass
+        {ACTION_LABELS.chooseThisPackage}
         <ArrowUpRight className="h-4 w-4" />
       </Link>
     </Button>
@@ -125,16 +130,41 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
         aria-labelledby="subjects-heading"
       >
         <div className="container-app">
-          <p className="atpl-kicker">Courses / Subjects</p>
+          <p className="atpl-kicker">Package review</p>
           <h2 id="subjects-heading" className="atpl-heading mt-4 max-w-[22ch]">
-            Every theory paper in one enrolment
+            All 13 ATPL subjects in the {ATPL_COMPLETE_PACKAGE_NAME}
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            {subjectCount} Theory Subjects for the Airline Transport Pilot License. Included with
-            the ATPL Course — no separate purchases.
+            Review every subject and its description before you continue. {subjectCount} theory
+            papers are included — no separate purchases.
           </p>
           <AtplSubjectGrid subjects={subjects} />
-          <div className="mt-12">
+        </div>
+      </section>
+
+      <section
+        id="joining-terms"
+        className="atpl-section atpl-section-light scroll-mt-28"
+        aria-labelledby="joining-terms-heading"
+      >
+        <div className="container-app max-w-3xl">
+          <p className="atpl-kicker">Joining terms</p>
+          <h2 id="joining-terms-heading" className="atpl-heading mt-4">
+            Terms for joining this package
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Read these terms before you choose the package. You will confirm a start date and first
+            lecture time on the payment page.
+          </p>
+          <ol className="atpl-joining-terms mt-8">
+            {ATPL_PACKAGE_JOINING_TERMS.map((term, index) => (
+              <li key={term}>
+                <span className="atpl-joining-term-index">{index + 1}</span>
+                <p>{term}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-10">
             <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
           </div>
         </div>

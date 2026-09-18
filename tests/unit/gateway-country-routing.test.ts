@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { validAtplPackageSchedule } from "@/constants/atpl-complete-package";
 import { PaymentError } from "@/services/payments/access";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -117,6 +118,7 @@ describe("country gateway routing", () => {
         country: "AE",
         billingName: "Noor Ali",
         billingAddress: "Dubai",
+        ...validAtplPackageSchedule(),
         methodBrand: "taly",
         idempotencyKey: `route-taly-ae-${Date.now()}`,
       }),
@@ -134,6 +136,7 @@ describe("country gateway routing", () => {
         country: "KW",
         billingName: "Sara Kuwait",
         billingAddress: "Salmiya",
+        ...validAtplPackageSchedule(),
         methodBrand: "tamara",
         idempotencyKey: `route-tamara-kw-${Date.now()}`,
       }),

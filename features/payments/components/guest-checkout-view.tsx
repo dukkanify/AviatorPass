@@ -9,6 +9,16 @@ import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  ATPL_COMPLETE_PACKAGE_NAME,
+  ATPL_PACKAGE_LECTURE_TIME_OPTIONS,
+  ATPL_PACKAGE_MIN_NOTICE_HOURS,
+  ATPL_PACKAGE_TKI_NOTICE,
+  atplPackageScheduleIssue,
+  earliestAtplPackageDateTime,
+  formatAtplPackageScheduleLabel,
+  formatLocalDateInput,
+} from "@/constants/atpl-complete-package";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import type { CatalogProduct, PaymentMethodBrand } from "@/types/payments";
@@ -81,8 +91,12 @@ function GuestCheckoutView() {
     phone: "",
     country: search.get("country")?.toUpperCase() ?? "",
     billingAddress: "",
+    studyStartDate: "",
+    firstLectureTime: "",
     methodBrand: "card" as PaymentMethodBrand,
   });
+  const [scheduleError, setScheduleError] = React.useState<string | null>(null);
+  const minStudyDate = formatLocalDateInput(earliestAtplPackageDateTime());
 
   const productId = search.get("productId") ?? "";
   const canceled = search.get("canceled") === "1";
@@ -131,6 +145,13 @@ function GuestCheckoutView() {
   async function onPay(e: React.FormEvent) {
     e.preventDefault();
     if (!quote) return;
+    const scheduleIssue = atplPackageScheduleIssue(form.studyStartDate, form.firstLectureTime);
+    if (scheduleIssue) {
+      setScheduleError(scheduleIssue);
+      toast.error(scheduleIssue);
+      return;
+    }
+    setScheduleError(null);
     setPending(true);
     try {
       const paid = await authFetch<PayResult>("/api/public/checkout", {
@@ -144,6 +165,8 @@ function GuestCheckoutView() {
           country: form.country,
           billingName: `${form.firstName} ${form.lastName}`.trim(),
           billingAddress: form.billingAddress,
+          studyStartDate: form.studyStartDate,
+          firstLectureTime: form.firstLectureTime,
           methodBrand: form.methodBrand,
           paymentToken: "tok_4242",
         }),
@@ -188,10 +211,7 @@ function GuestCheckoutView() {
           <p className="mt-3 text-muted-foreground">
             Your payment has been successfully received and your enrollment is confirmed.
           </p>
-          <p className="mt-3 text-muted-foreground">
-            Please wait for the assigned instructor to contact you directly to arrange your schedule
-            and agree on suitable dates and times for your subjects.
-          </p>
+          <p className="mt-3 text-muted-foreground">{ATPL_PACKAGE_TKI_NOTICE}</p>
           <p className="mt-3 font-medium text-foreground">Welcome to Aviator Pass.</p>
         </div>
         {result.temporaryPassword ? (
@@ -241,7 +261,8 @@ function GuestCheckoutView() {
           Enrol in Aviator Pass
         </h1>
         <p className="mt-3 max-w-xl text-muted-foreground">
-          Pay first — no registration. We create your student account the moment payment succeeds.
+          Choose your study start date and a suitable time for the first lecture, then pay. We
+          create your student account the moment payment succeeds.
         </p>
         {canceled ? (
           <p className="mt-3 text-sm text-destructive">
@@ -331,6 +352,64 @@ function GuestCheckoutView() {
             </div>
           </div>
 
+          <div className="space-y-3 rounded-xl border border-accent/25 bg-accent/5 p-4">
+            <p className="text-sm font-medium">Study start and first lecture</p>
+            <p className="text-sm text-muted-foreground">
+              Choose when you want to begin. The first lecture must be at least{" "}
+              {ATPL_PACKAGE_MIN_NOTICE_HOURS} hours from now.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="studyStartDate">Study start date</Label>
+                <Input
+                  id="studyStartDate"
+                  type="date"
+                  min={minStudyDate}
+                  value={form.studyStartDate}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, studyStartDate: e.target.value }));
+                    setScheduleError(null);
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstLectureTime">Time for the first lecture</Label>
+                <Input
+                  id="firstLectureTime"
+                  type="time"
+                  value={form.firstLectureTime}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, firstLectureTime: e.target.value }));
+                    setScheduleError(null);
+                  }}
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ATPL_PACKAGE_LECTURE_TIME_OPTIONS.map((time) => (
+                <button
+                  key={time}
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, firstLectureTime: time }));
+                    setScheduleError(null);
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    form.firstLectureTime === time
+                      ? "border-accent bg-accent/15 text-foreground"
+                      : "border-border text-muted-foreground hover:border-accent/60"
+                  }`}
+                >
+                  {time}
+                </button>
+              ))}
+            </div>
+            {scheduleError ? <p className="text-sm text-destructive">{scheduleError}</p> : null}
+            <p className="text-sm leading-relaxed text-foreground/80">{ATPL_PACKAGE_TKI_NOTICE}</p>
+          </div>
+
           <div className="space-y-3">
             <p className="text-sm font-medium">Payment method</p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -398,12 +477,23 @@ function GuestCheckoutView() {
         <aside className="h-fit min-w-0 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold">Order summary</p>
           <div>
-            <p className="font-display text-lg">{quote?.product.name ?? "Aviator Pass"}</p>
+            <p className="font-display text-lg">
+              {quote?.product.name ?? ATPL_COMPLETE_PACKAGE_NAME}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {quote?.product.description ?? "Airline Transport Pilot License theory package."}
+              {quote?.product.description ??
+                "Airline Transport Pilot License theory package — 13 subjects."}
             </p>
           </div>
           <dl className="space-y-2 text-sm">
+            {form.studyStartDate && form.firstLectureTime ? (
+              <div className="flex justify-between gap-3 text-muted-foreground">
+                <dt>Requested first lecture</dt>
+                <dd className="text-right">
+                  {formatAtplPackageScheduleLabel(form.studyStartDate, form.firstLectureTime)}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex justify-between text-muted-foreground">
               <dt>Country</dt>
               <dd>

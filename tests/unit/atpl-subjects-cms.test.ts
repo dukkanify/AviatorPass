@@ -134,7 +134,7 @@ describe("ATPL subjects CMS", () => {
     );
     expect(program).toContain("AtplSubjectGrid");
     expect(home).toContain("AtplSubjectGrid");
-    expect(atplPage).toContain("listPublicAtplSubjects");
+    expect(atplPage).toContain("listAtplPackageReviewSubjects");
     expect(program).not.toContain("AGK —");
     expect(home).not.toContain("AGK —");
   });

@@ -7,6 +7,7 @@ export const PROGRAMME_TERMS = {
   atpl: {
     id: "atpl",
     title: "ATPL Course",
+    packageName: "ATPL Complete Package",
     commonName: "Airline Transport Pilot License",
     short: "ATPL",
   },
@@ -34,6 +35,7 @@ export const PROGRAMME_TERMS = {
 export const ACTION_LABELS = {
   browseCourses: "Browse all courses",
   viewAtplCourse: "View ATPL course",
+  chooseThisPackage: "Choose this package",
   contactAdvisor: "Contact an advisor",
   enrolNow: "Enrol now",
   viewCourse: "View course details",

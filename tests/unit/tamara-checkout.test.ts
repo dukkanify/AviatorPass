@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { validAtplPackageSchedule } from "@/constants/atpl-complete-package";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -66,6 +67,7 @@ describe("Tamara checkout creation", () => {
       country: "AE",
       billingName: "Mona Lisa",
       billingAddress: "Dubai Marina",
+      ...validAtplPackageSchedule(),
       methodBrand: "tamara",
       idempotencyKey: `tamara-ok-${Date.now()}`,
     });

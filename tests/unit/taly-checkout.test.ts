@@ -8,6 +8,7 @@ vi.mock("@/lib/security/api-guard", () => ({
   enforceMutatingApiSecurity: async () => null,
 }));
 
+import { validAtplPackageSchedule } from "@/constants/atpl-complete-package";
 import { POST as talyCreateOrderPost } from "@/app/api/payments/taly/create-order/route";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -100,6 +101,7 @@ describe("Taly checkout creation", () => {
       country: "KW",
       billingName: "Omar Pilot",
       billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
       methodBrand: "taly",
       idempotencyKey: `taly-ok-${Date.now()}`,
     });
@@ -162,6 +164,7 @@ describe("Taly checkout creation", () => {
           phone: "+96550001111",
           country: "KW",
           billingAddress: "Salmiya",
+          ...validAtplPackageSchedule(),
           idempotencyKey: `taly-create-${Date.now()}`,
         }),
       }),

@@ -4,6 +4,7 @@
 
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { validAtplPackageSchedule } from "@/constants/atpl-complete-package";
 import {
   consumePasswordSetupToken,
   issuePasswordSetupToken,
@@ -32,6 +33,7 @@ describe("purchase-first password setup", () => {
       country: "KW",
       billingName: "Setup Pilot",
       billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
       methodBrand: "card",
       paymentToken: "tok_4242",
       idempotencyKey: `setup-${Date.now()}`,

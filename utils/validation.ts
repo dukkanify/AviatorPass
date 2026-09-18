@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { atplPackageScheduleIssue } from "@/constants/atpl-complete-package";
 import { REGISTRATION_COUNTRIES } from "@/constants/countries";
 import { passwordIssues } from "@/utils/password-rules";
 import { validateRegistrationPhoneE164 } from "@/utils/registration-phone";
@@ -90,37 +91,56 @@ export const changePasswordSchema = z
     path: ["password"],
   });
 
-export const guestCheckoutSchema = z.object({
-  productId: z.string().min(1).optional(),
-  firstName: nameSchema,
-  lastName: nameSchema,
-  email: emailSchema,
-  phone: internationalPhoneSchema,
-  country: z.string().length(2, "Select your country"),
-  billingName: z.string().trim().min(2).max(120).optional().or(z.literal("")),
-  billingAddress: z.string().trim().max(240).optional().or(z.literal("")),
-  methodBrand: z
-    .enum([
-      "visa",
-      "mastercard",
-      "amex",
-      "apple_pay",
-      "google_pay",
-      "card",
-      "mada",
-      "myfatoorah",
-      "manual",
-      "uae_local",
-      "tamara",
-      "taly",
-      "tabby",
-    ])
-    .optional()
-    .default("card"),
-  paymentToken: z.string().max(80).optional(),
-  simulateFailure: z.boolean().optional(),
-  idempotencyKey: z.string().min(8).max(80).optional(),
-});
+export const guestCheckoutSchema = z
+  .object({
+    productId: z.string().min(1).optional(),
+    firstName: nameSchema,
+    lastName: nameSchema,
+    email: emailSchema,
+    phone: internationalPhoneSchema,
+    country: z.string().length(2, "Select your country"),
+    billingName: z.string().trim().min(2).max(120).optional().or(z.literal("")),
+    billingAddress: z.string().trim().max(240).optional().or(z.literal("")),
+    studyStartDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a study start date"),
+    firstLectureTime: z
+      .string()
+      .trim()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a suitable time for the first lecture"),
+    methodBrand: z
+      .enum([
+        "visa",
+        "mastercard",
+        "amex",
+        "apple_pay",
+        "google_pay",
+        "card",
+        "mada",
+        "myfatoorah",
+        "manual",
+        "uae_local",
+        "tamara",
+        "taly",
+        "tabby",
+      ])
+      .optional()
+      .default("card"),
+    paymentToken: z.string().max(80).optional(),
+    simulateFailure: z.boolean().optional(),
+    idempotencyKey: z.string().min(8).max(80).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const issue = atplPackageScheduleIssue(data.studyStartDate, data.firstLectureTime);
+    if (issue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: issue,
+        path: ["firstLectureTime"],
+      });
+    }
+  });
 
 export const checkoutSessionSchema = z.object({
   productId: z.string().min(1).optional(),

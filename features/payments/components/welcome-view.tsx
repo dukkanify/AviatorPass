@@ -15,6 +15,10 @@ import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
 import { siteStatic } from "@/config/site-static";
+import {
+  ATPL_PACKAGE_TKI_NOTICE,
+  formatAtplPackageScheduleLabel,
+} from "@/constants/atpl-complete-package";
 import { routes } from "@/constants/routes";
 
 type WelcomeSnapshot = {
@@ -35,6 +39,9 @@ type WelcomeSnapshot = {
   dashboardUrl: string;
   setupPasswordPath: string;
   supportEmail: string;
+  studyStartDate: string | null;
+  firstLectureTime: string | null;
+  scheduleNotice: string | null;
 };
 
 function WelcomeView() {
@@ -130,9 +137,16 @@ function WelcomeView() {
         <p className="mt-3 text-muted-foreground">
           Your payment has been successfully received and your enrollment is confirmed.
         </p>
+        {data?.studyStartDate && data.firstLectureTime ? (
+          <p className="mt-3 text-muted-foreground">
+            Requested first lecture:{" "}
+            <span className="font-medium text-foreground">
+              {formatAtplPackageScheduleLabel(data.studyStartDate, data.firstLectureTime)}
+            </span>
+          </p>
+        ) : null}
         <p className="mt-3 text-muted-foreground">
-          Please wait for the assigned instructor to contact you directly to arrange your schedule
-          and agree on suitable dates and times for your subjects.
+          {data?.scheduleNotice || ATPL_PACKAGE_TKI_NOTICE}
         </p>
         <p className="mt-3 font-medium text-foreground">Welcome to Aviator Pass.</p>
       </div>
