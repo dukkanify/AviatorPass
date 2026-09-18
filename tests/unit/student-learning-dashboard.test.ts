@@ -113,6 +113,7 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("Join Live Session");
     expect(view).toContain("/api/learning/atpl-schedule");
     expect(view).toContain("First lecture");
+    expect(view).toContain("firstLectureLiveClassId");
   });
 
   it("gives the student shell a collapsible sidebar and profile menu", () => {
