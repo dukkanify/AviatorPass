@@ -112,6 +112,7 @@ export async function POST(request: Request) {
       endsAt?: string;
       studyStartDate?: string;
       firstLectureTime?: string;
+      lectureTime?: string;
       targetType?: "student" | "instructor";
       targetUserId?: string;
       body?: string;
