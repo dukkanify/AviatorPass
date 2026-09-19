@@ -19,6 +19,12 @@ import {
   formatAtplPackageScheduleLabel,
   formatLocalDateInput,
 } from "@/constants/atpl-complete-package";
+import {
+  applyCountryDialCode,
+  countryOptionLabel,
+  dialCodeForCountry,
+  listCountries,
+} from "@/constants/countries";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import type { CatalogProduct, PaymentMethodBrand } from "@/types/payments";
@@ -77,6 +83,39 @@ function methodLabel(method: { id: PaymentMethodBrand; label: string }) {
   return method.label;
 }
 
+function checkoutCountries(quote: Quote | null) {
+  if (quote?.countries?.length) return quote.countries;
+  return listCountries().map((country) => ({
+    code: country.code,
+    name: country.name,
+    dialCode: country.dialCode,
+  }));
+}
+
+function dialForCountry(
+  countries: Array<{ code: string; name: string; dialCode?: string }>,
+  countryCode: string,
+) {
+  return (
+    countries.find((country) => country.code === countryCode)?.dialCode ||
+    dialCodeForCountry(countryCode) ||
+    ""
+  );
+}
+
+function withCountryDial(
+  form: { phone: string; country: string },
+  nextCountry: string,
+  countries: Array<{ code: string; name: string; dialCode?: string }>,
+) {
+  const nextDial = dialForCountry(countries, nextCountry);
+  const previousDial = dialForCountry(countries, form.country);
+  return {
+    country: nextCountry,
+    phone: nextDial ? applyCountryDialCode(form.phone, nextDial, previousDial) : form.phone,
+  };
+}
+
 function GuestCheckoutView() {
   const search = useSearchParams();
   const [quote, setQuote] = React.useState<Quote | null>(null);
@@ -124,13 +163,18 @@ function GuestCheckoutView() {
       const data = json.data;
       const visible = data.methods.filter((m) => m.available);
       const firstAvailable = visible[0]?.id ?? "card";
-      setForm((prev) => ({
-        ...prev,
-        country: prev.country || data.detectedCountry || "US",
-        methodBrand: visible.some((m) => m.id === prev.methodBrand)
-          ? prev.methodBrand
-          : firstAvailable,
-      }));
+      const countries = checkoutCountries(data);
+      setForm((prev) => {
+        const nextCountry = prev.country || data.detectedCountry || "KW";
+        const dialled = withCountryDial(prev, nextCountry, countries);
+        return {
+          ...prev,
+          ...dialled,
+          methodBrand: visible.some((m) => m.id === prev.methodBrand)
+            ? prev.methodBrand
+            : firstAvailable,
+        };
+      });
     } catch {
       setLoadError("Checkout is unavailable");
     } finally {
@@ -319,7 +363,8 @@ function GuestCheckoutView() {
                 id="phone"
                 type="tel"
                 autoComplete="tel"
-                placeholder="+965xxxxxxxx"
+                inputMode="tel"
+                placeholder={`${dialForCountry(checkoutCountries(quote), form.country) || "+965"}xxxxxxxx`}
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 required
@@ -331,14 +376,25 @@ function GuestCheckoutView() {
                 id="country"
                 className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base sm:h-10 sm:text-sm"
                 value={form.country}
-                onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    ...withCountryDial(f, e.target.value, checkoutCountries(quote)),
+                  }))
+                }
               >
-                {(quote?.countries ?? [{ code: "KW", name: "Kuwait" }]).map((c) => (
+                {checkoutCountries(quote).map((c) => (
                   <option key={c.code} value={c.code}>
-                    {c.name}
+                    {countryOptionLabel({
+                      name: c.name,
+                      dialCode: c.dialCode || dialCodeForCountry(c.code),
+                    })}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">
+                Choosing a country fills its calling code in the mobile number.
+              </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="billingAddress">Billing address</Label>
