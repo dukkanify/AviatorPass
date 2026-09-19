@@ -42,6 +42,39 @@ export function listCountries(): Country[] {
   return COUNTRIES.filter((c) => c.active);
 }
 
+export function dialCodeForCountry(countryCode: string | null | undefined): string | null {
+  if (!countryCode) return null;
+  return (
+    listCountries().find((country) => country.code === countryCode.toUpperCase())?.dialCode ?? null
+  );
+}
+
+export function countryOptionLabel(country: { name: string; dialCode?: string | null }): string {
+  const dial = country.dialCode?.trim();
+  return dial ? `${country.name} (${dial})` : country.name;
+}
+
+/** Keep the local digits and replace the leading country code when the country changes. */
+export function applyCountryDialCode(
+  phone: string,
+  nextDialCode: string,
+  previousDialCode?: string | null,
+): string {
+  const next = nextDialCode.trim();
+  if (!next) return phone;
+  const current = phone.trim();
+  const previous = previousDialCode?.trim() || "";
+  if (!current) return next;
+  if (previous && (current === previous || current.startsWith(previous))) {
+    const rest = current.slice(previous.length).replace(/^\s+/, "");
+    return rest ? `${next}${rest}` : next;
+  }
+  if (/^\+\d+/.test(current)) {
+    return current.replace(/^\+\d+/, next);
+  }
+  return `${next}${current.replace(/^0+/, "")}`;
+}
+
 /** Registration-focused list (includes Other for edge cases). Literal codes for Zod enums. */
 export const REGISTRATION_COUNTRIES = [
   { code: "KW", name: "Kuwait" },
