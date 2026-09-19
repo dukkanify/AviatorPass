@@ -7,12 +7,15 @@ import {
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  ATPL_COMPLETE_PACKAGE_SUBJECTS,
+  ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
   atplPackageSubjectOrderIndex,
   atplPackageSubjectTitle,
+  type AtplPackageSubjectProgress,
   combineLocalDateAndTime,
   easaCodeFromAtplCourseCode,
   formatAtplFirstLectureTitle,
@@ -26,9 +29,11 @@ import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import {
+  enrollStudent,
   listStudentEnrollments,
   updateEnrollmentStatus,
 } from "@/services/courses/enrollment-service";
+import { CourseValidationError } from "@/services/courses/validation";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -122,6 +127,53 @@ export function listAtplCourses() {
     });
 }
 
+function officialPackageCourses() {
+  const wanted = new Set<string>(ATPL_PACKAGE_LMS_COURSE_CODES);
+  return listAtplCourses().filter((course) => wanted.has(course.code));
+}
+
+function studentHasAtplEnrollment(studentId: string): boolean {
+  const atplIds = new Set(officialPackageCourses().map((course) => course.id));
+  return listStudentEnrollments(studentId).some(
+    (row) => atplIds.has(row.courseId) && !["dropped", "rejected"].includes(row.status),
+  );
+}
+
+function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
+  const plan = studentId ? listStudentSubjectPlan(studentId) : [];
+  const byCourse = new Map(plan.map((row) => [row.courseId, row]));
+  const courses = officialPackageCourses();
+  return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
+    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
+    const row = course ? (byCourse.get(course.id) ?? null) : null;
+    const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
+    const status = row?.status ?? (opening ? "available" : "locked");
+    return {
+      code: subject.code,
+      title: subject.title,
+      shortDescription: subject.shortDescription,
+      status,
+      opening,
+    };
+  });
+}
+
+function attachPackageSubjects(
+  snapshot: AtplPackageScheduleSnapshot,
+  studentId?: string,
+  email?: string,
+): AtplPackageScheduleSnapshot {
+  const owned =
+    Boolean(snapshot.orderId) ||
+    (studentId ? studentHasAtplEnrollment(studentId) : false) ||
+    Boolean(studentId && email && latestPaidPackageOrder(studentId, email));
+  return {
+    ...snapshot,
+    packageOwned: owned,
+    subjects: owned ? listAtplPackageSubjectProgress(studentId) : [],
+  };
+}
+
 function openingSubjectCourse(
   courses = listAtplCourses(),
 ): ReturnType<typeof listAtplCourses>[number] | null {
@@ -207,10 +259,47 @@ export function ensureStudentSubjectPlan(
   studentId: string,
   actorId: string | null,
 ): AtplSubjectAssignment[] {
-  const existing = readCgiDb().subjectAssignments.filter((a) => a.studentId === studentId);
-  if (existing.length) return existing.sort((a, b) => a.sortOrder - b.sortOrder);
+  const courses = officialPackageCourses();
+  const existing = readCgiDb()
+    .subjectAssignments.filter((a) => a.studentId === studentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (existing.length) {
+    const have = new Set(existing.map((row) => row.courseId));
+    const missing = courses.filter((course) => !have.has(course.id));
+    if (!missing.length) return existing;
+    const stamp = nowIso();
+    let sortOrder = existing[existing.length - 1]?.sortOrder ?? existing.length;
+    const extras: AtplSubjectAssignment[] = missing.map((course) => {
+      sortOrder += 1;
+      return {
+        id: generateId(),
+        studentId,
+        courseId: course.id,
+        subjectCode: course.subjectCode,
+        sortOrder,
+        status: "locked" as AtplSubjectDistributionStatus,
+        assignedInstructorId: course.primaryInstructorId,
+        unlockedAt: null,
+        completedAt: null,
+        notes: "Added from the ATPL Complete Package",
+        assignedById: actorId,
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+    });
+    writeCgiDb((db) => {
+      db.subjectAssignments.push(...extras);
+    });
+    audit(
+      "cgi.subjects.heal",
+      actorId,
+      "student",
+      studentId,
+      `Added ${extras.length} missing ATPL subjects`,
+    );
+    return listStudentSubjectPlan(studentId);
+  }
 
-  const courses = listAtplCourses();
   if (!courses.length) return [];
 
   const firstId = resolveFirstSubjectCourseId(courses) ?? courses[0]!.id;
@@ -708,17 +797,53 @@ function packageScheduleFromOrder(
     firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
     firstLectureSubjectCode: subject.code,
     firstLectureSubjectTitle: subject.title,
+    packageOwned: true,
+    subjects: listAtplPackageSubjectProgress(studentId),
   };
 }
 
 function latestPaidPackageSchedule(studentId: string, email: string): AtplPackageScheduleSnapshot {
   const order = latestPaidPackageOrder(studentId, email);
-  if (!order) return EMPTY_ATPL_PACKAGE_SCHEDULE;
-  return packageScheduleFromOrder(order, studentId);
+  if (!order) {
+    return attachPackageSubjects(EMPTY_ATPL_PACKAGE_SCHEDULE, studentId, email);
+  }
+  return attachPackageSubjects(packageScheduleFromOrder(order, studentId), studentId, email);
 }
 
 export function getStudentAtplPackageSchedule(studentId: string, email: string) {
   return latestPaidPackageSchedule(studentId, email);
+}
+
+async function ensureAtplPackageSubjectCoverage(studentId: string, email: string): Promise<void> {
+  const order = latestPaidPackageOrder(studentId, email);
+  const owned = Boolean(order) || studentHasAtplEnrollment(studentId);
+  if (!owned) return;
+  ensureStudentSubjectPlan(studentId, studentId);
+  const actorId =
+    typeof order?.metadata.scheduleConfirmedById === "string"
+      ? order.metadata.scheduleConfirmedById
+      : studentId;
+  for (const course of officialPackageCourses()) {
+    const existing = listStudentEnrollments(studentId).find(
+      (row) => row.courseId === course.id && !["dropped", "rejected"].includes(row.status),
+    );
+    if (existing) continue;
+    try {
+      await enrollStudent({
+        courseId: course.id,
+        studentId,
+        status: "approved",
+        notes: "ATPL Complete Package",
+        actorId,
+        bypassEnrollmentGate: true,
+      });
+    } catch (error) {
+      if (error instanceof CourseValidationError && /already enrolled/i.test(error.message)) {
+        continue;
+      }
+      throw error;
+    }
+  }
 }
 
 /** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */
@@ -726,8 +851,9 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   studentId: string,
   email: string,
 ): Promise<AtplPackageScheduleSnapshot> {
+  await ensureAtplPackageSubjectCoverage(studentId, email);
   const order = latestPaidPackageOrder(studentId, email);
-  if (!order) return EMPTY_ATPL_PACKAGE_SCHEDULE;
+  if (!order) return latestPaidPackageSchedule(studentId, email);
   const schedule = packageScheduleFromOrder(order, studentId);
   if (schedule.scheduleProvisional || !schedule.confirmedStudyStartDate) return schedule;
   if (schedule.firstLectureOnTimetable) return schedule;
