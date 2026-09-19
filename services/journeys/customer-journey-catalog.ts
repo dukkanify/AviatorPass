@@ -6,6 +6,7 @@
 import { generateId } from "@/lib/security/crypto";
 import { stableCourseId } from "@/lib/courses/public-course-path";
 import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
+import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
@@ -472,6 +473,14 @@ export function ensureCustomerJourneyProducts(): void {
 
     const atpl = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
     if (atpl) {
+      const byCode = new Map(
+        readCoursesDb()
+          .courses.filter((course) => !course.deletedAt)
+          .map((course) => [course.code, course.id]),
+      );
+      const courseIds = ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => byCode.get(code)).filter(
+        (id): id is string => Boolean(id),
+      );
       atpl.name = "ATPL Complete Package";
       atpl.description =
         "Full ATPL theory package (13 subjects · ~230 hours) with full payment, installments (4/5/6), Tamara (UAE), or Tabby (Kuwait).";
@@ -485,6 +494,7 @@ export function ensureCustomerJourneyProducts(): void {
         supportsBnpl: true,
         installmentChoices: [4, 5, 6],
         pendingInstructorAssignment: true,
+        ...(courseIds.length ? { courseIds } : {}),
       };
       atpl.updatedAt = ts;
     }

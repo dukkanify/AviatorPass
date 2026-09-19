@@ -7,9 +7,15 @@ import {
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  ATPL_PACKAGE_OPENING_SUBJECT_CODE,
+  ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
+  atplPackageSubjectOrderIndex,
+  atplPackageSubjectTitle,
   combineLocalDateAndTime,
+  easaCodeFromAtplCourseCode,
+  formatAtplFirstLectureTitle,
   formatAtplPackageInstant,
   formatAtplPackageScheduleLabel,
   type AtplPackageScheduleSnapshot,
@@ -79,11 +85,27 @@ function audit(
   });
 }
 
+function easaFromAtplCourse(course: { code: string; subjectCode?: string | null }): string | null {
+  return easaCodeFromAtplCourseCode(course.subjectCode) ?? easaCodeFromAtplCourseCode(course.code);
+}
+
+function officialTitleForAtplCourse(course: {
+  code: string;
+  title?: string;
+  subjectCode?: string | null;
+}): string {
+  return (
+    atplPackageSubjectTitle(course.subjectCode) ??
+    atplPackageSubjectTitle(course.code) ??
+    course.title ??
+    ATPL_PACKAGE_OPENING_SUBJECT_TITLE
+  );
+}
+
 export function listAtplCourses() {
   ensureCoursesSeeded();
   return readCoursesDb()
     .courses.filter((c) => !c.deletedAt && /^ATPL-/i.test(c.code))
-    .sort((a, b) => a.code.localeCompare(b.code))
     .map((c) => ({
       id: c.id,
       code: c.code,
@@ -91,7 +113,23 @@ export function listAtplCourses() {
       primaryInstructorId: c.primaryInstructorId,
       status: c.status,
       subjectCode: typeof c.metadata?.subjectCode === "string" ? c.metadata.subjectCode : c.code,
-    }));
+    }))
+    .sort((a, b) => {
+      const order =
+        atplPackageSubjectOrderIndex(easaFromAtplCourse(a)) -
+        atplPackageSubjectOrderIndex(easaFromAtplCourse(b));
+      return order !== 0 ? order : a.code.localeCompare(b.code);
+    });
+}
+
+function openingSubjectCourse(
+  courses = listAtplCourses(),
+): ReturnType<typeof listAtplCourses>[number] | null {
+  return (
+    courses.find((course) => easaFromAtplCourse(course) === ATPL_PACKAGE_OPENING_SUBJECT_CODE) ??
+    courses[0] ??
+    null
+  );
 }
 
 export function getAtplPackageProduct() {
@@ -101,6 +139,17 @@ export function getAtplPackageProduct() {
 
 export function getJourneySettings() {
   return readCgiDb().settings;
+}
+
+function resolveFirstSubjectCourseId(courses = listAtplCourses()): string | null {
+  const settings = getJourneySettings();
+  if (
+    settings.defaultFirstSubjectCourseId &&
+    courses.some((course) => course.id === settings.defaultFirstSubjectCourseId)
+  ) {
+    return settings.defaultFirstSubjectCourseId;
+  }
+  return openingSubjectCourse(courses)?.id ?? null;
 }
 
 export function setDefaultFirstSubject(input: {
@@ -164,8 +213,7 @@ export function ensureStudentSubjectPlan(
   const courses = listAtplCourses();
   if (!courses.length) return [];
 
-  const settings = getJourneySettings();
-  const firstId = settings.defaultFirstSubjectCourseId ?? courses[0]!.id;
+  const firstId = resolveFirstSubjectCourseId(courses) ?? courses[0]!.id;
   const ordered = [
     ...courses.filter((c) => c.id === firstId),
     ...courses.filter((c) => c.id !== firstId),
@@ -460,6 +508,8 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
   liveClassId: string | null;
   onTimetable: boolean;
   courseId: string;
+  subjectCode: string | null;
+  subjectTitle: string;
 }> {
   return listLectureAssignments({ instructorId: options?.instructorId })
     .filter(
@@ -473,6 +523,12 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
       const student = findUserById(studentId);
       const live = row.liveClassId ? getLiveClass(row.liveClassId) : null;
       const scheduledAt = row.scheduledAt ?? live?.startsAt ?? null;
+      const course =
+        listAtplCourses().find((item) => item.id === row.courseId) ??
+        (live?.courseId ? listAtplCourses().find((item) => item.id === live.courseId) : null);
+      const subjectTitle = course
+        ? officialTitleForAtplCourse(course)
+        : (atplPackageSubjectTitle(row.lessonTitle) ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
       return {
         id: row.id,
         studentId,
@@ -486,6 +542,8 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
         liveClassId: row.liveClassId,
         onTimetable: Boolean(live && live.status !== "cancelled"),
         courseId: row.courseId,
+        subjectCode: course ? easaFromAtplCourse(course) : null,
+        subjectTitle,
       };
     })
     .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))
@@ -575,6 +633,23 @@ function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
   );
 }
 
+function firstLectureSubjectForStudent(
+  studentId?: string,
+  liveClassId?: string | null,
+): { code: string | null; title: string | null } {
+  const live = liveClassId ? getLiveClass(liveClassId) : null;
+  const planFirst = studentId ? (listStudentSubjectPlan(studentId)[0] ?? null) : null;
+  const course =
+    (live?.courseId ? listAtplCourses().find((item) => item.id === live.courseId) : null) ??
+    (planFirst ? listAtplCourses().find((item) => item.id === planFirst.courseId) : null) ??
+    openingSubjectCourse();
+  if (!course) return { code: null, title: null };
+  return {
+    code: easaFromAtplCourse(course),
+    title: officialTitleForAtplCourse(course),
+  };
+}
+
 function firstLectureIsOnTimetable(studentId: string, liveClassId: string | null): boolean {
   if (!liveClassId) return false;
   const existing = getLiveClass(liveClassId);
@@ -600,6 +675,7 @@ function packageScheduleFromOrder(
     !provisional && typeof order.metadata.firstLectureAt === "string"
       ? order.metadata.firstLectureAt
       : null;
+  const subject = firstLectureSubjectForStudent(studentId, liveClassId);
   return {
     orderId: order.id,
     requestedStudyStartDate: requestedDate,
@@ -630,6 +706,8 @@ function packageScheduleFromOrder(
         : null,
     firstLectureLiveClassId: liveClassId,
     firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
+    firstLectureSubjectCode: subject.code,
+    firstLectureSubjectTitle: subject.title,
   };
 }
 
@@ -663,6 +741,7 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   if (existing && existing.status !== "cancelled") {
     enrollStudentsInLiveClass(existing.id, [studentId]);
     if (existing.courseId) {
+      const course = listAtplCourses().find((item) => item.id === existing.courseId);
       upsertFirstLectureAssignment({
         studentId,
         courseId: existing.courseId,
@@ -674,6 +753,9 @@ export async function ensureConfirmedFirstLectureOnTimetable(
             ? order.metadata.scheduleConfirmedById
             : studentId,
         notes: ATPL_PACKAGE_CONFIRMED_NOTICE,
+        lessonTitle: formatAtplFirstLectureTitle(
+          course ? officialTitleForAtplCourse(course) : ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+        ),
       });
     }
     if (firstLectureIsOnTimetable(studentId, existing.id)) {
@@ -743,8 +825,10 @@ function upsertFirstLectureAssignment(input: {
   liveClassId: string;
   actorId: string;
   notes: string;
+  lessonTitle?: string;
 }) {
   const stamp = nowIso();
+  const lessonTitle = input.lessonTitle?.trim() || ATPL_PACKAGE_FIRST_LECTURE_TITLE;
   writeCgiDb((db) => {
     const existing = db.lectureAssignments.find(
       (row) => row.studentId === input.studentId && row.lessonId === FIRST_LECTURE_LESSON_ID,
@@ -756,6 +840,7 @@ function upsertFirstLectureAssignment(input: {
       existing.liveClassId = input.liveClassId;
       existing.status = "scheduled";
       existing.notes = input.notes;
+      existing.lessonTitle = lessonTitle;
       existing.updatedAt = stamp;
       return;
     }
@@ -763,7 +848,7 @@ function upsertFirstLectureAssignment(input: {
       id: generateId(),
       courseId: input.courseId,
       lessonId: FIRST_LECTURE_LESSON_ID,
-      lessonTitle: ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+      lessonTitle,
       instructorId: input.instructorId,
       studentId: input.studentId,
       status: "scheduled",
@@ -790,8 +875,11 @@ async function placeConfirmedFirstLecture(input: {
   const plan = ensureStudentSubjectPlan(input.studentId, input.actorId);
   const first = plan[0];
   if (!first) throw new CgiError("No ATPL subject is available for the first lecture");
+  const course = listAtplCourses().find((item) => item.id === first.courseId);
   const notes = ATPL_PACKAGE_CONFIRMED_NOTICE;
-  const title = `${ATPL_PACKAGE_FIRST_LECTURE_TITLE} · ${first.subjectCode}`;
+  const title = formatAtplFirstLectureTitle(
+    course ? officialTitleForAtplCourse(course) : ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+  );
 
   const existingId = input.existingLiveClassId?.trim() || "";
   const existing = existingId ? getLiveClass(existingId) : null;
@@ -812,6 +900,7 @@ async function placeConfirmedFirstLecture(input: {
       liveClassId,
       actorId: input.actorId,
       notes,
+      lessonTitle: title,
     });
     return liveClassId;
   }
@@ -827,6 +916,7 @@ async function placeConfirmedFirstLecture(input: {
       liveClassId: shared.id,
       actorId: input.actorId,
       notes,
+      lessonTitle: title,
     });
     return shared.id;
   }
@@ -860,6 +950,7 @@ async function placeConfirmedFirstLecture(input: {
         liveClassId: created.id,
         actorId: input.actorId,
         notes,
+        lessonTitle: title,
       });
       return created.id;
     } catch (error) {
@@ -944,6 +1035,8 @@ export async function confirmAtplPackageSchedule(input: {
 
   const brand = getPublicBrandConfig();
   const label = formatAtplPackageScheduleLabel(studyStartDate, firstLectureTime);
+  const subject = firstLectureSubjectForStudent(input.studentId, liveClassId);
+  const subjectLabel = subject.title ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE;
   try {
     await dispatchEmailEvent({
       event: "schedule",
@@ -954,7 +1047,7 @@ export async function confirmAtplPackageSchedule(input: {
         recipientName:
           [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
         title: "First lecture confirmed by TKI 1",
-        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) confirmed your first lecture for ${label}. It is now on your timetable.`,
+        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) confirmed your first lecture (${subjectLabel}) for ${label}. It is now on your timetable.`,
         supportEmail: brand.supportEmail,
         reference: order.orderNumber,
       },
@@ -994,6 +1087,9 @@ export function listAtplStudents() {
       const user = auth.find((u) => u.id === studentId);
       const plan = listStudentSubjectPlan(studentId);
       const first = plan.find((p) => p.sortOrder === 1) ?? null;
+      const firstCourse = first
+        ? listAtplCourses().find((course) => course.id === first.courseId)
+        : null;
       const email = user?.email ?? "";
       const schedule = latestPaidPackageSchedule(studentId, email);
       return {
@@ -1004,7 +1100,10 @@ export function listAtplStudents() {
           : "Unknown",
         enrollmentCount: rows.length,
         firstSubjectCourseId: first?.courseId ?? null,
-        firstSubjectCode: first?.subjectCode ?? null,
+        firstSubjectCode: firstCourse
+          ? easaFromAtplCourse(firstCourse)
+          : (easaCodeFromAtplCourseCode(first?.subjectCode) ?? first?.subjectCode ?? null),
+        firstSubjectTitle: firstCourse ? officialTitleForAtplCourse(firstCourse) : null,
         planCount: plan.length,
         status: user?.status ?? "unknown",
         ...schedule,

@@ -6,6 +6,10 @@
 import { addDays, addHours } from "date-fns";
 
 import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
+import {
+  atplPackageSubjectOrderIndex,
+  easaCodeFromAtplCourseCode,
+} from "@/constants/atpl-complete-package";
 import { generateId } from "@/lib/security/crypto";
 import { ensureAiSeeded } from "@/services/ai/seed";
 import { ensureAnalyticsSeeded } from "@/services/analytics/seed";
@@ -323,9 +327,13 @@ function seedCgiOversightData(): void {
   const hasStudentPlan = cgiDb.subjectAssignments.some((s) => s.studentId === student.id);
   if (hasStudentPlan) return;
 
-  const courses = readCoursesDb().courses.filter(
-    (c) => !c.deletedAt && c.status === "published" && c.code?.startsWith("ATPL-"),
-  );
+  const courses = readCoursesDb()
+    .courses.filter((c) => !c.deletedAt && c.status === "published" && c.code?.startsWith("ATPL-"))
+    .sort(
+      (a, b) =>
+        atplPackageSubjectOrderIndex(easaCodeFromAtplCourseCode(a.code)) -
+        atplPackageSubjectOrderIndex(easaCodeFromAtplCourseCode(b.code)),
+    );
   if (courses.length === 0) return;
 
   const lessons = readCoursesDb().lessons;
@@ -347,7 +355,10 @@ function seedCgiOversightData(): void {
     updatedAt: ts,
   }));
 
-  const firstCourse = courses[0];
+  const firstCourse =
+    courses.find((course) => course.code === "ATPL-022") ??
+    courses.find((course) => /instrumentation/i.test(course.title)) ??
+    courses[0];
   const firstLessons = firstCourse
     ? lessons.filter((l) => l.courseId === firstCourse.id).slice(0, 3)
     : [];

@@ -6,8 +6,10 @@ import { generateId } from "@/lib/security/crypto";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
+import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listCourses } from "@/services/courses/course-service";
+import { readCoursesDb } from "@/services/courses/store";
 import {
   ATPL_PACKAGE_PRICES,
   atplCompareForCurrency,
@@ -19,6 +21,18 @@ import { defaultRegionalPaymentRules } from "@/services/payments/regional-rules-
 import { ensureWallet } from "@/services/payments/wallet-service";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { CatalogProduct, Coupon, Invoice, Order, PaymentRecord } from "@/types/payments";
+
+function atplPackageCourseIds(): string[] {
+  ensureCoursesSeeded();
+  const byCode = new Map(
+    readCoursesDb()
+      .courses.filter((course) => !course.deletedAt)
+      .map((course) => [course.code, course.id]),
+  );
+  return ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => byCode.get(code)).filter((id): id is string =>
+    Boolean(id),
+  );
+}
 
 export function ensurePaymentsSeeded(): void {
   ensureDemoUsersSeeded();
@@ -144,10 +158,7 @@ export function ensurePaymentsSeeded(): void {
       active: true,
       metadata: {
         sku: "ATPL-PACKAGE",
-        courseIds: courses
-          .filter((c) => c.code.startsWith("ATPL-"))
-          .map((c) => c.id)
-          .slice(0, 7),
+        courseIds: atplPackageCourseIds(),
         supportsInstallments: true,
         supportsBnpl: true,
       },
@@ -402,6 +413,23 @@ function ensureAtplPackageAndRegionalRules(): void {
         existing.pricesByCurrency = next;
         existing.updatedAt = stamp;
       }
+      const packageCourseIds = atplPackageCourseIds();
+      const currentIds = Array.isArray(existing.metadata.courseIds)
+        ? existing.metadata.courseIds.map(String)
+        : [];
+      const courseIdsStale =
+        packageCourseIds.length > 0 &&
+        (currentIds.length !== packageCourseIds.length ||
+          packageCourseIds.some((id) => !currentIds.includes(id)));
+      if (courseIdsStale) {
+        existing.metadata = {
+          ...existing.metadata,
+          sku: "ATPL-PACKAGE",
+          courseIds: packageCourseIds,
+          subjectCount: packageCourseIds.length,
+        };
+        existing.updatedAt = stamp;
+      }
       return;
     }
     if (!instructor) return;
@@ -422,10 +450,7 @@ function ensureAtplPackageAndRegionalRules(): void {
       active: true,
       metadata: {
         sku: "ATPL-PACKAGE",
-        courseIds: courses
-          .filter((c) => c.code.startsWith("ATPL-"))
-          .map((c) => c.id)
-          .slice(0, 7),
+        courseIds: atplPackageCourseIds(),
         supportsInstallments: true,
         supportsBnpl: true,
       },

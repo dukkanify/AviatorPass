@@ -632,6 +632,9 @@ function LearningDashboardView() {
                     ? atplSchedule.requestedFirstLectureLabel
                     : atplSchedule.confirmedFirstLectureLabel}
                 </strong>
+                {atplSchedule.firstLectureSubjectTitle
+                  ? ` · ${atplSchedule.firstLectureSubjectTitle}`
+                  : ""}
               </p>
               <p className="sl-muted">{atplSchedule.scheduleNotice}</p>
               {!atplSchedule.scheduleProvisional &&

@@ -30,11 +30,13 @@ type Snapshot = {
     name: string;
     email: string;
     firstSubjectCode: string | null;
+    firstSubjectTitle?: string | null;
     enrollmentCount: number;
     requestedFirstLectureLabel: string | null;
     confirmedFirstLectureLabel: string | null;
     scheduleProvisional: boolean;
     firstLectureOnTimetable?: boolean;
+    firstLectureSubjectTitle?: string | null;
   }>;
   pendingFirstLectures: Array<{
     studentId: string;
@@ -51,6 +53,7 @@ type Snapshot = {
     email: string;
     confirmedFirstLectureLabel: string | null;
     firstLectureOnTimetable?: boolean;
+    firstLectureSubjectTitle?: string | null;
   }>;
   instructors: Array<{
     instructorId: string;
@@ -261,6 +264,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                 <p className="text-muted-foreground">{s.email}</p>
                 <p className="mt-1">
                   {s.confirmedFirstLectureLabel}
+                  {s.firstLectureSubjectTitle ? ` · ${s.firstLectureSubjectTitle}` : ""}
                   <span className="ml-2 text-xs uppercase tracking-wide text-accent">
                     {s.firstLectureOnTimetable ? "On timetable" : "Confirmed"}
                   </span>
@@ -276,7 +280,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           Choose first subject (platform default)
         </h2>
         <p className="text-sm text-muted-foreground">
-          Sets the default opening subject for new ATPL student plans.
+          Sets the default opening subject for new ATPL student plans. The ATPL Complete Package
+          opens with Instrumentation unless you save a different default.
         </p>
         <div className="form-row-responsive">
           <div className="min-w-0 w-full sm:w-auto sm:min-w-[180px] space-y-1.5">
@@ -497,7 +502,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   <span className="font-medium">{s.name}</span>
                   <span className="text-muted-foreground"> · {s.email}</span>
                   <div className="text-muted-foreground">
-                    First: {s.firstSubjectCode ?? "—"} · {s.enrollmentCount} enrollments
+                    First: {s.firstSubjectTitle ?? s.firstSubjectCode ?? "—"} · {s.enrollmentCount}{" "}
+                    enrollments
                     {s.scheduleProvisional && s.requestedFirstLectureLabel
                       ? ` · requested ${s.requestedFirstLectureLabel}`
                       : s.confirmedFirstLectureLabel

@@ -50,6 +50,7 @@ interface InstructorDashboardViewProps {
     studentEmail: string;
     label: string | null;
     onTimetable: boolean;
+    subjectTitle?: string;
   }>;
 }
 
@@ -102,6 +103,7 @@ function InstructorDashboardView({
               <li key={lecture.id} className="border-b border-border/50 pb-2 last:border-0">
                 <p className="font-medium">{lecture.studentName}</p>
                 <p className="text-muted-foreground">
+                  {lecture.subjectTitle ? `${lecture.subjectTitle} · ` : ""}
                   {lecture.label ?? "Time confirmed"}
                   {lecture.onTimetable ? " · on timetable" : ""}
                 </p>

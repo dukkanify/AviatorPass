@@ -16,6 +16,9 @@ export const ATPL_PACKAGE_CONFIRMED_NOTICE =
 
 export const ATPL_PACKAGE_FIRST_LECTURE_TITLE = "ATPL first lecture";
 export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
+/** Official opening subject on the ATPL Complete Package review list. */
+export const ATPL_PACKAGE_OPENING_SUBJECT_CODE = "022";
+export const ATPL_PACKAGE_OPENING_SUBJECT_TITLE = "Instrumentation";
 
 export type AtplPackageScheduleSnapshot = {
   orderId: string | null;
@@ -32,6 +35,8 @@ export type AtplPackageScheduleSnapshot = {
   scheduleConfirmedAt: string | null;
   firstLectureLiveClassId: string | null;
   firstLectureOnTimetable: boolean;
+  firstLectureSubjectCode: string | null;
+  firstLectureSubjectTitle: string | null;
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -49,6 +54,8 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   scheduleConfirmedAt: null,
   firstLectureLiveClassId: null,
   firstLectureOnTimetable: false,
+  firstLectureSubjectCode: null,
+  firstLectureSubjectTitle: null,
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [
@@ -118,6 +125,46 @@ export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [
     shortDescription: "VFR and IFR phraseology, clearances, procedures, and professional R/T.",
   },
 ] as const;
+
+export function atplPackageLmsCourseCode(easaCode: string): string {
+  return `ATPL-${easaCode}`;
+}
+
+export const ATPL_PACKAGE_LMS_COURSE_CODES = ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject) =>
+  atplPackageLmsCourseCode(subject.code),
+);
+
+export function easaCodeFromAtplCourseCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const match = String(code)
+    .trim()
+    .match(/^(?:ATPL[-_])?(\d{3})$/i);
+  return match?.[1] ?? null;
+}
+
+export function atplPackageSubjectByEasaCode(easaCode: string | null | undefined) {
+  if (!easaCode) return null;
+  return ATPL_COMPLETE_PACKAGE_SUBJECTS.find((subject) => subject.code === easaCode) ?? null;
+}
+
+export function atplPackageSubjectTitle(
+  easaOrCourseCode: string | null | undefined,
+): string | null {
+  const easa = easaCodeFromAtplCourseCode(easaOrCourseCode);
+  return atplPackageSubjectByEasaCode(easa)?.title ?? null;
+}
+
+export function atplPackageSubjectOrderIndex(easaOrCourseCode: string | null | undefined): number {
+  const easa = easaCodeFromAtplCourseCode(easaOrCourseCode);
+  if (!easa) return ATPL_COMPLETE_PACKAGE_SUBJECTS.length + 1;
+  const index = ATPL_COMPLETE_PACKAGE_SUBJECTS.findIndex((subject) => subject.code === easa);
+  return index === -1 ? ATPL_COMPLETE_PACKAGE_SUBJECTS.length + 1 : index;
+}
+
+export function formatAtplFirstLectureTitle(subjectTitle: string): string {
+  const name = subjectTitle.trim();
+  return name ? `${ATPL_PACKAGE_FIRST_LECTURE_TITLE} · ${name}` : ATPL_PACKAGE_FIRST_LECTURE_TITLE;
+}
 
 export const ATPL_PACKAGE_JOINING_TERMS = [
   "The ATPL Complete Package includes all 13 Airline Transport Pilot License theory subjects listed on this page. Subjects are not sold separately.",
