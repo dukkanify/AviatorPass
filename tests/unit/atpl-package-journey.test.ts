@@ -26,6 +26,8 @@ import {
 } from "@/services/marketing/atpl-subjects-service";
 import { resetAtplMarketingDbForTests } from "@/services/marketing/atpl-subjects-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
+import { writeCoursesDb } from "@/services/courses/store";
+import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -39,6 +41,7 @@ import {
   listAssignedFirstLectures,
   listAtplCourses,
   listAtplStudents,
+  listStudentSubjectPlan,
 } from "@/services/cgi/journey-service";
 import { writeCgiDb } from "@/services/cgi/store";
 import { getLiveClass } from "@/services/classes/class-service";
@@ -207,6 +210,74 @@ describe("ATPL Complete Package journey", () => {
     const product = getAtplPackageProduct();
     expect(product?.metadata.courseIds).toHaveLength(13);
     expect(new Set(product?.metadata.courseIds as string[]).size).toBe(13);
+  });
+
+  it("heals a paid student onto all 13 official subjects", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    const paid = await payGuestCheckout({
+      firstName: "Noura",
+      lastName: "Saleh",
+      email: `package.heal.${Date.now()}@aviatorpass.test`,
+      phone: "+96550006666",
+      country: "KW",
+      billingName: "Noura Saleh",
+      billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `package-heal-${Date.now()}`,
+    });
+    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+    expect(student?.studentId).toBeTruthy();
+    const studentId = student!.studentId;
+    const keep = listAtplCourses()
+      .slice(0, 5)
+      .map((course) => course.id);
+    writeCoursesDb((db) => {
+      db.enrollments = db.enrollments.filter(
+        (row) => row.studentId !== studentId || keep.includes(row.courseId),
+      );
+    });
+    writeCgiDb((db) => {
+      db.subjectAssignments = db.subjectAssignments.filter((row) => row.studentId !== studentId);
+      db.subjectAssignments.push(
+        ...keep.slice(0, 4).map((courseId, index) => ({
+          id: `heal-plan-${index}`,
+          studentId,
+          courseId,
+          subjectCode: `ATPL-${index}`,
+          sortOrder: index + 1,
+          status: index === 0 ? ("available" as const) : ("locked" as const),
+          assignedInstructorId: null,
+          unlockedAt: index === 0 ? new Date().toISOString() : null,
+          completedAt: null,
+          notes: "partial plan",
+          assignedById: studentId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })),
+      );
+    });
+    expect(listStudentEnrollments(studentId).length).toBeLessThan(13);
+    expect(listStudentSubjectPlan(studentId)).toHaveLength(4);
+
+    const healed = await ensureConfirmedFirstLectureOnTimetable(
+      studentId,
+      paid.order.studentEmail!,
+    );
+    expect(healed.packageOwned).toBe(true);
+    expect(healed.subjects).toHaveLength(13);
+    expect(healed.subjects.map((subject) => subject.title)).toEqual(CLIENT_TITLES);
+    expect(healed.subjects[0]?.opening).toBe(true);
+    expect(healed.subjects[0]?.title).toBe(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
+    expect(listStudentSubjectPlan(studentId)).toHaveLength(13);
+    expect(
+      listStudentEnrollments(studentId).filter(
+        (row) => !["dropped", "rejected"].includes(row.status),
+      ),
+    ).toHaveLength(13);
   });
 
   it("lets TKI 1 confirm the requested first lecture or a different time", async () => {
@@ -413,6 +484,9 @@ describe("ATPL Complete Package journey", () => {
     expect(cgiView).toContain("Confirmed first lectures");
     expect(cgiView).toContain("Instrumentation");
     expect(dash).toContain("firstLectureSubjectTitle");
+    expect(dash).toContain("atplSchedule.subjects");
+    expect(dash).toContain("Follows TKI 1");
+    expect(scheduleHub).toContain("atplSchedule.subjects");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
   });
 });

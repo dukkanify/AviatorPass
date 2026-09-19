@@ -20,6 +20,14 @@ export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
 export const ATPL_PACKAGE_OPENING_SUBJECT_CODE = "022";
 export const ATPL_PACKAGE_OPENING_SUBJECT_TITLE = "Instrumentation";
 
+export type AtplPackageSubjectProgress = {
+  code: string;
+  title: string;
+  shortDescription: string;
+  status: "locked" | "available" | "in_progress" | "completed";
+  opening: boolean;
+};
+
 export type AtplPackageScheduleSnapshot = {
   orderId: string | null;
   requestedStudyStartDate: string | null;
@@ -37,6 +45,8 @@ export type AtplPackageScheduleSnapshot = {
   firstLectureOnTimetable: boolean;
   firstLectureSubjectCode: string | null;
   firstLectureSubjectTitle: string | null;
+  packageOwned: boolean;
+  subjects: AtplPackageSubjectProgress[];
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -56,6 +66,8 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   firstLectureOnTimetable: false,
   firstLectureSubjectCode: null,
   firstLectureSubjectTitle: null,
+  packageOwned: false,
+  subjects: [],
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [
