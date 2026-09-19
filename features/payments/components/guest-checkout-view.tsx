@@ -92,10 +92,9 @@ function checkoutCountries(quote: Quote | null) {
   }));
 }
 
-function dialForCountry(
-  countries: Array<{ code: string; name: string; dialCode?: string }>,
-  countryCode: string,
-) {
+type CheckoutCountry = { code: string; name: string; dialCode?: string | null };
+
+function dialForCountry(countries: CheckoutCountry[], countryCode: string) {
   return (
     countries.find((country) => country.code === countryCode)?.dialCode ||
     dialCodeForCountry(countryCode) ||
@@ -106,7 +105,7 @@ function dialForCountry(
 function withCountryDial(
   form: { phone: string; country: string },
   nextCountry: string,
-  countries: Array<{ code: string; name: string; dialCode?: string }>,
+  countries: CheckoutCountry[],
 ) {
   const nextDial = dialForCountry(countries, nextCountry);
   const previousDial = dialForCountry(countries, form.country);
