@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { InstructorZoomPanel } from "@/features/zoom/components/instructor-zoom-panel";
+import Link from "@/components/ui/app-link";
 
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -43,6 +44,13 @@ interface InstructorDashboardViewProps {
   attendance: SeriesPoint[];
   progress: { name: string; value: number }[];
   calendar: CalendarEvent[];
+  firstLectures?: Array<{
+    id: string;
+    studentName: string;
+    studentEmail: string;
+    label: string | null;
+    onTimetable: boolean;
+  }>;
 }
 
 function InstructorDashboardView({
@@ -51,6 +59,7 @@ function InstructorDashboardView({
   attendance,
   progress,
   calendar,
+  firstLectures = [],
 }: InstructorDashboardViewProps) {
   return (
     <div className="space-y-6">
@@ -78,6 +87,30 @@ function InstructorDashboardView({
         />
       </div>
 
+      {firstLectures.length > 0 ? (
+        <section className="space-y-3 rounded-xl border border-border bg-card px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg tracking-tight">
+              First lectures assigned by TKI 1
+            </h2>
+            <Link href="/instructor/schedule" className="text-sm text-primary hover:underline">
+              Open timetable
+            </Link>
+          </div>
+          <ul className="space-y-2 text-sm">
+            {firstLectures.map((lecture) => (
+              <li key={lecture.id} className="border-b border-border/50 pb-2 last:border-0">
+                <p className="font-medium">{lecture.studentName}</p>
+                <p className="text-muted-foreground">
+                  {lecture.label ?? "Time confirmed"}
+                  {lecture.onTimetable ? " · on timetable" : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <Suspense fallback={null}>
         <InstructorZoomPanel />
       </Suspense>
@@ -98,7 +131,7 @@ function InstructorDashboardView({
       <QuickActions
         actions={[
           { label: "Manage courses", href: "/instructor/courses", icon: BookOpen },
-          { label: "Schedule session", href: "/instructor/calendar", icon: Video },
+          { label: "Open timetable", href: "/instructor/schedule", icon: Video },
           { label: "Upload material", href: "/instructor/courses", icon: FileUp },
           { label: "Create quiz", href: "/instructor/quizzes", icon: HelpCircle },
         ]}

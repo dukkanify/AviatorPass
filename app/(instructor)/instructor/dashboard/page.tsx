@@ -6,6 +6,7 @@ import { routes } from "@/constants/routes";
 import { ROLES } from "@/constants/roles";
 import { newDashboardCorrelationId, safeDashboardQuery } from "@/lib/dashboard/safe-load";
 import { getCurrentSession } from "@/services/auth/auth-service";
+import { listAssignedFirstLectures } from "@/services/cgi/journey-service";
 import {
   getAttendanceSeries,
   getDashboardCalendarEvents,
@@ -72,7 +73,13 @@ export default async function InstructorDashboardPage() {
         ...base,
         label: "getDashboardCalendarEvents",
         fallback: [],
-        run: () => getDashboardCalendarEvents(),
+        run: () => getDashboardCalendarEvents(user),
+      })}
+      firstLectures={safeDashboardQuery({
+        ...base,
+        label: "listAssignedFirstLectures",
+        fallback: [],
+        run: () => listAssignedFirstLectures({ instructorId: user.id }),
       })}
     />
   );

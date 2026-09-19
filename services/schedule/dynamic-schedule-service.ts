@@ -23,6 +23,7 @@ import { listReminders, queueClassReminders } from "@/services/classes/reminder-
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { getCourseById } from "@/services/courses/course-service";
+import { listAssignedFirstLectures } from "@/services/cgi/journey-service";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
@@ -376,6 +377,13 @@ export function getScheduleOverview(options: {
     all.filter((s) => s.recurringRuleId).map((s) => s.recurringRuleId),
   ).size;
 
+  const firstLectures =
+    options.role === ROLES.STUDENT
+      ? []
+      : listAssignedFirstLectures({
+          instructorId: options.role === ROLES.INSTRUCTOR ? options.userId : options.instructorId,
+        });
+
   return {
     nextSession: getNextSession(options),
     upcoming,
@@ -384,6 +392,7 @@ export function getScheduleOverview(options: {
       from: new Date(Date.now() - 7 * 86_400_000).toISOString(),
       limit: 40,
     }),
+    firstLectures,
     stats: {
       upcoming: all.filter((s) => s.computedStatus === "upcoming").length,
       liveNow: all.filter((s) => s.computedStatus === "live_now").length,

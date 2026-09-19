@@ -10,6 +10,7 @@ import {
   ATPL_PACKAGE_TKI_NOTICE,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
   combineLocalDateAndTime,
+  formatAtplPackageInstant,
   formatAtplPackageScheduleLabel,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
@@ -446,6 +447,49 @@ export function listLectureAssignments(filters?: {
       return true;
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function listAssignedFirstLectures(options?: { instructorId?: string }): Array<{
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  instructorId: string;
+  scheduledAt: string | null;
+  label: string | null;
+  liveClassId: string | null;
+  onTimetable: boolean;
+  courseId: string;
+}> {
+  return listLectureAssignments({ instructorId: options?.instructorId })
+    .filter(
+      (row) =>
+        Boolean(row.studentId) &&
+        row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID &&
+        row.status === "scheduled",
+    )
+    .map((row) => {
+      const studentId = row.studentId as string;
+      const student = findUserById(studentId);
+      const live = row.liveClassId ? getLiveClass(row.liveClassId) : null;
+      const scheduledAt = row.scheduledAt ?? live?.startsAt ?? null;
+      return {
+        id: row.id,
+        studentId,
+        studentName: student
+          ? [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email
+          : "Student",
+        studentEmail: student?.email ?? "",
+        instructorId: row.instructorId,
+        scheduledAt,
+        label: scheduledAt ? formatAtplPackageInstant(scheduledAt) : null,
+        liveClassId: row.liveClassId,
+        onTimetable: Boolean(live && live.status !== "cancelled"),
+        courseId: row.courseId,
+      };
+    })
+    .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))
+    .slice(0, 20);
 }
 
 export async function rescheduleAtplClass(input: {
