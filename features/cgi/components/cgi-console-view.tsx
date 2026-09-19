@@ -55,6 +55,13 @@ type Snapshot = {
     firstLectureOnTimetable?: boolean;
     firstLectureSubjectTitle?: string | null;
   }>;
+  readyForNextSubject: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    nextSubjectTitle: string | null;
+    confirmedFirstLectureLabel: string | null;
+  }>;
   instructors: Array<{
     instructorId: string;
     name: string;
@@ -140,6 +147,61 @@ function ProvisionalFirstLectureCard({
           onClick={() => onConfirmDifferent(date, time)}
         >
           {ACTION_LABELS.confirmDifferentFirstLecture}
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function NextSubjectCard({
+  student,
+  busy,
+  onOpen,
+}: {
+  student: Snapshot["readyForNextSubject"][number];
+  busy: boolean;
+  onOpen: (date: string, time: string) => void;
+}) {
+  const soon = new Date();
+  soon.setDate(soon.getDate() + 5);
+  const [date, setDate] = React.useState(soon.toISOString().slice(0, 10));
+  const [time, setTime] = React.useState("18:00");
+
+  return (
+    <li className="rounded-xl border border-border bg-card px-4 py-3">
+      <p className="font-medium">{student.name}</p>
+      <p className="text-muted-foreground">{student.email}</p>
+      <p className="mt-1">
+        Next: <span className="font-medium">{student.nextSubjectTitle ?? "—"}</span>
+        <span className="ml-2 text-xs uppercase tracking-wide text-accent">Waiting</span>
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor={`next-date-${student.studentId}`}>
+            Lecture date
+          </Label>
+          <Input
+            id={`next-date-${student.studentId}`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-[11rem]"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor={`next-time-${student.studentId}`}>
+            Time
+          </Label>
+          <Input
+            id={`next-time-${student.studentId}`}
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="h-9 w-[8rem]"
+          />
+        </div>
+        <Button size="sm" disabled={busy || !date || !time} onClick={() => onOpen(date, time)}>
+          {ACTION_LABELS.openNextSubject}
         </Button>
       </div>
     </li>
@@ -270,6 +332,37 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   </span>
                 </p>
               </li>
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Next subject after first lecture</h2>
+        <p className="text-sm text-muted-foreground">
+          After Instrumentation is confirmed, TKI 1 opens the next official subject and books that
+          lecture on the student timetable.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {data.readyForNextSubject.length === 0 ? (
+            <li className="text-muted-foreground">No student is waiting for the next subject.</li>
+          ) : (
+            data.readyForNextSubject.map((s) => (
+              <NextSubjectCard
+                key={s.studentId}
+                student={s}
+                busy={busy}
+                onOpen={(studyStartDate, lectureTime) =>
+                  void run(() =>
+                    cgiPost({
+                      action: "open_next_subject",
+                      studentId: s.studentId,
+                      studyStartDate,
+                      lectureTime,
+                    }),
+                  )
+                }
+              />
             ))
           )}
         </ul>

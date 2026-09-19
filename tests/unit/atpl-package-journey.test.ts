@@ -7,12 +7,16 @@ import {
   ATPL_COMPLETE_PACKAGE_SUBJECTS,
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_JOINING_TERMS,
+  ATPL_PACKAGE_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_MIN_NOTICE_HOURS,
+  ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
+  atplPackageLectureLessonId,
   atplPackageScheduleIssue,
+  formatAtplLectureTitle,
   formatLocalDateInput,
   validAtplPackageSchedule,
 } from "@/constants/atpl-complete-package";
@@ -39,6 +43,7 @@ import {
   listAssignedFirstLectures,
   listAtplCourses,
   listAtplStudents,
+  openNextAtplPackageSubject,
 } from "@/services/cgi/journey-service";
 import { writeCgiDb } from "@/services/cgi/store";
 import { getLiveClass } from "@/services/classes/class-service";
@@ -414,5 +419,127 @@ describe("ATPL Complete Package journey", () => {
     expect(cgiView).toContain("Instrumentation");
     expect(dash).toContain("firstLectureSubjectTitle");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
+  });
+
+  it("lets TKI 1 open General Navigation and book that lecture after Instrumentation", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    writeCgiDb((db) => {
+      db.settings.defaultFirstSubjectCourseId = null;
+    });
+    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+    const requested = validAtplPackageSchedule();
+    const paid = await payGuestCheckout({
+      firstName: "Nour",
+      lastName: "Salem",
+      email: `tki.next.${Date.now()}@aviatorpass.test`,
+      phone: "+96550006666",
+      country: "KW",
+      billingName: "Nour Salem",
+      billingAddress: "Kuwait City",
+      ...requested,
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `tki-next-${Date.now()}`,
+    });
+    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+    expect(student?.studentId).toBeTruthy();
+
+    await expect(
+      openNextAtplPackageSubject({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+        studyStartDate: requested.studyStartDate,
+        lectureTime: "16:00",
+      }),
+    ).rejects.toThrow(/Confirm the first lecture/);
+
+    const confirmed = await confirmAtplPackageSchedule({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+    });
+    expect(confirmed.firstLectureSubjectTitle).toBe(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
+    expect(confirmed.nextSubjectCode).toBe("061");
+    expect(confirmed.nextSubjectTitle).toBe("General Navigation");
+    expect(confirmed.nextSubjectStatus).toBe("locked");
+    expect(confirmed.nextLectureLiveClassId).toBeNull();
+    expect(
+      getCgiDashboardSnapshot().readyForNextSubject.some(
+        (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "General Navigation",
+      ),
+    ).toBe(true);
+
+    const nextWhen = validAtplPackageSchedule();
+    const nextDate = formatLocalDateInput(new Date(Date.now() + 12 * 24 * 60 * 60 * 1000));
+    const opened = await openNextAtplPackageSubject({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+      studyStartDate: nextDate,
+      lectureTime: nextWhen.firstLectureTime,
+    });
+    expect(opened.nextSubjectCode).toBe("061");
+    expect(opened.nextSubjectTitle).toBe("General Navigation");
+    expect(opened.nextSubjectStatus).toBe("available");
+    expect(opened.nextLectureLiveClassId).toBeTruthy();
+    expect(opened.nextLectureLabel).toBeTruthy();
+    expect(formatAtplLectureTitle("General Navigation")).toBe(
+      `${ATPL_PACKAGE_LECTURE_TITLE} · General Navigation`,
+    );
+    expect(atplPackageLectureLessonId("061")).toBe("atpl-lecture-061");
+    expect(ATPL_PACKAGE_NEXT_SUBJECT_NOTICE).toMatch(/next subject/);
+
+    const booked = listScheduleSessions({
+      userId: student!.studentId,
+      role: ROLES.STUDENT,
+      from: new Date().toISOString(),
+    });
+    expect(booked.some((session) => session.id === opened.nextLectureLiveClassId)).toBe(true);
+    expect(booked.find((session) => session.id === opened.nextLectureLiveClassId)?.title).toContain(
+      "General Navigation",
+    );
+    expect(getLiveClass(opened.nextLectureLiveClassId!)?.instructorId).toBeTruthy();
+    expect(
+      getCgiDashboardSnapshot().readyForNextSubject.some(
+        (s) => s.email === paid.order.studentEmail,
+      ),
+    ).toBe(false);
+
+    await expect(
+      openNextAtplPackageSubject({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+        studyStartDate: nextDate,
+        lectureTime: "17:00",
+      }),
+    ).rejects.toThrow(/already open/);
+  });
+
+  it("keeps next-subject opening on the CGI console and student surfaces", () => {
+    const cgiRoute = readFileSync(path.join(process.cwd(), "app/api/cgi/route.ts"), "utf8");
+    const cgiView = readFileSync(
+      path.join(process.cwd(), "features/cgi/components/cgi-console-view.tsx"),
+      "utf8",
+    );
+    const dash = readFileSync(
+      path.join(
+        process.cwd(),
+        "features/learning/components/student-dashboard/student-dashboard-view.tsx",
+      ),
+      "utf8",
+    );
+    const scheduleHub = readFileSync(
+      path.join(process.cwd(), "features/schedule/components/schedule-hub-view.tsx"),
+      "utf8",
+    );
+    expect(cgiRoute).toContain("open_next_subject");
+    expect(cgiView).toContain("open_next_subject");
+    expect(cgiView).toContain("ACTION_LABELS.openNextSubject");
+    expect(cgiView).toContain("Next subject after first lecture");
+    expect(ACTION_LABELS.openNextSubject).toBe("Open next subject");
+    expect(dash).toContain("nextSubjectTitle");
+    expect(dash).toContain("Waiting for TKI 1 to open the next subject.");
+    expect(scheduleHub).toContain("nextSubjectTitle");
+    expect(getCgiDashboardSnapshot()).toHaveProperty("readyForNextSubject");
   });
 });

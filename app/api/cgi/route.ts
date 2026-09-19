@@ -10,6 +10,7 @@ import {
   distributeLecture,
   distributeSubjects,
   confirmAtplPackageSchedule,
+  openNextAtplPackageSubject,
   getCgiDashboardSnapshot,
   getJourneySettings,
   listAllInstructors,
@@ -259,6 +260,30 @@ export async function POST(request: Request) {
           actorId: user.id,
           studyStartDate: body.studyStartDate,
           firstLectureTime: body.firstLectureTime,
+        }),
+        error: null,
+      });
+    }
+
+    if (action === "open_next_subject") {
+      await requirePermission(PERMISSIONS.SCHEDULE_MANAGE_ALL);
+      if (!body.studentId || !body.studyStartDate || !body.lectureTime) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            error: "studentId, studyStartDate, and lectureTime required",
+          },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: await openNextAtplPackageSubject({
+          studentId: body.studentId,
+          actorId: user.id,
+          studyStartDate: body.studyStartDate,
+          lectureTime: body.lectureTime,
         }),
         error: null,
       });

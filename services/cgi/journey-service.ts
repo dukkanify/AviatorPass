@@ -4,18 +4,22 @@
 
 import { generateId } from "@/lib/security/crypto";
 import {
+  ATPL_COMPLETE_PACKAGE_SUBJECTS,
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
+  atplPackageLectureLessonId,
   atplPackageSubjectOrderIndex,
   atplPackageSubjectTitle,
   combineLocalDateAndTime,
   easaCodeFromAtplCourseCode,
   formatAtplFirstLectureTitle,
+  formatAtplLectureTitle,
   formatAtplPackageInstant,
   formatAtplPackageScheduleLabel,
   type AtplPackageScheduleSnapshot,
@@ -26,9 +30,11 @@ import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import {
+  enrollStudent,
   listStudentEnrollments,
   updateEnrollmentStatus,
 } from "@/services/courses/enrollment-service";
+import { CourseValidationError } from "@/services/courses/validation";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -650,6 +656,48 @@ function firstLectureSubjectForStudent(
   };
 }
 
+function nextOfficialSubjectState(studentId?: string): {
+  nextSubjectCode: string | null;
+  nextSubjectTitle: string | null;
+  nextSubjectStatus: AtplPackageScheduleSnapshot["nextSubjectStatus"];
+  nextLectureLabel: string | null;
+  nextLectureLiveClassId: string | null;
+  courseId: string | null;
+} {
+  const empty = {
+    nextSubjectCode: null,
+    nextSubjectTitle: null,
+    nextSubjectStatus: null,
+    nextLectureLabel: null,
+    nextLectureLiveClassId: null,
+    courseId: null,
+  };
+  if (!studentId) return empty;
+  const plan = listStudentSubjectPlan(studentId);
+  if (!plan.length) return empty;
+  const courses = listAtplCourses();
+  for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
+    if (subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE) continue;
+    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
+    if (!course) continue;
+    const row = plan.find((item) => item.courseId === course.id);
+    if (!row || row.status === "completed") continue;
+    const lecture =
+      listLectureAssignments({ studentId, courseId: course.id }).find(
+        (item) => item.scheduledAt && item.status === "scheduled",
+      ) ?? null;
+    return {
+      nextSubjectCode: subject.code,
+      nextSubjectTitle: subject.title,
+      nextSubjectStatus: row.status,
+      nextLectureLabel: lecture?.scheduledAt ? formatAtplPackageInstant(lecture.scheduledAt) : null,
+      nextLectureLiveClassId: lecture?.liveClassId ?? null,
+      courseId: course.id,
+    };
+  }
+  return empty;
+}
+
 function firstLectureIsOnTimetable(studentId: string, liveClassId: string | null): boolean {
   if (!liveClassId) return false;
   const existing = getLiveClass(liveClassId);
@@ -676,6 +724,7 @@ function packageScheduleFromOrder(
       ? order.metadata.firstLectureAt
       : null;
   const subject = firstLectureSubjectForStudent(studentId, liveClassId);
+  const next = nextOfficialSubjectState(studentId);
   return {
     orderId: order.id,
     requestedStudyStartDate: requestedDate,
@@ -708,6 +757,11 @@ function packageScheduleFromOrder(
     firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
     firstLectureSubjectCode: subject.code,
     firstLectureSubjectTitle: subject.title,
+    nextSubjectCode: next.nextSubjectCode,
+    nextSubjectTitle: next.nextSubjectTitle,
+    nextSubjectStatus: next.nextSubjectStatus,
+    nextLectureLabel: next.nextLectureLabel,
+    nextLectureLiveClassId: next.nextLectureLiveClassId,
   };
 }
 
@@ -1061,6 +1115,127 @@ export async function confirmAtplPackageSchedule(input: {
   return latestPaidPackageSchedule(input.studentId, student.email);
 }
 
+export async function openNextAtplPackageSubject(input: {
+  studentId: string;
+  actorId: string;
+  studyStartDate: string;
+  lectureTime: string;
+}) {
+  const student = findUserById(input.studentId);
+  if (!student) throw new CgiError("Student not found", 404);
+  const order = latestPaidPackageOrder(input.studentId, student.email);
+  if (!order) throw new CgiError("No ATPL package schedule to continue", 404);
+  const first = latestPaidPackageSchedule(input.studentId, student.email);
+  if (first.scheduleProvisional || !first.confirmedFirstLectureLabel) {
+    throw new CgiError("Confirm the first lecture before opening the next subject");
+  }
+
+  ensureStudentSubjectPlan(input.studentId, input.actorId);
+  const next = nextOfficialSubjectState(input.studentId);
+  if (!next.courseId || !next.nextSubjectCode || !next.nextSubjectTitle) {
+    throw new CgiError("Every official ATPL subject is already open");
+  }
+  if (next.nextSubjectStatus !== "locked") {
+    throw new CgiError(`${next.nextSubjectTitle} is already open`);
+  }
+
+  const date = input.studyStartDate.trim();
+  const time = input.lectureTime.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    throw new CgiError("Enter a valid date and time for the next lecture");
+  }
+  const when = combineLocalDateAndTime(date, time);
+  if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+    throw new CgiError("Next lecture must be in the future");
+  }
+
+  const stamp = nowIso();
+  writeCgiDb((db) => {
+    const row = db.subjectAssignments.find(
+      (item) => item.studentId === input.studentId && item.courseId === next.courseId,
+    );
+    if (!row) return;
+    row.status = "available";
+    row.unlockedAt = row.unlockedAt ?? stamp;
+    row.updatedAt = stamp;
+  });
+
+  const enrollment = listStudentEnrollments(input.studentId).find(
+    (row) => row.courseId === next.courseId && !["dropped", "rejected"].includes(row.status),
+  );
+  if (enrollment && enrollment.status === "suspended") {
+    await updateEnrollmentStatus({
+      id: enrollment.id,
+      status: "approved",
+      actorId: input.actorId,
+    });
+  } else if (!enrollment) {
+    try {
+      await enrollStudent({
+        courseId: next.courseId,
+        studentId: input.studentId,
+        status: "approved",
+        notes: "ATPL Complete Package — next subject",
+        actorId: input.actorId,
+        bypassEnrollmentGate: true,
+      });
+    } catch (error) {
+      if (!(error instanceof CourseValidationError && /already enrolled/i.test(error.message))) {
+        throw error;
+      }
+    }
+  }
+
+  const course = listAtplCourses().find((item) => item.id === next.courseId);
+  const instructorId =
+    firstLectureInstructorIds(next.courseId, course?.primaryInstructorId ?? null)[0] ?? null;
+  if (!instructorId) throw new CgiError("No instructor is available for the next lecture");
+
+  await distributeLecture({
+    courseId: next.courseId,
+    lessonId: atplPackageLectureLessonId(next.nextSubjectCode),
+    lessonTitle: formatAtplLectureTitle(next.nextSubjectTitle),
+    instructorId,
+    studentId: input.studentId,
+    scheduledAt: when.toISOString(),
+    notes: ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
+    actorId: input.actorId,
+  });
+
+  audit(
+    "cgi.schedule.open_next_subject",
+    input.actorId,
+    "student",
+    input.studentId,
+    `Opened ${next.nextSubjectTitle} → ${date} ${time}`,
+  );
+
+  const brand = getPublicBrandConfig();
+  const label = formatAtplPackageScheduleLabel(date, time);
+  try {
+    await dispatchEmailEvent({
+      event: "schedule",
+      userIds: [student.id],
+      to: student.email,
+      subject: "Your next ATPL lecture is booked",
+      data: {
+        recipientName:
+          [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
+        title: `${next.nextSubjectTitle} is open`,
+        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) opened ${next.nextSubjectTitle} and booked the next lecture for ${label}. It is now on your timetable.`,
+        supportEmail: brand.supportEmail,
+        reference: order.orderNumber,
+      },
+      actorId: input.actorId,
+      system: true,
+    });
+  } catch {
+    // Opening is already stored; email is best-effort.
+  }
+
+  return latestPaidPackageSchedule(input.studentId, student.email);
+}
+
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
@@ -1197,6 +1372,13 @@ export function getCgiDashboardSnapshot() {
     ),
     confirmedFirstLectures: students.filter(
       (s) => !s.scheduleProvisional && Boolean(s.confirmedFirstLectureLabel),
+    ),
+    readyForNextSubject: students.filter(
+      (s) =>
+        !s.scheduleProvisional &&
+        Boolean(s.confirmedFirstLectureLabel) &&
+        s.nextSubjectStatus === "locked" &&
+        Boolean(s.nextSubjectTitle),
     ),
     instructors,
   };
