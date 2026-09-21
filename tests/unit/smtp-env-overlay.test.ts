@@ -15,12 +15,6 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
-const ORIGINAL_ENV = { ...process.env };
-
-afterEach(() => {
-  process.env = { ...ORIGINAL_ENV };
-});
-
 describe("SMTP env overlay", () => {
   it("applies SMTP_HOST and sender overrides on top of stored settings", () => {
     process.env.SMTP_HOST = "smtp.example.com";
