@@ -3,6 +3,8 @@ import {
   DEMO_OTP_CODE_DEFAULT,
   PRIMARY_DEMO_EMAILS,
 } from "@/constants/demo-accounts";
+import { isLiveProductionRuntime } from "@/config/env";
+import { demoOtpEnabled } from "@/services/auth/otp-service";
 
 const DEMO_LOGIN_HINTS = [
   { role: "Super Admin", email: PRIMARY_DEMO_EMAILS.superAdmin },
@@ -11,8 +13,9 @@ const DEMO_LOGIN_HINTS = [
   { role: "CGI", email: PRIMARY_DEMO_EMAILS.cgi },
 ] as const;
 
-export function DemoAccountCredentials() {
-  if (process.env.NEXT_PUBLIC_APP_ENV === "production") return null;
+export async function DemoAccountCredentials() {
+  if (isLiveProductionRuntime()) return null;
+  const showDemoOtp = demoOtpEnabled();
 
   return (
     <div className="rounded-lg border border-accent/30 bg-muted/40 px-4 py-3 text-left text-xs text-muted-foreground">
@@ -27,8 +30,12 @@ export function DemoAccountCredentials() {
       </ul>
       <p className="mt-2">
         Password <span className="font-medium text-foreground">{DEMO_ACCOUNT_PASSWORD}</span>
-        {" · "}
-        OTP <span className="font-medium text-foreground">{DEMO_OTP_CODE_DEFAULT}</span>
+        {showDemoOtp ? (
+          <>
+            {" · "}
+            OTP <span className="font-medium text-foreground">{DEMO_OTP_CODE_DEFAULT}</span>
+          </>
+        ) : null}
       </p>
     </div>
   );
