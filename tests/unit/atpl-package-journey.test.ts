@@ -75,9 +75,30 @@ const CLIENT_TITLES = [
   "Communications",
 ];
 
+function uniqueLectureSlot(offsetDays: number, hour: number) {
+  const when = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  when.setHours(hour, 0, 0, 0);
+  return {
+    studyStartDate: formatLocalDateInput(when),
+    lectureTime: `${String(hour).padStart(2, "0")}:00`,
+  };
+}
+
+function cancelLeftoverAtplSubjectLectures() {
+  writeClassesDb((db) => {
+    const prefix = `${ATPL_PACKAGE_LECTURE_TITLE} ·`;
+    for (const row of db.classes) {
+      if (!row.title.startsWith(prefix)) continue;
+      row.status = "cancelled";
+      row.cancelledAt = new Date().toISOString();
+    }
+  });
+}
+
 describe("ATPL Complete Package journey", () => {
   beforeEach(() => {
     resetAtplMarketingDbForTests();
+    cancelLeftoverAtplSubjectLectures();
   });
 
   it("reviews the client's 13 subjects in the agreed order", () => {
@@ -548,13 +569,12 @@ describe("ATPL Complete Package journey", () => {
       ),
     ).toBe(true);
 
-    const nextWhen = validAtplPackageSchedule();
-    const nextDate = formatLocalDateInput(new Date(Date.now() + 12 * 24 * 60 * 60 * 1000));
+    const nextWhen = uniqueLectureSlot(41, 7);
     const opened = await openNextAtplPackageSubject({
       studentId: student!.studentId,
       actorId: cgi.id,
-      studyStartDate: nextDate,
-      lectureTime: nextWhen.firstLectureTime,
+      studyStartDate: nextWhen.studyStartDate,
+      lectureTime: nextWhen.lectureTime,
     });
     expect(opened.nextSubjectCode).toBe("061");
     expect(opened.nextSubjectTitle).toBe("General Navigation");
@@ -587,7 +607,7 @@ describe("ATPL Complete Package journey", () => {
       openNextAtplPackageSubject({
         studentId: student!.studentId,
         actorId: cgi.id,
-        studyStartDate: nextDate,
+        studyStartDate: nextWhen.studyStartDate,
         lectureTime: "17:00",
       }),
     ).rejects.toThrow(/already open/);
@@ -630,12 +650,12 @@ describe("ATPL Complete Package journey", () => {
       completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
     ).rejects.toThrow(/Open General Navigation/);
 
-    const nextDate = formatLocalDateInput(new Date(Date.now() + 12 * 24 * 60 * 60 * 1000));
+    const nextWhen = uniqueLectureSlot(43, 8);
     const opened = await openNextAtplPackageSubject({
       studentId: student!.studentId,
       actorId: cgi.id,
-      studyStartDate: nextDate,
-      lectureTime: "16:00",
+      studyStartDate: nextWhen.studyStartDate,
+      lectureTime: nextWhen.lectureTime,
     });
     expect(opened.nextSubjectTitle).toBe("General Navigation");
     expect(opened.nextSubjectStatus).toBe("available");
@@ -665,12 +685,12 @@ describe("ATPL Complete Package journey", () => {
       ),
     ).toBe(true);
 
-    const radioDate = formatLocalDateInput(new Date(Date.now() + 18 * 24 * 60 * 60 * 1000));
+    const radioWhen = uniqueLectureSlot(52, 9);
     const radio = await openNextAtplPackageSubject({
       studentId: student!.studentId,
       actorId: cgi.id,
-      studyStartDate: radioDate,
-      lectureTime: "18:00",
+      studyStartDate: radioWhen.studyStartDate,
+      lectureTime: radioWhen.lectureTime,
     });
     expect(radio.nextSubjectCode).toBe("062");
     expect(radio.nextSubjectTitle).toBe("Radio Navigation");
