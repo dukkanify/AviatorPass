@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
-import { getPlatformSettings } from "@/services/settings/settings-service";
+import {
+  getPlatformSettings,
+  resolveAdminNotificationEmail,
+} from "@/services/settings/settings-service";
 import { inspectResendDelivery, registerResendDomain } from "@/services/email/resend-status";
 import { isEmailDeliveryConfigured } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
@@ -12,6 +15,7 @@ export async function GET() {
   try {
     await requirePermission(PERMISSIONS.SYSTEM_EMAIL);
     const settings = getPlatformSettings();
+    const admin = resolveAdminNotificationEmail(settings);
     const status = await inspectResendDelivery({ senderEmail: settings.email.senderEmail });
     const recent = listOutboundEmails(10).map((m) => ({
       id: m.id,
@@ -29,7 +33,8 @@ export async function GET() {
         provider: settings.email.provider,
         senderEmail: settings.email.senderEmail,
         senderName: settings.email.senderName,
-        adminNotificationEmail: settings.email.adminNotificationEmail || null,
+        adminNotificationEmail: admin.email,
+        adminNotificationSource: admin.source,
         resend: status,
         recent,
       },

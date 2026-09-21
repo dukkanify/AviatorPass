@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Loader2, Save, Search, Send } from "lucide-react";
+import { Globe, Loader2, RefreshCw, Save, Search, Send } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -146,14 +146,24 @@ function PlatformSettingsShell() {
   const [query, setQuery] = React.useState("");
   const [emailStatus, setEmailStatus] = React.useState<{
     configured?: boolean;
+    adminNotificationEmail?: string | null;
+    adminNotificationSource?: string | null;
+    senderEmail?: string | null;
     resend?: {
       domainVerified?: boolean;
       senderDomain?: string;
       error?: string | null;
       records?: Array<{ type: string; name: string; value: string; status?: string }>;
     };
-    recent?: Array<{ mode: string; error?: string | null; createdAt: string; subject: string }>;
+    recent?: Array<{
+      to?: string;
+      mode: string;
+      error?: string | null;
+      createdAt: string;
+      subject: string;
+    }>;
   } | null>(null);
+  const [registeringDomain, setRegisteringDomain] = React.useState(false);
 
   const dirty = React.useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(draft),
@@ -191,13 +201,22 @@ function PlatformSettingsShell() {
   const loadEmailStatus = React.useCallback(async () => {
     const result = await authFetch<{
       configured: boolean;
+      adminNotificationEmail?: string | null;
+      adminNotificationSource?: string | null;
+      senderEmail?: string | null;
       resend: {
         domainVerified?: boolean;
         senderDomain?: string;
         error?: string | null;
         records?: Array<{ type: string; name: string; value: string; status?: string }>;
       };
-      recent: Array<{ mode: string; error?: string | null; createdAt: string; subject: string }>;
+      recent: Array<{
+        to?: string;
+        mode: string;
+        error?: string | null;
+        createdAt: string;
+        subject: string;
+      }>;
     }>("/api/admin/settings/email-status");
     if (result.success && result.data) setEmailStatus(result.data);
   }, []);
@@ -697,27 +716,87 @@ function PlatformSettingsShell() {
         </TabsContent>
 
         <TabsContent value="email" className="mt-6 space-y-4">
-          {emailStatus?.resend ? (
+          {emailStatus ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Production delivery</CardTitle>
-                <CardDescription>
-                  {emailStatus.resend.domainVerified
-                    ? `Resend domain ${emailStatus.resend.senderDomain} is verified.`
-                    : emailStatus.resend.error ||
-                      "Add and verify aviatorpass.com in Resend, then add the DNS records below."}
-                </CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">Production delivery</CardTitle>
+                  <CardDescription>
+                    {emailStatus.resend?.domainVerified
+                      ? `Resend domain ${emailStatus.resend.senderDomain} is verified. Branded From addresses will send.`
+                      : emailStatus.resend?.error ||
+                        "Add and verify aviatorpass.com in Resend, then add the DNS records below. Until then, OTP still leaves Resend via the onboarding sender."}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => void loadEmailStatus()}>
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh status
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={registeringDomain || Boolean(emailStatus.resend?.domainVerified)}
+                    onClick={async () => {
+                      setRegisteringDomain(true);
+                      const result = await authFetch<{
+                        registered?: { ok?: boolean; error?: string };
+                      }>("/api/admin/settings/email-status", {
+                        method: "POST",
+                        body: JSON.stringify({}),
+                      });
+                      setRegisteringDomain(false);
+                      if (result.success) {
+                        toast.success(
+                          "Resend domain registered. Add the DNS records below, then verify in Resend.",
+                        );
+                        await loadEmailStatus();
+                      } else {
+                        toast.error(result.error ?? "Could not register the Resend domain");
+                      }
+                    }}
+                  >
+                    <Globe className="h-4 w-4" />
+                    {registeringDomain ? "Registering…" : "Register domain"}
+                  </Button>
+                </div>
               </CardHeader>
-              {emailStatus.resend.records && emailStatus.resend.records.length > 0 ? (
-                <CardContent className="space-y-2 text-xs">
-                  {emailStatus.resend.records.map((row) => (
-                    <p key={`${row.type}-${row.name}`} className="font-mono break-all">
-                      {row.type} {row.name} → {row.value}
-                      {row.status ? ` (${row.status})` : ""}
-                    </p>
-                  ))}
-                </CardContent>
-              ) : null}
+              <CardContent className="space-y-3 text-sm">
+                <p>
+                  Admin copies go to{" "}
+                  <span className="font-medium">
+                    {emailStatus.adminNotificationEmail ||
+                      draft.email.adminNotificationEmail ||
+                      "unset"}
+                  </span>
+                  {emailStatus.adminNotificationSource
+                    ? ` (${emailStatus.adminNotificationSource.replaceAll("_", " ")})`
+                    : null}
+                  .
+                </p>
+                {emailStatus.resend?.records && emailStatus.resend.records.length > 0 ? (
+                  <div className="space-y-2 text-xs">
+                    {emailStatus.resend.records.map((row) => (
+                      <p key={`${row.type}-${row.name}`} className="font-mono break-all">
+                        {row.type} {row.name} → {row.value}
+                        {row.status ? ` (${row.status})` : ""}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {emailStatus.recent && emailStatus.recent.length > 0 ? (
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Recent outbound</p>
+                    {emailStatus.recent.slice(0, 5).map((row, index) => (
+                      <p key={`${row.createdAt}-${index}`}>
+                        {row.to ? `${row.to} · ` : null}
+                        {row.subject} · {row.mode}
+                        {row.error ? ` · ${row.error}` : ""}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </CardContent>
             </Card>
           ) : null}
           <Card>
@@ -867,7 +946,7 @@ function PlatformSettingsShell() {
               </Field>
               <Field
                 label="Admin notification email"
-                description="Receives copies of registration, purchase, payment, and refund emails."
+                description="Receives copies of registration, purchase, payment, invoice, receipt, and refund emails. Empty values fall back to support@aviatorpass.com, then the Super Admin mailbox. Test email uses this inbox."
               >
                 <Input
                   type="email"

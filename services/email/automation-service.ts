@@ -19,7 +19,10 @@ import {
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
 import { isEmailDeliveryConfigured, sendEmail } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
-import { getAdminNotificationEmail, getPlatformSettings } from "@/services/settings/settings-service";
+import {
+  getAdminNotificationEmail,
+  getPlatformSettings,
+} from "@/services/settings/settings-service";
 import type {
   EmailAutomationDispatchInput,
   EmailAutomationDispatchResult,
@@ -182,7 +185,11 @@ export async function dispatchEmailEvent(
     }
   }
 
-  await maybeCopyAdmin(input, recipients.map((r) => r.email), result);
+  await maybeCopyAdmin(
+    input,
+    recipients.map((r) => r.email),
+    result,
+  );
 
   await logActivity({
     actorId: input.actorId ?? null,
@@ -271,6 +278,7 @@ export function getEmailAutomationOverview(): EmailAutomationOverview {
     outboxPreview,
     smtpConfigured: isEmailDeliveryConfigured(),
     emailNotificationsEnabled: settings.notifications.emailNotifications,
+    adminNotificationEmail: getAdminNotificationEmail(),
     stats: getAutomationStats(),
   };
 }
@@ -314,7 +322,8 @@ async function maybeCopyAdmin(
     "admin_alert",
     {
       title,
-      detail: `${input.event}: ${String(input.data.detail ?? input.data.title ?? "")} ${String(input.data.reference ?? "")}`.trim(),
+      detail:
+        `${input.event}: ${String(input.data.detail ?? input.data.title ?? "")} ${String(input.data.reference ?? "")}`.trim(),
       reference: String(input.data.reference ?? ""),
     },
     title,

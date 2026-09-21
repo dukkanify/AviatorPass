@@ -91,6 +91,7 @@ export interface EmailAutomationOverview {
   }>;
   smtpConfigured: boolean;
   emailNotificationsEnabled: boolean;
+  adminNotificationEmail: string | null;
   stats: {
     dispatched: number;
     sent: number;

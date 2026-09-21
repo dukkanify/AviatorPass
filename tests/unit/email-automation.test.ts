@@ -19,6 +19,7 @@ import { patchStoredSettings } from "@/services/settings/store";
 
 describe("advanced email automation (CR009)", () => {
   beforeEach(() => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
     ensureDemoUsersSeeded();
     resetAutomationStoreForTests();
     patchStoredSettings(
@@ -33,6 +34,7 @@ describe("advanced email automation (CR009)", () => {
           senderName: "AviatorPass",
           senderEmail: "noreply@aviatorpass.test",
           replyToEmail: "support@aviatorpass.test",
+          adminNotificationEmail: "",
         },
         notifications: {
           emailNotifications: true,
@@ -59,7 +61,7 @@ describe("advanced email automation (CR009)", () => {
       data: { detail: "Welcome aboard." },
       actorId: student.id,
     });
-    expect(welcome.sent).toBe(1);
+    expect(welcome.sent).toBe(2);
     expect(getOutboundById(welcome.outboxIds[0]!)?.meta?.event).toBe("registration");
 
     const invoice = await dispatchEmailEvent({
@@ -71,7 +73,7 @@ describe("advanced email automation (CR009)", () => {
         detail: "Order paid",
       },
     });
-    expect(invoice.sent).toBe(1);
+    expect(invoice.sent).toBe(2);
 
     const schedule = await dispatchEmailEvent({
       event: "schedule",
@@ -109,6 +111,7 @@ describe("advanced email automation (CR009)", () => {
 
     const overview = getEmailAutomationOverview();
     expect(overview.catalog.length).toBe(21);
+    expect(overview.adminNotificationEmail).toBe("support@aviatorpass.com");
     expect(overview.catalog.find((c) => c.event === "homework")?.enabled).toBe(false);
     expect(overview.stats.dispatched).toBeGreaterThan(0);
   });

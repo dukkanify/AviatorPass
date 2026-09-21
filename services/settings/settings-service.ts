@@ -4,7 +4,12 @@
 
 import { logAudit, logActivity } from "@/services/auth/activity-log";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
-import { getStoredSettings, patchStoredSettings, readSettingsDb } from "@/services/settings/store";
+import {
+  getStoredSettings,
+  patchStoredSettings,
+  readSettingsDb,
+  writeSettingsDb,
+} from "@/services/settings/store";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
 import type {
   PlatformSettings,
@@ -73,8 +78,11 @@ export function applyRuntimeEmailOverrides(settings: PlatformSettings): Platform
   }
 
   const provider: PlatformSettings["email"]["provider"] =
-    providerRaw === "resend" || providerRaw === "smtp" || providerRaw === "sendgrid" ||
-    providerRaw === "mailgun" || providerRaw === "ses"
+    providerRaw === "resend" ||
+    providerRaw === "smtp" ||
+    providerRaw === "sendgrid" ||
+    providerRaw === "mailgun" ||
+    providerRaw === "ses"
       ? providerRaw
       : hasSmtp
         ? "smtp"
@@ -98,15 +106,62 @@ export function applyRuntimeEmailOverrides(settings: PlatformSettings): Platform
   };
 }
 
+export type AdminNotificationEmailSource =
+  "env" | "settings" | "support" | "super_admin" | "contact" | null;
+
+function usableEmail(value: string | undefined | null): string | null {
+  const email = value?.trim() ?? "";
+  if (!email || !email.includes("@")) return null;
+  return email;
+}
+
+/**
+ * Inbox that receives registration / purchase / payment / invoice / refund copies.
+ * Env wins, then Super Admin settings, then support, Super Admin, and contact.
+ */
+export function resolveAdminNotificationEmail(settings: PlatformSettings = getStoredSettings()): {
+  email: string | null;
+  source: AdminNotificationEmailSource;
+} {
+  const fromEnv = usableEmail(process.env.ADMIN_NOTIFICATION_EMAIL);
+  if (fromEnv) return { email: fromEnv, source: "env" };
+
+  const fromSettings = usableEmail(settings.email.adminNotificationEmail);
+  if (fromSettings) return { email: fromSettings, source: "settings" };
+
+  const fromSupport = usableEmail(settings.general.supportEmail);
+  if (fromSupport) return { email: fromSupport, source: "support" };
+
+  const fromSuperAdmin = usableEmail(process.env.SUPER_ADMIN_EMAIL || "superadmin@aviatorpass.com");
+  if (fromSuperAdmin) return { email: fromSuperAdmin, source: "super_admin" };
+
+  const fromContact = usableEmail(settings.general.contactEmail);
+  if (fromContact) return { email: fromContact, source: "contact" };
+
+  return { email: null, source: null };
+}
+
+function persistAdminNotificationDefault() {
+  const stored = getStoredSettings();
+  if (usableEmail(stored.email.adminNotificationEmail)) return;
+  const resolved = resolveAdminNotificationEmail(stored);
+  if (!resolved.email || resolved.source === "env") return;
+  writeSettingsDb((db) => {
+    if (usableEmail(db.settings.email.adminNotificationEmail)) return;
+    db.settings.email.adminNotificationEmail = resolved.email as string;
+    db.settings.updatedAt = new Date().toISOString();
+  });
+}
+
 export function getAdminNotificationEmail(): string | null {
-  const settings = getPlatformSettings();
-  const email = settings.email.adminNotificationEmail?.trim();
-  if (email) return email;
-  return null;
+  const email = getPlatformSettings().email.adminNotificationEmail?.trim();
+  return email || null;
 }
 
 export function getPlatformSettings(): PlatformSettings {
+  persistAdminNotificationDefault();
   const settings = applyRuntimeEmailOverrides(getStoredSettings());
+  const admin = resolveAdminNotificationEmail(settings);
   const configured = Boolean(
     process.env.ZOOM_ACCOUNT_ID?.trim() &&
     process.env.ZOOM_CLIENT_ID?.trim() &&
@@ -114,6 +169,10 @@ export function getPlatformSettings(): PlatformSettings {
   );
   return {
     ...settings,
+    email: {
+      ...settings.email,
+      adminNotificationEmail: admin.email ?? "",
+    },
     zoom: {
       ...settings.zoom,
       credentialsConfigured: configured,
@@ -132,7 +191,8 @@ export async function updatePlatformSettings(input: {
   userAgent?: string | null;
 }): Promise<PlatformSettings> {
   const before = getStoredSettings();
-  const next = patchStoredSettings(input.patch as Partial<PlatformSettings>, input.actorId);
+  patchStoredSettings(input.patch as Partial<PlatformSettings>, input.actorId);
+  const next = getPlatformSettings();
 
   await logAudit({
     actorId: input.actorId,

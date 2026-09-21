@@ -90,15 +90,21 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
   checks.push({
     id: "email_queue",
     label: "Email queue",
-    status: emailConfigured ? (domainUnverified ? "fail" : "pass") : productionRuntime ? "fail" : "warn",
+    status: emailConfigured
+      ? domainUnverified
+        ? "fail"
+        : "pass"
+      : productionRuntime
+        ? "fail"
+        : "warn",
     detail: domainUnverified
       ? lastFailed?.error || "Resend domain is not verified"
       : emailConfigured
         ? settings.email.smtpHost
           ? `SMTP ${settings.email.smtpHost}`
           : process.env.RESEND_API_KEY
-            ? `Resend API configured · from ${settings.email.senderEmail}`
-            : "Email delivery configured"
+            ? `Resend API configured · from ${settings.email.senderEmail} · admin ${settings.email.adminNotificationEmail || "unset"}`
+            : `Email delivery configured · admin ${settings.email.adminNotificationEmail || "unset"}`
         : "SMTP/Resend not configured — emails stay in the outbox",
   });
 

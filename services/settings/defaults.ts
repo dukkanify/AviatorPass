@@ -63,7 +63,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     senderName: "Aviator Pass",
     senderEmail: "noreply@aviatorpass.com",
     replyToEmail: siteStatic.supportEmail,
-    adminNotificationEmail: "",
+    adminNotificationEmail: siteStatic.supportEmail,
   },
   notifications: {
     emailNotifications: true,
