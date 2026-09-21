@@ -20,6 +20,7 @@ import {
 import Link from "@/components/ui/app-link";
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
 import {
+  ATPL_COMPLETE_PACKAGE_NAME,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
@@ -657,6 +658,53 @@ function LearningDashboardView() {
                   </p>
                 </div>
               ) : null}
+              {atplSchedule.subjects.length > 0 ? (
+                <ol className="sl-today-list" style={{ marginTop: 12 }}>
+                  {atplSchedule.subjects.map((subject) => (
+                    <li key={subject.code} className="sl-today-item">
+                      <span className="sl-muted">{subject.code}</span>
+                      <div>
+                        <strong>{subject.title}</strong>
+                        <p className="sl-muted">
+                          {subject.opening
+                            ? "First lecture"
+                            : subject.status === "completed"
+                              ? "Completed"
+                              : subject.status === "locked"
+                                ? "Follows TKI 1"
+                                : "Open"}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </section>
+          ) : atplSchedule?.packageOwned && atplSchedule.subjects.length > 0 ? (
+            <section className="sl-card" aria-labelledby="package-subjects-title">
+              <div className="sl-card-head">
+                <h2 id="package-subjects-title">{ATPL_COMPLETE_PACKAGE_NAME}</h2>
+                <Link href="/student/courses">Open</Link>
+              </div>
+              <ol className="sl-today-list">
+                {atplSchedule.subjects.map((subject) => (
+                  <li key={subject.code} className="sl-today-item">
+                    <span className="sl-muted">{subject.code}</span>
+                    <div>
+                      <strong>{subject.title}</strong>
+                      <p className="sl-muted">
+                        {subject.opening
+                          ? "First lecture"
+                          : subject.status === "completed"
+                            ? "Completed"
+                            : subject.status === "locked"
+                              ? "Follows TKI 1"
+                              : "Open"}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </section>
           ) : null}
           <section className="sl-card" aria-labelledby="today-learning-title">

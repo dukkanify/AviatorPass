@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import type { ScheduleOverview, ScheduleSession, TimelineEvent } from "@/types/schedule";
 import {
+  ATPL_COMPLETE_PACKAGE_NAME,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
@@ -167,27 +168,51 @@ export function ScheduleHubView({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {role === "student" && atplSchedule?.orderId ? (
+      {role === "student" && (atplSchedule?.orderId || atplSchedule?.packageOwned) ? (
         <section className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-            {atplSchedule.scheduleProvisional
-              ? "Provisional first lecture"
-              : "Confirmed first lecture"}
-          </p>
-          <p className="mt-1 font-medium">
-            {atplSchedule.scheduleProvisional
-              ? atplSchedule.requestedFirstLectureLabel
-              : atplSchedule.confirmedFirstLectureLabel}
-            {atplSchedule.firstLectureSubjectTitle
-              ? ` · ${atplSchedule.firstLectureSubjectTitle}`
-              : ""}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
-          {atplSchedule.nextSubjectTitle ? (
-            <p className="mt-2 text-sm">
-              Next subject: <span className="font-medium">{atplSchedule.nextSubjectTitle}</span>
-              {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+          {atplSchedule.orderId ? (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                {atplSchedule.scheduleProvisional
+                  ? "Provisional first lecture"
+                  : "Confirmed first lecture"}
+              </p>
+              <p className="mt-1 font-medium">
+                {atplSchedule.scheduleProvisional
+                  ? atplSchedule.requestedFirstLectureLabel
+                  : atplSchedule.confirmedFirstLectureLabel}
+                {atplSchedule.firstLectureSubjectTitle
+                  ? ` · ${atplSchedule.firstLectureSubjectTitle}`
+                  : ""}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
+              {atplSchedule.nextSubjectTitle ? (
+                <p className="mt-2 text-sm">
+                  Next subject: <span className="font-medium">{atplSchedule.nextSubjectTitle}</span>
+                  {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+              {ATPL_COMPLETE_PACKAGE_NAME}
             </p>
+          )}
+          {atplSchedule.subjects.length > 0 ? (
+            <ol className="mt-3 space-y-1 text-sm">
+              {atplSchedule.subjects.map((subject) => (
+                <li key={subject.code}>
+                  <span className="text-muted-foreground">{subject.code}</span>
+                  {" · "}
+                  {subject.title}
+                  {subject.opening ? (
+                    <span className="ml-2 text-xs uppercase tracking-wide text-accent">
+                      First lecture
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
           ) : null}
         </section>
       ) : null}
