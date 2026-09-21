@@ -115,7 +115,7 @@ function CheckoutView() {
       return;
     }
     if (needsKyc && rule?.requiresPassport && !passport) {
-      setError("Upload your passport before installments or BNPL.");
+      setError("Upload your passport before installments.");
       return;
     }
 
@@ -213,7 +213,7 @@ function CheckoutView() {
     <div className="space-y-6">
       <PageHeader
         title="Secure checkout"
-        description="ATPL package checkout with full payment, installments, or Tamara / Tabby (تالي) by country."
+        description="ATPL package checkout with full payment or AviatorPass installments (4, 5, or 6)."
         breadcrumbs={[{ label: "Billing" }, { label: "Checkout" }]}
       />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

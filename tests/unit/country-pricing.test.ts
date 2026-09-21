@@ -2,7 +2,7 @@
  * Country-first checkout pricing — Tamara never sees KWD, Taly never sees AED.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { PaymentError } from "@/services/payments/access";
 import {
@@ -21,8 +21,36 @@ const atpl = {
   metadata: { sku: "ATPL-PACKAGE" },
 } satisfies Pick<CatalogProduct, "name" | "priceAmount" | "currency" | "isFree" | "metadata">;
 
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
+
 describe("country-first pricing", () => {
-  it("routes AE/SA to Tamara, KW to Taly, others Stripe only", () => {
+  it("quotes Stripe-only plans by default while keeping country currencies", () => {
+    expect(checkoutPlanForCountry("AE")).toMatchObject({
+      currency: "AED",
+      gateways: ["stripe"],
+    });
+    expect(checkoutPlanForCountry("SA")).toMatchObject({
+      currency: "SAR",
+      gateways: ["stripe"],
+    });
+    expect(checkoutPlanForCountry("KW")).toMatchObject({
+      currency: "KWD",
+      gateways: ["stripe"],
+    });
+    expect(checkoutPlanForCountry("US")).toMatchObject({
+      currency: "USD",
+      gateways: ["stripe"],
+    });
+    expect(checkoutPlanForCountry("AE").methods).not.toContain("tamara");
+    expect(checkoutPlanForCountry("KW").methods).not.toContain("taly");
+  });
+
+  it("routes AE/SA to Tamara and KW to Taly when third-party BNPL is enabled", () => {
+    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
     expect(checkoutPlanForCountry("AE")).toMatchObject({
       currency: "AED",
       gateways: ["stripe", "tamara"],
@@ -35,14 +63,9 @@ describe("country-first pricing", () => {
       currency: "KWD",
       gateways: ["stripe", "taly"],
     });
-    expect(checkoutPlanForCountry("US")).toMatchObject({
-      currency: "USD",
-      gateways: ["stripe"],
-    });
     expect(checkoutPlanForCountry("AE").methods).not.toContain("taly");
     expect(checkoutPlanForCountry("KW").methods).not.toContain("tamara");
-    expect(checkoutPlanForCountry("US").methods).not.toContain("tamara");
-    expect(checkoutPlanForCountry("US").methods).not.toContain("taly");
+    delete process.env.ENABLE_THIRD_PARTY_BNPL;
   });
 
   it("switches ATPL price with country and never quotes KWD for Tamara countries", () => {

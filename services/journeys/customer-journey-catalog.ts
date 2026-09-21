@@ -463,7 +463,7 @@ export function ensureCustomerJourneyProducts(): void {
           sku: def.sku,
           journey: true,
           supportsInstallments: def.deliveryType === "live" || def.sku.includes("PPL"),
-          supportsBnpl: true,
+          supportsBnpl: false,
           installmentChoices: [4, 5, 6],
         },
         createdAt: ts,
@@ -483,7 +483,7 @@ export function ensureCustomerJourneyProducts(): void {
       );
       atpl.name = "ATPL Complete Package";
       atpl.description =
-        "Full ATPL theory package (13 subjects · ~230 hours) with full payment, installments (4/5/6), Tamara (UAE), or Tabby (Kuwait).";
+        "Full ATPL theory package (13 subjects · ~230 hours) with full payment or AviatorPass installments (4/5/6).";
       atpl.metadata = {
         ...atpl.metadata,
         sku: "ATPL-PACKAGE",
@@ -491,7 +491,7 @@ export function ensureCustomerJourneyProducts(): void {
         subjectCount: 13,
         hours: 230,
         supportsInstallments: true,
-        supportsBnpl: true,
+        supportsBnpl: false,
         installmentChoices: [4, 5, 6],
         pendingInstructorAssignment: true,
         ...(courseIds.length ? { courseIds } : {}),

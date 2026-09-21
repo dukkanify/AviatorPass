@@ -500,8 +500,9 @@ function GuestCheckoutView() {
                 })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Stripe is available in every country. Tamara appears for the United Arab Emirates and
-              Saudi Arabia. Taly appears for Kuwait. Unsupported gateways are hidden.
+              Pay in full with Stripe (cards and wallets) in every country. AviatorPass installments
+              (4, 5, or 6 payments) are available after you have an account. Third-party providers
+              are not offered.
             </p>
           </div>
 

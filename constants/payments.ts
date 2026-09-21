@@ -131,6 +131,6 @@ export const DEFAULT_PAYMENT_AGREEMENT_TEXT = `AviatorPass ATPL Package Installm
 By accepting this agreement you confirm that:
 1. You will pay each installment by its due date.
 2. Late payments may result in suspension of course access until the balance is brought current.
-3. Tamara and Tabby (تالي) availability depends on your billing country and provider eligibility.
-4. Passport verification may be required before installments or BNPL are activated.
-5. Refunds follow AviatorPass billing policy and provider rules.`;
+3. AviatorPass installments (4, 5, or 6) are in-platform. Third-party providers are not offered.
+4. Passport verification may be required before installments are activated.
+5. Refunds follow AviatorPass billing policy.`;

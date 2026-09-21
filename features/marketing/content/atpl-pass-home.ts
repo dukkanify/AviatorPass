@@ -222,14 +222,18 @@ export const PAYMENTS = {
   kicker: "Flexible Payment",
   title: "Professional installment options",
   intro:
-    "Invest in your aviation career with flexible payment methods designed for regional convenience. Full payment and installment plans are available at checkout.",
+    "Pay in full at checkout with Stripe. After you have an AviatorPass account, 4, 5, or 6 monthly installments are available in-platform.",
   regions: [
     {
       country: "Kuwait",
       methods: [
         {
-          name: "Tally",
-          description: "Flexible installments through Tally for Kuwait-based students.",
+          name: "Stripe",
+          description: "Cards and wallets in KWD at hosted checkout.",
+        },
+        {
+          name: "AviatorPass installments",
+          description: "4, 5, or 6 monthly payments after you have an account.",
         },
       ],
     },
@@ -237,12 +241,12 @@ export const PAYMENTS = {
       country: "Dubai",
       methods: [
         {
-          name: "Tabby",
-          description: "Split your program investment into manageable installments.",
+          name: "Stripe",
+          description: "Cards and wallets in AED at hosted checkout.",
         },
         {
-          name: "Tamara",
-          description: "Buy now, pay later with transparent installment scheduling.",
+          name: "AviatorPass installments",
+          description: "4, 5, or 6 monthly payments after you have an account.",
         },
       ],
     },
@@ -266,7 +270,7 @@ export const PAYMENTS = {
       ],
     },
   ],
-  note: "Installment availability is subject to provider approval at checkout. All prices are displayed in your selected currency.",
+  note: "Third-party installment providers are not offered. In-platform installments are available after login.",
 } as const;
 
 export const CONTACT = {

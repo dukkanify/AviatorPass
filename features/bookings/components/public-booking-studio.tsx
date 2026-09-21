@@ -538,7 +538,7 @@ function PublicBookingStudio() {
                 {selectedType?.paymentRequired && selectedType.priceAmountMinor > 0 ? (
                   <p className="mt-2 text-sm text-accent">
                     Fee: {formatMinor(selectedType.priceAmountMinor, selectedType.currency)} — pay
-                    after email confirmation (Tabby/Tamara where available)
+                    after email confirmation with Stripe
                   </p>
                 ) : (
                   <p className="mt-2 text-sm text-white/55">No payment required for this service</p>

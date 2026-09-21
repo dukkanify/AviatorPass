@@ -31,18 +31,19 @@ describe("installments & regional payments (CR003)", () => {
     ensurePaymentsSeeded();
   });
 
-  it("routes Stripe+Taly in Kuwait and Stripe+Tamara in AE/SA", () => {
+  it("keeps Stripe + AviatorPass installments and hides third-party BNPL", () => {
     expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).toEqual(
-      expect.arrayContaining(["full", "installments", "taly"]),
+      expect.arrayContaining(["full", "installments"]),
     );
     expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("tamara");
+    expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("taly");
     expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("tabby");
     expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).toEqual(
-      expect.arrayContaining(["full", "installments", "tamara"]),
+      expect.arrayContaining(["full", "installments"]),
     );
+    expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).not.toContain("tamara");
     expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).not.toContain("taly");
-    expect(allowedCheckoutModes(getRegionalPaymentRule("SA"))).toContain("tamara");
-    expect(allowedCheckoutModes(getRegionalPaymentRule("SA"))).not.toContain("taly");
+    expect(allowedCheckoutModes(getRegionalPaymentRule("SA"))).not.toContain("tamara");
     const qa = allowedCheckoutModes(getRegionalPaymentRule("QA"));
     expect(qa).toContain("full");
     expect(qa).toContain("installments");

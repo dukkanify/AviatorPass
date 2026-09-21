@@ -17,6 +17,7 @@ const ORIGINAL_ENV = { ...process.env };
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "unit-test-auth-secret-value-32chars";
+  process.env.ENABLE_THIRD_PARTY_BNPL = "true";
   process.env.TAMARA_API_TOKEN = "test-tamara-api-token";
   process.env.TAMARA_BASE_URL = "https://api-sandbox.tamara.co";
   delete process.env.STRIPE_SECRET_KEY;
