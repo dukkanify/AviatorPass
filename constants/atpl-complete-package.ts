@@ -17,6 +17,9 @@ export const ATPL_PACKAGE_CONFIRMED_NOTICE =
 export const ATPL_PACKAGE_NEXT_SUBJECT_NOTICE =
   "TKI 1 has opened the next subject and booked the next lecture on your timetable.";
 
+export const ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE =
+  "TKI 1 has marked this subject complete. The next official subject stays locked until TKI 1 opens it.";
+
 export const ATPL_PACKAGE_FIRST_LECTURE_TITLE = "ATPL first lecture";
 export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
 export const ATPL_PACKAGE_LECTURE_TITLE = "ATPL lecture";

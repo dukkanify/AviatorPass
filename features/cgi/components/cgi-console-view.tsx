@@ -62,6 +62,13 @@ type Snapshot = {
     nextSubjectTitle: string | null;
     confirmedFirstLectureLabel: string | null;
   }>;
+  readyToCompleteSubject: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    nextSubjectTitle: string | null;
+    nextLectureLabel: string | null;
+  }>;
   instructors: Array<{
     instructorId: string;
     name: string;
@@ -208,6 +215,33 @@ function NextSubjectCard({
   );
 }
 
+function CompleteSubjectCard({
+  student,
+  busy,
+  onComplete,
+}: {
+  student: Snapshot["readyToCompleteSubject"][number];
+  busy: boolean;
+  onComplete: () => void;
+}) {
+  return (
+    <li className="rounded-xl border border-border bg-card px-4 py-3">
+      <p className="font-medium">{student.name}</p>
+      <p className="text-muted-foreground">{student.email}</p>
+      <p className="mt-1">
+        Current: <span className="font-medium">{student.nextSubjectTitle ?? "—"}</span>
+        {student.nextLectureLabel ? ` · ${student.nextLectureLabel}` : ""}
+        <span className="ml-2 text-xs uppercase tracking-wide text-accent">Open</span>
+      </p>
+      <div className="mt-3">
+        <Button size="sm" disabled={busy} onClick={onComplete}>
+          {ACTION_LABELS.completeCurrentSubject}
+        </Button>
+      </div>
+    </li>
+  );
+}
+
 export function CgiConsoleView({ initial }: { initial: Snapshot }) {
   const [data, setData] = React.useState(initial);
   const [error, setError] = React.useState<string | null>(null);
@@ -338,10 +372,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Next subject after first lecture</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Open next official subject</h2>
         <p className="text-sm text-muted-foreground">
-          After Instrumentation is confirmed, TKI 1 opens the next official subject and books that
-          lecture on the student timetable.
+          After Instrumentation is confirmed, TKI 1 opens General Navigation. After a subject is
+          marked complete, TKI 1 opens the next official subject and books that lecture.
         </p>
         <ul className="space-y-2 text-sm">
           {data.readyForNextSubject.length === 0 ? (
@@ -359,6 +393,35 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                       studentId: s.studentId,
                       studyStartDate,
                       lectureTime,
+                    }),
+                  )
+                }
+              />
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Complete current subject</h2>
+        <p className="text-sm text-muted-foreground">
+          Mark the opened official subject complete before opening the following one. Completing
+          General Navigation unlocks Radio Navigation, then the rest of the 13-subject list.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {(data.readyToCompleteSubject ?? []).length === 0 ? (
+            <li className="text-muted-foreground">No open subject is waiting to be completed.</li>
+          ) : (
+            data.readyToCompleteSubject.map((s) => (
+              <CompleteSubjectCard
+                key={s.studentId}
+                student={s}
+                busy={busy}
+                onComplete={() =>
+                  void run(() =>
+                    cgiPost({
+                      action: "complete_subject",
+                      studentId: s.studentId,
                     }),
                   )
                 }

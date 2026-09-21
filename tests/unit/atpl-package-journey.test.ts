@@ -11,6 +11,7 @@ import {
   ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_MIN_NOTICE_HOURS,
   ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
+  ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
@@ -38,6 +39,7 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
 import {
   confirmAtplPackageSchedule,
+  completeAtplPackageSubject,
   ensureConfirmedFirstLectureOnTimetable,
   getAtplPackageProduct,
   getCgiDashboardSnapshot,
@@ -73,9 +75,30 @@ const CLIENT_TITLES = [
   "Communications",
 ];
 
+function uniqueLectureSlot(offsetDays: number, hour: number) {
+  const when = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  when.setHours(hour, 0, 0, 0);
+  return {
+    studyStartDate: formatLocalDateInput(when),
+    lectureTime: `${String(hour).padStart(2, "0")}:00`,
+  };
+}
+
+function cancelLeftoverAtplSubjectLectures() {
+  writeClassesDb((db) => {
+    const prefix = `${ATPL_PACKAGE_LECTURE_TITLE} ·`;
+    for (const row of db.classes) {
+      if (!row.title.startsWith(prefix)) continue;
+      row.status = "cancelled";
+      row.cancelledAt = new Date().toISOString();
+    }
+  });
+}
+
 describe("ATPL Complete Package journey", () => {
   beforeEach(() => {
     resetAtplMarketingDbForTests();
+    cancelLeftoverAtplSubjectLectures();
   });
 
   it("reviews the client's 13 subjects in the agreed order", () => {
@@ -546,13 +569,12 @@ describe("ATPL Complete Package journey", () => {
       ),
     ).toBe(true);
 
-    const nextWhen = validAtplPackageSchedule();
-    const nextDate = formatLocalDateInput(new Date(Date.now() + 12 * 24 * 60 * 60 * 1000));
+    const nextWhen = uniqueLectureSlot(41, 7);
     const opened = await openNextAtplPackageSubject({
       studentId: student!.studentId,
       actorId: cgi.id,
-      studyStartDate: nextDate,
-      lectureTime: nextWhen.firstLectureTime,
+      studyStartDate: nextWhen.studyStartDate,
+      lectureTime: nextWhen.lectureTime,
     });
     expect(opened.nextSubjectCode).toBe("061");
     expect(opened.nextSubjectTitle).toBe("General Navigation");
@@ -585,10 +607,95 @@ describe("ATPL Complete Package journey", () => {
       openNextAtplPackageSubject({
         studentId: student!.studentId,
         actorId: cgi.id,
-        studyStartDate: nextDate,
+        studyStartDate: nextWhen.studyStartDate,
         lectureTime: "17:00",
       }),
     ).rejects.toThrow(/already open/);
+  });
+
+  it("lets TKI 1 complete General Navigation then open Radio Navigation", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    writeCgiDb((db) => {
+      db.settings.defaultFirstSubjectCourseId = null;
+    });
+    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+    const requested = validAtplPackageSchedule();
+    const paid = await payGuestCheckout({
+      firstName: "Lina",
+      lastName: "Farah",
+      email: `tki.complete.${Date.now()}@aviatorpass.test`,
+      phone: "+96550007777",
+      country: "KW",
+      billingName: "Lina Farah",
+      billingAddress: "Kuwait City",
+      ...requested,
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `tki-complete-${Date.now()}`,
+    });
+    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+    expect(student?.studentId).toBeTruthy();
+
+    await expect(
+      completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
+    ).rejects.toThrow(/Confirm the first lecture/);
+
+    await confirmAtplPackageSchedule({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+    });
+    await expect(
+      completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
+    ).rejects.toThrow(/Open General Navigation/);
+
+    const nextWhen = uniqueLectureSlot(43, 8);
+    const opened = await openNextAtplPackageSubject({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+      studyStartDate: nextWhen.studyStartDate,
+      lectureTime: nextWhen.lectureTime,
+    });
+    expect(opened.nextSubjectTitle).toBe("General Navigation");
+    expect(opened.nextSubjectStatus).toBe("available");
+    expect(
+      getCgiDashboardSnapshot().readyToCompleteSubject.some(
+        (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "General Navigation",
+      ),
+    ).toBe(true);
+
+    const completed = await completeAtplPackageSubject({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+    });
+    expect(completed.subjects.find((subject) => subject.code === "061")?.status).toBe("completed");
+    expect(completed.nextSubjectCode).toBe("062");
+    expect(completed.nextSubjectTitle).toBe("Radio Navigation");
+    expect(completed.nextSubjectStatus).toBe("locked");
+    expect(ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE).toMatch(/marked this subject complete/);
+    expect(
+      getCgiDashboardSnapshot().readyToCompleteSubject.some(
+        (s) => s.email === paid.order.studentEmail,
+      ),
+    ).toBe(false);
+    expect(
+      getCgiDashboardSnapshot().readyForNextSubject.some(
+        (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "Radio Navigation",
+      ),
+    ).toBe(true);
+
+    const radioWhen = uniqueLectureSlot(52, 9);
+    const radio = await openNextAtplPackageSubject({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+      studyStartDate: radioWhen.studyStartDate,
+      lectureTime: radioWhen.lectureTime,
+    });
+    expect(radio.nextSubjectCode).toBe("062");
+    expect(radio.nextSubjectTitle).toBe("Radio Navigation");
+    expect(radio.nextSubjectStatus).toBe("available");
+    expect(radio.nextLectureLiveClassId).toBeTruthy();
   });
 
   it("keeps next-subject opening on the CGI console and student surfaces", () => {
@@ -609,13 +716,19 @@ describe("ATPL Complete Package journey", () => {
       "utf8",
     );
     expect(cgiRoute).toContain("open_next_subject");
+    expect(cgiRoute).toContain("complete_subject");
     expect(cgiView).toContain("open_next_subject");
+    expect(cgiView).toContain("complete_subject");
     expect(cgiView).toContain("ACTION_LABELS.openNextSubject");
-    expect(cgiView).toContain("Next subject after first lecture");
+    expect(cgiView).toContain("ACTION_LABELS.completeCurrentSubject");
+    expect(cgiView).toContain("Open next official subject");
+    expect(cgiView).toContain("Complete current subject");
     expect(ACTION_LABELS.openNextSubject).toBe("Open next subject");
+    expect(ACTION_LABELS.completeCurrentSubject).toBe("Mark subject complete");
     expect(dash).toContain("nextSubjectTitle");
     expect(dash).toContain("Waiting for TKI 1 to open the next subject.");
     expect(scheduleHub).toContain("nextSubjectTitle");
     expect(getCgiDashboardSnapshot()).toHaveProperty("readyForNextSubject");
+    expect(getCgiDashboardSnapshot()).toHaveProperty("readyToCompleteSubject");
   });
 });

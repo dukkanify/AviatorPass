@@ -30,6 +30,7 @@ const EMPTY_CGI_SNAPSHOT: CgiSnapshot = {
   pendingFirstLectures: [],
   confirmedFirstLectures: [],
   readyForNextSubject: [],
+  readyToCompleteSubject: [],
   instructors: [],
 };
 

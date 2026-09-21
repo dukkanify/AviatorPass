@@ -10,6 +10,7 @@ import {
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
+  ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
@@ -1359,6 +1360,83 @@ export async function openNextAtplPackageSubject(input: {
   return latestPaidPackageSchedule(input.studentId, student.email);
 }
 
+export async function completeAtplPackageSubject(input: { studentId: string; actorId: string }) {
+  const student = findUserById(input.studentId);
+  if (!student) throw new CgiError("Student not found", 404);
+  const order = latestPaidPackageOrder(input.studentId, student.email);
+  if (!order) throw new CgiError("No ATPL package schedule to continue", 404);
+  const first = latestPaidPackageSchedule(input.studentId, student.email);
+  if (first.scheduleProvisional || !first.confirmedFirstLectureLabel) {
+    throw new CgiError("Confirm the first lecture before completing a subject");
+  }
+
+  ensureStudentSubjectPlan(input.studentId, input.actorId);
+  const current = nextOfficialSubjectState(input.studentId);
+  if (!current.courseId || !current.nextSubjectCode || !current.nextSubjectTitle) {
+    throw new CgiError("Every official ATPL subject after Instrumentation is already complete");
+  }
+  if (current.nextSubjectStatus !== "available" && current.nextSubjectStatus !== "in_progress") {
+    throw new CgiError(`Open ${current.nextSubjectTitle} before marking it complete`);
+  }
+
+  const stamp = nowIso();
+  writeCgiDb((db) => {
+    const row = db.subjectAssignments.find(
+      (item) => item.studentId === input.studentId && item.courseId === current.courseId,
+    );
+    if (!row) return;
+    row.status = "completed";
+    row.completedAt = stamp;
+    row.updatedAt = stamp;
+  });
+
+  const enrollment = listStudentEnrollments(input.studentId).find(
+    (row) => row.courseId === current.courseId && !["dropped", "rejected"].includes(row.status),
+  );
+  if (enrollment && (enrollment.status === "approved" || enrollment.status === "suspended")) {
+    await updateEnrollmentStatus({
+      id: enrollment.id,
+      status: "completed",
+      actorId: input.actorId,
+    });
+  }
+
+  audit(
+    "cgi.schedule.complete_subject",
+    input.actorId,
+    "student",
+    input.studentId,
+    `Completed ${current.nextSubjectTitle}`,
+  );
+
+  const brand = getPublicBrandConfig();
+  const following = nextOfficialSubjectState(input.studentId);
+  try {
+    await dispatchEmailEvent({
+      event: "student_alert",
+      userIds: [student.id],
+      to: student.email,
+      subject: `${current.nextSubjectTitle} is complete`,
+      data: {
+        recipientName:
+          [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
+        title: `${current.nextSubjectTitle} complete`,
+        detail: following.nextSubjectTitle
+          ? `${ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE} Next up: ${following.nextSubjectTitle}.`
+          : ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
+        supportEmail: brand.supportEmail,
+        reference: order.orderNumber,
+      },
+      actorId: input.actorId,
+      system: true,
+    });
+  } catch {
+    // Completion is already stored; email is best-effort.
+  }
+
+  return latestPaidPackageSchedule(input.studentId, student.email);
+}
+
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
@@ -1501,6 +1579,13 @@ export function getCgiDashboardSnapshot() {
         !s.scheduleProvisional &&
         Boolean(s.confirmedFirstLectureLabel) &&
         s.nextSubjectStatus === "locked" &&
+        Boolean(s.nextSubjectTitle),
+    ),
+    readyToCompleteSubject: students.filter(
+      (s) =>
+        !s.scheduleProvisional &&
+        Boolean(s.confirmedFirstLectureLabel) &&
+        (s.nextSubjectStatus === "available" || s.nextSubjectStatus === "in_progress") &&
         Boolean(s.nextSubjectTitle),
     ),
     instructors,
