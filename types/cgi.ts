@@ -10,6 +10,8 @@ export type AtplLectureDistributionStatus =
 export interface AtplJourneySettings {
   /** Default first ATPL subject course id when not overridden per student. */
   defaultFirstSubjectCourseId: string | null;
+  /** Set once when live CGI defaults are healed onto Instrumentation. */
+  openingDefaultHealedAt?: string | null;
   packageSku: string;
   updatedAt: string;
   updatedById: string | null;

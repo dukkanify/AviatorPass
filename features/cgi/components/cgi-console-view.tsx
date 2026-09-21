@@ -436,8 +436,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           Choose first subject (platform default)
         </h2>
         <p className="text-sm text-muted-foreground">
-          Sets the default opening subject for new ATPL student plans. The ATPL Complete Package
-          opens with Instrumentation unless you save a different default.
+          The ATPL Complete Package always opens with Instrumentation. Saving a different default
+          only changes this dropdown for manual subject distribution.
         </p>
         <div className="form-row-responsive">
           <div className="min-w-0 w-full sm:w-auto sm:min-w-[180px] space-y-1.5">
