@@ -6,7 +6,6 @@
 
 import { currencyForCountry } from "@/services/payments/currency-detection";
 import { PaymentError } from "@/services/payments/access";
-import { isThirdPartyBnplOffered } from "@/services/payments/bnpl-policy";
 import { majorToMinor, minorToMajor } from "@/services/payments/money";
 import type { CatalogProduct, PaymentMethodBrand } from "@/types/payments";
 
@@ -58,29 +57,28 @@ export function checkoutPlanForCountry(
   countryCode: string | null | undefined,
 ): CountryCheckoutPlan {
   const country = (countryCode || "").toUpperCase();
-  const offerBnpl = isThirdPartyBnplOffered();
   if (country === "AE") {
     return {
       country,
       currency: "AED",
-      methods: offerBnpl ? [...STRIPE_WALLETS, "tamara"] : [...STRIPE_WALLETS],
-      gateways: offerBnpl ? ["stripe", "tamara"] : ["stripe"],
+      methods: [...STRIPE_WALLETS, "tamara"],
+      gateways: ["stripe", "tamara"],
     };
   }
   if (country === "SA") {
     return {
       country,
       currency: "SAR",
-      methods: offerBnpl ? [...STRIPE_WALLETS, "tamara"] : [...STRIPE_WALLETS],
-      gateways: offerBnpl ? ["stripe", "tamara"] : ["stripe"],
+      methods: [...STRIPE_WALLETS, "tamara"],
+      gateways: ["stripe", "tamara"],
     };
   }
   if (country === "KW") {
     return {
       country,
       currency: "KWD",
-      methods: offerBnpl ? [...STRIPE_WALLETS, "taly"] : [...STRIPE_WALLETS],
-      gateways: offerBnpl ? ["stripe", "taly"] : ["stripe"],
+      methods: [...STRIPE_WALLETS, "taly"],
+      gateways: ["stripe", "taly"],
     };
   }
   return {
@@ -140,26 +138,26 @@ export function assertBnplCurrency(
   country: string,
   currency: string,
 ): void {
-  const code = (country || "").toUpperCase();
-  const currencyCode = currency.toUpperCase();
+  const plan = checkoutPlanForCountry(country);
+  const code = currency.toUpperCase();
   if (gateway === "tamara") {
     if (
-      !(TAMARA_LIVE_COUNTRIES as readonly string[]).includes(code) ||
-      !(TAMARA_LIVE_CURRENCIES as readonly string[]).includes(currencyCode)
+      !plan.gateways.includes("tamara") ||
+      !(TAMARA_LIVE_CURRENCIES as readonly string[]).includes(code)
     ) {
       throw new PaymentError(
-        `Tamara cannot charge ${currencyCode} in ${code || "this country"}. Use AED (UAE) or SAR (Saudi Arabia).`,
+        `Tamara cannot charge ${code} in ${plan.country}. Use AED (UAE) or SAR (Saudi Arabia).`,
         400,
       );
     }
     return;
   }
   if (
-    !(TALY_LIVE_COUNTRIES as readonly string[]).includes(code) ||
-    !(TALY_LIVE_CURRENCIES as readonly string[]).includes(currencyCode)
+    !plan.gateways.includes("taly") ||
+    !(TALY_LIVE_CURRENCIES as readonly string[]).includes(code)
   ) {
     throw new PaymentError(
-      `Taly cannot charge ${currencyCode} in ${code || "this country"}. Use KWD in Kuwait.`,
+      `Taly cannot charge ${code} in ${plan.country}. Use KWD in Kuwait.`,
       400,
     );
   }

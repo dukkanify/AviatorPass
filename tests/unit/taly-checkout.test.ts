@@ -57,7 +57,6 @@ function mockTalyFetch() {
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "unit-test-auth-secret-value-32chars";
-  process.env.ENABLE_THIRD_PARTY_BNPL = "true";
   process.env.TALY_API_KEY = "test-taly-api-key";
   process.env.TALY_SECRET_KEY = "test-taly-secret-key";
   process.env.TALY_WEBHOOK_SECRET = "test-taly-webhook-secret";

@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
@@ -19,8 +19,6 @@ import { getRegionalPaymentRule } from "@/services/payments/regional-rules-servi
 import { readPaymentsDb } from "@/services/payments/store";
 import { ROLES } from "@/constants/roles";
 
-const ORIGINAL_ENV = { ...process.env };
-
 describe("customer journey alignment", () => {
   beforeAll(() => {
     ensureDemoUsersSeeded();
@@ -30,10 +28,6 @@ describe("customer journey alignment", () => {
     ensureCustomerJourneyProducts();
     resetMockExamsDbCache();
     ensureMockExamsSeeded();
-  });
-
-  afterEach(() => {
-    process.env = { ...ORIGINAL_ENV };
   });
 
   it("seeds PPL / Basics recorded+live journeys with the AviatorPass instructor", () => {
@@ -55,8 +49,7 @@ describe("customer journey alignment", () => {
     expect(`${instructor?.firstName} ${instructor?.lastName}`).toBe("Khalid Al Rashid");
   });
 
-  it("maps Taly to Kuwait and Tamara to UAE/SA with installment capacity when BNPL is enabled", () => {
-    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
+  it("maps Taly to Kuwait and Tamara to UAE/SA with installment capacity", () => {
     const kw = getRegionalPaymentRule("KW");
     const ae = getRegionalPaymentRule("AE");
     const sa = getRegionalPaymentRule("SA");
@@ -65,15 +58,6 @@ describe("customer journey alignment", () => {
     expect(sa.bnplProviders).toEqual(["tamara"]);
     expect(kw.maxInstallments).toBeGreaterThanOrEqual(6);
     expect(ae.maxInstallments).toBeGreaterThanOrEqual(6);
-  });
-
-  it("hides third-party BNPL providers by default while keeping 4/5/6 capacity", () => {
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
-    const kw = getRegionalPaymentRule("KW");
-    const ae = getRegionalPaymentRule("AE");
-    expect(kw.bnplProviders).toEqual([]);
-    expect(ae.bnplProviders).toEqual([]);
-    expect(kw.maxInstallments).toBeGreaterThanOrEqual(6);
   });
 
   it("creates checkout products for journey SKUs", () => {

@@ -42,31 +42,19 @@ afterEach(() => {
 });
 
 describe("country gateway routing", () => {
-  it("keeps Stripe in every country and hides third-party BNPL by default", () => {
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
-    expect(allowedGatewaysForCountry("AE")).toEqual(["stripe"]);
-    expect(allowedGatewaysForCountry("SA")).toEqual(["stripe"]);
-    expect(allowedGatewaysForCountry("KW")).toEqual(["stripe"]);
-    expect(allowedGatewaysForCountry("BH")).toEqual(["stripe"]);
-    expect(allowedGatewaysForCountry("US")).toEqual(["stripe"]);
-    expect(getRegionalPaymentRule("AE").bnplProviders).toEqual([]);
-    expect(getRegionalPaymentRule("KW").bnplProviders).toEqual([]);
-    expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).toEqual(
-      expect.arrayContaining(["full"]),
-    );
-    expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).not.toContain("tamara");
-    expect(allowedCheckoutModes(getRegionalPaymentRule("KW"))).not.toContain("taly");
-  });
-
-  it("maps AE and SA to Stripe + Tamara, KW to Stripe + Taly when BNPL is enabled", () => {
-    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
+  it("maps AE and SA to Stripe + Tamara, KW to Stripe + Taly, others Stripe only", () => {
     expect(allowedGatewaysForCountry("AE")).toEqual(["stripe", "tamara"]);
     expect(allowedGatewaysForCountry("SA")).toEqual(["stripe", "tamara"]);
     expect(allowedGatewaysForCountry("KW")).toEqual(["stripe", "taly"]);
     expect(allowedGatewaysForCountry("BH")).toEqual(["stripe"]);
+    expect(allowedGatewaysForCountry("QA")).toEqual(["stripe"]);
+    expect(allowedGatewaysForCountry("OM")).toEqual(["stripe"]);
+    expect(allowedGatewaysForCountry("US")).toEqual(["stripe"]);
+    expect(allowedGatewaysForCountry("GB")).toEqual(["stripe"]);
     expect(getRegionalPaymentRule("AE").bnplProviders).toEqual(["tamara"]);
     expect(getRegionalPaymentRule("SA").bnplProviders).toEqual(["tamara"]);
     expect(getRegionalPaymentRule("KW").bnplProviders).toEqual(["taly"]);
+    expect(getRegionalPaymentRule("US").bnplProviders).toEqual([]);
     expect(allowedCheckoutModes(getRegionalPaymentRule("AE"))).toEqual(
       expect.arrayContaining(["full", "tamara"]),
     );
@@ -76,62 +64,36 @@ describe("country gateway routing", () => {
   });
 
   it("hides unsupported gateways on the public checkout quote", () => {
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
-    const ae = quoteGuestCheckout(undefined, "AE").methods.map((m) => m.id);
-    expect(ae).toContain("card");
-    expect(ae).not.toContain("tamara");
-    expect(ae).not.toContain("taly");
-    expect(ae).not.toContain("tabby");
-
-    const kw = quoteGuestCheckout(undefined, "KW").methods.map((m) => m.id);
-    expect(kw).toContain("card");
-    expect(kw).not.toContain("taly");
-    expect(kw).not.toContain("tamara");
-
-    const us = quoteGuestCheckout(undefined, "US").methods.map((m) => m.id);
-    expect(us).toContain("card");
-    expect(us).not.toContain("tamara");
-    expect(us).not.toContain("taly");
-
-    expect(listGuestCheckoutMethods("SA").some((m) => m.id === "tamara")).toBe(false);
-    expect(quoteGuestCheckout(undefined, "AE").currency).toBe("AED");
-    expect(quoteGuestCheckout(undefined, "SA").currency).toBe("SAR");
-    expect(quoteGuestCheckout(undefined, "KW").currency).toBe("KWD");
-    expect(quoteGuestCheckout(undefined, "US").currency).toBe("USD");
-  });
-
-  it("offers country-routed BNPL on the public quote only when enabled", () => {
-    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
     const ae = quoteGuestCheckout(undefined, "AE").methods.map((m) => m.id);
     expect(ae).toContain("card");
     expect(ae).toContain("tamara");
     expect(ae).not.toContain("taly");
+    expect(ae).not.toContain("tabby");
 
     const kw = quoteGuestCheckout(undefined, "KW").methods.map((m) => m.id);
     expect(kw).toContain("card");
     expect(kw).toContain("taly");
     expect(kw).not.toContain("tamara");
 
+    const us = quoteGuestCheckout(undefined, "US").methods.map((m) => m.id);
+    expect(us).toContain("card");
+    expect(us).not.toContain("tamara");
+    expect(us).not.toContain("taly");
+    expect(us).not.toContain("tabby");
+
     expect(listGuestCheckoutMethods("SA").some((m) => m.id === "tamara" && m.available)).toBe(true);
     expect(listGuestCheckoutMethods("BH").some((m) => m.id === "tamara")).toBe(false);
+
+    expect(quoteGuestCheckout(undefined, "AE").currency).toBe("AED");
+    expect(quoteGuestCheckout(undefined, "SA").currency).toBe("SAR");
+    expect(quoteGuestCheckout(undefined, "KW").currency).toBe("KWD");
+    expect(quoteGuestCheckout(undefined, "US").currency).toBe("USD");
+    expect(quoteGuestCheckout(undefined, "AE").currency).not.toBe("KWD");
   });
 
-  it("allows Stripe brands everywhere and rejects BNPL while it is turned off", () => {
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
+  it("allows Stripe brands everywhere and rejects the wrong BNPL country", () => {
     expect(isPaymentMethodAllowedForCountry("card", "US")).toBe(true);
     expect(isPaymentMethodAllowedForCountry("apple_pay", "KW")).toBe(true);
-    expect(isPaymentMethodAllowedForCountry("tamara", "AE")).toBe(false);
-    expect(isPaymentMethodAllowedForCountry("taly", "KW")).toBe(false);
-    expect(() =>
-      assertPaymentMethodAllowedForCountry("taly", "AE", "United Arab Emirates"),
-    ).toThrow(/Third-party installment providers are not offered/);
-    expect(() => assertPaymentMethodAllowedForCountry("tamara", "KW", "Kuwait")).toThrow(
-      /Third-party installment providers are not offered/,
-    );
-  });
-
-  it("allows Stripe brands everywhere and rejects the wrong BNPL country when enabled", () => {
-    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
     expect(isPaymentMethodAllowedForCountry("tamara", "AE")).toBe(true);
     expect(isPaymentMethodAllowedForCountry("tamara", "SA")).toBe(true);
     expect(isPaymentMethodAllowedForCountry("tamara", "KW")).toBe(false);
@@ -146,8 +108,7 @@ describe("country gateway routing", () => {
     );
   });
 
-  it("blocks guest checkout for Tamara and Taly while third-party BNPL is off", async () => {
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
+  it("blocks guest checkout when the gateway does not support the billing country", async () => {
     await expect(
       payGuestCheckout({
         firstName: "Noor",
@@ -160,27 +121,6 @@ describe("country gateway routing", () => {
         ...validAtplPackageSchedule(),
         methodBrand: "taly",
         idempotencyKey: `route-taly-ae-${Date.now()}`,
-      }),
-    ).rejects.toMatchObject({
-      name: "PaymentError",
-      message: expect.stringMatching(/Third-party installment providers are not offered/),
-    });
-  });
-
-  it("blocks guest checkout when the enabled gateway does not support the billing country", async () => {
-    process.env.ENABLE_THIRD_PARTY_BNPL = "true";
-    await expect(
-      payGuestCheckout({
-        firstName: "Noor",
-        lastName: "Ali",
-        email: `route.taly.ae.${Date.now()}@aviatorpass.test`,
-        phone: "+971501111111",
-        country: "AE",
-        billingName: "Noor Ali",
-        billingAddress: "Dubai",
-        ...validAtplPackageSchedule(),
-        methodBrand: "taly",
-        idempotencyKey: `route-taly-ae-on-${Date.now()}`,
       }),
     ).rejects.toMatchObject({
       name: "PaymentError",
@@ -198,7 +138,7 @@ describe("country gateway routing", () => {
         billingAddress: "Salmiya",
         ...validAtplPackageSchedule(),
         methodBrand: "tamara",
-        idempotencyKey: `route-tamara-kw-on-${Date.now()}`,
+        idempotencyKey: `route-tamara-kw-${Date.now()}`,
       }),
     ).rejects.toMatchObject({
       name: "PaymentError",

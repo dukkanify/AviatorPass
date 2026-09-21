@@ -9,11 +9,6 @@
 
 import { generateId } from "@/lib/security/crypto";
 import { PaymentError } from "@/services/payments/access";
-import {
-  isThirdPartyBnplBrand,
-  isThirdPartyBnplOffered,
-  THIRD_PARTY_BNPL_REJECTED_MESSAGE,
-} from "@/services/payments/bnpl-policy";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type {
   BnplProvider,
@@ -47,7 +42,6 @@ export const STRIPE_PAYMENT_BRANDS: readonly PaymentMethodBrand[] = [
 ];
 
 export function routedBnplProviders(countryCode: string | null | undefined): BnplProvider[] {
-  if (!isThirdPartyBnplOffered()) return [];
   const code = (countryCode || "").toUpperCase();
   return COUNTRY_BNPL_ROUTING[code] ? [...COUNTRY_BNPL_ROUTING[code]!] : [];
 }
@@ -92,9 +86,6 @@ export function assertPaymentMethodAllowedForCountry(
   countryCode: string | null | undefined,
   countryName?: string,
 ): void {
-  if (isThirdPartyBnplBrand(String(methodBrand ?? "")) && !isThirdPartyBnplOffered()) {
-    throw new PaymentError(THIRD_PARTY_BNPL_REJECTED_MESSAGE, 400);
-  }
   if (isPaymentMethodAllowedForCountry(methodBrand, countryCode)) return;
   const gateways = allowedGatewaysForCountry(countryCode);
   const name = countryName || countryCode || "this country";
@@ -142,17 +133,17 @@ export function defaultRegionalPaymentRules(currency: string): RegionalPaymentRu
     base("KW", "Kuwait", ["taly"], {
       currency: "KWD",
       maxInstallments: 6,
-      notes: "Stripe checkout. AviatorPass installments (4/5/6) after login.",
+      notes: "Stripe + Taly. Tamara is hidden.",
     }),
     base("SA", "Saudi Arabia", ["tamara"], {
       currency: "SAR",
       maxInstallments: 6,
-      notes: "Stripe checkout. AviatorPass installments (4/5/6) after login.",
+      notes: "Stripe + Tamara. Taly is hidden.",
     }),
     base("AE", "United Arab Emirates", ["tamara"], {
       currency: "AED",
       maxInstallments: 6,
-      notes: "Stripe checkout. AviatorPass installments (4/5/6) after login.",
+      notes: "Stripe + Tamara. Taly is hidden.",
     }),
     base("BH", "Bahrain", [], {
       currency: "BHD",

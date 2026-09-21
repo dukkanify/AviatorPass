@@ -38,7 +38,6 @@ import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
 import { emitNotification } from "@/services/notifications/notification-service";
 import { PaymentError } from "@/services/payments/access";
-import { isThirdPartyBnplOffered } from "@/services/payments/bnpl-policy";
 import { getProduct, listProducts } from "@/services/payments/catalog-service";
 import { completePaidOrder, getOrder, getPayment } from "@/services/payments/checkout-service";
 import {
@@ -183,11 +182,11 @@ export function listGuestCheckoutMethods(countryCode: string): GuestCheckoutMeth
       methods.push(row("google_pay", true, "stripe"));
     }
     if (id === "tamara") {
-      if (!isThirdPartyBnplOffered() || !isTamaraConfigured()) continue;
+      if (!isTamaraConfigured()) continue;
       methods.push(row("tamara", true, "tamara"));
     }
     if (id === "taly") {
-      if (!isThirdPartyBnplOffered() || !isTalyConfigured()) continue;
+      if (!isTalyConfigured()) continue;
       methods.push(row("taly", true, "taly"));
     }
   }

@@ -45,7 +45,7 @@ describe("purchase-first ATPL enrollment", () => {
     expect(marketing.enrollHref).not.toContain("/student/checkout");
   });
 
-  it("quotes ATPL with Stripe methods and no third-party BNPL", () => {
+  it("quotes ATPL with Stripe methods and country-routed BNPL only", () => {
     const quote = quoteGuestCheckout(undefined, "KW");
     expect(quote.product.metadata?.sku).toBe("ATPL-PACKAGE");
     expect(quote.currency).toBe("KWD");
@@ -56,35 +56,38 @@ describe("purchase-first ATPL enrollment", () => {
     expect(ids).not.toContain("mada");
     expect(ids).not.toContain("tamara");
     expect(ids).not.toContain("tabby");
-    expect(ids).not.toContain("taly");
     expect(quote.methods.find((m) => m.id === "card")?.available).toBe(true);
+    expect(quote.methods.find((m) => m.id === "taly")).toBeUndefined();
   });
 
-  it("keeps Tamara and Taly hidden even when merchant keys are configured", () => {
-    const previousTamara = process.env.TAMARA_API_TOKEN;
+  it("offers Taly only for Kuwait when merchant keys are configured", () => {
     const previousKey = process.env.TALY_API_KEY;
     const previousSecret = process.env.TALY_SECRET_KEY;
-    delete process.env.ENABLE_THIRD_PARTY_BNPL;
-    process.env.TAMARA_API_TOKEN = "test-tamara-token";
     process.env.TALY_API_KEY = "test-taly-key";
     process.env.TALY_SECRET_KEY = "test-taly-secret";
     try {
-      expect(
-        quoteGuestCheckout(undefined, "KW").methods.find((m) => m.id === "taly"),
-      ).toBeUndefined();
-      expect(
-        quoteGuestCheckout(undefined, "AE").methods.find((m) => m.id === "tamara"),
-      ).toBeUndefined();
-      expect(
-        quoteGuestCheckout(undefined, "US").methods.find((m) => m.id === "taly"),
-      ).toBeUndefined();
+      const kuwait = quoteGuestCheckout(undefined, "KW");
+      expect(kuwait.methods.find((m) => m.id === "taly")?.available).toBe(true);
+      const us = quoteGuestCheckout(undefined, "US");
+      expect(us.methods.find((m) => m.id === "taly")).toBeUndefined();
     } finally {
-      if (previousTamara === undefined) delete process.env.TAMARA_API_TOKEN;
-      else process.env.TAMARA_API_TOKEN = previousTamara;
       if (previousKey === undefined) delete process.env.TALY_API_KEY;
       else process.env.TALY_API_KEY = previousKey;
       if (previousSecret === undefined) delete process.env.TALY_SECRET_KEY;
       else process.env.TALY_SECRET_KEY = previousSecret;
+    }
+  });
+
+  it("offers Tamara when the API token is configured for a Tamara country", () => {
+    const previous = process.env.TAMARA_API_TOKEN;
+    process.env.TAMARA_API_TOKEN = "test-tamara-token";
+    try {
+      const quote = quoteGuestCheckout(undefined, "AE");
+      const tamara = quote.methods.find((m) => m.id === "tamara");
+      expect(tamara?.available).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.TAMARA_API_TOKEN;
+      else process.env.TAMARA_API_TOKEN = previous;
     }
   });
 
