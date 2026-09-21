@@ -200,14 +200,10 @@ function applyCountryGatewayRouting(rule: RegionalPaymentRule): boolean {
   if (expectedCurrency) rule.currency = expectedCurrency;
   if (rule.countryCode === "KW") {
     rule.maxInstallments = Math.max(rule.maxInstallments, 6);
-    rule.notes = isThirdPartyBnplOffered()
-      ? "Stripe + Taly. Tamara is hidden."
-      : "Stripe checkout. AviatorPass installments (4/5/6) after login.";
+    rule.notes = "Stripe + Taly. Tamara is hidden.";
   } else if (rule.countryCode === "AE" || rule.countryCode === "SA") {
     rule.maxInstallments = Math.max(rule.maxInstallments, 6);
-    rule.notes = isThirdPartyBnplOffered()
-      ? "Stripe + Tamara. Taly is hidden."
-      : "Stripe checkout. AviatorPass installments (4/5/6) after login.";
+    rule.notes = "Stripe + Tamara. Taly is hidden.";
   } else {
     rule.notes = "Stripe only.";
   }
