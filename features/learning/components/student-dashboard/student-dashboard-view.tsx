@@ -642,6 +642,22 @@ function LearningDashboardView() {
               (atplSchedule.firstLectureOnTimetable || atplSchedule.firstLectureLiveClassId) ? (
                 <p className="sl-muted">It is now on your timetable.</p>
               ) : null}
+              {atplSchedule.nextSubjectTitle ? (
+                <div className="mt-3">
+                  <p className="sl-muted">Next subject</p>
+                  <p>
+                    <strong>{atplSchedule.nextSubjectTitle}</strong>
+                    {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+                  </p>
+                  <p className="sl-muted">
+                    {atplSchedule.nextSubjectStatus === "locked"
+                      ? "Waiting for TKI 1 to open the next subject."
+                      : atplSchedule.nextLectureLiveClassId
+                        ? "The next lecture is on your timetable."
+                        : "Opened by TKI 1."}
+                  </p>
+                </div>
+              ) : null}
               {atplSchedule.subjects.length > 0 ? (
                 <ol className="sl-today-list" style={{ marginTop: 12 }}>
                   {atplSchedule.subjects.map((subject) => (

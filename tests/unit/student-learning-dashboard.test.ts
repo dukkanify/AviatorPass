@@ -133,8 +133,10 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("firstLectureSubjectTitle");
     expect(view).toContain("ATPL_COMPLETE_PACKAGE_NAME");
     expect(view).toContain("Follows TKI 1");
+    expect(view).toContain("nextSubjectTitle");
     expect(view).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
     expect(view).toContain("Waiting for TKI 1 to confirm your first lecture.");
+    expect(view).toContain("Waiting for TKI 1 to open the next subject.");
   });
 
   it("gives the student shell a collapsible sidebar and profile menu", () => {

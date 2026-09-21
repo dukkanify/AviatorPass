@@ -14,8 +14,12 @@ export const ATPL_PACKAGE_TKI_NOTICE =
 export const ATPL_PACKAGE_CONFIRMED_NOTICE =
   "The first lecture time has been confirmed by the Chief Theoretical Knowledge Instructor (TKI 1).";
 
+export const ATPL_PACKAGE_NEXT_SUBJECT_NOTICE =
+  "TKI 1 has opened the next subject and booked the next lecture on your timetable.";
+
 export const ATPL_PACKAGE_FIRST_LECTURE_TITLE = "ATPL first lecture";
 export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
+export const ATPL_PACKAGE_LECTURE_TITLE = "ATPL lecture";
 /** Official opening subject on the ATPL Complete Package review list. */
 export const ATPL_PACKAGE_OPENING_SUBJECT_CODE = "022";
 export const ATPL_PACKAGE_OPENING_SUBJECT_TITLE = "Instrumentation";
@@ -47,6 +51,11 @@ export type AtplPackageScheduleSnapshot = {
   firstLectureSubjectTitle: string | null;
   packageOwned: boolean;
   subjects: AtplPackageSubjectProgress[];
+  nextSubjectCode: string | null;
+  nextSubjectTitle: string | null;
+  nextSubjectStatus: "locked" | "available" | "in_progress" | "completed" | null;
+  nextLectureLabel: string | null;
+  nextLectureLiveClassId: string | null;
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -68,6 +77,11 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   firstLectureSubjectTitle: null,
   packageOwned: false,
   subjects: [],
+  nextSubjectCode: null,
+  nextSubjectTitle: null,
+  nextSubjectStatus: null,
+  nextLectureLabel: null,
+  nextLectureLiveClassId: null,
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [
@@ -176,6 +190,15 @@ export function atplPackageSubjectOrderIndex(easaOrCourseCode: string | null | u
 export function formatAtplFirstLectureTitle(subjectTitle: string): string {
   const name = subjectTitle.trim();
   return name ? `${ATPL_PACKAGE_FIRST_LECTURE_TITLE} · ${name}` : ATPL_PACKAGE_FIRST_LECTURE_TITLE;
+}
+
+export function formatAtplLectureTitle(subjectTitle: string): string {
+  const name = subjectTitle.trim();
+  return name ? `${ATPL_PACKAGE_LECTURE_TITLE} · ${name}` : ATPL_PACKAGE_LECTURE_TITLE;
+}
+
+export function atplPackageLectureLessonId(easaCode: string): string {
+  return `atpl-lecture-${easaCode}`;
 }
 
 export const ATPL_PACKAGE_JOINING_TERMS = [

@@ -186,6 +186,12 @@ export function ScheduleHubView({
                   : ""}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
+              {atplSchedule.nextSubjectTitle ? (
+                <p className="mt-2 text-sm">
+                  Next subject: <span className="font-medium">{atplSchedule.nextSubjectTitle}</span>
+                  {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+                </p>
+              ) : null}
             </>
           ) : (
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
