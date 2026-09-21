@@ -184,6 +184,8 @@ describe("ATPL Complete Package journey", () => {
     expect(checkoutView).toContain("studyStartDate");
     expect(checkoutView).toContain("firstLectureTime");
     expect(checkoutView).toContain("ATPL_PACKAGE_TKI_NOTICE");
+    expect(checkoutView).toContain("countryOptionLabel");
+    expect(checkoutView).toContain("applyCountryDialCode");
 
     const program = readFileSync(
       path.join(process.cwd(), "features/marketing/components/atpl-program-page.tsx"),
