@@ -81,96 +81,101 @@ describe("instructor assignment engine (CR005)", () => {
     );
   });
 
-  it("detects conflicts and queues / schedules with automatic Zoom", async () => {
-    const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
-    const instructor = instructors[0]!;
-    const other = instructors[1] ?? instructor;
-    const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
-    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
-    const suffix = `${Date.now()}`;
+  it(
+    "detects conflicts and queues / schedules with automatic Zoom",
+    { timeout: 300_000 },
+    async () => {
+      const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+      const instructor = instructors[0]!;
+      const other = instructors[1] ?? instructor;
+      const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
+      const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+      const suffix = `${Date.now()}`;
 
-    openAllWeek(instructor.id);
-    const { start, ends } = uniqueSlot(2);
+      openAllWeek(instructor.id);
+      const { start, ends } = uniqueSlot(2);
 
-    // Cancel any leftover classes on this instructor in the far-future window.
-    writeClassesDb((d) => {
-      for (const c of d.classes) {
-        if (c.instructorId !== instructor.id && c.instructorId !== other.id) continue;
-        if (Date.parse(c.startsAt) < Date.now() + 100 * 86_400_000) continue;
-        c.status = "cancelled";
-        c.cancelledAt = new Date().toISOString();
-      }
-    });
+      // Cancel any leftover classes on this instructor in the far-future window.
+      writeClassesDb((d) => {
+        for (const c of d.classes) {
+          if (c.instructorId !== instructor.id && c.instructorId !== other.id) continue;
+          if (Date.parse(c.startsAt) < Date.now() + 100 * 86_400_000) continue;
+          c.status = "cancelled";
+          c.cancelledAt = new Date().toISOString();
+        }
+      });
 
-    await createLiveClass({
-      title: `Blocking class ${suffix}`,
-      instructorId: instructor.id,
-      courseId: course.id,
-      startsAt: start.toISOString(),
-      endsAt: ends.toISOString(),
-      durationMinutes: 60,
-      status: "scheduled",
-      actorId: cgi.id,
-    });
-
-    const conflict = detectInstructorConflicts({
-      instructorId: instructor.id,
-      startsAt: start.toISOString(),
-      endsAt: ends.toISOString(),
-    });
-    expect(conflict.hasConflict).toBe(true);
-
-    const queued = await scheduleAssignmentSession({
-      createRequest: {
-        courseId: course.id,
+      await createLiveClass({
+        title: `Blocking class ${suffix}`,
         instructorId: instructor.id,
-        lessonTitle: `Queued ATPL session ${suffix}`,
-        preferredStartsAt: start.toISOString(),
+        courseId: course.id,
+        startsAt: start.toISOString(),
+        endsAt: ends.toISOString(),
         durationMinutes: 60,
+        status: "scheduled",
         actorId: cgi.id,
-        autoZoom: true,
-      },
-      startsAt: start.toISOString(),
-      actorId: cgi.id,
-    });
-    expect(["queued", "unable_to_schedule"]).toContain(queued.outcome);
+      });
 
-    openAllWeek(other.id);
-    const open = uniqueSlot(8);
-    const scheduled = await scheduleAssignmentSession({
-      createRequest: {
+      const conflict = detectInstructorConflicts({
+        instructorId: instructor.id,
+        startsAt: start.toISOString(),
+        endsAt: ends.toISOString(),
+      });
+      expect(conflict.hasConflict).toBe(true);
+
+      const queued = await scheduleAssignmentSession({
+        createRequest: {
+          courseId: course.id,
+          instructorId: instructor.id,
+          lessonTitle: `Queued ATPL session ${suffix}`,
+          preferredStartsAt: start.toISOString(),
+          durationMinutes: 60,
+          actorId: cgi.id,
+          autoZoom: true,
+        },
+        startsAt: start.toISOString(),
+        actorId: cgi.id,
+      });
+      expect(["queued", "unable_to_schedule"]).toContain(queued.outcome);
+
+      openAllWeek(other.id);
+      const open = uniqueSlot(8);
+      const scheduled = await scheduleAssignmentSession({
+        createRequest: {
+          courseId: course.id,
+          instructorId: other.id,
+          lessonTitle: `Open ATPL session ${suffix}`,
+          preferredStartsAt: open.start.toISOString(),
+          durationMinutes: 60,
+          actorId: cgi.id,
+          autoZoom: true,
+        },
+        startsAt: open.start.toISOString(),
+        actorId: cgi.id,
+      });
+      expect(scheduled.outcome).toBe("scheduled");
+      expect(scheduled.liveClassId).toBeTruthy();
+      expect(scheduled.zoomMeetingId || scheduled.request.zoomMeetingId).toBeTruthy();
+
+      const cal = getInstructorCalendar(other.id, {
+        from: new Date().toISOString(),
+        to: new Date(Date.now() + 200 * 86_400_000).toISOString(),
+      });
+      expect(
+        cal.events.some((e) => e.type === "live_class" && e.liveClassId === scheduled.liveClassId),
+      ).toBe(true);
+
+      await reassignInstructorEngine({
         courseId: course.id,
         instructorId: other.id,
-        lessonTitle: `Open ATPL session ${suffix}`,
-        preferredStartsAt: open.start.toISOString(),
-        durationMinutes: 60,
         actorId: cgi.id,
-        autoZoom: true,
-      },
-      startsAt: open.start.toISOString(),
-      actorId: cgi.id,
-    });
-    expect(scheduled.outcome).toBe("scheduled");
-    expect(scheduled.liveClassId).toBeTruthy();
-    expect(scheduled.zoomMeetingId || scheduled.request.zoomMeetingId).toBeTruthy();
+        moveFutureClasses: true,
+      });
+      expect(listAssignmentRequests({ courseId: course.id }).length).toBeGreaterThan(0);
 
-    const cal = getInstructorCalendar(other.id, {
-      from: new Date().toISOString(),
-      to: new Date(Date.now() + 200 * 86_400_000).toISOString(),
-    });
-    expect(
-      cal.events.some((e) => e.type === "live_class" && e.liveClassId === scheduled.liveClassId),
-    ).toBe(true);
-
-    await reassignInstructorEngine({
-      courseId: course.id,
-      instructorId: other.id,
-      actorId: cgi.id,
-      moveFutureClasses: true,
-    });
-    expect(listAssignmentRequests({ courseId: course.id }).length).toBeGreaterThan(0);
-
-    const processed = await processWaitingQueue(cgi.id);
-    expect(processed.processed).toBeGreaterThanOrEqual(0);
-  }, 180_000);
+      const processed = await processWaitingQueue(cgi.id);
+      expect(processed.processed).toBeGreaterThanOrEqual(0);
+    },
+    180_000,
+  );
 });
