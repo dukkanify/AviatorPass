@@ -35,6 +35,7 @@ function dataFile() {
 function defaultSettings(): AtplJourneySettings {
   return {
     defaultFirstSubjectCourseId: null,
+    openingDefaultHealedAt: null,
     packageSku: "ATPL-PACKAGE",
     updatedAt: new Date().toISOString(),
     updatedById: null,

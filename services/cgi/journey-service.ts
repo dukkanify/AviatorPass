@@ -193,19 +193,38 @@ export function getAtplPackageProduct() {
   return readPaymentsDb().products.find((p) => p.metadata?.sku === "ATPL-PACKAGE") ?? null;
 }
 
+function persistOfficialOpeningDefault(courses = listAtplCourses()) {
+  const opening = openingSubjectCourse(courses);
+  if (!opening) return;
+  const settings = readCgiDb().settings;
+  if (settings.openingDefaultHealedAt) return;
+  if (settings.defaultFirstSubjectCourseId === opening.id) {
+    writeCgiDb((db) => {
+      db.settings.openingDefaultHealedAt = nowIso();
+    });
+    return;
+  }
+  writeCgiDb((db) => {
+    db.settings.defaultFirstSubjectCourseId = opening.id;
+    db.settings.openingDefaultHealedAt = nowIso();
+    db.settings.updatedAt = nowIso();
+  });
+  audit(
+    "cgi.first_subject.default",
+    null,
+    "course",
+    opening.id,
+    `Healed CGI default first subject → ${opening.code} ${officialTitleForAtplCourse(opening)}`,
+  );
+}
+
 export function getJourneySettings() {
+  persistOfficialOpeningDefault();
   return readCgiDb().settings;
 }
 
 function resolveFirstSubjectCourseId(courses = listAtplCourses()): string | null {
-  const settings = getJourneySettings();
-  if (
-    settings.defaultFirstSubjectCourseId &&
-    courses.some((course) => course.id === settings.defaultFirstSubjectCourseId)
-  ) {
-    return settings.defaultFirstSubjectCourseId;
-  }
-  return openingSubjectCourse(courses)?.id ?? null;
+  return openingSubjectCourse(courses)?.id ?? getJourneySettings().defaultFirstSubjectCourseId;
 }
 
 export function setDefaultFirstSubject(input: {
@@ -217,6 +236,7 @@ export function setDefaultFirstSubject(input: {
 
   writeCgiDb((db) => {
     db.settings.defaultFirstSubjectCourseId = input.courseId;
+    db.settings.openingDefaultHealedAt = db.settings.openingDefaultHealedAt ?? nowIso();
     db.settings.updatedAt = nowIso();
     db.settings.updatedById = input.actorId;
   });
@@ -263,6 +283,7 @@ export function ensureStudentSubjectPlan(
   studentId: string,
   actorId: string | null,
 ): AtplSubjectAssignment[] {
+  persistOfficialOpeningDefault();
   const courses = officialPackageCourses();
   const existing = readCgiDb()
     .subjectAssignments.filter((a) => a.studentId === studentId)
@@ -270,37 +291,39 @@ export function ensureStudentSubjectPlan(
   if (existing.length) {
     const have = new Set(existing.map((row) => row.courseId));
     const missing = courses.filter((course) => !have.has(course.id));
-    if (!missing.length) return existing;
-    const stamp = nowIso();
-    let sortOrder = existing[existing.length - 1]?.sortOrder ?? existing.length;
-    const extras: AtplSubjectAssignment[] = missing.map((course) => {
-      sortOrder += 1;
-      return {
-        id: generateId(),
+    if (missing.length) {
+      const stamp = nowIso();
+      let sortOrder = existing[existing.length - 1]?.sortOrder ?? existing.length;
+      const extras: AtplSubjectAssignment[] = missing.map((course) => {
+        sortOrder += 1;
+        return {
+          id: generateId(),
+          studentId,
+          courseId: course.id,
+          subjectCode: course.subjectCode,
+          sortOrder,
+          status: "locked" as AtplSubjectDistributionStatus,
+          assignedInstructorId: course.primaryInstructorId,
+          unlockedAt: null,
+          completedAt: null,
+          notes: "Added from the ATPL Complete Package",
+          assignedById: actorId,
+          createdAt: stamp,
+          updatedAt: stamp,
+        };
+      });
+      writeCgiDb((db) => {
+        db.subjectAssignments.push(...extras);
+      });
+      audit(
+        "cgi.subjects.heal",
+        actorId,
+        "student",
         studentId,
-        courseId: course.id,
-        subjectCode: course.subjectCode,
-        sortOrder,
-        status: "locked" as AtplSubjectDistributionStatus,
-        assignedInstructorId: course.primaryInstructorId,
-        unlockedAt: null,
-        completedAt: null,
-        notes: "Added from the ATPL Complete Package",
-        assignedById: actorId,
-        createdAt: stamp,
-        updatedAt: stamp,
-      };
-    });
-    writeCgiDb((db) => {
-      db.subjectAssignments.push(...extras);
-    });
-    audit(
-      "cgi.subjects.heal",
-      actorId,
-      "student",
-      studentId,
-      `Added ${extras.length} missing ATPL subjects`,
-    );
+        `Added ${extras.length} missing ATPL subjects`,
+      );
+    }
+    putOpeningSubjectFirst(studentId, actorId);
     return listStudentSubjectPlan(studentId);
   }
 
@@ -334,6 +357,44 @@ export function ensureStudentSubjectPlan(
   });
   audit("cgi.subjects.seed", actorId, "student", studentId, `Seeded ${rows.length} ATPL subjects`);
   return rows;
+}
+
+function putOpeningSubjectFirst(studentId: string, actorId: string | null) {
+  const opening = openingSubjectCourse();
+  if (!opening) return;
+  const rows = listStudentSubjectPlan(studentId);
+  const openRow = rows.find((row) => row.courseId === opening.id);
+  if (!openRow || openRow.status === "completed") return;
+  const alreadyFirst = openRow.sortOrder === 1;
+  const needsUnlock = openRow.status === "locked";
+  if (alreadyFirst && !needsUnlock) return;
+
+  const stamp = nowIso();
+  writeCgiDb((db) => {
+    const mine = db.subjectAssignments
+      .filter((row) => row.studentId === studentId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const target = mine.find((row) => row.courseId === opening.id);
+    if (!target) return;
+    const rest = mine.filter((row) => row.id !== target.id);
+    target.sortOrder = 1;
+    if (target.status === "locked") {
+      target.status = "available";
+      target.unlockedAt = target.unlockedAt ?? stamp;
+    }
+    target.updatedAt = stamp;
+    rest.forEach((row, index) => {
+      row.sortOrder = index + 2;
+      row.updatedAt = stamp;
+    });
+  });
+  audit(
+    "cgi.subjects.opening",
+    actorId,
+    "student",
+    studentId,
+    `Moved ${officialTitleForAtplCourse(opening)} to first subject`,
+  );
 }
 
 export function listStudentSubjectPlan(studentId: string): AtplSubjectAssignment[] {
@@ -1051,7 +1112,8 @@ async function placeConfirmedFirstLecture(input: {
     input.when.getTime() + DEFAULT_CLASS_DURATION_MINUTES * 60_000,
   ).toISOString();
   const plan = ensureStudentSubjectPlan(input.studentId, input.actorId);
-  const first = plan[0];
+  const opening = openingSubjectCourse();
+  const first = (opening ? plan.find((row) => row.courseId === opening.id) : null) ?? plan[0];
   if (!first) throw new CgiError("No ATPL subject is available for the first lecture");
   const course = listAtplCourses().find((item) => item.id === first.courseId);
   const notes = ATPL_PACKAGE_CONFIRMED_NOTICE;

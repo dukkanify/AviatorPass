@@ -415,6 +415,7 @@ function seedCgiOversightData(): void {
     }
     d.settings.defaultFirstSubjectCourseId =
       d.settings.defaultFirstSubjectCourseId ?? firstCourse?.id ?? null;
+    d.settings.openingDefaultHealedAt = d.settings.openingDefaultHealedAt ?? ts;
     d.settings.updatedAt = ts;
     d.settings.updatedById = cgi.id;
     d.seeded = true;

@@ -43,11 +43,13 @@ import {
   ensureConfirmedFirstLectureOnTimetable,
   getAtplPackageProduct,
   getCgiDashboardSnapshot,
+  getJourneySettings,
   getStudentAtplPackageSchedule,
   listAssignedFirstLectures,
   listAtplCourses,
   listAtplStudents,
   listStudentSubjectPlan,
+  ensureStudentSubjectPlan,
   openNextAtplPackageSubject,
 } from "@/services/cgi/journey-service";
 import { writeCgiDb } from "@/services/cgi/store";
@@ -240,6 +242,64 @@ describe("ATPL Complete Package journey", () => {
     const product = getAtplPackageProduct();
     expect(product?.metadata.courseIds).toHaveLength(13);
     expect(new Set(product?.metadata.courseIds as string[]).size).toBe(13);
+  });
+
+  it("heals CGI default and existing plans onto Instrumentation", async () => {
+    ensureDemoUsersSeeded();
+    ensureCoursesSeeded();
+    ensurePaymentsSeeded();
+    const opening = listAtplCourses().find(
+      (course) => course.code === `ATPL-${ATPL_PACKAGE_OPENING_SUBJECT_CODE}`,
+    )!;
+    const generalNav = listAtplCourses().find((course) => course.code === "ATPL-061")!;
+    expect(opening?.id).toBeTruthy();
+    expect(generalNav?.id).toBeTruthy();
+    writeCgiDb((db) => {
+      db.settings.defaultFirstSubjectCourseId = generalNav.id;
+      db.settings.openingDefaultHealedAt = null;
+    });
+    const settings = getJourneySettings();
+    expect(settings.defaultFirstSubjectCourseId).toBe(opening.id);
+    expect(settings.openingDefaultHealedAt).toBeTruthy();
+    expect(getCgiDashboardSnapshot().defaultFirstSubjectCourseId).toBe(opening.id);
+
+    const paid = await payGuestCheckout({
+      firstName: "Maha",
+      lastName: "Saleh",
+      email: `tki.opening.${Date.now()}@aviatorpass.test`,
+      phone: "+96550005555",
+      country: "KW",
+      billingName: "Maha Saleh",
+      billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `tki-opening-${Date.now()}`,
+    });
+    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+    expect(student?.studentId).toBeTruthy();
+    const seeded = ensureStudentSubjectPlan(student!.studentId, student!.studentId);
+    expect(seeded[0]?.courseId).toBe(opening.id);
+    expect(seeded[0]?.status).toBe("available");
+
+    writeCgiDb((db) => {
+      for (const row of db.subjectAssignments) {
+        if (row.studentId !== student!.studentId) continue;
+        if (row.courseId === opening.id) {
+          row.sortOrder = 3;
+          row.status = "locked";
+          row.unlockedAt = null;
+        }
+        if (row.courseId === generalNav.id) {
+          row.sortOrder = 1;
+          row.status = "available";
+          row.unlockedAt = row.unlockedAt ?? new Date().toISOString();
+        }
+      }
+    });
+    const healed = ensureStudentSubjectPlan(student!.studentId, student!.studentId);
+    expect(healed[0]?.courseId).toBe(opening.id);
+    expect(healed[0]?.status).toBe("available");
   });
 
   it("heals a paid student onto all 13 official subjects", async () => {
@@ -513,6 +573,7 @@ describe("ATPL Complete Package journey", () => {
     expect(instructorDash).toContain("/instructor/schedule");
     expect(cgiView).toContain("Confirmed first lectures");
     expect(cgiView).toContain("Instrumentation");
+    expect(cgiView).toContain("always opens with Instrumentation");
     expect(dash).toContain("firstLectureSubjectTitle");
     expect(dash).toContain("atplSchedule.subjects");
     expect(dash).toContain("Follows TKI 1");
