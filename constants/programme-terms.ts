@@ -46,5 +46,6 @@ export const ACTION_LABELS = {
   confirmRequestedFirstLecture: "Confirm requested time",
   confirmDifferentFirstLecture: "Confirm a different time",
   openNextSubject: "Open next subject",
+  completeCurrentSubject: "Mark subject complete",
   viewTimetable: "View timetable",
 } as const;
