@@ -22,4 +22,15 @@ describe("getServerEnv production guards", () => {
     const env = getServerEnv();
     expect(env.ENABLE_DEMO_OTP).toBe(false);
   });
+
+  it("forces demo OTP off when VERCEL_ENV is production", async () => {
+    process.env.NEXT_PUBLIC_APP_ENV = "development";
+    process.env.VERCEL_ENV = "production";
+    process.env.ENABLE_DEMO_OTP = "true";
+    process.env.AUTH_SECRET = "strong-production-secret-value-32";
+
+    const { getServerEnv, isLiveProductionRuntime } = await import("@/config/env");
+    expect(isLiveProductionRuntime()).toBe(true);
+    expect(getServerEnv().ENABLE_DEMO_OTP).toBe(false);
+  });
 });

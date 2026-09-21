@@ -3,7 +3,13 @@
  * Includes a short in-process cache for deep snapshots (performance).
  */
 
-import { publicEnv, isSupabaseConfigured, getServerEnv } from "@/config/env";
+import {
+  publicEnv,
+  isSupabaseConfigured,
+  getServerEnv,
+  isLiveProductionRuntime,
+} from "@/config/env";
+import { demoOtpEnabled } from "@/services/auth/otp-service";
 import { getJsonStoreStatus } from "@/lib/data/json-file-store";
 import { isEmailDeliveryConfigured } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
@@ -302,14 +308,12 @@ export function getProductionChecklist(): Array<{
     {
       id: "demo_otp",
       label: "Demo OTP disabled in production",
-      status:
-        publicEnv.NEXT_PUBLIC_APP_ENV === "production" && process.env.ENABLE_DEMO_OTP !== "false"
-          ? "fail"
-          : "pass",
-      detail:
-        publicEnv.NEXT_PUBLIC_APP_ENV === "production"
-          ? "Set ENABLE_DEMO_OTP=false"
-          : "Non-production — demo OTP allowed",
+      status: isLiveProductionRuntime() && demoOtpEnabled() ? "fail" : "pass",
+      detail: isLiveProductionRuntime()
+        ? "Live production ignores demo OTP (123456)"
+        : demoOtpEnabled()
+          ? "Non-production — demo OTP allowed"
+          : "Demo OTP is off",
     },
     {
       id: "backups",

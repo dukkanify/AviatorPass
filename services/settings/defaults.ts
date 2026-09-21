@@ -75,6 +75,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     classReminderFifteenMinutesEnabled: true,
   },
   authentication: {
+    allowDemoOtp: true,
     otpExpirationMinutes: 10,
     otpMaxAttempts: 5,
     otpResendCooldownSeconds: 60,

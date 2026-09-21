@@ -52,11 +52,13 @@ function ToggleRow({
   description,
   checked,
   onCheckedChange,
+  disabled,
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
@@ -64,7 +66,7 @@ function ToggleRow({
         <p className="text-sm font-medium">{label}</p>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }
@@ -1210,6 +1212,26 @@ function PlatformSettingsShell() {
                 />
               </Field>
               <div className="sm:col-span-2 space-y-3">
+                <ToggleRow
+                  label="Allow demo OTP (123456)"
+                  description={
+                    process.env.NEXT_PUBLIC_APP_ENV === "production"
+                      ? "Locked off on the live website. Students receive a real email code."
+                      : "Turn this off before handover so login uses email codes, not 123456. Always off in production."
+                  }
+                  checked={
+                    process.env.NEXT_PUBLIC_APP_ENV === "production"
+                      ? false
+                      : Boolean(draft.authentication.allowDemoOtp)
+                  }
+                  disabled={process.env.NEXT_PUBLIC_APP_ENV === "production"}
+                  onCheckedChange={(v) =>
+                    setDraft({
+                      ...draft,
+                      authentication: { ...draft.authentication, allowDemoOtp: v },
+                    })
+                  }
+                />
                 <ToggleRow
                   label="Password policy enabled"
                   checked={draft.authentication.passwordPolicyEnabled}
