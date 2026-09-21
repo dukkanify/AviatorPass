@@ -214,6 +214,17 @@ function migrateClientSupportBranding(settings: PlatformSettings): PlatformSetti
     email.replyToEmail = nextReply;
     changed = true;
   }
+  const storedAdmin = email.adminNotificationEmail?.trim() ?? "";
+  if (!storedAdmin) {
+    email.adminNotificationEmail = PROJECT_SUPPORT_EMAIL;
+    changed = true;
+  } else {
+    const nextAdmin = remapSupportEmail(storedAdmin);
+    if (nextAdmin !== email.adminNotificationEmail) {
+      email.adminNotificationEmail = nextAdmin;
+      changed = true;
+    }
+  }
   const nextZoom = remapSupportEmail(zoom.accountEmail);
   if (nextZoom !== zoom.accountEmail) {
     zoom.accountEmail = nextZoom;
@@ -254,7 +265,9 @@ function ensureStore(): SettingsDatabase {
 
   // Persist a trimmed history once so cold starts stop re-parsing multi‑MB JSON.
   const rawHistoryLen = Array.isArray(raw.history) ? raw.history.length : 0;
-  if (rawHistoryLen > MAX_SETTINGS_HISTORY) {
+  const rawAdmin = raw.settings?.email?.adminNotificationEmail?.trim() ?? "";
+  const healedAdmin = Boolean(!rawAdmin && settings.email.adminNotificationEmail?.trim());
+  if (rawHistoryLen > MAX_SETTINGS_HISTORY || healedAdmin) {
     writeJsonFile(DATA_FILE, db);
   }
 

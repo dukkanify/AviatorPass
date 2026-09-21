@@ -74,7 +74,7 @@ export interface EmailSettings {
   senderName: string;
   senderEmail: string;
   replyToEmail: string;
-  /** Extra inbox for registration / purchase / payment / refund admin copies. */
+  /** Inbox for registration / purchase / payment / invoice / refund copies. Falls back to support. */
   adminNotificationEmail?: string;
 }
 

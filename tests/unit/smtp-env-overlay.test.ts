@@ -1,7 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { applyRuntimeEmailOverrides } from "@/services/settings/settings-service";
+import {
+  applyRuntimeEmailOverrides,
+  getAdminNotificationEmail,
+  getPlatformSettings,
+  resolveAdminNotificationEmail,
+} from "@/services/settings/settings-service";
 import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
+import { patchStoredSettings } from "@/services/settings/store";
+
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -52,5 +64,31 @@ describe("SMTP env overlay", () => {
     expect(next.email.senderEmail).toBe("noreply@aviatorpass.com");
     expect(next.email.senderName).toBe("AviatorPass");
     expect(next.email.adminNotificationEmail).toBe("ops@aviatorpass.com");
+  });
+
+  it("falls back to support email when the admin inbox is empty", () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const emptyAdmin = {
+      ...DEFAULT_PLATFORM_SETTINGS,
+      email: { ...DEFAULT_PLATFORM_SETTINGS.email, adminNotificationEmail: "" },
+    };
+    const resolved = resolveAdminNotificationEmail(emptyAdmin);
+    expect(resolved.email).toBe("support@aviatorpass.com");
+    expect(resolved.source).toBe("support");
+  });
+
+  it("heals a blank stored admin inbox so Super Admin sees the destination", () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    patchStoredSettings(
+      {
+        email: {
+          ...DEFAULT_PLATFORM_SETTINGS.email,
+          adminNotificationEmail: "",
+        },
+      },
+      null,
+    );
+    expect(getAdminNotificationEmail()).toBe("support@aviatorpass.com");
+    expect(getPlatformSettings().email.adminNotificationEmail).toBe("support@aviatorpass.com");
   });
 });

@@ -41,7 +41,7 @@ Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
    - Optional **DMARC** stay `p=none` until inboxing is confirmed.
 4. Click **Verify** in Resend. Wait until status is `verified`.
 5. Confirm `EMAIL_FROM` / Platform sender is `AviatorPass <noreply@aviatorpass.com>` (or another mailbox on the verified domain).
-6. Optional: set `ADMIN_NOTIFICATION_EMAIL` to the ops inbox that should receive registration / purchase / payment / refund copies.
+6. Set `ADMIN_NOTIFICATION_EMAIL` (or Super Admin → Platform Settings → Email → Admin notification email) to the **real ops inbox**. If that field is empty, AviatorPass heals it to `support@aviatorpass.com`, then `SUPER_ADMIN_EMAIL`. Registration, purchase, payment, invoice, receipt, and refund events send a copy there. Super Admin → Email **Test email** uses the same inbox. `superadmin@aviatorpass.com` is a demo login, not Gmail — use a mailbox you actually read.
 
 Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fail at Resend. The onboarding-sender fallback above is the in-app workaround so OTP still leaves Resend. Gmail and Outlook inboxing is still better after DNS is verified.
 
@@ -50,7 +50,7 @@ Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fai
 - Resend is tried first when `RESEND_API_KEY` is set; SMTP is the fallback.
 - Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro).
 - Non-OTP notification emails go through the automation catalog (in-app + email). OTP itself is still sent only by the existing OTP engine — no second “code sent” email.
-- Super Admin → Email shows Resend domain status and DNS records.
+- Super Admin → Platform Settings → Email shows Resend domain status, DNS records, **Register domain**, the resolved admin copy inbox, and recent outbound. **Test email** sends to that inbox.
 
 ## Environment
 

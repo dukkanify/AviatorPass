@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
-import { getPlatformSettings } from "@/services/settings/settings-service";
+import {
+  getAdminNotificationEmail,
+  getPlatformSettings,
+} from "@/services/settings/settings-service";
 import { testEmailTemplate } from "@/services/settings/email-templates";
 import { isEmailDeliveryConfigured, sendEmail } from "@/services/email/mailer";
 
@@ -17,6 +20,7 @@ export async function POST(request: Request) {
     const settings = getPlatformSettings();
     const to = (
       body?.to ||
+      getAdminNotificationEmail() ||
       settings.general.supportEmail ||
       settings.email.senderEmail ||
       ""

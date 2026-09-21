@@ -31,6 +31,7 @@ import { patchStoredSettings } from "@/services/settings/store";
 const ORIGINAL_ENV = { ...process.env };
 
 beforeEach(() => {
+  delete process.env.ADMIN_NOTIFICATION_EMAIL;
   ensureDemoUsersSeeded();
   resetAutomationStoreForTests();
   patchStoredSettings(
@@ -98,6 +99,33 @@ describe("email delivery", () => {
     });
     expect(welcome.sent).toBe(2);
     expect(getLatestOutboundTo("ops@aviatorpass.test")?.meta?.kind).toBe("admin_copy");
+    expect(getLatestOutboundTo(student.email)?.meta?.event).toBe("registration");
+  });
+
+  it("copies registration mail to support@ when the admin inbox is empty", async () => {
+    const student = readAuthDb().users.find(
+      (u) => u.role === ROLES.STUDENT && u.status === "active",
+    )!;
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    patchStoredSettings(
+      {
+        email: {
+          ...DEFAULT_PLATFORM_SETTINGS.email,
+          smtpHost: "",
+          senderEmail: "noreply@aviatorpass.test",
+          adminNotificationEmail: "",
+        },
+      },
+      null,
+    );
+    const welcome = await dispatchEmailEvent({
+      event: "registration",
+      userIds: [student.id],
+      data: { detail: "Welcome aboard." },
+      actorId: student.id,
+    });
+    expect(welcome.sent).toBe(2);
+    expect(getLatestOutboundTo("support@aviatorpass.com")?.meta?.kind).toBe("admin_copy");
     expect(getLatestOutboundTo(student.email)?.meta?.event).toBe("registration");
   });
 

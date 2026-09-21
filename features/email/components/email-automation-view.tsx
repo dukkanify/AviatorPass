@@ -121,7 +121,8 @@ export function EmailAutomationView({
         <h2 className="font-display text-xl tracking-tight">Delivery</h2>
         <p className="text-sm text-muted-foreground">
           SMTP {overview?.smtpConfigured ? "configured" : "outbox mode"} · Notifications{" "}
-          {overview?.emailNotificationsEnabled ? "on" : "off"} · Dispatched{" "}
+          {overview?.emailNotificationsEnabled ? "on" : "off"} · Admin copies{" "}
+          {overview?.adminNotificationEmail ?? "unset"} · Dispatched{" "}
           {overview?.stats.dispatched ?? 0} · Sent {overview?.stats.sent ?? 0} · Failed{" "}
           {overview?.stats.failed ?? 0}
         </p>
