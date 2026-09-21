@@ -414,7 +414,7 @@ function seedCgiOversightData(): void {
       if (!existingNoteKeys.has(`${note.targetUserId}:${note.body}`)) d.notes.push(note);
     }
     d.settings.defaultFirstSubjectCourseId =
-      d.settings.defaultFirstSubjectCourseId ?? firstCourse?.id ?? null;
+      firstCourse?.id ?? d.settings.defaultFirstSubjectCourseId;
     d.settings.openingDefaultHealedAt = d.settings.openingDefaultHealedAt ?? ts;
     d.settings.updatedAt = ts;
     d.settings.updatedById = cgi.id;

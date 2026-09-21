@@ -197,16 +197,12 @@ function persistOfficialOpeningDefault(courses = listAtplCourses()) {
   const opening = openingSubjectCourse(courses);
   if (!opening) return;
   const settings = readCgiDb().settings;
-  if (settings.openingDefaultHealedAt) return;
-  if (settings.defaultFirstSubjectCourseId === opening.id) {
-    writeCgiDb((db) => {
-      db.settings.openingDefaultHealedAt = nowIso();
-    });
+  if (settings.defaultFirstSubjectCourseId === opening.id && settings.openingDefaultHealedAt) {
     return;
   }
   writeCgiDb((db) => {
     db.settings.defaultFirstSubjectCourseId = opening.id;
-    db.settings.openingDefaultHealedAt = nowIso();
+    db.settings.openingDefaultHealedAt = db.settings.openingDefaultHealedAt ?? nowIso();
     db.settings.updatedAt = nowIso();
   });
   audit(
