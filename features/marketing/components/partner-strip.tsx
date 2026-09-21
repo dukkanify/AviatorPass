@@ -2,7 +2,6 @@ import Image from "next/image";
 
 const PARTNERS = [
   { name: "Pilot100", src: "/partners/pilot100.svg", href: "https://pilot100.com" },
-  { name: "Tamara", src: "/partners/tamara.svg", href: "https://tamara.co" },
   { name: "EASA", src: "/partners/easa-badge.svg", href: "https://www.easa.europa.eu" },
   { name: "Future partner", src: "/partners/future-partner.svg", href: null },
 ] as const;
