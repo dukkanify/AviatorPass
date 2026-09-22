@@ -6,28 +6,14 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatMinor } from "@/lib/money";
-import type {
-  MockExamExtraFee,
-  MockExamSessionWithNames,
-  MockExamSlot,
-  MockExamType,
-} from "@/types/mock-exams";
+import type { MockExamSessionWithNames, MockExamSlot, MockExamType } from "@/types/mock-exams";
 
 type Catalog = {
-  settings: { enabled: boolean; currency: string; pricingMode: string };
+  settings: { enabled: boolean; currency: string; timezone: string; pricingMode: string };
   examTypes: MockExamType[];
-  extraFees: MockExamExtraFee[];
   examiners: Array<{ id: string; name: string; email: string }>;
 };
 
@@ -49,28 +35,40 @@ async function apiPost(body: Record<string, unknown>) {
   return json.data;
 }
 
+function readQueryParam(name: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(name) ?? "";
+}
+
 export function MockExamBookingView() {
   const [catalog, setCatalog] = React.useState<Catalog | null>(null);
   const [sessions, setSessions] = React.useState<MockExamSessionWithNames[]>([]);
   const [examTypeId, setExamTypeId] = React.useState("");
   const [examinerId, setExaminerId] = React.useState("");
-  const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10));
-  const [extras, setExtras] = React.useState<string[]>([]);
+  const [date, setDate] = React.useState(
+    () => readQueryParam("date") || new Date().toISOString().slice(0, 10),
+  );
   const [slots, setSlots] = React.useState<MockExamSlot[]>([]);
-  const [selectedStart, setSelectedStart] = React.useState("");
+  const [selectedStart, setSelectedStart] = React.useState(() => readQueryParam("startsAt"));
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [studentName, setStudentName] = React.useState("");
 
   const load = React.useCallback(async () => {
-    const [c, s] = await Promise.all([
+    const [c, s, me] = await Promise.all([
       apiGet<Catalog>("?view=catalog"),
       apiGet<MockExamSessionWithNames[]>("?view=sessions"),
+      fetch("/api/auth/me").then((r) => r.json()) as Promise<{
+        data?: { user?: { firstName?: string; lastName?: string; fullName?: string } };
+      }>,
     ]);
     setCatalog(c);
     setSessions(s);
-    if (!examTypeId && c.examTypes[0]) setExamTypeId(c.examTypes[0].id);
-    if (!examinerId && c.examiners[0]) setExaminerId(c.examiners[0].id);
-  }, [examTypeId, examinerId]);
+    const elp = c.examTypes.find((t) => t.code === "ELP-MOCK") ?? c.examTypes[0];
+    if (elp) setExamTypeId(elp.id);
+    if (c.examiners[0]) setExaminerId(c.examiners[0].id);
+    setStudentName(me.data?.user?.fullName || me.data?.user?.firstName || "Student");
+  }, []);
 
   React.useEffect(() => {
     void load().catch((err: Error) => setError(err.message));
@@ -83,17 +81,15 @@ export function MockExamBookingView() {
       date,
       examinerId,
       examTypeId,
-      extras: extras.join(","),
     });
     void apiGet<MockExamSlot[]>(`?${q}`)
       .then((rows) => {
         setSlots(rows.filter((s) => s.available));
-        setSelectedStart("");
       })
       .catch((err: Error) => setError(err.message));
-  }, [examTypeId, examinerId, date, extras]);
+  }, [examTypeId, examinerId, date]);
 
-  async function book() {
+  async function reserveThenPay() {
     if (!selectedStart) {
       toast.error("Select a time slot");
       return;
@@ -101,16 +97,22 @@ export function MockExamBookingView() {
     setBusy(true);
     setError(null);
     try {
-      await apiPost({
+      const reserved = (await apiPost({
         action: "book",
         examinerId,
         examTypeId,
         startsAt: selectedStart,
-        selectedExtraFeeIds: extras,
-        markPaid: true,
-      });
-      toast.success("Mock exam booked — Zoom meeting ready");
+        selectedExtraFeeIds: [],
+        markPaid: false,
+      })) as MockExamSessionWithNames;
+      const paid = (await apiPost({
+        action: "confirm_payment",
+        sessionId: reserved.id,
+      })) as MockExamSessionWithNames;
+      toast.success("Booking confirmed — Zoom room and emails sent");
+      setSelectedStart("");
       await load();
+      void paid;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking failed");
     } finally {
@@ -119,12 +121,13 @@ export function MockExamBookingView() {
   }
 
   const selectedSlot = slots.find((s) => s.startsAt === selectedStart);
+  const exam = catalog?.examTypes.find((t) => t.id === examTypeId);
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Mock exam booking"
-        description="Book an invigilated mock exam with dynamic pricing, extra fees, and automatic Zoom."
+        title="ELP mock exam"
+        description="Choose a published slot, review the total including rush fees, then confirm and pay. The Zoom room is created after payment."
         breadcrumbs={[{ label: "Student" }, { label: "Mock exams" }]}
       />
 
@@ -135,66 +138,13 @@ export function MockExamBookingView() {
         <p className="text-sm text-muted-foreground">Mock exam booking is currently disabled.</p>
       ) : (
         <section className="space-y-4">
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary">Pricing: {catalog.settings.pricingMode}</Badge>
-            <Badge variant="secondary">{catalog.settings.currency}</Badge>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Exam type</Label>
-              <Select value={examTypeId} onValueChange={setExamTypeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select exam" />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalog.examTypes.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name} · {t.durationMinutes}m ·{" "}
-                      {formatMinor(t.basePrice, catalog.settings.currency)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Examiner</Label>
-              <Select value={examinerId} onValueChange={setExaminerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select examiner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalog.examiners.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Extra fees</Label>
-            <div className="flex flex-wrap gap-4">
-              {catalog.extraFees.map((fee) => (
-                <label key={fee.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={extras.includes(fee.id)}
-                    onCheckedChange={(checked) => {
-                      setExtras((prev) =>
-                        checked ? [...prev, fee.id] : prev.filter((id) => id !== fee.id),
-                      );
-                    }}
-                  />
-                  {fee.label} ({formatMinor(fee.amount, catalog.settings.currency)})
-                  {fee.autoApply ? " · auto" : ""}
-                </label>
-              ))}
-            </div>
+          <p className="text-sm text-muted-foreground">
+            Working hours ({catalog.settings.timezone}): Monday–Friday 17:00–20:00 · Saturday–Sunday
+            09:00–18:00. Slots outside these hours are hidden.
+          </p>
+          <div className="space-y-1.5 max-w-xs">
+            <Label>Date</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -213,6 +163,7 @@ export function MockExamBookingView() {
                     {new Date(s.startsAt).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: catalog.settings.timezone,
                     })}
                     {s.quote ? ` · ${formatMinor(s.quote.total, s.quote.currency)}` : ""}
                   </Button>
@@ -222,12 +173,17 @@ export function MockExamBookingView() {
           </div>
 
           {selectedSlot?.quote ? (
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1 rounded-xl border border-border p-4 text-sm">
+              <p className="font-medium">Review before payment</p>
+              <p>Name: {studentName}</p>
+              <p>Service: {exam?.name ?? "ELP Mock Exam"}</p>
               <p>
-                Base: {formatMinor(selectedSlot.quote.baseAmount, selectedSlot.quote.currency)} ×{" "}
-                {selectedSlot.quote.multiplier} ={" "}
-                {formatMinor(selectedSlot.quote.adjustedBase, selectedSlot.quote.currency)}
+                Date and time:{" "}
+                {new Date(selectedSlot.startsAt).toLocaleString([], {
+                  timeZone: catalog.settings.timezone,
+                })}
               </p>
+              <p>Base: {formatMinor(selectedSlot.quote.baseAmount, selectedSlot.quote.currency)}</p>
               {selectedSlot.quote.extraFees.map((f) => (
                 <p key={f.code} className="text-muted-foreground">
                   + {f.label}: {formatMinor(f.amount, selectedSlot.quote!.currency)}
@@ -236,12 +192,15 @@ export function MockExamBookingView() {
               <p className="font-medium">
                 Total: {formatMinor(selectedSlot.quote.total, selectedSlot.quote.currency)}
               </p>
+              <Button
+                className="mt-3"
+                disabled={busy || !selectedStart}
+                onClick={() => void reserveThenPay()}
+              >
+                {busy ? "Confirming…" : "Confirm and pay"}
+              </Button>
             </div>
           ) : null}
-
-          <Button disabled={busy || !selectedStart} onClick={() => void book()}>
-            {busy ? "Booking…" : "Book mock exam"}
-          </Button>
         </section>
       )}
 
@@ -270,10 +229,45 @@ export function MockExamBookingView() {
                     Join Zoom meeting
                   </a>
                 ) : null}
+                {s.documents?.length ? (
+                  <ul className="mt-1 text-muted-foreground">
+                    {s.documents.map((doc) => (
+                      <li key={doc.id}>
+                        <a
+                          className="text-primary hover:underline"
+                          href={doc.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {doc.name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {s.certificateId ? (
                   <p className="text-muted-foreground">
-                    Certificate issued · score {s.scorePercent ?? "—"}%
+                    Aviator Pass certificate available · score {s.scorePercent ?? "—"}% ·{" "}
+                    <a
+                      className="text-primary hover:underline"
+                      href={`/api/mock-exams/certificate/${s.certificateId}`}
+                    >
+                      View certificate
+                    </a>
                   </p>
+                ) : null}
+                {s.status === "pending_payment" ? (
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={() =>
+                      void apiPost({ action: "confirm_payment", sessionId: s.id }).then(() =>
+                        load(),
+                      )
+                    }
+                  >
+                    Pay now
+                  </Button>
                 ) : null}
               </li>
             ))

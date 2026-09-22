@@ -471,6 +471,40 @@ export function ensureCustomerJourneyProducts(): void {
       });
     }
 
+    const elpExisting = d.products.find((p) => p.metadata?.sku === "ELP-MOCK");
+    if (elpExisting) {
+      elpExisting.name = "ELP Mock Exams Live";
+      elpExisting.description =
+        "Live English Language Proficiency mock exam. Choose a slot (Mon–Fri 17:00–20:00 or Sat–Sun 09:00–18:00 Kuwait time), review rush fees, then pay.";
+      elpExisting.active = true;
+      elpExisting.instructorId = instructorId;
+      elpExisting.updatedAt = ts;
+    } else {
+      d.products.push({
+        id: generateId(),
+        name: "ELP Mock Exams Live",
+        description:
+          "Live English Language Proficiency mock exam with an EASA Certified Instructor.",
+        pricingModel: "one_time",
+        courseId: null,
+        instructorId,
+        priceAmount: majorToMinor(40, currency),
+        compareAtAmount: null,
+        currency,
+        isFree: false,
+        active: true,
+        metadata: {
+          sku: "ELP-MOCK",
+          journey: true,
+          supportsInstallments: false,
+          supportsBnpl: true,
+          mockExam: true,
+        },
+        createdAt: ts,
+        updatedAt: ts,
+      });
+    }
+
     const atpl = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
     if (atpl) {
       const byCode = new Map(

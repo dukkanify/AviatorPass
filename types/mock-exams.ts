@@ -103,6 +103,14 @@ export interface MockExamPriceQuote {
   total: number;
 }
 
+export interface MockExamDocument {
+  id: string;
+  name: string;
+  url: string;
+  uploadedById: string;
+  uploadedAt: string;
+}
+
 export interface MockExamCertificate {
   id: string;
   sessionId: string;
@@ -131,6 +139,7 @@ export interface MockExamSession {
   quote: MockExamPriceQuote;
   selectedExtraFeeIds: string[];
   zoom: MockExamZoomSession | null;
+  documents: MockExamDocument[];
   certificateId: string | null;
   scorePercent: number | null;
   passed: boolean | null;

@@ -54,12 +54,12 @@ export const ONLINE_COURSE_PROGRAMMES = [
     enrollLabel: "View ELP mock exams",
     modes: [{ label: "Live", href: routes.onlineCoursesElp }],
     summary:
-      "Live English Language Proficiency mock examinations with an instructor — scheduled windows and a certificate after completion.",
+      "Live English Language Proficiency mock exam. Choose a slot, review rush fees, pay, then sit the exam on Zoom. Certificate after examiner approval.",
     points: [
-      "Live mock examination",
-      "EASA Certified Instructors",
-      "Weekday and weekend windows",
-      "Certificate after completion",
+      "Mon–Fri 17:00–20:00 · Sat–Sun 09:00–18:00 (Kuwait)",
+      "Rush fees under 24h and 6–12h shown before pay",
+      "Automatic Zoom room after payment",
+      "Certificate after examiner approval",
     ],
   },
   {
@@ -116,5 +116,5 @@ export const ELP_PAGE = {
   kicker: "Online Courses",
   title: "ELP Mock Exams Live",
   intro:
-    "Live English Language Proficiency mock examinations with an EASA Certified Instructor. After payment, wait for the assigned instructor to contact you to agree suitable dates and times.",
+    "Book a live English Language Proficiency mock exam with an EASA Certified Instructor. Choose a slot in the published hours, review the total including any rush fee, pay, then join the Zoom room. The Aviator Pass certificate is issued after the examiner approves the session.",
 } as const;

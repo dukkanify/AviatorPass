@@ -5,6 +5,7 @@ import { ROLES } from "@/constants/roles";
 import { requireAuth, requirePermission } from "@/services/auth/guards";
 import { assertPermission, PermissionError } from "@/services/auth/permissions";
 import {
+  attachMockExamDocument,
   bookMockExam,
   completeMockExamSession,
   confirmMockExamPayment,
@@ -169,6 +170,8 @@ export async function POST(request: Request) {
       studentId?: string;
       sessionId?: string;
       markPaid?: boolean;
+      documentName?: string;
+      documentUrl?: string;
       scorePercent?: number;
       passed?: boolean;
       notes?: string | null;
@@ -205,8 +208,7 @@ export async function POST(request: Request) {
           examTypeId: body.examTypeId,
           startsAt: body.startsAt,
           selectedExtraFeeIds: body.selectedExtraFeeIds,
-          // Demo flow: student booking confirms + provisions Zoom immediately.
-          markPaid: body.markPaid ?? true,
+          markPaid: body.markPaid === true,
           actorId: user.id,
         }),
         error: null,
@@ -214,16 +216,50 @@ export async function POST(request: Request) {
     }
 
     if (action === "confirm_payment") {
-      assertPermission(user, PERMISSIONS.MOCK_EXAMS_MANAGE);
       if (!body.sessionId) {
         return NextResponse.json(
           { success: false, data: null, error: "sessionId required" },
           { status: 400 },
         );
       }
+      const existing = getMockExamSession(body.sessionId);
+      if (!existing) {
+        return NextResponse.json(
+          { success: false, data: null, error: "Session not found" },
+          { status: 404 },
+        );
+      }
+      if (user.role === ROLES.STUDENT) {
+        assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
+        if (existing.studentId !== user.id) {
+          throw new PermissionError("Forbidden", 403);
+        }
+      } else {
+        assertPermission(user, PERMISSIONS.MOCK_EXAMS_MANAGE);
+      }
       return NextResponse.json({
         success: true,
         data: await confirmMockExamPayment(body.sessionId, user.id),
+        error: null,
+      });
+    }
+
+    if (action === "attach_document") {
+      assertPermission(user, PERMISSIONS.MOCK_EXAMS_MANAGE);
+      if (!body.sessionId || !body.documentName || !body.documentUrl) {
+        return NextResponse.json(
+          { success: false, data: null, error: "sessionId, documentName, documentUrl required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: attachMockExamDocument({
+          sessionId: body.sessionId,
+          name: body.documentName,
+          url: body.documentUrl,
+          actorId: user.id,
+        }),
         error: null,
       });
     }

@@ -38,6 +38,7 @@ describe("mock exam booking (CR007)", () => {
         active: true,
       }));
       db.settings.minNoticeMinutes = 0;
+      db.settings.timezone = "Asia/Kuwait";
       db.settings.pricingMode = "dynamic";
       db.settings.peakStartHour = 16;
       db.settings.peakEndHour = 21;
@@ -98,7 +99,7 @@ describe("mock exam booking (CR007)", () => {
       examinerId: examiner.id,
       examTypeId: examType.id,
     });
-    const open = slots.find((s) => s.available);
+    const open = slots.filter((s) => s.available).at(-1) ?? slots.find((s) => s.available);
     expect(open).toBeTruthy();
 
     const session = await bookMockExam({
@@ -131,5 +132,39 @@ describe("mock exam booking (CR007)", () => {
 
     updateMockExamSettings({ pricingMode: "fixed" });
     expect(getMockExamSettings().pricingMode).toBe("fixed");
+  });
+
+  it("issues an Aviator Pass certificate after examiner approval even when not passed", async () => {
+    const student = readAuthDb().users.find(
+      (u) => u.role === ROLES.STUDENT && u.status === "active",
+    )!;
+    const examiner = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
+    const examType = readMockExamsDb().examTypes[0]!;
+    const day = new Date(Date.now() + 4 * 86_400_000);
+    const slots = getMockExamSlots({
+      date: day.toISOString().slice(0, 10),
+      examinerId: examiner.id,
+      examTypeId: examType.id,
+    });
+    const session = await bookMockExam({
+      studentId: student.id,
+      examinerId: examiner.id,
+      examTypeId: examType.id,
+      startsAt: (slots.filter((s) => s.available).at(-1) ?? slots.find((s) => s.available))!
+        .startsAt,
+      markPaid: true,
+      actorId: student.id,
+    });
+    const completed = await completeMockExamSession({
+      sessionId: session.id,
+      scorePercent: 40,
+      passed: false,
+      actorId: examiner.id,
+    });
+    expect(completed.status).toBe("completed");
+    expect(completed.certificateId).toBeTruthy();
+    const cert = getMockExamCertificate(completed.certificateId!);
+    expect(cert?.passed).toBe(false);
+    expect(cert?.htmlSnapshot).toContain("Aviator Pass");
   });
 });

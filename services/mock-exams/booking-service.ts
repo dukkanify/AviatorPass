@@ -3,12 +3,15 @@
  */
 
 import { generateId, generateToken } from "@/lib/security/crypto";
+import { formatMockExamMeetingTopic, formatZonedDateTime } from "@/lib/datetime/zoned";
 import { ROLES } from "@/constants/roles";
 import { findUserById } from "@/services/auth/store";
 import { provisionStandaloneZoomMeeting } from "@/services/classes/zoom-service";
 import { createNotification } from "@/services/notifications/notification-service";
+import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { sendEmail } from "@/services/email/mailer";
 import { renderBrandedEmail } from "@/services/settings/email-templates";
+import { getAdminNotificationEmail } from "@/services/settings/settings-service";
 import { getMockExamSlots, listMockExaminers } from "@/services/mock-exams/availability-service";
 import { MockExamError, quoteMockExam } from "@/services/mock-exams/pricing-service";
 import {
@@ -113,12 +116,126 @@ export function getMockExamSession(id: string): MockExamSessionWithNames | null 
   return row ? withNames(row) : null;
 }
 
+async function notifyBookingConfirmed(session: MockExamSession) {
+  const student = findUserById(session.studentId);
+  const examiner = findUserById(session.examinerId);
+  const when = formatZonedDateTime(new Date(session.startsAt), session.timezone);
+  const join = session.zoom?.joinUrl ?? "";
+  const start = session.zoom?.startUrl || join;
+  const studentName =
+    [student?.firstName, student?.lastName].filter(Boolean).join(" ").trim() ||
+    student?.email ||
+    "Student";
+  const price = formatMinor(session.quote.total, session.currency);
+
+  if (student?.email) {
+    const template = renderBrandedEmail({
+      title: "ELP mock exam confirmed",
+      preheader: `${session.examTypeName} · ${when}`,
+      bodyHtml: `<p>Hello ${studentName},</p>
+        <p>Your <strong>${session.examTypeName}</strong> is confirmed.</p>
+        <p>Date and time: <strong>${when}</strong> (${session.timezone})</p>
+        <p>Total paid: <strong>${price}</strong></p>
+        ${join ? `<p><a href="${join}">Join the meeting room</a></p>` : ""}
+        <p>Open AviatorPass → Mock Exams to review the booking and, after the session, your certificate.</p>`,
+    });
+    await sendEmail({
+      to: student.email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      meta: { kind: "mock_exam_student", sessionId: session.id },
+    });
+    await dispatchEmailEvent({
+      event: "student_alert",
+      to: student.email,
+      userIds: [student.id],
+      data: {
+        title: "Mock exam confirmed",
+        detail: `${session.examTypeName} on ${when}`,
+        reference: session.id,
+      },
+      system: true,
+    });
+  }
+
+  if (examiner?.email) {
+    const template = renderBrandedEmail({
+      title: "New ELP mock exam booking",
+      preheader: `${studentName} · ${when}`,
+      bodyHtml: `<p>Hello ${examiner.firstName || "Instructor"},</p>
+        <p>A mock exam is booked with you.</p>
+        <p>Student: <strong>${studentName}</strong></p>
+        <p>Date and time: <strong>${when}</strong> (${session.timezone})</p>
+        ${start ? `<p><a href="${start}">Open the meeting room</a></p>` : ""}
+        <p>After the session, approve it in Instructor → Mock Exams so the Aviator Pass certificate is issued.</p>`,
+    });
+    await sendEmail({
+      to: examiner.email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      meta: { kind: "mock_exam_instructor", sessionId: session.id },
+    });
+    await dispatchEmailEvent({
+      event: "instructor_alert",
+      to: examiner.email,
+      userIds: [examiner.id],
+      data: {
+        title: "Mock exam booked",
+        detail: `${studentName} · ${when}`,
+        reference: session.id,
+      },
+      system: true,
+    });
+  }
+
+  const adminEmail = getAdminNotificationEmail();
+  if (adminEmail) {
+    const template = renderBrandedEmail({
+      title: "ELP mock exam booking",
+      preheader: `${studentName} · ${when}`,
+      bodyHtml: `<p>A new mock exam booking needs ops follow-up.</p>
+        <ul>
+          <li>Student: ${studentName} (${student?.email ?? "—"})</li>
+          <li>Examiner: ${[examiner?.firstName, examiner?.lastName].filter(Boolean).join(" ") || "—"}</li>
+          <li>Service: ${session.examTypeName}</li>
+          <li>When: ${when}</li>
+          <li>Total: ${price}</li>
+        </ul>`,
+    });
+    await sendEmail({
+      to: adminEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      meta: { kind: "mock_exam_admin", sessionId: session.id, system: true },
+    });
+    await dispatchEmailEvent({
+      event: "admin_alert",
+      to: adminEmail,
+      data: {
+        title: "Mock exam booking",
+        detail: `${studentName} · ${when} · ${price}`,
+        reference: session.id,
+      },
+      system: true,
+    });
+  }
+}
+
 async function provisionZoom(session: MockExamSession): Promise<MockExamSession> {
   const settings = getMockExamSettings();
   if (!settings.autoCreateZoom) return session;
+  const student = findUserById(session.studentId);
+  const topic = formatMockExamMeetingTopic({
+    lastName: student?.lastName || student?.firstName || "Student",
+    startsAt: session.startsAt,
+    timeZone: session.timezone,
+  });
   const zoom = await provisionStandaloneZoomMeeting({
-    topic: `Mock Exam — ${session.examTypeName}`,
-    agenda: `Student mock exam session ${session.id}`,
+    topic,
+    agenda: `${session.examTypeName} · ${topic}`,
     startsAt: session.startsAt,
     durationMinutes: session.durationMinutes,
     timezone: session.timezone,
@@ -171,7 +288,12 @@ export async function bookMockExam(input: {
   if (!exam) throw new MockExamError("Exam type not available", 404);
 
   const startsAtIso = new Date(input.startsAt).toISOString();
-  const date = startsAtIso.slice(0, 10);
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: settings.timezone || "Asia/Kuwait",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(startsAtIso));
   const slots = getMockExamSlots({
     date,
     examinerId: input.examinerId,
@@ -208,6 +330,7 @@ export async function bookMockExam(input: {
     quote,
     selectedExtraFeeIds: input.selectedExtraFeeIds ?? [],
     zoom: null,
+    documents: [],
     certificateId: null,
     scorePercent: null,
     passed: null,
@@ -226,12 +349,13 @@ export async function bookMockExam(input: {
 
   if (session.status === "confirmed") {
     session = await provisionZoom(session);
+    await notifyBookingConfirmed(session);
   }
 
   await createNotification({
     userId: input.studentId,
-    title: "Mock exam booked",
-    body: `${exam.name} on ${new Date(session.startsAt).toLocaleString()} · ${formatMinor(quote.total, quote.currency)}`,
+    title: session.status === "confirmed" ? "Mock exam booked" : "Mock exam reserved — payment due",
+    body: `${exam.name} on ${formatZonedDateTime(new Date(session.startsAt), session.timezone)} · ${formatMinor(quote.total, quote.currency)}`,
     type: "mock_exam.booked",
     data: { sessionId: session.id },
   });
@@ -258,8 +382,36 @@ export async function confirmMockExamPayment(
   });
   let session = readMockExamsDb().sessions.find((s) => s.id === sessionId)!;
   session = await provisionZoom(session);
+  await notifyBookingConfirmed(session);
   void actorId;
-  return withNames(session);
+  return withNames(getMockExamSession(session.id)!);
+}
+
+export function attachMockExamDocument(input: {
+  sessionId: string;
+  name: string;
+  url: string;
+  actorId: string;
+}): MockExamSessionWithNames {
+  const existing = readMockExamsDb().sessions.find((s) => s.id === input.sessionId);
+  if (!existing) throw new MockExamError("Session not found", 404);
+  const name = input.name.trim();
+  const url = input.url.trim();
+  if (!name || !url) throw new MockExamError("Document name and URL are required");
+  const doc = {
+    id: generateId(),
+    name,
+    url,
+    uploadedById: input.actorId,
+    uploadedAt: nowIso(),
+  };
+  writeMockExamsDb((db) => {
+    const row = db.sessions.find((s) => s.id === input.sessionId);
+    if (!row) return;
+    row.documents = [...(row.documents ?? []), doc];
+    row.updatedAt = nowIso();
+  });
+  return withNames(getMockExamSession(input.sessionId)!);
 }
 
 export async function completeMockExamSession(input: {
@@ -292,7 +444,7 @@ export async function completeMockExamSession(input: {
 
   let session = readMockExamsDb().sessions.find((s) => s.id === input.sessionId)!;
   const settings = getMockExamSettings();
-  if (settings.autoIssueCertificate && input.passed) {
+  if (settings.autoIssueCertificate) {
     const cert = issueMockExamCertificate(session);
     writeMockExamsDb((db) => {
       const row = db.sessions.find((s) => s.id === input.sessionId);
@@ -323,12 +475,13 @@ function issueMockExamCertificate(session: MockExamSession): MockExamCertificate
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 10)}`;
   const stamp = nowIso();
-  const htmlSnapshot = `<!doctype html><html><body style="font-family:Georgia,serif;text-align:center;padding:48px;">
-    <h1>Mock Exam Certificate</h1>
+  const htmlSnapshot = `<!doctype html><html><body style="font-family:Georgia,serif;text-align:center;padding:48px;color:#143048;">
+    <p style="letter-spacing:0.2em;text-transform:uppercase;color:#CCA04C;">Aviator Pass</p>
+    <h1>Certificate of Completion</h1>
     <p>This certifies that</p>
     <h2>${student.name ?? "Candidate"}</h2>
-    <p>completed <strong>${session.examTypeName}</strong></p>
-    <p>Score: ${session.scorePercent ?? "—"}% · Result: ${session.passed ? "PASS" : "FAIL"}</p>
+    <p>completed the Aviator Pass <strong>${session.examTypeName}</strong></p>
+    <p>Score: ${session.scorePercent ?? "—"}% · Result: ${session.passed ? "PASS" : "Completed"}</p>
     <p>Date: ${stamp.slice(0, 10)}</p>
     <p>Verification: ${verificationCode}</p>
   </body></html>`;
@@ -355,13 +508,13 @@ async function emailCertificate(session: MockExamSession, cert: MockExamCertific
   const student = displayName(session.studentId);
   if (!student.email) return;
   const template = renderBrandedEmail({
-    title: "Mock exam certificate",
-    preheader: `${session.examTypeName} · ${cert.passed ? "PASS" : "FAIL"}`,
+    title: "Aviator Pass certificate available",
+    preheader: `${session.examTypeName} certificate is in your account`,
     bodyHtml: `<p>Hello ${student.name ?? "Candidate"},</p>
-      <p>Your mock exam <strong>${session.examTypeName}</strong> is complete.</p>
+      <p>Your examiner approved the session. An Aviator Pass certificate for <strong>${session.examTypeName}</strong> is now in your account.</p>
       <p>Score: <strong>${cert.scorePercent ?? "—"}%</strong> · ${cert.passed ? "PASS" : "Completed"}</p>
       <p>Verification code: <strong>${cert.verificationCode}</strong></p>
-      <p>Open AviatorPass → Mock Exams to view your certificate.</p>`,
+      <p>Open AviatorPass → Mock Exams to view or download the certificate and any documents your examiner shared.</p>`,
   });
   await sendEmail({
     to: student.email,
@@ -392,6 +545,16 @@ export function getMockExamCatalog() {
     examTypes: listMockExamTypes(),
     extraFees: listMockExamExtraFees(),
     examiners: listMockExaminers(),
+  };
+}
+
+/** Public ELP journey catalog — only the official mock exam type. */
+export function getPublicElpCatalog() {
+  const catalog = getMockExamCatalog();
+  return {
+    ...catalog,
+    examTypes: catalog.examTypes.filter((t) => t.code === "ELP-MOCK"),
+    extraFees: catalog.extraFees.filter((f) => f.code === "RUSH_24H" || f.code === "RUSH_12H"),
   };
 }
 
