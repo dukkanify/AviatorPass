@@ -2,7 +2,7 @@
  * Unit: Mock Exam Booking System (CR007).
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
@@ -17,6 +17,7 @@ import {
 } from "@/services/mock-exams/booking-service";
 import { quoteMockExam } from "@/services/mock-exams/pricing-service";
 import {
+  defaultMockExamSettings,
   readMockExamsDb,
   resetMockExamsDbCache,
   writeMockExamsDb,
@@ -50,6 +51,12 @@ describe("mock exam booking (CR007)", () => {
           fee.autoApply = true;
         }
       }
+    });
+  });
+
+  afterEach(() => {
+    writeMockExamsDb((db) => {
+      db.settings.workingHours = defaultMockExamSettings().workingHours;
     });
   });
 
