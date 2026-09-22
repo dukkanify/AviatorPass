@@ -2,7 +2,7 @@
  * Refund approve/reject must email the student and copy admin.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { generateId } from "@/lib/security/crypto";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
@@ -42,6 +42,18 @@ beforeEach(() => {
         systemAlerts: true,
         classReminderOffsetsMinutes: [1440, 120],
         classReminderFifteenMinutesEnabled: true,
+      },
+    },
+    null,
+  );
+});
+
+afterAll(() => {
+  delete process.env.ADMIN_NOTIFICATION_EMAIL;
+  patchStoredSettings(
+    {
+      email: {
+        adminNotificationEmail: "",
       },
     },
     null,

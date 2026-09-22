@@ -2,7 +2,7 @@
  * Wired notification + email events used in production flows.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
@@ -44,6 +44,18 @@ beforeAll(() => {
         systemAlerts: true,
         classReminderOffsetsMinutes: [1440, 120],
         classReminderFifteenMinutesEnabled: true,
+      },
+    },
+    null,
+  );
+});
+
+afterAll(() => {
+  delete process.env.ADMIN_NOTIFICATION_EMAIL;
+  patchStoredSettings(
+    {
+      email: {
+        adminNotificationEmail: "",
       },
     },
     null,
