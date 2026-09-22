@@ -1,6 +1,8 @@
 # Mock Exam Booking System (CR007)
 
-Independent module for invigilated mock exams (sourced from the Mock Exam document).
+Independent module for invigilated mock exams. The official ELP journey
+(`public/brand/source/journeys/ELP_Mock_Customer_Journey_AR.pdf`) is the source of truth
+for hours, rush fees, Zoom naming, emails, examiner approval, and the Aviator Pass certificate.
 
 ## Capabilities
 

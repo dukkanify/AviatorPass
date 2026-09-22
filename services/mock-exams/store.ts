@@ -73,7 +73,7 @@ function defaultExamTypes(): MockExamType[] {
       code: "ELP-MOCK",
       name: "English Language Proficiency — Mock Exam",
       description:
-        "Independent ELP mock exam with Zoom room, rush fees under 24h / 6–12h, and certificate after examiner completion.",
+        "Live English Language Proficiency mock exam. Book Mon–Fri 17:00–20:00 or Sat–Sun 09:00–18:00 (Kuwait time). Rush fees under 24h / 6–12h. Certificate after the examiner approves the session.",
       durationMinutes: 60,
       basePrice: 40_000,
       active: true,
@@ -187,7 +187,10 @@ function normalizeDb(raw: Partial<MockExamsDatabase>): MockExamsDatabase {
     settings: { ...defaultMockExamSettings(), ...(raw.settings ?? {}) },
     examTypes: raw.examTypes?.length ? raw.examTypes : defaultExamTypes(),
     extraFees: raw.extraFees?.length ? raw.extraFees : defaultExtraFees(),
-    sessions: raw.sessions ?? [],
+    sessions: (raw.sessions ?? []).map((s) => ({
+      ...s,
+      documents: Array.isArray(s.documents) ? s.documents : [],
+    })),
     certificates: raw.certificates ?? [],
     seeded: Boolean(raw.seeded),
   };
@@ -220,8 +223,10 @@ export function ensureMockExamsSeeded(): void {
     for (const fee of defaultExtraFees()) {
       if (!d.extraFees.some((f) => f.code === fee.code)) d.extraFees.push(fee);
     }
-    // Keep ELP business hours aligned even on already-seeded DBs.
-    d.settings.workingHours = defaultMockExamSettings().workingHours;
+    if (!d.settings.workingHours?.length) {
+      d.settings.workingHours = defaultMockExamSettings().workingHours;
+    }
+    if (!d.settings.timezone) d.settings.timezone = defaultMockExamSettings().timezone;
     d.seeded = true;
     d.settings.updatedAt = new Date().toISOString();
   });

@@ -58,7 +58,7 @@ export function quoteMockExam(input: {
       // Legacy generic rush — only outside the ELP 12h/24h windows to avoid double fees.
       apply = true;
     }
-    if (fee.autoApply && fee.code === "WEEKEND") {
+    if (fee.autoApply && fee.code === "WEEKEND" && exam.code !== "ELP-MOCK") {
       const day = start.getUTCDay();
       if (day === 0 || day === 6) apply = true;
     }

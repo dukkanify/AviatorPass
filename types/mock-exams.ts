@@ -80,6 +80,8 @@ export interface MockExamZoomSession {
   waitingRoom: boolean;
   providerMode: "mock" | "zoom";
   provisionedAt: string;
+  /** Official Zoom topic: Mock Exam / {family} / {dd-MMM-yyyy} */
+  topic?: string;
 }
 
 export interface MockExamFeeLine {
@@ -101,6 +103,14 @@ export interface MockExamPriceQuote {
   subtotal: number;
   taxAmount: number;
   total: number;
+}
+
+export interface MockExamDocument {
+  id: string;
+  name: string;
+  url: string;
+  uploadedById: string;
+  uploadedAt: string;
 }
 
 export interface MockExamCertificate {
@@ -131,6 +141,7 @@ export interface MockExamSession {
   quote: MockExamPriceQuote;
   selectedExtraFeeIds: string[];
   zoom: MockExamZoomSession | null;
+  documents: MockExamDocument[];
   certificateId: string | null;
   scorePercent: number | null;
   passed: boolean | null;

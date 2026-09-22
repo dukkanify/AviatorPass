@@ -1,8 +1,10 @@
 /**
  * Mock exam availability — working hours + conflict-aware slots (CR007).
+ * Hours are wall-clock in settings.timezone (Asia/Kuwait for ELP).
  */
 
 import { ROLES } from "@/constants/roles";
+import { weekdayOfLocalDate, zonedWallTimeToUtc } from "@/lib/datetime/zoned";
 import { readAuthDb } from "@/services/auth/store";
 import { readBookingsDb } from "@/services/bookings/store";
 import { rangesOverlap } from "@/services/classes/validation";
@@ -28,16 +30,6 @@ export function listMockExaminers() {
   }));
 }
 
-function isWithinWorkingHours(startsAt: Date, endsAt: Date): boolean {
-  const settings = readMockExamsDb().settings;
-  const weekday = startsAt.getUTCDay();
-  const wh = settings.workingHours.find((w) => w.weekday === weekday && w.active);
-  if (!wh) return false;
-  const startMin = startsAt.getUTCHours() * 60 + startsAt.getUTCMinutes();
-  const endMin = endsAt.getUTCHours() * 60 + endsAt.getUTCMinutes();
-  return startMin >= wh.startHour * 60 && endMin <= wh.endHour * 60;
-}
-
 export function getMockExamSlots(input: {
   date: string;
   examinerId: string;
@@ -60,13 +52,28 @@ export function getMockExamSlots(input: {
   }
   if (settings.blackoutDates.includes(input.date)) return [];
 
-  const dayStart = new Date(`${input.date}T00:00:00.000Z`);
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  if (dayStart < today) return [];
+  const tz = settings.timezone || "Asia/Kuwait";
+  const weekday = weekdayOfLocalDate(input.date, tz);
+  const wh = settings.workingHours.find((w) => w.weekday === weekday && w.active);
+  if (!wh) return [];
 
-  const max = new Date(today.getTime() + settings.maxAdvanceDays * 86_400_000);
-  if (dayStart > max) return [];
+  const todayYmd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  if (input.date < todayYmd) return [];
+
+  const max = new Date();
+  max.setUTCDate(max.getUTCDate() + settings.maxAdvanceDays);
+  const maxYmd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(max);
+  if (input.date > maxYmd) return [];
 
   const duration = exam.durationMinutes;
   const step = settings.slotStepMinutes;
@@ -87,23 +94,18 @@ export function getMockExamSlots(input: {
   }
 
   const slots: MockExamSlot[] = [];
-  for (let minute = 0; minute + duration <= 24 * 60; minute += step) {
-    const startsAt = new Date(dayStart.getTime() + minute * 60_000);
+  const startMin = wh.startHour * 60;
+  const endMin = wh.endHour * 60;
+  for (let minute = startMin; minute + duration <= endMin; minute += step) {
+    const hour = Math.floor(minute / 60);
+    const min = minute % 60;
+    const startsAt = zonedWallTimeToUtc(input.date, hour, min, tz);
     const endsAt = new Date(startsAt.getTime() + duration * 60_000);
     const startsIso = startsAt.toISOString();
     const endsIso = endsAt.toISOString();
 
     if (startsAt.getTime() < earliest) {
       slots.push({ startsAt: startsIso, endsAt: endsIso, available: false, reason: "Too soon" });
-      continue;
-    }
-    if (!isWithinWorkingHours(startsAt, endsAt)) {
-      slots.push({
-        startsAt: startsIso,
-        endsAt: endsIso,
-        available: false,
-        reason: "Outside working hours",
-      });
       continue;
     }
 

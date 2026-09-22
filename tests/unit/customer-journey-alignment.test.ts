@@ -62,7 +62,7 @@ describe("customer journey alignment", () => {
 
   it("creates checkout products for journey SKUs", () => {
     const products = readPaymentsDb().products;
-    for (const sku of ["PPL-RECORDED", "PPL-LIVE", "BASICS-RECORDED", "BASICS-LIVE"]) {
+    for (const sku of ["PPL-RECORDED", "PPL-LIVE", "BASICS-RECORDED", "BASICS-LIVE", "ELP-MOCK"]) {
       expect(
         products.some((p) => p.metadata?.sku === sku),
         sku,
