@@ -51,16 +51,21 @@ describe("checkout currency detection", () => {
     expect(countryFromLocale("fr")).toBeNull();
   });
 
-  it("does not treat Gulf language packs as location", () => {
+  it("does not treat browser language as location", () => {
     expect(detectCheckoutCurrency({ locale: "ar-AE,ar;q=0.9,en;q=0.8" })).toEqual({
       country: "KW",
       currency: "KWD",
       source: "fallback",
     });
+    expect(detectCheckoutCurrency({ locale: "en-US" })).toEqual({
+      country: "KW",
+      currency: "KWD",
+      source: "fallback",
+    });
     expect(detectCheckoutCurrency({ locale: "en-GB" })).toEqual({
-      country: "GB",
-      currency: "GBP",
-      source: "locale",
+      country: "KW",
+      currency: "KWD",
+      source: "fallback",
     });
   });
 

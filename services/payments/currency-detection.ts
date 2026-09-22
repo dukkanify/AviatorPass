@@ -118,11 +118,6 @@ export function detectCheckoutCurrency(input: CurrencyDetectionInput): CurrencyD
     return { country: geo, currency: currencyForCountry(geo), source: "geo" };
   }
 
-  const fromLocale = trustedCountryFromLocale(input.locale);
-  if (fromLocale) {
-    return { country: fromLocale, currency: currencyForCountry(fromLocale), source: "locale" };
-  }
-
   return {
     country: PLATFORM_CHECKOUT_COUNTRY,
     currency: currencyForCountry(PLATFORM_CHECKOUT_COUNTRY),
