@@ -6,6 +6,7 @@ import { Globe, Loader2, RefreshCw, Save, Search, Send, ShieldCheck } from "luci
 
 import { ResendDnsRecords } from "@/features/settings/components/resend-dns-records";
 import type { ResendDomainRecord } from "@/services/email/resend-dns";
+import type { PublicDnsProbe } from "@/services/email/resend-dns";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,8 @@ function PlatformSettingsShell() {
       senderDomain?: string;
       error?: string | null;
       records?: ResendDomainRecord[];
+      dns?: PublicDnsProbe;
+      nameservers?: string[];
     };
     recent?: Array<{
       to?: string;
@@ -217,6 +220,8 @@ function PlatformSettingsShell() {
         senderDomain?: string;
         error?: string | null;
         records?: ResendDomainRecord[];
+        dns?: PublicDnsProbe;
+        nameservers?: string[];
       };
       recent: Array<{
         to?: string;
@@ -757,7 +762,7 @@ function PlatformSettingsShell() {
                       setRegisteringDomain(false);
                       if (result.success) {
                         toast.success(
-                          "Resend domain registered. Copy the DNS records into Namecheap, then click Verify DNS.",
+                          "Resend domain registered. Copy the DNS records into the zone editor shown below, then click Verify DNS.",
                         );
                         await loadEmailStatus();
                       } else {
@@ -819,6 +824,13 @@ function PlatformSettingsShell() {
                 <ResendDnsRecords
                   domain={emailStatus.resend?.senderDomain || ""}
                   records={emailStatus.resend?.records ?? []}
+                  nameservers={
+                    emailStatus.resend?.dns?.nameservers ?? emailStatus.resend?.nameservers ?? []
+                  }
+                  dnsEditor={emailStatus.resend?.dns?.editor}
+                  probe={emailStatus.resend?.dns?.rows ?? []}
+                  publishedCount={emailStatus.resend?.dns?.publishedCount}
+                  missingCount={emailStatus.resend?.dns?.missingCount}
                 />
                 {emailStatus.recent && emailStatus.recent.length > 0 ? (
                   <div className="space-y-1 text-xs text-muted-foreground">

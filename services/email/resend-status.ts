@@ -8,7 +8,11 @@
 import { type ResendDomainRecord } from "@/services/email/resend-dns";
 
 export type { ResendDomainRecord };
-export { registrarHost, formatDnsRecordLine } from "@/services/email/resend-dns";
+export {
+  registrarHost,
+  formatDnsRecordLine,
+  formatNamecheapTsv,
+} from "@/services/email/resend-dns";
 
 export interface ResendDeliveryStatus {
   configured: boolean;
@@ -202,7 +206,7 @@ export async function inspectResendDelivery(input: {
       records,
       error: verified
         ? null
-        : `Resend domain ${senderDomain} status=${status}. Copy the DNS records into Namecheap, then click Verify DNS.`,
+        : `Resend domain ${senderDomain} status=${status}. Copy the DNS records into the zone editor shown below (cPanel Zone Editor when nameservers are namecheaphosting), then click Verify DNS.`,
       checkedAt,
     };
   } catch (error) {
