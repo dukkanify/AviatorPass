@@ -315,9 +315,11 @@ async function maybeCopyAdmin(
       ? "New registration"
       : input.event === "refund"
         ? "Refund"
-        : input.event === "payment" && /fail/i.test(String(input.data.title ?? input.subject ?? ""))
-          ? "Payment failed"
-          : "New purchase / payment";
+        : input.event === "admin_alert"
+          ? String(input.subject ?? input.data.title ?? "Admin alert")
+          : input.event === "payment" && /fail/i.test(String(input.data.title ?? input.subject ?? ""))
+            ? "Payment failed"
+            : "New purchase / payment";
   const template = renderAutomationTemplate(
     "admin_alert",
     {

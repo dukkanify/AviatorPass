@@ -33,6 +33,7 @@ export async function POST(request: Request, { params }: Params) {
     const body = (await request.json().catch(() => ({}))) as {
       action?: string;
       reason?: string;
+      studentId?: string;
       startsAt?: string;
       endsAt?: string;
       durationMinutes?: number;
@@ -75,6 +76,21 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({
         success: true,
         data: await duplicateLiveClass({ id, actorId: user.id, ...ctx }),
+        error: null,
+      });
+    }
+    if (body.action === "unable_to_schedule") {
+      const { reportUnableToScheduleNextLecture } = await import(
+        "@/services/assignment/engine"
+      );
+      return NextResponse.json({
+        success: true,
+        data: await reportUnableToScheduleNextLecture({
+          liveClassId: id,
+          studentId: body.studentId,
+          reason: body.reason,
+          actorId: user.id,
+        }),
         error: null,
       });
     }

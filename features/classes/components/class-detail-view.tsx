@@ -67,6 +67,8 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
   const [questionBank, setQuestionBank] = React.useState("");
   const [comments, setComments] = React.useState("");
   const [savingReport, setSavingReport] = React.useState(false);
+  const [unableReason, setUnableReason] = React.useState("");
+  const [reportingUnable, setReportingUnable] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -127,6 +129,32 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
     toast.success("Performance report saved and emailed to the student");
     setComments("");
     void load();
+  }
+
+  async function reportUnableToSchedule() {
+    if (!reportStudentId) {
+      toast.error("Select a student");
+      return;
+    }
+    setReportingUnable(true);
+    const result = await classFetch<{ request: { status: string } }>(
+      `/api/classes/${classId}/actions`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          action: "unable_to_schedule",
+          studentId: reportStudentId,
+          reason: unableReason.trim() || undefined,
+        }),
+      },
+    );
+    setReportingUnable(false);
+    if (!result.success) {
+      toast.error(result.error ?? "Unable to flag Scheduling Required");
+      return;
+    }
+    toast.success("TKI 1 and Super Admin have been emailed. Student status is Scheduling Required.");
+    setUnableReason("");
   }
 
   const participants = detail?.participants.filter((p) => p.role === "participant") ?? [];
@@ -434,6 +462,33 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
               >
                 {savingReport ? "Saving…" : "Save & email student"}
               </Button>
+              <div className="space-y-3 rounded-xl border border-border/70 p-4">
+                <div>
+                  <p className="font-medium">Next lecture</p>
+                  <p className="text-sm text-muted-foreground">
+                    If you cannot book the next session, press Unable to Schedule. TKI 1 and Super
+                    Admin are emailed and the student status becomes Scheduling Required.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="unableReason">Reason (optional)</Label>
+                  <Textarea
+                    id="unableReason"
+                    value={unableReason}
+                    onChange={(e) => setUnableReason(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. No matching slot this week"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={reportingUnable || !reportStudentId}
+                  onClick={() => void reportUnableToSchedule()}
+                >
+                  {reportingUnable ? "Sending…" : "Unable to Schedule"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
           <Card>

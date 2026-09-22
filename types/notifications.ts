@@ -729,6 +729,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     defaultBody: "A student may need intervention.",
     audiences: ["cgi"],
   },
+  "cgi.unable_to_schedule": {
+    type: "cgi.unable_to_schedule",
+    category: "booking",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Unable to Schedule",
+    defaultBody: "A student needs a new lecture time (Scheduling Required).",
+    audiences: ["cgi"],
+  },
 
   // Admin / Super Admin / system
   "admin.registration": {
@@ -810,6 +820,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     emailDefault: true,
     defaultTitle: "System alert",
     defaultBody: "A platform alert needs review.",
+    audiences: ["admin", "super_admin"],
+  },
+  "admin.unable_to_schedule": {
+    type: "admin.unable_to_schedule",
+    category: "ops",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Unable to Schedule",
+    defaultBody: "A student needs a new lecture time (Scheduling Required).",
     audiences: ["admin", "super_admin"],
   },
   "system.maintenance": {

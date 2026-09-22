@@ -12,10 +12,11 @@ import { findUserById, readAuthDb } from "@/services/auth/store";
 import { assignInstructor, getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
-import { createLiveClass, listLiveClasses } from "@/services/classes/class-service";
+import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { notifyUsers } from "@/services/notifications/notification-service";
 import {
   AssignmentError,
   ensureDefaultAvailability,
@@ -51,6 +52,95 @@ function assertInstructor(instructorId: string) {
 
 function getRequest(id: string): AssignmentRequest | null {
   return readAssignmentDb().requests.find((r) => r.id === id) ?? null;
+}
+
+function displayName(user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined) {
+  if (!user) return "Unknown";
+  return [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email;
+}
+
+/** Official ATPL journey: email + in-app to TKI 1 (CGI) and Super User. */
+async function alertUnableToSchedule(input: {
+  request: AssignmentRequest;
+  reason: string;
+  actorId: string | null;
+}): Promise<string[]> {
+  const student = input.request.studentId ? findUserById(input.request.studentId) : null;
+  const instructor = findUserById(input.request.instructorId);
+  const course = input.request.courseId ? getCourseById(input.request.courseId) : null;
+  const subjectTitle = course
+    ? `${course.code} — ${course.title}`
+    : input.request.lessonTitle;
+  const studentLabel = displayName(student);
+  const instructorLabel = displayName(instructor);
+  const title = "Unable to Schedule";
+  const body = [
+    `${instructorLabel} could not book the next lecture for ${studentLabel}.`,
+    `Subject: ${subjectTitle}.`,
+    `Student status is Scheduling Required.`,
+    input.reason ? `Reason: ${input.reason}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const auth = readAuthDb();
+  const cgiIds = auth.users
+    .filter((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR && u.status === "active")
+    .map((u) => u.id);
+  const adminIds = auth.users
+    .filter(
+      (u) =>
+        (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
+    )
+    .map((u) => u.id);
+  const recipients = [...new Set([...cgiIds, ...adminIds])];
+
+  if (cgiIds.length) {
+    await notifyUsers(cgiIds, {
+      title,
+      body,
+      type: "cgi.unable_to_schedule",
+      email: false,
+      actionUrl: "/cgi/assignment",
+      data: {
+        assignmentRequestId: input.request.id,
+        studentId: input.request.studentId,
+        liveClassId: input.request.liveClassId,
+        reason: input.reason,
+      },
+    });
+  }
+  if (adminIds.length) {
+    await notifyUsers(adminIds, {
+      title,
+      body,
+      type: "admin.unable_to_schedule",
+      email: false,
+      actionUrl: "/super-admin",
+      data: {
+        assignmentRequestId: input.request.id,
+        studentId: input.request.studentId,
+        liveClassId: input.request.liveClassId,
+        reason: input.reason,
+      },
+    });
+  }
+
+  await dispatchEmailEvent({
+    event: "admin_alert",
+    userIds: recipients,
+    subject: "Unable to Schedule — Scheduling Required",
+    data: {
+      title,
+      detail: body,
+      reference: input.request.id,
+    },
+    actorId: input.actorId,
+    system: true,
+    meta: { assignmentRequestId: input.request.id },
+  });
+
+  return recipients;
 }
 
 function bumpQueuePositions(instructorId: string) {
@@ -425,7 +515,7 @@ export async function scheduleAssignmentSession(input: {
     });
 
   if (!preferred) {
-    markUnable(request.id, "No open slot within look-ahead window");
+    await markUnable(request.id, "No open slot within look-ahead window", input.actorId);
     return {
       request: getRequest(request.id)!,
       queueItem: null,
@@ -455,7 +545,11 @@ export async function scheduleAssignmentSession(input: {
 
   if (report.hasConflict) {
     if (request.attempts >= request.maxAttempts) {
-      markUnable(request.id, summarizeConflicts(report.conflicts) || "Conflicts unresolved");
+      await markUnable(
+        request.id,
+        summarizeConflicts(report.conflicts) || "Conflicts unresolved",
+        input.actorId,
+      );
       return {
         request: getRequest(request.id)!,
         queueItem: null,
@@ -495,7 +589,7 @@ export async function scheduleAssignmentSession(input: {
   });
 
   if (!created) {
-    markUnable(request.id, "Failed to create live class");
+    await markUnable(request.id, "Failed to create live class", input.actorId);
     return {
       request: getRequest(request.id)!,
       queueItem: null,
@@ -553,7 +647,7 @@ export async function scheduleAssignmentSession(input: {
   };
 }
 
-function markUnable(requestId: string, reason: string) {
+async function markUnable(requestId: string, reason: string, actorId: string | null) {
   const stamp = nowIso();
   writeAssignmentDb((db) => {
     const req = db.requests.find((r) => r.id === requestId);
@@ -574,6 +668,111 @@ function markUnable(requestId: string, reason: string) {
       }
     }
   });
+  const request = getRequest(requestId);
+  if (request) {
+    await alertUnableToSchedule({ request, reason, actorId });
+  }
+}
+
+/**
+ * Official ATPL journey: instructor presses Unable to Schedule after a lecture.
+ * Student status becomes Scheduling Required; TKI 1 and Super Admin are emailed.
+ */
+export async function reportUnableToScheduleNextLecture(input: {
+  liveClassId: string;
+  studentId?: string | null;
+  reason?: string | null;
+  actorId: string;
+}): Promise<{
+  request: AssignmentRequest;
+  studentId: string;
+  notifiedUserIds: string[];
+}> {
+  ensureCoursesSeeded();
+  ensureClassesSeeded();
+  const liveClass = getLiveClass(input.liveClassId);
+  if (!liveClass) throw new AssignmentError("Live class not found", 404);
+  if (!liveClass.courseId) {
+    throw new AssignmentError("This class is not linked to a subject", 400);
+  }
+
+  const participants = readClassesDb().participants.filter(
+    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  );
+  const studentId = input.studentId?.trim() || participants[0]?.userId || null;
+  if (!studentId) throw new AssignmentError("Select a student", 400);
+  const student = findUserById(studentId);
+  if (!student || student.role !== ROLES.STUDENT) {
+    throw new AssignmentError("Student not found", 404);
+  }
+
+  const reason = input.reason?.trim() || "Instructor could not book the next lecture";
+  const existing =
+    listAssignmentRequests({ courseId: liveClass.courseId }).find(
+      (r) =>
+        r.studentId === studentId &&
+        (r.liveClassId === liveClass.id ||
+          r.status === "scheduled" ||
+          r.status === "queued" ||
+          r.status === "scheduling_required"),
+    ) ?? null;
+
+  const stamp = nowIso();
+  let requestId = existing?.id ?? null;
+  if (existing) {
+    writeAssignmentDb((db) => {
+      const req = db.requests.find((r) => r.id === existing.id);
+      if (!req) return;
+      req.status = "scheduling_required";
+      req.unableReason = reason;
+      req.updatedAt = stamp;
+      req.queuePosition = null;
+      req.notes = req.notes
+        ? `${req.notes}\nUnable to Schedule after ${liveClass.title}`
+        : `Unable to Schedule after ${liveClass.title}`;
+    });
+    requestId = existing.id;
+  } else {
+    const settings = readAssignmentDb().settings;
+    const request: AssignmentRequest = {
+      id: generateId(),
+      kind: "schedule_session",
+      courseId: liveClass.courseId,
+      lessonId: liveClass.lessonId,
+      lessonTitle: liveClass.title,
+      studentId,
+      instructorId: liveClass.instructorId,
+      previousInstructorId: null,
+      preferredStartsAt: null,
+      durationMinutes: liveClass.durationMinutes,
+      status: "scheduling_required",
+      liveClassId: liveClass.id,
+      zoomMeetingId: liveClass.zoomMeetingId,
+      conflictSummary: null,
+      queuePosition: null,
+      attempts: 0,
+      maxAttempts: settings.maxQueueAttempts,
+      autoZoom: settings.autoZoom,
+      notes: `Unable to Schedule after ${liveClass.title}`,
+      createdById: input.actorId,
+      createdAt: stamp,
+      updatedAt: stamp,
+      scheduledAt: null,
+      unableReason: reason,
+    };
+    writeAssignmentDb((db) => {
+      db.requests.unshift(request);
+    });
+    requestId = request.id;
+  }
+
+  const request = getRequest(requestId)!;
+  const notifiedUserIds = await alertUnableToSchedule({
+    request,
+    reason,
+    actorId: input.actorId,
+  });
+  return { request, studentId, notifiedUserIds };
 }
 
 /** Process waiting queue — try to schedule each waiting item. */
