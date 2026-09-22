@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatZonedDateTime } from "@/lib/datetime/zoned";
 import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames, MockExamSettings } from "@/types/mock-exams";
@@ -244,7 +245,7 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
                       .map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.examTypeName} · {s.studentName ?? s.studentId.slice(0, 6)} ·{" "}
-                          {new Date(s.startsAt).toLocaleString()}
+                          {formatZonedDateTime(new Date(s.startsAt), s.timezone)}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -266,7 +267,7 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
                   <span className="font-medium">{s.examTypeName}</span> · {s.studentName} ·{" "}
                   <Badge variant="secondary">{s.status}</Badge>
                   <div className="text-muted-foreground">
-                    {new Date(s.startsAt).toLocaleString()} ·{" "}
+                    {formatZonedDateTime(new Date(s.startsAt), s.timezone)} ·{" "}
                     {formatMinor(s.quote.total, s.currency)}
                     {s.zoom ? ` · ${s.zoom.topic || "Zoom ready"}` : ""}
                     {s.certificateId ? ` · Cert ${s.scorePercent}%` : ""}

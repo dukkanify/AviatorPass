@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatZonedDateTime } from "@/lib/datetime/zoned";
 import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames } from "@/types/mock-exams";
@@ -99,7 +100,8 @@ export function MockExamExaminerView() {
                 <Badge variant="secondary">{s.status}</Badge>
               </p>
               <p className="text-muted-foreground">
-                {new Date(s.startsAt).toLocaleString()} · {formatMinor(s.quote.total, s.currency)}
+                {formatZonedDateTime(new Date(s.startsAt), s.timezone)} ·{" "}
+                {formatMinor(s.quote.total, s.currency)}
               </p>
               {s.zoom ? (
                 <p>

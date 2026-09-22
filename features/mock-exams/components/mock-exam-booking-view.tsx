@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { csrfHeaders } from "@/lib/security/browser-csrf";
-import { todayInZone } from "@/lib/datetime/zoned";
+import { formatZonedDateTime, todayInZone } from "@/lib/datetime/zoned";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames, MockExamSlot, MockExamType } from "@/types/mock-exams";
 
@@ -220,8 +220,8 @@ export function MockExamBookingView() {
                   {s.examTypeName} · <Badge variant="secondary">{s.status}</Badge>
                 </p>
                 <p className="text-muted-foreground">
-                  {new Date(s.startsAt).toLocaleString()} · Examiner: {s.examinerName ?? "—"} ·{" "}
-                  {formatMinor(s.quote.total, s.currency)}
+                  {formatZonedDateTime(new Date(s.startsAt), s.timezone)} · Examiner:{" "}
+                  {s.examinerName ?? "—"} · {formatMinor(s.quote.total, s.currency)}
                 </p>
                 {s.zoom ? (
                   <p>
