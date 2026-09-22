@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import Link from "@/components/ui/app-link";
-import { Archive, Bell, CheckCheck, CircleAlert, Info, Shield } from "lucide-react";
+import { Bell, BellRing, CheckCheck, CircleAlert, Info, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,17 +64,24 @@ function categoryColor(category?: string): string {
     case "message":
       return "border-l-primary/60";
     default:
-      return "border-l-border";
+      return "border-l-accent";
   }
+}
+
+function isSafeAppPath(href: string): boolean {
+  return href.startsWith("/") && !href.startsWith("//") && !href.startsWith("/\\");
 }
 
 function NotificationBell() {
   const { user } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [unread, setUnread] = React.useState(0);
   const [payload, setPayload] = React.useState<ListPayload | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [category, setCategory] = React.useState("all");
+  const [ringKey, setRingKey] = React.useState(0);
+  const prevUnread = React.useRef(0);
 
   const notificationsHref = user
     ? `/${user.role === "super_admin" ? "super-admin" : user.role === "chief_ground_instructor" ? "cgi" : user.role}/notifications`
@@ -109,6 +117,11 @@ function NotificationBell() {
     if (open) void load();
   }, [open, load]);
 
+  React.useEffect(() => {
+    if (unread > prevUnread.current) setRingKey((key) => key + 1);
+    prevUnread.current = unread;
+  }, [unread]);
+
   const markRead = async (id: string) => {
     await authFetch(routes.api.notifications, {
       method: "PATCH",
@@ -122,6 +135,15 @@ function NotificationBell() {
     void load();
   };
 
+  const openItem = (record: NotificationRecord) => {
+    void markRead(record.id);
+    const href = record.actionUrl?.trim();
+    if (href && isSafeAppPath(href)) {
+      setOpen(false);
+      router.push(href);
+    }
+  };
+
   const groups = payload?.groups ?? [];
   const filtered = groups.filter((g) => {
     if (category === "all") return true;
@@ -131,30 +153,52 @@ function NotificationBell() {
     return g.latest.category === category || g.latest.type === category;
   });
 
+  const label = unread > 0 ? `Alerts, ${unread} unread` : "Alerts";
+  const Icon = unread > 0 ? BellRing : Bell;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-          <Bell className="h-4 w-4" />
+        <button
+          type="button"
+          className="ap-notify-bell"
+          data-unread={unread > 0 ? "true" : "false"}
+          aria-label={label}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <Icon key={ringKey} className="ap-notify-bell-icon" aria-hidden />
           {unread > 0 ? (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground animate-in zoom-in-50">
+            <span className="ap-notify-badge" aria-hidden>
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
-        </Button>
+          <span className="sr-only" aria-live="polite">
+            {unread > 0 ? `${unread} unread alerts` : "No unread alerts"}
+          </span>
+        </button>
       </PopoverTrigger>
       <PopoverContent
         align="end"
         sideOffset={8}
         collisionPadding={12}
-        className="panel-viewport w-[min(24rem,calc(100vw-1.25rem))] max-w-[calc(100vw-1.25rem)] p-0 shadow-lg"
+        className="panel-viewport w-[min(24rem,calc(100vw-1.25rem))] max-w-[calc(100vw-1.25rem)] overflow-hidden p-0 shadow-lg"
       >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div>
-            <p className="font-display text-sm font-semibold">Notification center</p>
-            <p className="text-xs text-muted-foreground">{unread} unread</p>
+        <div className="ap-notify-panel-head">
+          <div className="ap-notify-panel-title">
+            <BellRing className="h-5 w-5 text-[var(--aviator-gold-light)]" aria-hidden />
+            <div>
+              <strong>Alerts</strong>
+              <span>{unread === 0 ? "You're all caught up" : `${unread} unread`}</span>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void markAll()} disabled={unread === 0}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ap-notify-panel-mark h-8 px-2"
+            onClick={() => void markAll()}
+            disabled={unread === 0}
+          >
             <CheckCheck className="h-3.5 w-3.5" />
             Mark all
           </Button>
@@ -177,8 +221,11 @@ function NotificationBell() {
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-                  <Archive className="h-8 w-8 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">You&apos;re all caught up</p>
+                  <Bell className="ap-notify-empty-bell" aria-hidden />
+                  <p className="text-sm font-medium">No alerts right now</p>
+                  <p className="text-xs text-muted-foreground">
+                    New course, booking, and security notices land here.
+                  </p>
                 </div>
               ) : (
                 filtered.map((g) => (
@@ -190,7 +237,7 @@ function NotificationBell() {
                       categoryColor(g.latest.category),
                       !g.latest.readAt && "bg-accent/5",
                     )}
-                    onClick={() => void markRead(g.latest.id)}
+                    onClick={() => openItem(g.latest)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2">

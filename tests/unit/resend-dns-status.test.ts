@@ -4,7 +4,18 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatDnsRecordLine, registrarHost } from "@/services/email/resend-dns";
+import {
+  formatDnsRecordLine,
+  formatNamecheapTsv,
+  probeRowState,
+  registrarHost,
+} from "@/services/email/resend-dns";
+import {
+  inferDnsEditor,
+  probePublicDns,
+  type DnsLookup,
+  valuesMatch,
+} from "@/services/email/public-dns-probe";
 import {
   inspectResendDelivery,
   registerResendDomain,
@@ -128,7 +139,7 @@ describe("inspectResendDelivery", () => {
     expect(status.records).toHaveLength(3);
     expect(status.records[0]?.priority).toBe(10);
     expect(status.records[0]?.value).toContain("feedback-smtp");
-    expect(status.error).toMatch(/Namecheap/i);
+    expect(status.error).toMatch(/zone editor|cPanel|namecheaphosting/i);
   });
 
   it("treats verified domain status as complete", async () => {
@@ -193,5 +204,102 @@ describe("registerResendDomain / verifyResendDomain", () => {
       vi.fn(async () => jsonResponse({ message: "already exists" }, 409)),
     );
     await expect(registerResendDomain("aviatorpass.com")).resolves.toMatchObject({ ok: true });
+  });
+});
+
+describe("Namecheap / cPanel paste sheet", () => {
+  it("formats Type Host Value TTL Priority TSV for Zone Editor", () => {
+    expect(formatNamecheapTsv(DETAIL_RECORDS, "aviatorpass.com")).toBe(
+      [
+        "Type\tHost\tValue\tTTL\tPriority",
+        "MX\tsend\tfeedback-smtp.us-east-1.amazonses.com\t14400\t10",
+        "TXT\tsend\tv=spf1 include:amazonses.com ~all\t14400\t",
+        "TXT\tresend._domainkey\tp=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQexample\t14400\t",
+      ].join("\n"),
+    );
+  });
+});
+
+describe("public DNS probe", () => {
+  function lookup(partial: Partial<DnsLookup>): DnsLookup {
+    return {
+      resolveNs: async () => [],
+      resolveMx: async () => {
+        throw Object.assign(new Error("ENODATA"), { code: "ENODATA" });
+      },
+      resolveTxt: async () => {
+        throw Object.assign(new Error("ENOTFOUND"), { code: "ENOTFOUND" });
+      },
+      resolveCname: async () => {
+        throw Object.assign(new Error("ENOTFOUND"), { code: "ENOTFOUND" });
+      },
+      ...partial,
+    };
+  }
+
+  it("tells staff to use cPanel Zone Editor when NS are namecheaphosting", () => {
+    const editor = inferDnsEditor(["dns1.namecheaphosting.com.", "dns2.namecheaphosting.com."]);
+    expect(editor.kind).toBe("cpanel_zone_editor");
+    expect(editor.instruction).toMatch(/Zone Editor/i);
+    expect(editor.instruction).toMatch(/Do not use Namecheap Domain List/i);
+  });
+
+  it("tells staff to use Advanced DNS when NS are registrar-servers", () => {
+    const editor = inferDnsEditor(["dns1.registrar-servers.com"]);
+    expect(editor.kind).toBe("namecheap_advanced_dns");
+  });
+
+  it("marks Resend DKIM and send hosts missing against hosting NS", async () => {
+    const probe = await probePublicDns({
+      domain: "aviatorpass.com",
+      records: DETAIL_RECORDS,
+      lookup: lookup({
+        resolveNs: async () => ["dns1.namecheaphosting.com", "dns2.namecheaphosting.com"],
+      }),
+      checkedAt: "2026-09-22T00:00:00.000Z",
+    });
+    expect(probe.editor.kind).toBe("cpanel_zone_editor");
+    expect(probe.nameservers).toEqual(["dns1.namecheaphosting.com", "dns2.namecheaphosting.com"]);
+    expect(probe.publishedCount).toBe(0);
+    expect(probe.missingCount).toBe(3);
+    expect(probe.rows.map((row) => row.host)).toEqual(["send", "send", "resend._domainkey"]);
+    expect(probe.rows.every((row) => row.matched === false)).toBe(true);
+  });
+
+  it("matches published MX and TXT values from public DNS", async () => {
+    const probe = await probePublicDns({
+      domain: "aviatorpass.com",
+      records: DETAIL_RECORDS,
+      lookup: lookup({
+        resolveNs: async () => ["dns1.namecheaphosting.com"],
+        resolveMx: async (name) =>
+          name === "send.aviatorpass.com"
+            ? [{ exchange: "feedback-smtp.us-east-1.amazonses.com.", priority: 10 }]
+            : [],
+        resolveTxt: async (name) => {
+          if (name === "send.aviatorpass.com") return [["v=spf1 include:amazonses.com ~all"]];
+          if (name === "resend._domainkey.aviatorpass.com") {
+            return [["p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQexample"]];
+          }
+          return [];
+        },
+      }),
+    });
+    expect(probe.publishedCount).toBe(3);
+    expect(probe.missingCount).toBe(0);
+    expect(probe.rows.every((row) => row.matched)).toBe(true);
+  });
+
+  it("treats a DKIM public key as published when the TXT contains the expected fragment", () => {
+    expect(valuesMatch("TXT", "v=DKIM1", ["v=DKIM1; k=rsa; p=MIGfMA0GCSq"])).toBe(true);
+    expect(valuesMatch("TXT", "v=spf1 include:amazonses.com ~all", ["v=spf1 +a ~all"])).toBe(false);
+  });
+
+  it("labels a published non-Resend send host as mismatch, not missing", () => {
+    expect(probeRowState({ matched: false, published: ["10 feedback.forge.rmta.net"] })).toBe(
+      "mismatch",
+    );
+    expect(probeRowState({ matched: false, published: [] })).toBe("missing");
+    expect(probeRowState({ matched: true, published: ["v=DKIM1"] })).toBe("published");
   });
 });
