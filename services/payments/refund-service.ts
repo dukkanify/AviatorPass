@@ -9,6 +9,8 @@ import { assertCanManageFinance, assertOwnOrder, PaymentError } from "@/services
 import { getOrder, getPayment } from "@/services/payments/checkout-service";
 import { formatMinor, formatTamaraAmount } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
+import { notifyRole } from "@/services/notifications/notification-service";
+import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import { clawbackForRefund } from "@/services/payments/wallet-service";
 import { refundTalyOrder } from "@/services/payments/taly-client";
@@ -125,6 +127,36 @@ export async function reviewRefund(input: {
       body: `${refund.refundNumber} was rejected.`,
       type: "refund.rejected",
       data: { refundId: refund.id },
+      email: false,
+    });
+    await dispatchEmailEvent({
+      event: "refund",
+      userIds: [refund.studentId],
+      subject: "Refund rejected",
+      data: {
+        title: "Refund rejected",
+        reference: refund.refundNumber,
+        amountLabel: formatMinor(refund.amount, refund.currency),
+        detail: `${refund.refundNumber} was rejected.`,
+      },
+      actorId: input.user.id,
+      meta: { refundId: refund.id, decision: "reject" },
+    });
+    await notifyRole("admin", {
+      title: "Refund rejected",
+      body: `${refund.refundNumber} was rejected.`,
+      type: "admin.refund",
+      actionUrl: "/admin/payments",
+      data: { refundId: refund.id },
+      email: false,
+    });
+    await notifyRole("super_admin", {
+      title: "Refund rejected",
+      body: `${refund.refundNumber} was rejected.`,
+      type: "admin.refund",
+      actionUrl: "/super-admin/payments",
+      data: { refundId: refund.id },
+      email: false,
     });
     return getRefund(refund.id)!;
   }
@@ -194,11 +226,52 @@ export async function reviewRefund(input: {
     }
   }
 
+  const amountLabel = formatMinor(refund.amount, refund.currency);
   await notifyPayment(refund.studentId, {
     title: "Refund approved",
-    body: `${refund.refundNumber} for ${formatMinor(refund.amount, refund.currency)} was processed.`,
+    body: `${refund.refundNumber} for ${amountLabel} was processed.`,
     type: "refund.approved",
     data: { refundId: refund.id },
+    amountLabel,
+    reference: refund.refundNumber,
+    email: false,
+  });
+  await dispatchEmailEvent({
+    event: "refund",
+    userIds: [refund.studentId],
+    subject: "Refund approved",
+    data: {
+      title: "Refund approved",
+      reference: refund.refundNumber,
+      amountLabel,
+      detail: `${refund.refundNumber} for ${amountLabel} was processed.`,
+    },
+    actorId: input.user.id,
+    meta: { refundId: refund.id, decision: "approve" },
+  });
+  await dispatchRoleAlert({
+    event: "admin_alert",
+    title: "Refund processed",
+    detail: `${refund.refundNumber} for ${amountLabel} was processed.`,
+    reference: refund.refundNumber,
+    actorId: input.user.id,
+    system: true,
+  });
+  await notifyRole("admin", {
+    title: "Refund processed",
+    body: `${refund.refundNumber} for ${amountLabel} was processed.`,
+    type: "admin.refund",
+    actionUrl: "/admin/payments",
+    data: { refundId: refund.id },
+    email: false,
+  });
+  await notifyRole("super_admin", {
+    title: "Refund processed",
+    body: `${refund.refundNumber} for ${amountLabel} was processed.`,
+    type: "admin.refund",
+    actionUrl: "/super-admin/payments",
+    data: { refundId: refund.id },
+    email: false,
   });
 
   await logActivity({
