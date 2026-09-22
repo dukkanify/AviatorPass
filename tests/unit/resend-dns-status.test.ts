@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDnsRecordLine,
   formatNamecheapTsv,
+  probeRowState,
   registrarHost,
 } from "@/services/email/resend-dns";
 import {
@@ -292,5 +293,13 @@ describe("public DNS probe", () => {
   it("treats a DKIM public key as published when the TXT contains the expected fragment", () => {
     expect(valuesMatch("TXT", "v=DKIM1", ["v=DKIM1; k=rsa; p=MIGfMA0GCSq"])).toBe(true);
     expect(valuesMatch("TXT", "v=spf1 include:amazonses.com ~all", ["v=spf1 +a ~all"])).toBe(false);
+  });
+
+  it("labels a published non-Resend send host as mismatch, not missing", () => {
+    expect(probeRowState({ matched: false, published: ["10 feedback.forge.rmta.net"] })).toBe(
+      "mismatch",
+    );
+    expect(probeRowState({ matched: false, published: [] })).toBe("missing");
+    expect(probeRowState({ matched: true, published: ["v=DKIM1"] })).toBe("published");
   });
 });

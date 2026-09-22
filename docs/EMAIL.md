@@ -42,7 +42,7 @@ Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
    - **MX** Host `send` Priority `10` → `feedback-smtp.us-east-1.amazonses.com` (or the exact MX Resend prints).
    - **TXT** Host `send` → `v=spf1 include:amazonses.com ~all`.
    - **TXT** Host `resend._domainkey` → the DKIM public key Resend prints.
-   - Keep the apex SPF / MX for existing Namecheap mailbox mail.
+   - Keep the apex SPF / MX for existing Namecheap mailbox mail. Live `send.aviatorpass.com` currently publishes a non-Resend host (`feedback.forge.rmta.net` / a non-Amazon SPF). Replace those rows with Resend’s MX/TXT — do not add a second `send` of the same type.
    - Optional **DMARC** stay `p=none` until inboxing is confirmed.
 4. Click **Verify** in Resend. Wait until status is `verified`.
 5. Confirm `EMAIL_FROM` / Platform sender is `AviatorPass <noreply@aviatorpass.com>` (or another mailbox on the verified domain).

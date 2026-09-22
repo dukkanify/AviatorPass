@@ -12,6 +12,36 @@ export interface ResendDomainRecord {
   priority?: number | string;
 }
 
+export type DnsEditorKind = "cpanel_zone_editor" | "namecheap_advanced_dns" | "unknown";
+
+export interface DnsEditorHint {
+  kind: DnsEditorKind;
+  title: string;
+  nameservers: string[];
+  instruction: string;
+}
+
+export interface PublicDnsProbeRow {
+  type: string;
+  host: string;
+  fqdn: string;
+  expected: string;
+  priority?: string;
+  published: string[];
+  matched: boolean;
+  error?: string;
+}
+
+export interface PublicDnsProbe {
+  domain: string;
+  nameservers: string[];
+  editor: DnsEditorHint;
+  rows: PublicDnsProbeRow[];
+  publishedCount: number;
+  missingCount: number;
+  checkedAt: string;
+}
+
 /** cPanel / Namecheap hosting default when Resend prints "Auto". */
 export const CPANEL_DEFAULT_TTL = "14400";
 
@@ -52,6 +82,16 @@ export function formatDnsRecordLine(row: ResendDomainRecord, domain: string): st
   parts.push(row.value);
   if (row.status) parts.push(`(${row.status})`);
   return parts.join(" ");
+}
+
+/** Public DNS vs Resend expected: exact match, wrong published value, or empty. */
+export function probeRowState(row: {
+  matched: boolean;
+  published: string[];
+}): "published" | "mismatch" | "missing" {
+  if (row.matched) return "published";
+  if (row.published.length > 0) return "mismatch";
+  return "missing";
 }
 
 /**

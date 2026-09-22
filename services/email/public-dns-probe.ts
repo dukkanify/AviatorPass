@@ -6,43 +6,29 @@
  * Namecheap Domain List → Advanced DNS will not publish.
  */
 
-import { dnsRecordFqdn, registrarHost, type ResendDomainRecord } from "@/services/email/resend-dns";
+import {
+  dnsRecordFqdn,
+  registrarHost,
+  probeRowState,
+  type DnsEditorHint,
+  type PublicDnsProbe,
+  type PublicDnsProbeRow,
+  type ResendDomainRecord,
+} from "@/services/email/resend-dns";
 
-export type DnsEditorKind = "cpanel_zone_editor" | "namecheap_advanced_dns" | "unknown";
-
-export interface DnsEditorHint {
-  kind: DnsEditorKind;
-  title: string;
-  nameservers: string[];
-  instruction: string;
-}
+export { probeRowState };
+export type {
+  DnsEditorHint,
+  DnsEditorKind,
+  PublicDnsProbe,
+  PublicDnsProbeRow,
+} from "@/services/email/resend-dns";
 
 export interface DnsLookup {
   resolveNs(name: string): Promise<string[]>;
   resolveMx(name: string): Promise<Array<{ exchange: string; priority: number }>>;
   resolveTxt(name: string): Promise<string[][]>;
   resolveCname(name: string): Promise<string[]>;
-}
-
-export interface PublicDnsProbeRow {
-  type: string;
-  host: string;
-  fqdn: string;
-  expected: string;
-  priority?: string;
-  published: string[];
-  matched: boolean;
-  error?: string;
-}
-
-export interface PublicDnsProbe {
-  domain: string;
-  nameservers: string[];
-  editor: DnsEditorHint;
-  rows: PublicDnsProbeRow[];
-  publishedCount: number;
-  missingCount: number;
-  checkedAt: string;
 }
 
 function normalizeName(value: string): string {

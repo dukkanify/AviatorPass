@@ -6,7 +6,7 @@ import { Globe, Loader2, RefreshCw, Save, Search, Send, ShieldCheck } from "luci
 
 import { ResendDnsRecords } from "@/features/settings/components/resend-dns-records";
 import type { ResendDomainRecord } from "@/services/email/resend-dns";
-import type { PublicDnsProbe } from "@/services/email/public-dns-probe";
+import type { PublicDnsProbe } from "@/services/email/resend-dns";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";

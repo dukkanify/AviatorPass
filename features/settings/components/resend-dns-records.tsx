@@ -18,11 +18,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   formatDnsRecordLine,
   formatNamecheapTsv,
+  probeRowState,
   registrarHost,
   zoneTtl,
+  type DnsEditorHint,
+  type PublicDnsProbeRow,
   type ResendDomainRecord,
 } from "@/services/email/resend-dns";
-import type { DnsEditorHint, PublicDnsProbeRow } from "@/services/email/public-dns-probe";
 
 async function copyText(label: string, value: string) {
   try {
@@ -68,6 +70,13 @@ function statusTone(status?: string) {
   return "destructive" as const;
 }
 
+function ProbeBadge({ row }: { row: PublicDnsProbeRow }) {
+  const state = probeRowState(row);
+  if (state === "published") return <Badge variant="success">published</Badge>;
+  if (state === "mismatch") return <Badge variant="warning">mismatch</Badge>;
+  return <Badge variant="destructive">missing</Badge>;
+}
+
 function probeFor(row: ResendDomainRecord, domain: string, probe: PublicDnsProbeRow[]) {
   const host = registrarHost(row.name, domain);
   return (
@@ -104,7 +113,11 @@ export function ResendDnsRecords({
       "Add Type / Host / Value / TTL / Priority at the DNS host for this domain. After saving, click Verify DNS.",
   };
   const published = publishedCount ?? probe.filter((row) => row.matched).length;
-  const missing = missingCount ?? probe.filter((row) => !row.matched).length;
+  const mismatched = probe.filter((row) => probeRowState(row) === "mismatch").length;
+  const missing =
+    missingCount !== undefined
+      ? Math.max(0, missingCount - mismatched)
+      : probe.filter((row) => probeRowState(row) === "missing").length;
 
   if (records.length === 0 && probe.length === 0) {
     return (
@@ -135,6 +148,7 @@ export function ResendDnsRecords({
           {probe.length > 0 ? (
             <p className="mt-2 text-xs">
               Public DNS: {published} of {probe.length} Resend records published
+              {mismatched > 0 ? ` · ${mismatched} mismatch` : ""}
               {missing > 0 ? ` · ${missing} missing` : ""}.
             </p>
           ) : null}
@@ -213,15 +227,7 @@ export function ResendDnsRecords({
                 <TableCell>
                   {row.status ? <Badge variant={statusTone(row.status)}>{row.status}</Badge> : "—"}
                 </TableCell>
-                <TableCell>
-                  {seen ? (
-                    <Badge variant={seen.matched ? "success" : "destructive"}>
-                      {seen.matched ? "published" : "missing"}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
+                <TableCell>{seen ? <ProbeBadge row={seen} /> : "—"}</TableCell>
               </TableRow>
             );
           })}
@@ -241,9 +247,7 @@ export function ResendDnsRecords({
                   </TableCell>
                   <TableCell>—</TableCell>
                   <TableCell>
-                    <Badge variant={row.matched ? "success" : "destructive"}>
-                      {row.matched ? "published" : "missing"}
-                    </Badge>
+                    <ProbeBadge row={row} />
                   </TableCell>
                 </TableRow>
               ))
