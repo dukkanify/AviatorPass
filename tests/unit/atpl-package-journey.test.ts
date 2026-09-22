@@ -370,171 +370,175 @@ describe("ATPL Complete Package journey", () => {
     ).toHaveLength(13);
   });
 
-  it("lets TKI 1 confirm the requested first lecture or a different time", async () => {
-    ensureDemoUsersSeeded();
-    ensureCoursesSeeded();
-    ensurePaymentsSeeded();
-    writeCgiDb((db) => {
-      db.settings.defaultFirstSubjectCourseId = null;
-    });
-    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
-    const requested = validAtplPackageSchedule();
-    const paid = await payGuestCheckout({
-      firstName: "Rami",
-      lastName: "Nasser",
-      email: `tki.confirm.${Date.now()}@aviatorpass.test`,
-      phone: "+96550008888",
-      country: "KW",
-      billingName: "Rami Nasser",
-      billingAddress: "Kuwait City",
-      ...requested,
-      methodBrand: "card",
-      paymentToken: "tok_4242",
-      idempotencyKey: `tki-confirm-${Date.now()}`,
-    });
-    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
-    expect(student?.studentId).toBeTruthy();
-    expect(
-      getCgiDashboardSnapshot().pendingFirstLectures.some(
-        (s) => s.email === paid.order.studentEmail,
-      ),
-    ).toBe(true);
+  it(
+    "lets TKI 1 confirm the requested first lecture or a different time",
+    { timeout: 300_000 },
+    async () => {
+      ensureDemoUsersSeeded();
+      ensureCoursesSeeded();
+      ensurePaymentsSeeded();
+      writeCgiDb((db) => {
+        db.settings.defaultFirstSubjectCourseId = null;
+      });
+      const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+      const requested = validAtplPackageSchedule();
+      const paid = await payGuestCheckout({
+        firstName: "Rami",
+        lastName: "Nasser",
+        email: `tki.confirm.${Date.now()}@aviatorpass.test`,
+        phone: "+96550008888",
+        country: "KW",
+        billingName: "Rami Nasser",
+        billingAddress: "Kuwait City",
+        ...requested,
+        methodBrand: "card",
+        paymentToken: "tok_4242",
+        idempotencyKey: `tki-confirm-${Date.now()}`,
+      });
+      const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+      expect(student?.studentId).toBeTruthy();
+      expect(
+        getCgiDashboardSnapshot().pendingFirstLectures.some(
+          (s) => s.email === paid.order.studentEmail,
+        ),
+      ).toBe(true);
 
-    const confirmed = await confirmAtplPackageSchedule({
-      studentId: student!.studentId,
-      actorId: cgi.id,
-    });
-    expect(confirmed.scheduleProvisional).toBe(false);
-    expect(confirmed.confirmedStudyStartDate).toBe(requested.studyStartDate);
-    expect(confirmed.confirmedFirstLectureTime).toBe(requested.firstLectureTime);
-    expect(confirmed.scheduleNotice).toBe(ATPL_PACKAGE_CONFIRMED_NOTICE);
-    expect(confirmed.firstLectureLiveClassId).toBeTruthy();
-    expect(confirmed.firstLectureOnTimetable).toBe(true);
-    expect(confirmed.confirmedFirstLectureAt).toBeTruthy();
-    expect(confirmed.firstLectureSubjectCode).toBe(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
-    expect(confirmed.firstLectureSubjectTitle).toBe(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
-    const booked = listScheduleSessions({
-      userId: student!.studentId,
-      role: ROLES.STUDENT,
-      from: new Date().toISOString(),
-    });
-    expect(booked.some((session) => session.id === confirmed.firstLectureLiveClassId)).toBe(true);
-    expect(
-      booked.find((session) => session.id === confirmed.firstLectureLiveClassId)?.title,
-    ).toContain(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
-
-    const missingId = confirmed.firstLectureLiveClassId!;
-    writeClassesDb((db) => {
-      db.classes = db.classes.filter((row) => row.id !== missingId);
-      db.participants = db.participants.filter((row) => row.liveClassId !== missingId);
-    });
-    expect(
-      listScheduleSessions({
+      const confirmed = await confirmAtplPackageSchedule({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+      });
+      expect(confirmed.scheduleProvisional).toBe(false);
+      expect(confirmed.confirmedStudyStartDate).toBe(requested.studyStartDate);
+      expect(confirmed.confirmedFirstLectureTime).toBe(requested.firstLectureTime);
+      expect(confirmed.scheduleNotice).toBe(ATPL_PACKAGE_CONFIRMED_NOTICE);
+      expect(confirmed.firstLectureLiveClassId).toBeTruthy();
+      expect(confirmed.firstLectureOnTimetable).toBe(true);
+      expect(confirmed.confirmedFirstLectureAt).toBeTruthy();
+      expect(confirmed.firstLectureSubjectCode).toBe(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
+      expect(confirmed.firstLectureSubjectTitle).toBe(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
+      const booked = listScheduleSessions({
         userId: student!.studentId,
         role: ROLES.STUDENT,
         from: new Date().toISOString(),
-      }).some((session) => session.id === missingId),
-    ).toBe(false);
-    const restored = await ensureConfirmedFirstLectureOnTimetable(
-      student!.studentId,
-      paid.order.studentEmail!,
-    );
-    expect(restored.firstLectureOnTimetable).toBe(true);
-    expect(restored.firstLectureLiveClassId).toBeTruthy();
-    expect(
-      listScheduleSessions({
-        userId: student!.studentId,
-        role: ROLES.STUDENT,
-        from: new Date().toISOString(),
-      }).some((session) => session.id === restored.firstLectureLiveClassId),
-    ).toBe(true);
+      });
+      expect(booked.some((session) => session.id === confirmed.firstLectureLiveClassId)).toBe(true);
+      expect(
+        booked.find((session) => session.id === confirmed.firstLectureLiveClassId)?.title,
+      ).toContain(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
 
-    const restoredId = restored.firstLectureLiveClassId!;
-    writeClassesDb((db) => {
-      db.participants = db.participants.filter(
-        (row) => !(row.liveClassId === restoredId && row.userId === student!.studentId),
+      const missingId = confirmed.firstLectureLiveClassId!;
+      writeClassesDb((db) => {
+        db.classes = db.classes.filter((row) => row.id !== missingId);
+        db.participants = db.participants.filter((row) => row.liveClassId !== missingId);
+      });
+      expect(
+        listScheduleSessions({
+          userId: student!.studentId,
+          role: ROLES.STUDENT,
+          from: new Date().toISOString(),
+        }).some((session) => session.id === missingId),
+      ).toBe(false);
+      const restored = await ensureConfirmedFirstLectureOnTimetable(
+        student!.studentId,
+        paid.order.studentEmail!,
       );
-    });
-    const reenrolled = await ensureConfirmedFirstLectureOnTimetable(
-      student!.studentId,
-      paid.order.studentEmail!,
-    );
-    expect(reenrolled.firstLectureOnTimetable).toBe(true);
-    expect(
-      listScheduleSessions({
-        userId: student!.studentId,
+      expect(restored.firstLectureOnTimetable).toBe(true);
+      expect(restored.firstLectureLiveClassId).toBeTruthy();
+      expect(
+        listScheduleSessions({
+          userId: student!.studentId,
+          role: ROLES.STUDENT,
+          from: new Date().toISOString(),
+        }).some((session) => session.id === restored.firstLectureLiveClassId),
+      ).toBe(true);
+
+      const restoredId = restored.firstLectureLiveClassId!;
+      writeClassesDb((db) => {
+        db.participants = db.participants.filter(
+          (row) => !(row.liveClassId === restoredId && row.userId === student!.studentId),
+        );
+      });
+      const reenrolled = await ensureConfirmedFirstLectureOnTimetable(
+        student!.studentId,
+        paid.order.studentEmail!,
+      );
+      expect(reenrolled.firstLectureOnTimetable).toBe(true);
+      expect(
+        listScheduleSessions({
+          userId: student!.studentId,
+          role: ROLES.STUDENT,
+          from: new Date().toISOString(),
+        }).some((session) => session.id === reenrolled.firstLectureLiveClassId),
+      ).toBe(true);
+      expect(
+        getCgiDashboardSnapshot().pendingFirstLectures.some(
+          (s) => s.email === paid.order.studentEmail,
+        ),
+      ).toBe(false);
+      expect(
+        getStudentAtplPackageSchedule(student!.studentId, paid.order.studentEmail!).orderId,
+      ).toBe(paid.order.id);
+
+      const later = validAtplPackageSchedule();
+      const paidAgain = await payGuestCheckout({
+        firstName: "Sara",
+        lastName: "Hadi",
+        email: `tki.replace.${Date.now()}@aviatorpass.test`,
+        phone: "+96550009999",
+        country: "KW",
+        billingName: "Sara Hadi",
+        billingAddress: "Kuwait City",
+        ...later,
+        methodBrand: "card",
+        paymentToken: "tok_4242",
+        idempotencyKey: `tki-replace-${Date.now()}`,
+      });
+      const studentTwo = listAtplStudents().find((s) => s.email === paidAgain.order.studentEmail)!;
+      const newDate = formatLocalDateInput(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000));
+      const replaced = await confirmAtplPackageSchedule({
+        studentId: studentTwo.studentId,
+        actorId: cgi.id,
+        studyStartDate: newDate,
+        firstLectureTime: "19:30",
+      });
+      expect(replaced.requestedStudyStartDate).toBe(later.studyStartDate);
+      expect(replaced.requestedFirstLectureTime).toBe(later.firstLectureTime);
+      expect(replaced.confirmedStudyStartDate).toBe(newDate);
+      expect(replaced.confirmedFirstLectureTime).toBe("19:30");
+      expect(replaced.scheduleProvisional).toBe(false);
+      expect(replaced.firstLectureLiveClassId).toBeTruthy();
+      const replacedSessions = listScheduleSessions({
+        userId: studentTwo.studentId,
         role: ROLES.STUDENT,
         from: new Date().toISOString(),
-      }).some((session) => session.id === reenrolled.firstLectureLiveClassId),
-    ).toBe(true);
-    expect(
-      getCgiDashboardSnapshot().pendingFirstLectures.some(
-        (s) => s.email === paid.order.studentEmail,
-      ),
-    ).toBe(false);
-    expect(
-      getStudentAtplPackageSchedule(student!.studentId, paid.order.studentEmail!).orderId,
-    ).toBe(paid.order.id);
-
-    const later = validAtplPackageSchedule();
-    const paidAgain = await payGuestCheckout({
-      firstName: "Sara",
-      lastName: "Hadi",
-      email: `tki.replace.${Date.now()}@aviatorpass.test`,
-      phone: "+96550009999",
-      country: "KW",
-      billingName: "Sara Hadi",
-      billingAddress: "Kuwait City",
-      ...later,
-      methodBrand: "card",
-      paymentToken: "tok_4242",
-      idempotencyKey: `tki-replace-${Date.now()}`,
-    });
-    const studentTwo = listAtplStudents().find((s) => s.email === paidAgain.order.studentEmail)!;
-    const newDate = formatLocalDateInput(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000));
-    const replaced = await confirmAtplPackageSchedule({
-      studentId: studentTwo.studentId,
-      actorId: cgi.id,
-      studyStartDate: newDate,
-      firstLectureTime: "19:30",
-    });
-    expect(replaced.requestedStudyStartDate).toBe(later.studyStartDate);
-    expect(replaced.requestedFirstLectureTime).toBe(later.firstLectureTime);
-    expect(replaced.confirmedStudyStartDate).toBe(newDate);
-    expect(replaced.confirmedFirstLectureTime).toBe("19:30");
-    expect(replaced.scheduleProvisional).toBe(false);
-    expect(replaced.firstLectureLiveClassId).toBeTruthy();
-    const replacedSessions = listScheduleSessions({
-      userId: studentTwo.studentId,
-      role: ROLES.STUDENT,
-      from: new Date().toISOString(),
-    });
-    expect(
-      replacedSessions.some((session) => session.id === replaced.firstLectureLiveClassId),
-    ).toBe(true);
-    const live = getLiveClass(reenrolled.firstLectureLiveClassId!);
-    expect(live?.instructorId).toBeTruthy();
-    expect(
-      listAssignedFirstLectures({ instructorId: live!.instructorId }).some(
-        (row) =>
-          row.studentId === student!.studentId &&
-          row.onTimetable &&
-          row.subjectTitle === ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
-      ),
-    ).toBe(true);
-    const instructorOverview = getScheduleOverview({
-      userId: live!.instructorId,
-      role: ROLES.INSTRUCTOR,
-    });
-    expect(
-      instructorOverview.firstLectures.some((row) => row.studentId === student!.studentId),
-    ).toBe(true);
-    expect(
-      instructorOverview.upcoming.some(
-        (session) => session.id === reenrolled.firstLectureLiveClassId,
-      ),
-    ).toBe(true);
-  });
+      });
+      expect(
+        replacedSessions.some((session) => session.id === replaced.firstLectureLiveClassId),
+      ).toBe(true);
+      const live = getLiveClass(reenrolled.firstLectureLiveClassId!);
+      expect(live?.instructorId).toBeTruthy();
+      expect(
+        listAssignedFirstLectures({ instructorId: live!.instructorId }).some(
+          (row) =>
+            row.studentId === student!.studentId &&
+            row.onTimetable &&
+            row.subjectTitle === ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+        ),
+      ).toBe(true);
+      const instructorOverview = getScheduleOverview({
+        userId: live!.instructorId,
+        role: ROLES.INSTRUCTOR,
+      });
+      expect(
+        instructorOverview.firstLectures.some((row) => row.studentId === student!.studentId),
+      ).toBe(true);
+      expect(
+        instructorOverview.upcoming.some(
+          (session) => session.id === reenrolled.firstLectureLiveClassId,
+        ),
+      ).toBe(true);
+    },
+  );
 
   it("keeps TKI 1 confirmation on the CGI console and student surfaces", () => {
     const cgiRoute = readFileSync(path.join(process.cwd(), "app/api/cgi/route.ts"), "utf8");
@@ -674,90 +678,96 @@ describe("ATPL Complete Package journey", () => {
     ).rejects.toThrow(/already open/);
   });
 
-  it("lets TKI 1 complete General Navigation then open Radio Navigation", async () => {
-    ensureDemoUsersSeeded();
-    ensureCoursesSeeded();
-    ensurePaymentsSeeded();
-    writeCgiDb((db) => {
-      db.settings.defaultFirstSubjectCourseId = null;
-    });
-    const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
-    const requested = validAtplPackageSchedule();
-    const paid = await payGuestCheckout({
-      firstName: "Lina",
-      lastName: "Farah",
-      email: `tki.complete.${Date.now()}@aviatorpass.test`,
-      phone: "+96550007777",
-      country: "KW",
-      billingName: "Lina Farah",
-      billingAddress: "Kuwait City",
-      ...requested,
-      methodBrand: "card",
-      paymentToken: "tok_4242",
-      idempotencyKey: `tki-complete-${Date.now()}`,
-    });
-    const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
-    expect(student?.studentId).toBeTruthy();
+  it(
+    "lets TKI 1 complete General Navigation then open Radio Navigation",
+    { timeout: 300_000 },
+    async () => {
+      ensureDemoUsersSeeded();
+      ensureCoursesSeeded();
+      ensurePaymentsSeeded();
+      writeCgiDb((db) => {
+        db.settings.defaultFirstSubjectCourseId = null;
+      });
+      const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
+      const requested = validAtplPackageSchedule();
+      const paid = await payGuestCheckout({
+        firstName: "Lina",
+        lastName: "Farah",
+        email: `tki.complete.${Date.now()}@aviatorpass.test`,
+        phone: "+96550007777",
+        country: "KW",
+        billingName: "Lina Farah",
+        billingAddress: "Kuwait City",
+        ...requested,
+        methodBrand: "card",
+        paymentToken: "tok_4242",
+        idempotencyKey: `tki-complete-${Date.now()}`,
+      });
+      const student = listAtplStudents().find((s) => s.email === paid.order.studentEmail);
+      expect(student?.studentId).toBeTruthy();
 
-    await expect(
-      completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
-    ).rejects.toThrow(/Confirm the first lecture/);
+      await expect(
+        completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
+      ).rejects.toThrow(/Confirm the first lecture/);
 
-    await confirmAtplPackageSchedule({
-      studentId: student!.studentId,
-      actorId: cgi.id,
-    });
-    await expect(
-      completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
-    ).rejects.toThrow(/Open General Navigation/);
+      await confirmAtplPackageSchedule({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+      });
+      await expect(
+        completeAtplPackageSubject({ studentId: student!.studentId, actorId: cgi.id }),
+      ).rejects.toThrow(/Open General Navigation/);
 
-    const nextWhen = uniqueLectureSlot(43, 8);
-    const opened = await openNextAtplPackageSubject({
-      studentId: student!.studentId,
-      actorId: cgi.id,
-      studyStartDate: nextWhen.studyStartDate,
-      lectureTime: nextWhen.lectureTime,
-    });
-    expect(opened.nextSubjectTitle).toBe("General Navigation");
-    expect(opened.nextSubjectStatus).toBe("available");
-    expect(
-      getCgiDashboardSnapshot().readyToCompleteSubject.some(
-        (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "General Navigation",
-      ),
-    ).toBe(true);
+      const nextWhen = uniqueLectureSlot(43, 8);
+      const opened = await openNextAtplPackageSubject({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+        studyStartDate: nextWhen.studyStartDate,
+        lectureTime: nextWhen.lectureTime,
+      });
+      expect(opened.nextSubjectTitle).toBe("General Navigation");
+      expect(opened.nextSubjectStatus).toBe("available");
+      expect(
+        getCgiDashboardSnapshot().readyToCompleteSubject.some(
+          (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "General Navigation",
+        ),
+      ).toBe(true);
 
-    const completed = await completeAtplPackageSubject({
-      studentId: student!.studentId,
-      actorId: cgi.id,
-    });
-    expect(completed.subjects.find((subject) => subject.code === "061")?.status).toBe("completed");
-    expect(completed.nextSubjectCode).toBe("062");
-    expect(completed.nextSubjectTitle).toBe("Radio Navigation");
-    expect(completed.nextSubjectStatus).toBe("locked");
-    expect(ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE).toMatch(/marked this subject complete/);
-    expect(
-      getCgiDashboardSnapshot().readyToCompleteSubject.some(
-        (s) => s.email === paid.order.studentEmail,
-      ),
-    ).toBe(false);
-    expect(
-      getCgiDashboardSnapshot().readyForNextSubject.some(
-        (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "Radio Navigation",
-      ),
-    ).toBe(true);
+      const completed = await completeAtplPackageSubject({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+      });
+      expect(completed.subjects.find((subject) => subject.code === "061")?.status).toBe(
+        "completed",
+      );
+      expect(completed.nextSubjectCode).toBe("062");
+      expect(completed.nextSubjectTitle).toBe("Radio Navigation");
+      expect(completed.nextSubjectStatus).toBe("locked");
+      expect(ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE).toMatch(/marked this subject complete/);
+      expect(
+        getCgiDashboardSnapshot().readyToCompleteSubject.some(
+          (s) => s.email === paid.order.studentEmail,
+        ),
+      ).toBe(false);
+      expect(
+        getCgiDashboardSnapshot().readyForNextSubject.some(
+          (s) => s.email === paid.order.studentEmail && s.nextSubjectTitle === "Radio Navigation",
+        ),
+      ).toBe(true);
 
-    const radioWhen = uniqueLectureSlot(52, 9);
-    const radio = await openNextAtplPackageSubject({
-      studentId: student!.studentId,
-      actorId: cgi.id,
-      studyStartDate: radioWhen.studyStartDate,
-      lectureTime: radioWhen.lectureTime,
-    });
-    expect(radio.nextSubjectCode).toBe("062");
-    expect(radio.nextSubjectTitle).toBe("Radio Navigation");
-    expect(radio.nextSubjectStatus).toBe("available");
-    expect(radio.nextLectureLiveClassId).toBeTruthy();
-  });
+      const radioWhen = uniqueLectureSlot(52, 9);
+      const radio = await openNextAtplPackageSubject({
+        studentId: student!.studentId,
+        actorId: cgi.id,
+        studyStartDate: radioWhen.studyStartDate,
+        lectureTime: radioWhen.lectureTime,
+      });
+      expect(radio.nextSubjectCode).toBe("062");
+      expect(radio.nextSubjectTitle).toBe("Radio Navigation");
+      expect(radio.nextSubjectStatus).toBe("available");
+      expect(radio.nextLectureLiveClassId).toBeTruthy();
+    },
+  );
 
   it("keeps next-subject opening on the CGI console and student surfaces", () => {
     const cgiRoute = readFileSync(path.join(process.cwd(), "app/api/cgi/route.ts"), "utf8");
