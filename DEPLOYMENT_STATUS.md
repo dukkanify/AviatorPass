@@ -36,7 +36,7 @@ npm run deploy:production
 
 That POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` and expects HTTP 201.
 
-GitHub Actions workflow `.github/workflows/deploy-aviatorpass-production.yml` runs the same script on push to `main` and on `workflow_dispatch`.
+GitHub Actions workflow `.github/workflows/deploy-aviatorpass-production.yml` runs the same script on push to `main` and on `workflow_dispatch`. A missing hook on `push` is SKIP (Vercel Git still deploys `main`). `workflow_dispatch` and `npm run deploy:production` still require the secret.
 
 3. Verify:
 
