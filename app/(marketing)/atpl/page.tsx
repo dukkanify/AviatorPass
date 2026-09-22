@@ -5,6 +5,7 @@ import { AtplProgramPageContent } from "@/features/marketing/components/atpl-pro
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { ATPL_FAQS } from "@/features/marketing/content/atpl-course-landing";
+import { resolveRequestCheckoutCountry } from "@/lib/marketing/checkout-country";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
@@ -23,8 +24,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AtplCoursePage() {
-  const { enrollHref, priceLabel } = getAtplProgramMarketing();
+export default async function AtplCoursePage() {
+  const country = await resolveRequestCheckoutCountry();
+  const { enrollHref, priceLabel } = getAtplProgramMarketing(country);
   const subjects = listAtplPackageReviewSubjects();
 
   return (

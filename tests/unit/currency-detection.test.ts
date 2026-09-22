@@ -39,9 +39,9 @@ describe("checkout currency detection", () => {
     expect(currencyForCountry("ZA")).toBe("ZAR");
   });
 
-  it("falls back to USD when country is unknown", () => {
-    expect(currencyForCountry("ZZ")).toBe(DEFAULT_CHECKOUT_CURRENCY);
-    expect(currencyForCountry(null)).toBe("USD");
+  it("falls back to USD for unmapped countries and KWD when country is empty", () => {
+    expect(currencyForCountry("NG")).toBe(DEFAULT_CHECKOUT_CURRENCY);
+    expect(currencyForCountry(null)).toBe("KWD");
     expect(normalizeCountryCode("XX")).toBeNull();
   });
 
@@ -49,6 +49,34 @@ describe("checkout currency detection", () => {
     expect(countryFromLocale("en-GB")).toBe("GB");
     expect(countryFromLocale("ar-AE,ar;q=0.9")).toBe("AE");
     expect(countryFromLocale("fr")).toBeNull();
+  });
+
+  it("does not treat Gulf language packs as location", () => {
+    expect(detectCheckoutCurrency({ locale: "ar-AE,ar;q=0.9,en;q=0.8" })).toEqual({
+      country: "KW",
+      currency: "KWD",
+      source: "fallback",
+    });
+    expect(detectCheckoutCurrency({ locale: "en-GB" })).toEqual({
+      country: "GB",
+      currency: "GBP",
+      source: "locale",
+    });
+  });
+
+  it("prefers geo IP over a Gulf locale, and cookie over geo", () => {
+    expect(detectCheckoutCurrency({ geoCountry: "AE", locale: "ar-KW" })).toEqual({
+      country: "AE",
+      currency: "AED",
+      source: "geo",
+    });
+    expect(
+      detectCheckoutCurrency({
+        cookieCountry: "KW",
+        geoCountry: "AE",
+        locale: "ar-AE",
+      }),
+    ).toEqual({ country: "KW", currency: "KWD", source: "cookie" });
   });
 
   it("prefers billing country over geo and locale", () => {
