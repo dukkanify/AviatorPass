@@ -70,7 +70,7 @@ Set these in Cursor Cloud secrets and the GitHub Environment `Production`. Never
 npm run deploy:production
 ```
 
-That command POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only and refuses retired hooks. 6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`). 7. Storage: `BLOB_READ_WRITE_TOKEN` (Vercel Blob) or Supabase `aep-uploads`. Local `public/uploads` is only for single-node demos — health fails on Vercel without a durable backend. 8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops). 9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
+That command POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only and refuses retired hooks. On GitHub Actions `push` to `main`, a missing hook is a skip (Vercel Git still deploys); `workflow_dispatch` still requires the secret. 6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`). 7. Storage: `BLOB_READ_WRITE_TOKEN` (Vercel Blob) or Supabase `aep-uploads`. Local `public/uploads` is only for single-node demos — health fails on Vercel without a durable backend. 8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops). 9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
 
 ## Validation after env change
 

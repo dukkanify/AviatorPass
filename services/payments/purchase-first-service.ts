@@ -233,13 +233,15 @@ export async function quotePublicCheckout(input: {
   country?: string | null;
   locale?: string | null;
   geoCountry?: string | null;
+  cookieCountry?: string | null;
 }): Promise<GuestCheckoutQuote> {
   const detection = detectCheckoutCurrency({
     country: input.country,
     geoCountry: input.geoCountry,
     locale: input.locale,
+    cookieCountry: input.cookieCountry,
   });
-  const base = quoteGuestCheckout(input.productId, detection.country ?? "US");
+  const base = quoteGuestCheckout(input.productId, detection.country);
   return {
     ...base,
     detectedCountry: base.detectedCountry,
@@ -1049,7 +1051,7 @@ export async function startHostedCheckout(input: {
   const stamp = nowIso();
   const origin = appOrigin();
   const placeholderEmail = email || `pending+${generateId().slice(0, 10)}@checkout.invalid`;
-  const country = (detection.country ?? "US").toUpperCase();
+  const country = detection.country.toUpperCase();
   const item: OrderItem = {
     id: generateId(),
     productId: product.id,

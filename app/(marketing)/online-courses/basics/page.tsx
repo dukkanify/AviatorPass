@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
 import { BASICS_PAGE } from "@/features/marketing/content/online-courses";
+import { resolveRequestCheckoutCountry } from "@/lib/marketing/checkout-country";
 import { getJourneyEnrollMarketing } from "@/lib/marketing/journey-enroll-marketing";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams?: Promise<{ mode?: string }> };
+type PageProps = { searchParams?: Promise<{ mode?: string; country?: string }> };
 
 export const metadata: Metadata = {
   title: "Basics of Aviation",
@@ -23,7 +24,8 @@ export default async function BasicsOfAviationPage({ searchParams }: PageProps) 
   const params = (await searchParams) ?? {};
   const live = params.mode === "live";
   const sku = live ? "BASICS-LIVE" : "BASICS-RECORDED";
-  const { enrollHref, priceLabel } = getJourneyEnrollMarketing(sku);
+  const country = await resolveRequestCheckoutCountry(params.country);
+  const { enrollHref, priceLabel } = getJourneyEnrollMarketing(sku, country);
 
   return (
     <div className="landing-root home-premium">

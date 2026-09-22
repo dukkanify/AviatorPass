@@ -27,6 +27,10 @@ import {
 } from "@/constants/countries";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
+import {
+  readCheckoutCountryCookie,
+  writeCheckoutCountryCookie,
+} from "@/services/payments/currency-detection";
 import type { CatalogProduct, PaymentMethodBrand } from "@/types/payments";
 
 type Quote = {
@@ -127,7 +131,7 @@ function GuestCheckoutView() {
     lastName: "",
     email: "",
     phone: "",
-    country: search.get("country")?.toUpperCase() ?? "",
+    country: search.get("country")?.toUpperCase() || readCheckoutCountryCookie() || "",
     billingAddress: "",
     studyStartDate: "",
     firstLectureTime: "",
@@ -375,12 +379,14 @@ function GuestCheckoutView() {
                 id="country"
                 className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base sm:h-10 sm:text-sm"
                 value={form.country}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const nextCountry = e.target.value;
+                  writeCheckoutCountryCookie(nextCountry);
                   setForm((f) => ({
                     ...f,
-                    ...withCountryDial(f, e.target.value, checkoutCountries(quote)),
-                  }))
-                }
+                    ...withCountryDial(f, nextCountry, checkoutCountries(quote)),
+                  }));
+                }}
               >
                 {checkoutCountries(quote).map((c) => (
                   <option key={c.code} value={c.code}>
@@ -392,7 +398,7 @@ function GuestCheckoutView() {
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Choosing a country fills its calling code in the mobile number.
+                Prices, currency, and instalment options follow the selected country.
               </p>
             </div>
             <div className="space-y-2 sm:col-span-2">

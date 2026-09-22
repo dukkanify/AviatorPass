@@ -19,6 +19,8 @@ jobs:
         with:
           node-version: 22
 
+      # Missing hook on `push` is SKIP (Vercel Git still deploys main).
+      # workflow_dispatch still requires VERCEL_AVIATORPASS_DEPLOY_HOOK.
       - name: Trigger production deploy hook
         env:
           VERCEL_AVIATORPASS_DEPLOY_HOOK: ${{ secrets.VERCEL_AVIATORPASS_DEPLOY_HOOK }}

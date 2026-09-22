@@ -82,21 +82,21 @@ const OFFER_DEFS = [
   },
 ] as const;
 
-function enrollForSku(sku: JourneySku, fallbackHref: string) {
+function enrollForSku(sku: JourneySku, fallbackHref: string, country?: string | null) {
   if (sku === "ATPL-PACKAGE") {
-    const atpl = getAtplProgramMarketing();
+    const atpl = getAtplProgramMarketing(country);
     return { enrollHref: atpl.enrollHref, priceLabel: atpl.priceLabel ?? "View pricing" };
   }
-  const journey = getJourneyEnrollMarketing(sku);
+  const journey = getJourneyEnrollMarketing(sku, country);
   return {
     enrollHref: journey.enrollHref || fallbackHref,
     priceLabel: journey.priceLabel ?? "View pricing",
   };
 }
 
-function buildOffers(): CourseOffer[] {
+function buildOffers(country?: string | null): CourseOffer[] {
   return OFFER_DEFS.map((def) => {
-    const pricing = enrollForSku(def.sku, def.href);
+    const pricing = enrollForSku(def.sku, def.href, country);
     return {
       id: def.id,
       title: def.title,
@@ -160,7 +160,7 @@ export function listCourseOffers(input: {
   activityHints?: string[];
   studentType?: "new" | "returning";
 }): { featured: CourseOffer[]; recommended: CourseOffer[]; hasEnrollments: boolean } {
-  const featured = buildOffers();
+  const featured = buildOffers(input.countryCode);
   const recommended = [...featured]
     .map((offer) => ({
       offer,
