@@ -55,6 +55,15 @@ afterAll(() => {
   patchStoredSettings(
     {
       email: {
+        provider: "smtp",
+        smtpHost: "",
+        smtpPort: 587,
+        smtpUsername: "",
+        smtpPassword: "",
+        encryption: "tls",
+        senderName: "AviatorPass",
+        senderEmail: "noreply@aviatorpass.test",
+        replyToEmail: "support@aviatorpass.test",
         adminNotificationEmail: "",
       },
     },

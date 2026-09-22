@@ -20,7 +20,7 @@ import {
 import { ensureCustomerJourneyProducts } from "@/services/journeys/customer-journey-catalog";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { readPaymentsDb } from "@/services/payments/store";
-import { patchStoredSettings } from "@/services/settings/store";
+import { getStoredSettings, patchStoredSettings } from "@/services/settings/store";
 import {
   defaultMockExamSettings,
   ensureMockExamsSeeded,
@@ -32,7 +32,10 @@ import {
 describe("ELP mock exam customer journey", () => {
   beforeEach(() => {
     delete process.env.ADMIN_NOTIFICATION_EMAIL;
-    patchStoredSettings({ email: { adminNotificationEmail: "" } }, null);
+    patchStoredSettings(
+      { email: { ...getStoredSettings().email, adminNotificationEmail: "" } },
+      null,
+    );
     ensureDemoUsersSeeded();
     resetMockExamsDbCache();
     writeMockExamsDb((db) => {
