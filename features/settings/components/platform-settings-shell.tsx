@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Globe, Loader2, RefreshCw, Save, Search, Send } from "lucide-react";
+import { Globe, Loader2, RefreshCw, Save, Search, Send, ShieldCheck } from "lucide-react";
+
+import { ResendDnsRecords } from "@/features/settings/components/resend-dns-records";
+import type { ResendDomainRecord } from "@/services/email/resend-dns";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -153,9 +156,10 @@ function PlatformSettingsShell() {
     senderEmail?: string | null;
     resend?: {
       domainVerified?: boolean;
+      domainId?: string | null;
       senderDomain?: string;
       error?: string | null;
-      records?: Array<{ type: string; name: string; value: string; status?: string }>;
+      records?: ResendDomainRecord[];
     };
     recent?: Array<{
       to?: string;
@@ -166,6 +170,7 @@ function PlatformSettingsShell() {
     }>;
   } | null>(null);
   const [registeringDomain, setRegisteringDomain] = React.useState(false);
+  const [verifyingDomain, setVerifyingDomain] = React.useState(false);
 
   const dirty = React.useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(draft),
@@ -208,9 +213,10 @@ function PlatformSettingsShell() {
       senderEmail?: string | null;
       resend: {
         domainVerified?: boolean;
+        domainId?: string | null;
         senderDomain?: string;
         error?: string | null;
-        records?: Array<{ type: string; name: string; value: string; status?: string }>;
+        records?: ResendDomainRecord[];
       };
       recent: Array<{
         to?: string;
@@ -743,14 +749,15 @@ function PlatformSettingsShell() {
                       setRegisteringDomain(true);
                       const result = await authFetch<{
                         registered?: { ok?: boolean; error?: string };
+                        resend?: { records?: ResendDomainRecord[] };
                       }>("/api/admin/settings/email-status", {
                         method: "POST",
-                        body: JSON.stringify({}),
+                        body: JSON.stringify({ action: "register" }),
                       });
                       setRegisteringDomain(false);
                       if (result.success) {
                         toast.success(
-                          "Resend domain registered. Add the DNS records below, then verify in Resend.",
+                          "Resend domain registered. Copy the DNS records into Namecheap, then click Verify DNS.",
                         );
                         await loadEmailStatus();
                       } else {
@@ -760,6 +767,39 @@ function PlatformSettingsShell() {
                   >
                     <Globe className="h-4 w-4" />
                     {registeringDomain ? "Registering…" : "Register domain"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      verifyingDomain ||
+                      Boolean(emailStatus.resend?.domainVerified) ||
+                      !emailStatus.resend?.domainId
+                    }
+                    onClick={async () => {
+                      setVerifyingDomain(true);
+                      const result = await authFetch<{
+                        verified?: { ok?: boolean; error?: string };
+                      }>("/api/admin/settings/email-status", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          action: "verify",
+                          domainId: emailStatus.resend?.domainId,
+                        }),
+                      });
+                      setVerifyingDomain(false);
+                      if (result.success) {
+                        toast.success(
+                          "Resend is checking DNS. Refresh status after a minute if it is still pending.",
+                        );
+                        await loadEmailStatus();
+                      } else {
+                        toast.error(result.error ?? "Could not verify DNS with Resend");
+                      }
+                    }}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    {verifyingDomain ? "Verifying…" : "Verify DNS"}
                   </Button>
                 </div>
               </CardHeader>
@@ -776,16 +816,10 @@ function PlatformSettingsShell() {
                     : null}
                   .
                 </p>
-                {emailStatus.resend?.records && emailStatus.resend.records.length > 0 ? (
-                  <div className="space-y-2 text-xs">
-                    {emailStatus.resend.records.map((row) => (
-                      <p key={`${row.type}-${row.name}`} className="font-mono break-all">
-                        {row.type} {row.name} → {row.value}
-                        {row.status ? ` (${row.status})` : ""}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
+                <ResendDnsRecords
+                  domain={emailStatus.resend?.senderDomain || ""}
+                  records={emailStatus.resend?.records ?? []}
+                />
                 {emailStatus.recent && emailStatus.recent.length > 0 ? (
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <p className="font-medium text-foreground">Recent outbound</p>
