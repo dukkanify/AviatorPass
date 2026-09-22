@@ -615,6 +615,7 @@ export async function notifyRole(
     type: string;
     data?: Record<string, unknown>;
     actionUrl?: string | null;
+    email?: boolean;
   },
 ) {
   const users = readAuthDb().users.filter((u) => u.role === role && u.status === "active");
@@ -633,14 +634,22 @@ export function notificationTypeToEmailEvent(type: string): EmailAutomationEvent
     return "admin_alert";
   }
   if (type.startsWith("instructor.") || type.startsWith("cgi.")) return "instructor_alert";
-  if (type === "account.welcome" || type === "account.created" || type === "account.email_verified") {
+  if (
+    type === "account.welcome" ||
+    type === "account.created" ||
+    type === "account.email_verified"
+  ) {
     return "registration";
   }
   if (type === "account.password_reset" || type === "account.password_changed") {
     return "password_reset";
   }
   if (type.includes("refund")) return "refund";
-  if (type.includes("enroll") || type === "course.access_granted" || type === "course.atpl_enrolled") {
+  if (
+    type.includes("enroll") ||
+    type === "course.access_granted" ||
+    type === "course.atpl_enrolled"
+  ) {
     return "enrollment";
   }
   if (type === "course.published" || type === "course.subject_unlocked") return "course_published";
@@ -649,11 +658,7 @@ export function notificationTypeToEmailEvent(type: string): EmailAutomationEvent
   if (type === "class.finished" || type === "zoom.meeting.finished") return "class_finished";
   if (type === "class.cancelled" || type === "zoom.meeting.cancelled") return "cancel";
   if (type === "class.rescheduled" || type === "zoom.meeting.updated") return "reschedule";
-  if (
-    type === "class.scheduled" ||
-    type === "class.created" ||
-    type === "zoom.meeting.created"
-  ) {
+  if (type === "class.scheduled" || type === "class.created" || type === "zoom.meeting.created") {
     return "schedule";
   }
   if (type.startsWith("class.reminder") || type.includes("reminder")) return "reminder";

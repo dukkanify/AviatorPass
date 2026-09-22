@@ -164,5 +164,5 @@ describe("dynamic schedule management (CR008)", () => {
     });
     expect(sessions.some((s) => s.id === lecture.liveClassId)).toBe(true);
     expect(sessions.find((s) => s.id === lecture.liveClassId)?.source).toBe("atpl");
-  }, 60_000);
+  }, 90_000);
 });

@@ -220,13 +220,12 @@ export function renderAutomationTemplate(
       break;
     case "refund":
       payload = {
-        title: subjectOverride ?? "Refund processed",
+        title: subjectOverride ?? str(data, "title", "Refund processed"),
         preheader: amount || detail,
         bodyHtml: `<p>Hello ${name},</p>
-          <p>A refund has been issued.</p>
+          <p>${detail || "A refund has been issued."}</p>
           ${amount ? `<p>Amount: <strong>${amount}</strong></p>` : ""}
-          ${reference ? `<p>Reference: ${reference}</p>` : ""}
-          <p>${detail}</p>`,
+          ${reference ? `<p>Reference: ${reference}</p>` : ""}`,
       };
       break;
     case "password_reset":
