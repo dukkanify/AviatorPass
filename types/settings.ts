@@ -101,6 +101,11 @@ export interface ZoomIntegrationSettings {
 }
 
 export interface AuthenticationSettings {
+  /**
+   * When false, the fixed demo OTP (123456) is off even if ENABLE_DEMO_OTP=true.
+   * Always ignored on live production.
+   */
+  allowDemoOtp: boolean;
   otpExpirationMinutes: number;
   /** Max wrong OTP attempts before lockout (default 5). */
   otpMaxAttempts: number;

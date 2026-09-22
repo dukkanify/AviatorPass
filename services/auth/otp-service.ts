@@ -5,7 +5,7 @@
  * change-email, sensitive actions, and future 2FA.
  */
 
-import { getServerEnv } from "@/config/env";
+import { getServerEnv, isLiveProductionRuntime } from "@/config/env";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import {
@@ -95,8 +95,10 @@ export function getOtpPolicy(): OtpPolicy {
 }
 
 export function demoOtpEnabled(): boolean {
+  if (isLiveProductionRuntime()) return false;
   const env = getServerEnv();
   if (!env.ENABLE_DEMO_OTP) return false;
+  if (getPlatformSettings().authentication.allowDemoOtp === false) return false;
   if (process.env.NODE_ENV !== "production") return true;
   if (process.env.FORCE_DEMO_OTP === "true") return true;
   return process.env.NEXT_PUBLIC_APP_ENV !== "production";

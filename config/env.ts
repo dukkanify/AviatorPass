@@ -33,7 +33,7 @@ const serverEnvSchema = z.object({
   AUTH_REMEMBER_ME_DAYS: z.coerce.number().int().positive().default(30),
   ENABLE_DEMO_OTP: z
     .enum(["true", "false"])
-    .default("true")
+    .default("false")
     .transform((v) => v === "true"),
   DEMO_OTP_CODE: z
     .string()
@@ -103,6 +103,13 @@ function parsePublicEnv() {
 }
 
 export const publicEnv = parsePublicEnv();
+
+/** Live AviatorPass production — never accept the fixed demo OTP here. */
+export function isLiveProductionRuntime(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_APP_ENV === "production" || process.env.VERCEL_ENV === "production"
+  );
+}
 
 export function getServerEnv() {
   if (typeof window !== "undefined") {
@@ -177,7 +184,7 @@ export function getServerEnv() {
     );
   }
 
-  if (appEnv === "production" && data.ENABLE_DEMO_OTP) {
+  if (isLiveProductionRuntime() && data.ENABLE_DEMO_OTP) {
     console.error("[env] ENABLE_DEMO_OTP forced off in production");
     return { ...data, ENABLE_DEMO_OTP: false };
   }
