@@ -18,8 +18,10 @@ What is already true in Vercel Production:
 | Provider stored in settings | `smtp` (ignored when only Resend is set)                                                             |
 | SPF                         | `v=spf1 +a +mx +ip4:162.0.229.206 include:spf.web-hosting.com ~all` (Namecheap mail, **not** Resend) |
 | DKIM for Resend             | **Missing** (`resend._domainkey.aviatorpass.com` NXDOMAIN)                                           |
+| `send` MX / TXT             | **Missing** (Resend bounce / SPF host not published)                                                 |
 | DMARC                       | `v=DMARC1; p=none;`                                                                                  |
-| DNS host                    | Namecheap (`dns1.namecheaphosting.com`)                                                              |
+| DNS host                    | Namecheap **hosting** NS (`dns1.namecheaphosting.com` / `dns2.namecheaphosting.com`)                 |
+| Where to add records        | **cPanel → Zone Editor** — not Namecheap Domain List → Advanced DNS                                  |
 
 The mailer calls Resend, Resend rejects the From domain, OTP `failClosed` rolls back the challenge, and the API returns **We could not send the verification email.**
 
@@ -35,9 +37,12 @@ Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
 
 1. Open [Resend Domains](https://resend.com/domains) with the same account as `RESEND_API_KEY`.
 2. Add `aviatorpass.com` (or click **Register domain** in Super Admin → Platform Settings → Email).
-3. At Namecheap / cPanel DNS, add the records Resend shows (typically):
-   - **MX / TXT SPF** — include Resend (`include:amazonses.com` or the exact include Resend prints). Keep existing Namecheap mail if you still receive mail at that domain.
-   - **CNAME DKIM** — `resend._domainkey` (and any extra selectors Resend lists).
+3. Open **cPanel → Zone Editor** for `aviatorpass.com`. Public NS are Namecheap _hosting_ (`dns1.namecheaphosting.com`). Do **not** use Namecheap Domain List → Advanced DNS — those records stay unpublished while hosting NS are in use.
+   Super Admin → Platform Settings → Email shows a live public-DNS probe and a **Copy TSV** sheet (`Type / Host / Value / TTL / Priority`). Typical Resend rows:
+   - **MX** Host `send` Priority `10` → `feedback-smtp.us-east-1.amazonses.com` (or the exact MX Resend prints).
+   - **TXT** Host `send` → `v=spf1 include:amazonses.com ~all`.
+   - **TXT** Host `resend._domainkey` → the DKIM public key Resend prints.
+   - Keep the apex SPF / MX for existing Namecheap mailbox mail.
    - Optional **DMARC** stay `p=none` until inboxing is confirmed.
 4. Click **Verify** in Resend. Wait until status is `verified`.
 5. Confirm `EMAIL_FROM` / Platform sender is `AviatorPass <noreply@aviatorpass.com>` (or another mailbox on the verified domain).
@@ -50,7 +55,7 @@ Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fai
 - Resend is tried first when `RESEND_API_KEY` is set; SMTP is the fallback.
 - Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro).
 - Non-OTP notification emails go through the automation catalog (in-app + email). OTP itself is still sent only by the existing OTP engine — no second “code sent” email.
-- Super Admin → Platform Settings → Email shows Resend domain status, DNS records, **Register domain**, the resolved admin copy inbox, and recent outbound. **Test email** sends to that inbox.
+- Super Admin → Platform Settings → Email shows Resend domain status, public nameservers, a public-DNS probe vs Resend expected records, a cPanel / Namecheap **Copy TSV** sheet, **Register domain**, the resolved admin copy inbox, and recent outbound. **Test email** sends to that inbox.
 
 ## Environment
 

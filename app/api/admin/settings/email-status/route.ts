@@ -11,16 +11,33 @@ import {
   registerResendDomain,
   verifyResendDomain,
 } from "@/services/email/resend-status";
+import { createNodeDnsLookup, probePublicDns } from "@/services/email/public-dns-probe";
 import { isEmailDeliveryConfigured } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
+
+async function withPublicDns(status: Awaited<ReturnType<typeof inspectResendDelivery>>) {
+  try {
+    const lookup = await createNodeDnsLookup();
+    const dns = await probePublicDns({
+      domain: status.senderDomain,
+      records: status.records,
+      lookup,
+    });
+    return { ...status, dns };
+  } catch {
+    return status;
+  }
+}
 
 export async function GET() {
   try {
     await requirePermission(PERMISSIONS.SYSTEM_EMAIL);
     const settings = getPlatformSettings();
     const admin = resolveAdminNotificationEmail(settings);
-    const status = await inspectResendDelivery({ senderEmail: settings.email.senderEmail });
+    const status = await withPublicDns(
+      await inspectResendDelivery({ senderEmail: settings.email.senderEmail }),
+    );
     const recent = listOutboundEmails(10).map((m) => ({
       id: m.id,
       to: m.to,
@@ -66,7 +83,9 @@ export async function POST(request: Request) {
       const inspected = await inspectResendDelivery({ senderEmail: settings.email.senderEmail });
       const domainId = (body?.domainId || inspected.domainId || "").trim();
       const verified = await verifyResendDomain(domainId);
-      const status = await inspectResendDelivery({ senderEmail: settings.email.senderEmail });
+      const status = await withPublicDns(
+        await inspectResendDelivery({ senderEmail: settings.email.senderEmail }),
+      );
       return NextResponse.json({
         success: verified.ok,
         data: { verified, resend: status },
@@ -76,7 +95,9 @@ export async function POST(request: Request) {
 
     const domain = (body?.domain || settings.email.senderEmail.split("@")[1] || "").trim();
     const registered = await registerResendDomain(domain);
-    const status = await inspectResendDelivery({ senderEmail: settings.email.senderEmail });
+    const status = await withPublicDns(
+      await inspectResendDelivery({ senderEmail: settings.email.senderEmail }),
+    );
     return NextResponse.json({
       success: registered.ok,
       data: { registered, resend: status },
