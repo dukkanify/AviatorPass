@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { generateId } from "@/lib/security/crypto";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { findUserByEmail, readAuthDb } from "@/services/auth/store";
+import { findUserByEmail, readAuthDb, toUserProfile } from "@/services/auth/store";
 import { resetAutomationStoreForTests } from "@/services/email/automation-store";
 import { getLatestOutboundTo, listOutboundEmails } from "@/services/email/outbox";
 import { requestRefund, reviewRefund } from "@/services/payments/refund-service";
@@ -57,7 +57,7 @@ function paidOrderFor(student: UserProfile) {
       id: orderId,
       orderNumber: `ORD-REFUND-${orderId.slice(0, 6)}`,
       studentId: student.id,
-      studentName: student.name,
+      studentName: student.fullName ?? student.email,
       studentEmail: student.email,
       status: "paid",
       currency: "KWD",
@@ -68,7 +68,7 @@ function paidOrderFor(student: UserProfile) {
       totalAmount: 120000,
       couponId: null,
       couponCode: null,
-      billingName: student.name,
+      billingName: student.fullName ?? student.email,
       billingEmail: student.email,
       billingCountry: "KW",
       billingAddress: "",
@@ -136,8 +136,8 @@ function paidOrderFor(student: UserProfile) {
 
 describe("refund notification emails", () => {
   it("emails the student and copies admin when a refund is approved", async () => {
-    const student = findUserByEmail("student@aviatorpass.com")!;
-    const admin = findUserByEmail("superadmin@aviatorpass.com")!;
+    const student = toUserProfile(findUserByEmail("student@aviatorpass.com")!);
+    const admin = toUserProfile(findUserByEmail("superadmin@aviatorpass.com")!);
     const order = paidOrderFor(student);
     const refund = await requestRefund({
       user: student,
@@ -169,8 +169,8 @@ describe("refund notification emails", () => {
   });
 
   it("emails the student when a refund is rejected", async () => {
-    const student = findUserByEmail("student@aviatorpass.com")!;
-    const admin = findUserByEmail("superadmin@aviatorpass.com")!;
+    const student = toUserProfile(findUserByEmail("student@aviatorpass.com")!);
+    const admin = toUserProfile(findUserByEmail("superadmin@aviatorpass.com")!);
     const order = paidOrderFor(student);
     const refund = await requestRefund({
       user: student,
