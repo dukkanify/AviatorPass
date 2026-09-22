@@ -35,6 +35,8 @@ describe("checkout country calling codes", () => {
     expect(checkoutView).toContain("countryOptionLabel");
     expect(checkoutView).toContain("applyCountryDialCode");
     expect(checkoutView).toContain("withCountryDial");
-    expect(checkoutView).toContain("Choosing a country fills its calling code");
+    expect(checkoutView).toContain(
+      "Prices, currency, and instalment options follow the selected country",
+    );
   });
 });
