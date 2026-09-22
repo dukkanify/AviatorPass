@@ -1,24 +1,24 @@
 /**
  * Decide whether to POST the AviatorPass production deploy hook.
- * Never logs or returns the hook URL.
+ * Never logs the hook URL.
  */
 
-function fail(message) {
+export type DeployHookDecision = {
+  ok: boolean;
+  action: "post" | "skip" | "fail";
+  message: string;
+  hook?: string;
+  hookProjectId?: string;
+  hookId?: string;
+};
+
+function fail(message: string): DeployHookDecision {
   return { ok: false, action: "fail", message };
 }
 
-/**
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {{
- *   ok: boolean;
- *   action: "post" | "skip" | "fail";
- *   message: string;
- *   hook?: string;
- *   hookProjectId?: string;
- *   hookId?: string;
- * }}
- */
-export function inspectDeployHook(env = process.env) {
+export function inspectDeployHook(
+  env: Record<string, string | undefined> = process.env,
+): DeployHookDecision {
   const hook = String(env.VERCEL_AVIATORPASS_DEPLOY_HOOK || "").trim();
   const projectId = String(env.VERCEL_PROJECT_ID || "").trim();
   const actionsPush = env.GITHUB_ACTIONS === "true" && env.GITHUB_EVENT_NAME === "push";
@@ -35,7 +35,7 @@ export function inspectDeployHook(env = process.env) {
     return fail("VERCEL_AVIATORPASS_DEPLOY_HOOK is not set");
   }
 
-  let parsed;
+  let parsed: URL;
   try {
     parsed = new URL(hook);
   } catch {

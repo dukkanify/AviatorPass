@@ -3,13 +3,14 @@
  * Trigger AviatorPass production deploy via Cursor / GitHub secret
  * `VERCEL_AVIATORPASS_DEPLOY_HOOK` only. Never hardcode a hook URL.
  *
+ * Keep inspect rules aligned with lib/ops/production-deploy-hook.ts.
+ *
  * Usage: node scripts/trigger-production-deploy.mjs
  *
  * On GitHub Actions `push` to main, a missing hook is SKIP (Vercel Git still
  * deploys). Local `npm run deploy:production` and workflow_dispatch still FAIL
  * until the secret is set.
  */
-import { inspectDeployHook } from "./lib/production-deploy-hook.mjs";
 
 const projectId = (process.env.VERCEL_PROJECT_ID || "").trim();
 const orgId = (process.env.VERCEL_ORG_ID || "").trim();
@@ -18,6 +19,73 @@ const token = (process.env.VERCEL_TOKEN || "").trim();
 function fail(message) {
   console.error(`FAIL  ${message}`);
   process.exit(1);
+}
+
+function inspectDeployHook(env) {
+  const hook = String(env.VERCEL_AVIATORPASS_DEPLOY_HOOK || "").trim();
+  const expectedProject = String(env.VERCEL_PROJECT_ID || "").trim();
+  const actionsPush = env.GITHUB_ACTIONS === "true" && env.GITHUB_EVENT_NAME === "push";
+
+  if (!hook) {
+    if (actionsPush) {
+      return {
+        ok: true,
+        action: "skip",
+        message:
+          "VERCEL_AVIATORPASS_DEPLOY_HOOK is not set. Vercel Git deploys main. Add the Production environment secret to POST the hook.",
+      };
+    }
+    return { ok: false, action: "fail", message: "VERCEL_AVIATORPASS_DEPLOY_HOOK is not set" };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(hook);
+  } catch {
+    return {
+      ok: false,
+      action: "fail",
+      message: "VERCEL_AVIATORPASS_DEPLOY_HOOK is not a valid URL",
+    };
+  }
+
+  if (parsed.protocol !== "https:") {
+    return { ok: false, action: "fail", message: "VERCEL_AVIATORPASS_DEPLOY_HOOK must be https" };
+  }
+  if (parsed.hostname !== "api.vercel.com") {
+    return {
+      ok: false,
+      action: "fail",
+      message: "VERCEL_AVIATORPASS_DEPLOY_HOOK host must be api.vercel.com",
+    };
+  }
+  if (!parsed.pathname.startsWith("/v1/integrations/deploy/")) {
+    return {
+      ok: false,
+      action: "fail",
+      message: "VERCEL_AVIATORPASS_DEPLOY_HOOK is not a Vercel deploy hook path",
+    };
+  }
+
+  const parts = parsed.pathname.replace(/\/$/, "").split("/");
+  const hookProjectId = parts[4];
+  const hookId = parts[5];
+  if (!hookProjectId || !hookId) {
+    return {
+      ok: false,
+      action: "fail",
+      message: "VERCEL_AVIATORPASS_DEPLOY_HOOK is missing project or hook id",
+    };
+  }
+  if (expectedProject && hookProjectId !== expectedProject) {
+    return {
+      ok: false,
+      action: "fail",
+      message: "VERCEL_AVIATORPASS_DEPLOY_HOOK does not match VERCEL_PROJECT_ID",
+    };
+  }
+
+  return { ok: true, action: "post", hook, hookProjectId, hookId };
 }
 
 const inspected = inspectDeployHook(process.env);

@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { inspectDeployHook } from "../../scripts/lib/production-deploy-hook.mjs";
+import { inspectDeployHook } from "@/lib/ops/production-deploy-hook";
 
 const VALID = "https://api.vercel.com/v1/integrations/deploy/prj_exampleAviatorPass/HkValidExample";
 
