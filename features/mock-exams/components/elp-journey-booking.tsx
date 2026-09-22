@@ -5,6 +5,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { todayInZone } from "@/lib/datetime/zoned";
 import { formatMinor } from "@/lib/money";
 import { routes } from "@/constants/routes";
 import type { MockExamSlot, MockExamType, MockExamWorkingHours } from "@/types/mock-exams";
@@ -33,7 +34,7 @@ function hoursLabel(hours: MockExamWorkingHours[]) {
 
 export function ElpJourneyBooking() {
   const [catalog, setCatalog] = React.useState<Catalog | null>(null);
-  const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = React.useState(() => todayInZone("Asia/Kuwait"));
   const [slots, setSlots] = React.useState<MockExamSlot[]>([]);
   const [selected, setSelected] = React.useState<string>("");
   const [error, setError] = React.useState<string | null>(null);
@@ -102,6 +103,7 @@ export function ElpJourneyBooking() {
                     ? ""
                     : "border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
                 }
+                data-testid="elp-slot"
                 onClick={() => setSelected(s.startsAt)}
               >
                 {new Date(s.startsAt).toLocaleTimeString([], {
@@ -117,7 +119,14 @@ export function ElpJourneyBooking() {
         {chosen?.quote ? (
           <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
             <p className="font-medium">Review before payment</p>
-            <p className="mt-1 text-white/70">Service: English Language Proficiency — Mock Exam</p>
+            <p className="mt-1 text-white/70">Name: shown after you sign in</p>
+            <p className="text-white/70">Service: English Language Proficiency — Mock Exam</p>
+            <p className="text-white/70">
+              Date and time:{" "}
+              {new Date(chosen.startsAt).toLocaleString([], {
+                timeZone: catalog?.settings.timezone ?? "Asia/Kuwait",
+              })}
+            </p>
             <p className="text-white/70">
               Base: {formatMinor(chosen.quote.baseAmount, chosen.quote.currency)}
             </p>

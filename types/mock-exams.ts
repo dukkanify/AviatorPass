@@ -80,6 +80,8 @@ export interface MockExamZoomSession {
   waitingRoom: boolean;
   providerMode: "mock" | "zoom";
   provisionedAt: string;
+  /** Official Zoom topic: Mock Exam / {family} / {dd-MMM-yyyy} */
+  topic?: string;
 }
 
 export interface MockExamFeeLine {

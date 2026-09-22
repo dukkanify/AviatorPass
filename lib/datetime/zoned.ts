@@ -76,6 +76,12 @@ export function zonedWallTimeToUtc(
   return utc;
 }
 
+/** Calendar date `YYYY-MM-DD` in `timeZone` (for date pickers). */
+export function todayInZone(timeZone: string, now = new Date()): string {
+  const p = partsInZone(now, timeZone);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
 export function formatZonedMeetingDate(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone,

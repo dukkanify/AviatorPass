@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames, MockExamSettings } from "@/types/mock-exams";
 import { Award, CalendarCheck2, Clock3, FileBadge2 } from "lucide-react";
@@ -51,7 +52,7 @@ async function apiGet<T>(query: string): Promise<T> {
 async function apiPost(body: Record<string, unknown>) {
   const res = await fetch("/api/mock-exams", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...csrfHeaders() },
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as { success: boolean; data: unknown; error: string | null };
@@ -267,7 +268,7 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
                   <div className="text-muted-foreground">
                     {new Date(s.startsAt).toLocaleString()} ·{" "}
                     {formatMinor(s.quote.total, s.currency)}
-                    {s.zoom ? " · Zoom ready" : ""}
+                    {s.zoom ? ` · ${s.zoom.topic || "Zoom ready"}` : ""}
                     {s.certificateId ? ` · Cert ${s.scorePercent}%` : ""}
                   </div>
                 </li>

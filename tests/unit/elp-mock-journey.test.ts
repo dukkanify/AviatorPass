@@ -115,6 +115,13 @@ describe("ELP mock exam customer journey", () => {
       actorId: student.id,
     });
     expect(session.zoom?.joinUrl).toBeTruthy();
+    expect(session.zoom?.topic).toBe(
+      formatMockExamMeetingTopic({
+        lastName: student.lastName || "Student",
+        startsAt: session.startsAt,
+        timeZone: "Asia/Kuwait",
+      }),
+    );
     expect(getLatestOutboundTo(student.email)?.subject).toMatch(/mock exam/i);
     expect(getLatestOutboundTo(examiner.email)?.subject).toMatch(/mock exam/i);
     expect(getLatestOutboundTo("support@aviatorpass.com")?.subject).toMatch(/mock exam/i);

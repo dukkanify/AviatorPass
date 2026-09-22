@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames } from "@/types/mock-exams";
 
@@ -36,7 +37,7 @@ export function MockExamExaminerView() {
     const scorePercent = Number(scores[sessionId] ?? "75");
     const res = await fetch("/api/mock-exams", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...csrfHeaders() },
       body: JSON.stringify({
         action: "complete",
         sessionId,
@@ -61,7 +62,7 @@ export function MockExamExaminerView() {
     }
     const res = await fetch("/api/mock-exams", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...csrfHeaders() },
       body: JSON.stringify({
         action: "attach_document",
         sessionId,
@@ -101,14 +102,19 @@ export function MockExamExaminerView() {
                 {new Date(s.startsAt).toLocaleString()} · {formatMinor(s.quote.total, s.currency)}
               </p>
               {s.zoom ? (
-                <a
-                  className="text-primary hover:underline"
-                  href={s.zoom.startUrl || s.zoom.joinUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Start Zoom meeting
-                </a>
+                <p>
+                  {s.zoom.topic ? (
+                    <span className="block text-muted-foreground">{s.zoom.topic}</span>
+                  ) : null}
+                  <a
+                    className="text-primary hover:underline"
+                    href={s.zoom.startUrl || s.zoom.joinUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Start Zoom meeting
+                  </a>
+                </p>
               ) : null}
               {s.documents?.length ? (
                 <ul className="mt-1 text-muted-foreground">

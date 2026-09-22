@@ -256,6 +256,7 @@ async function provisionZoom(session: MockExamSession): Promise<MockExamSession>
       waitingRoom: zoom.waitingRoom,
       providerMode: zoom.providerMode,
       provisionedAt: stamp,
+      topic,
     };
     row.updatedAt = stamp;
   });
@@ -460,7 +461,7 @@ export async function completeMockExamSession(input: {
   await createNotification({
     userId: session.studentId,
     title: input.passed ? "Mock exam passed" : "Mock exam completed",
-    body: `${session.examTypeName}: ${input.scorePercent}%${input.passed ? " — certificate issued" : ""}`,
+    body: `${session.examTypeName}: ${input.scorePercent}% — Aviator Pass certificate issued`,
     type: "mock_exam.completed",
     data: { sessionId: session.id, certificateId: session.certificateId },
   });

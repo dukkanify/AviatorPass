@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { csrfHeaders } from "@/lib/security/browser-csrf";
+import { todayInZone } from "@/lib/datetime/zoned";
 import { formatMinor } from "@/lib/money";
 import type { MockExamSessionWithNames, MockExamSlot, MockExamType } from "@/types/mock-exams";
 
@@ -27,7 +29,7 @@ async function apiGet<T>(query: string): Promise<T> {
 async function apiPost(body: Record<string, unknown>) {
   const res = await fetch("/api/mock-exams", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...csrfHeaders() },
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as { success: boolean; data: unknown; error: string | null };
@@ -46,7 +48,7 @@ export function MockExamBookingView() {
   const [examTypeId, setExamTypeId] = React.useState("");
   const [examinerId, setExaminerId] = React.useState("");
   const [date, setDate] = React.useState(
-    () => readQueryParam("date") || new Date().toISOString().slice(0, 10),
+    () => readQueryParam("date") || todayInZone("Asia/Kuwait"),
   );
   const [slots, setSlots] = React.useState<MockExamSlot[]>([]);
   const [selectedStart, setSelectedStart] = React.useState(() => readQueryParam("startsAt"));
@@ -158,6 +160,7 @@ export function MockExamBookingView() {
                     key={s.startsAt}
                     size="sm"
                     variant={selectedStart === s.startsAt ? "default" : "outline"}
+                    data-testid="elp-slot"
                     onClick={() => setSelectedStart(s.startsAt)}
                   >
                     {new Date(s.startsAt).toLocaleTimeString([], {
@@ -194,6 +197,7 @@ export function MockExamBookingView() {
               </p>
               <Button
                 className="mt-3"
+                data-testid="elp-confirm-pay"
                 disabled={busy || !selectedStart}
                 onClick={() => void reserveThenPay()}
               >
@@ -220,14 +224,19 @@ export function MockExamBookingView() {
                   {formatMinor(s.quote.total, s.currency)}
                 </p>
                 {s.zoom ? (
-                  <a
-                    className="text-primary hover:underline"
-                    href={s.zoom.joinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Join Zoom meeting
-                  </a>
+                  <p>
+                    {s.zoom.topic ? (
+                      <span className="block text-muted-foreground">{s.zoom.topic}</span>
+                    ) : null}
+                    <a
+                      className="text-primary hover:underline"
+                      href={s.zoom.joinUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Join Zoom meeting
+                    </a>
+                  </p>
                 ) : null}
                 {s.documents?.length ? (
                   <ul className="mt-1 text-muted-foreground">
