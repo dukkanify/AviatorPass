@@ -2,11 +2,9 @@
  * Aviation media library service — categorized assets with SEO metadata.
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import path from "path";
-
 import { generateId } from "@/lib/security/crypto";
 import { validateUpload, virusScanHook, UploadSecurityError } from "@/lib/security/upload";
+import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 import { readMediaLibraryDb, writeMediaLibraryDb } from "@/services/media-library/store";
 import type {
   MediaAssetKind,
@@ -14,8 +12,6 @@ import type {
   MediaLibraryCategory,
   MediaLibraryCategoryId,
 } from "@/types/media-library";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "media-library");
 
 export function listMediaCategories(): MediaLibraryCategory[] {
   return readMediaLibraryDb().categories;
@@ -114,10 +110,21 @@ export async function uploadMediaAsset(input: {
   const scan = await virusScanHook(buffer);
   if (!scan.clean) throw new UploadSecurityError("File failed security scan");
 
-  if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
   const filename = `${generateId().slice(0, 12)}-${safeName}`;
-  writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
-  const publicUrl = `/uploads/media-library/${filename}`;
+  let publicUrl: string;
+  try {
+    const stored = await putUploadedFile({
+      relativePath: `media-library/${filename}`,
+      bytes: buffer,
+      contentType: mimeType,
+    });
+    publicUrl = stored.publicUrl;
+  } catch (error) {
+    if (error instanceof UploadBackendError) {
+      throw new UploadSecurityError(error.message, error.status);
+    }
+    throw error;
+  }
 
   const now = new Date().toISOString();
   const title = input.title?.trim() || input.file.name.replace(/\.[^.]+$/, "");

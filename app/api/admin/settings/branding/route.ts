@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import path from "path";
 
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
@@ -11,6 +9,7 @@ import { generateId } from "@/lib/security/crypto";
 import { validateUpload, virusScanHook, UploadSecurityError } from "@/lib/security/upload";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
 import { writeOpsLog } from "@/services/ops/logging-service";
+import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 
 const BRAND_KEYS = [
   "logoUrl",
@@ -24,9 +23,7 @@ const BRAND_KEYS = [
 type BrandKey = (typeof BRAND_KEYS)[number];
 
 /**
- * Local branding upload with Supabase Storage readiness.
- * When storage.provider === "supabase", callers should use the storage service;
- * local mode writes under public/uploads/branding for immediate use.
+ * Branding upload via the shared upload backend (local / Vercel Blob / Supabase).
  */
 export async function POST(request: Request) {
   try {
@@ -60,9 +57,7 @@ export async function POST(request: Request) {
         mimeType: file.type,
         sizeBytes: file.size,
         maxBytes,
-        allowedMimeTypes: settings.security.allowedFileTypes.filter(
-          (t) => t !== "image/svg+xml",
-        ),
+        allowedMimeTypes: settings.security.allowedFileTypes.filter((t) => t !== "image/svg+xml"),
         allowSvg: false,
       });
       safeName = validated.safeName;
@@ -76,18 +71,6 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    if (settings.storage.provider === "supabase") {
-      return NextResponse.json(
-        {
-          success: false,
-          data: null,
-          error:
-            "Supabase Storage is selected. Configure Supabase credentials, then retry uploads via the storage provider.",
-        },
-        { status: 503 },
-      );
-    }
-
     const buffer = Buffer.from(await file.arrayBuffer());
     const scan = await virusScanHook(buffer);
     if (!scan.clean) {
@@ -97,11 +80,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads", "branding");
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const filename = `${key}-${generateId().slice(0, 12)}-${safeName}`;
-    writeFileSync(path.join(dir, filename), buffer);
-    const publicUrl = `/uploads/branding/${filename}`;
+    let publicUrl: string;
+    try {
+      const stored = await putUploadedFile({
+        relativePath: `branding/${filename}`,
+        bytes: buffer,
+        contentType: file.type || "application/octet-stream",
+      });
+      publicUrl = stored.publicUrl;
+    } catch (error) {
+      if (error instanceof UploadBackendError) {
+        return NextResponse.json(
+          { success: false, data: null, error: error.message },
+          { status: error.status },
+        );
+      }
+      throw error;
+    }
 
     const next = await updatePlatformSettings({
       patch: { branding: { [key]: publicUrl } },

@@ -10,6 +10,10 @@ describe("health + ops logging", () => {
     expect(snapshot.checks.length).toBeGreaterThan(3);
     expect(snapshot.checks.some((c) => c.id === "app")).toBe(true);
     expect(snapshot.checks.some((c) => c.id === "database")).toBe(true);
+    const storage = snapshot.checks.find((c) => c.id === "storage");
+    expect(storage).toBeTruthy();
+    expect(storage?.status).toBe("pass");
+    expect(storage?.detail).toMatch(/local|Blob|Supabase/i);
   });
 
   it("records ops logs through the memory-backed store", () => {

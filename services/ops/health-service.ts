@@ -18,6 +18,7 @@ import { getActivityMonitoring } from "@/services/settings/monitoring";
 import { listBackups } from "@/services/ops/backup-service";
 import { listOpsLogs } from "@/services/ops/logging-service";
 import { getZoomCredentialInventory } from "@/services/classes/zoom-service";
+import { getStorageHealthCheck } from "@/lib/ops/upload-backend";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 
@@ -81,11 +82,12 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
   });
 
   const settings = getPlatformSettings();
+  const storage = getStorageHealthCheck();
   checks.push({
     id: "storage",
     label: "Storage",
-    status: "pass",
-    detail: `Provider ${settings.storage.provider} · uploads under public/uploads`,
+    status: storage.status,
+    detail: storage.detail,
   });
 
   const emailConfigured = isEmailDeliveryConfigured();

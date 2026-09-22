@@ -24,7 +24,7 @@ Included:
 
 Production shape: `database/migrations/005_course_management_lms.sql` + Prisma models.
 
-Media: `public/uploads/courses/` locally, or Supabase Storage when `storage.provider === "supabase"`.
+Media: `public/uploads/courses/` locally, Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set, or Supabase Storage when `storage.provider === "supabase"`.
 
 ## Permissions
 

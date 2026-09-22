@@ -3,13 +3,11 @@
  * Virus-scan hook runs before persistence.
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 
 import { generateId } from "@/lib/security/crypto";
-import { isSupabaseConfigured } from "@/config/env";
 import { getPlatformSettings } from "@/services/settings/settings-service";
-import { uploadFile as uploadToSupabase } from "@/services/storage/storage-service";
+import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 import { COMM_ATTACHMENT_MIME_ALLOW } from "@/constants/communication";
 import { CommunicationError } from "@/services/communication/access";
 import { writeCommunicationDb } from "@/services/communication/store";
@@ -65,19 +63,18 @@ export async function uploadCommunicationAttachment(input: {
   const relativePath = `communication/${input.actorId}/${fileName}`;
 
   let publicUrl: string;
-
-  if (settings.storage.provider === "supabase" && isSupabaseConfigured()) {
-    const blob = new File([buffer], input.file.name, { type: mime });
-    const result = await uploadToSupabase(relativePath, blob);
-    if (!result.success || !result.data) {
-      throw new CommunicationError(result.error ?? "Supabase upload failed");
+  try {
+    const stored = await putUploadedFile({
+      relativePath,
+      bytes: buffer,
+      contentType: mime,
+    });
+    publicUrl = stored.publicUrl;
+  } catch (error) {
+    if (error instanceof UploadBackendError) {
+      throw new CommunicationError(error.message, error.status);
     }
-    publicUrl = result.data.publicUrl ?? result.data.path;
-  } else {
-    const dir = path.join(process.cwd(), "public", "uploads", "communication", input.actorId);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, fileName), buffer);
-    publicUrl = `/uploads/communication/${input.actorId}/${fileName}`;
+    throw error;
   }
 
   const attachment: AttachmentRef = {

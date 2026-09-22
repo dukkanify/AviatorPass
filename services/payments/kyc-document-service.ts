@@ -2,19 +2,15 @@
  * Student KYC documents — passport upload for installment / BNPL (CR003).
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import path from "path";
-
 import { generateId } from "@/lib/security/crypto";
 import { validateUpload } from "@/lib/security/upload";
+import { putUploadedFile } from "@/lib/ops/upload-backend";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { StudentKycDocument } from "@/types/payments";
 
 function nowIso() {
   return new Date().toISOString();
 }
-
-const KYC_DIR = path.join(process.cwd(), "public", "uploads", "kyc");
 
 export function listKycDocuments(userId?: string): StudentKycDocument[] {
   const rows = readPaymentsDb().kycDocuments;
@@ -50,12 +46,15 @@ export async function uploadPassport(input: {
     allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
   });
 
-  if (!existsSync(KYC_DIR)) mkdirSync(KYC_DIR, { recursive: true });
   const id = generateId();
   const safe = validated.safeName;
   const storageName = `${input.userId}-${id}-${safe}`;
-  const storagePath = path.join(KYC_DIR, storageName);
-  writeFileSync(storagePath, input.bytes);
+  const stored = await putUploadedFile({
+    relativePath: `kyc/${storageName}`,
+    bytes: input.bytes,
+    contentType: validated.mimeType,
+  });
+  const storagePath = stored.storagePath;
 
   const stamp = nowIso();
   const doc: StudentKycDocument = {
@@ -67,7 +66,7 @@ export async function uploadPassport(input: {
     mimeType: validated.mimeType,
     sizeBytes: input.bytes.length,
     storagePath,
-    publicUrl: `/uploads/kyc/${storageName}`,
+    publicUrl: stored.publicUrl,
     rejectionReason: null,
     verifiedAt: null,
     verifiedById: null,
