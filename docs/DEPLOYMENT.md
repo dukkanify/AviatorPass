@@ -62,9 +62,11 @@ Full checklist: `docs/DOMAIN_DUBAI_TEST.md`.
 ## Post-deploy verification
 
 ```bash
-npm run deploy:production    # POST $VERCEL_AVIATORPASS_DEPLOY_HOOK
+npm run deploy:production    # POST $VERCEL_AVIATORPASS_DEPLOY_HOOK (fails if unset)
 npm run health:production
 npm run smoke:production
 ```
+
+Pushing `main` also runs **Deploy AviatorPass Production**. If `VERCEL_AVIATORPASS_DEPLOY_HOOK` is not in the GitHub Environment `Production`, that job **skips** the hook POST (Vercel Git still deploys `main`) and then polls `/api/health`. Manual `workflow_dispatch` and `npm run deploy:production` still require the secret.
 
 Walk `docs/PRODUCTION_CHECKLIST.md`.

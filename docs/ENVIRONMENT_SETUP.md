@@ -44,14 +44,14 @@ Supabase vars may stay empty for JSON-store mode.
 
 4. Integrations (as contracted):
 
-| Integration          | Variables                                                                                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Integration          | Variables                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Email / OTP delivery | `RESEND_API_KEY`, `EMAIL_FROM=AviatorPass <noreply@aviatorpass.com>`, `EMAIL_FROM_NAME`, `ADMIN_NOTIFICATION_EMAIL`. **Verify `aviatorpass.com` in Resend + DNS (see `docs/EMAIL.md`)** |
-| Zoom                 | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`, `ZOOM_BASE_URL`, `ZOOM_SECRET_TOKEN`, `ZOOM_WEBHOOK_SECRET`, optional `ZOOM_ACCOUNT_ID` (S2S fallback) |
-| Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                                                                                  |
-| Tamara               | `TAMARA_API_TOKEN`, `TAMARA_BASE_URL` (`https://api.tamara.co` in production), optional `TAMARA_NOTIFICATION_TOKEN`                                                 |
-| Taly                 | `TALY_API_KEY`, `TALY_SECRET_KEY`, `TALY_WEBHOOK_SECRET`, `TALY_BASE_URL` (`https://api.taly.io` in production)                                                     |
-| Supabase             | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`                                              |
+| Zoom                 | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`, `ZOOM_BASE_URL`, `ZOOM_SECRET_TOKEN`, `ZOOM_WEBHOOK_SECRET`, optional `ZOOM_ACCOUNT_ID` (S2S fallback)                     |
+| Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                                                                                                      |
+| Tamara               | `TAMARA_API_TOKEN`, `TAMARA_BASE_URL` (`https://api.tamara.co` in production), optional `TAMARA_NOTIFICATION_TOKEN`                                                                     |
+| Taly                 | `TALY_API_KEY`, `TALY_SECRET_KEY`, `TALY_WEBHOOK_SECRET`, `TALY_BASE_URL` (`https://api.taly.io` in production)                                                                         |
+| Supabase             | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`                                                                  |
 
 5. Domain: attach custom domain in Vercel (SSL automatic).
 
@@ -70,7 +70,7 @@ Set these in Cursor Cloud secrets and the GitHub Environment `Production`. Never
 npm run deploy:production
 ```
 
-That command POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only and refuses retired hooks. 6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`). 7. Storage: Supabase Storage bucket `aep-uploads` (or local `public/uploads` only for single-node demos). 8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops). 9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
+That command POSTs `$VERCEL_AVIATORPASS_DEPLOY_HOOK` only and refuses retired hooks. On GitHub Actions `push` to `main`, a missing hook is a skip (Vercel Git still deploys); `workflow_dispatch` still requires the secret. 6. CDN: Vercel Edge for static + ISR assets (headers in `next.config.ts` / `vercel.json`). 7. Storage: Supabase Storage bucket `aep-uploads` (or local `public/uploads` only for single-node demos). 8. Scheduled jobs: cron for `npm run backup` / weekly / monthly (or Ops UI + external cron hitting secured ops). 9. Monitoring: external uptime → `/api/health?ready=1`; in-app Ops Center.
 
 ## Validation after env change
 
