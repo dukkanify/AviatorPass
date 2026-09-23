@@ -53,7 +53,7 @@ Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fai
 ## Runtime behaviour after this change
 
 - Resend is tried first when `RESEND_API_KEY` is set; SMTP is the fallback.
-- Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro).
+- Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro). The same cron sends due **PPL / Basics Live** welcome emails (3 days after payment).
 - Non-OTP notification emails go through the automation catalog (in-app + email). OTP itself is still sent only by the existing OTP engine — no second “code sent” email.
 - Super Admin → Platform Settings → Email shows Resend domain status, public nameservers, a public-DNS probe vs Resend expected records, a cPanel / Namecheap **Copy TSV** sheet, **Register domain**, the resolved admin copy inbox, and recent outbound. **Test email** sends to that inbox.
 
