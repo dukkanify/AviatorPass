@@ -69,6 +69,10 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
   const [savingReport, setSavingReport] = React.useState(false);
   const [unableReason, setUnableReason] = React.useState("");
   const [reportingUnable, setReportingUnable] = React.useState(false);
+  const [nextDate, setNextDate] = React.useState("");
+  const [nextTime, setNextTime] = React.useState("");
+  const [nextHomework, setNextHomework] = React.useState("");
+  const [schedulingNext, setSchedulingNext] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -153,8 +157,47 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
       toast.error(result.error ?? "Unable to flag Scheduling Required");
       return;
     }
-    toast.success("TKI 1 and Super Admin have been emailed. Student status is Scheduling Required.");
+    toast.success(
+      "TKI 1 and Super Admin have been emailed. Student status is Scheduling Required.",
+    );
     setUnableReason("");
+  }
+
+  async function scheduleNextSession() {
+    if (!reportStudentId) {
+      toast.error("Select a student");
+      return;
+    }
+    if (!nextDate || !nextTime) {
+      toast.error("Choose the next lecture date and time");
+      return;
+    }
+    setSchedulingNext(true);
+    const result = await classFetch<{
+      liveClassId: string;
+      subjectName: string;
+      date: string;
+      time: string;
+    }>(`/api/classes/${classId}/actions`, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "schedule_next_session",
+        studentId: reportStudentId,
+        studyStartDate: nextDate,
+        lectureTime: nextTime,
+        homework: nextHomework.trim() || homework.trim() || undefined,
+      }),
+    });
+    setSchedulingNext(false);
+    if (!result.success) {
+      toast.error(result.error ?? "Could not schedule the next lecture");
+      return;
+    }
+    toast.success(
+      `Next lecture emailed to the student${result.data?.subjectName ? ` · ${result.data.subjectName}` : ""}.`,
+    );
+    setNextHomework("");
+    void load();
   }
 
   const participants = detail?.participants.filter((p) => p.role === "participant") ?? [];
@@ -466,10 +509,49 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 <div>
                   <p className="font-medium">Next lecture</p>
                   <p className="text-sm text-muted-foreground">
-                    If you cannot book the next session, press Unable to Schedule. TKI 1 and Super
-                    Admin are emailed and the student status becomes Scheduling Required.
+                    Agree a date and time with the student, then press Schedule Next Session. The
+                    student is emailed the subject, date, time, and join link. If you cannot book
+                    the next session, press Unable to Schedule. TKI 1 and Super Admin are emailed
+                    and the student status becomes Scheduling Required.
                   </p>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nextDate">Date</Label>
+                    <Input
+                      id="nextDate"
+                      type="date"
+                      value={nextDate}
+                      onChange={(e) => setNextDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nextTime">Time</Label>
+                    <Input
+                      id="nextTime"
+                      type="time"
+                      value={nextTime}
+                      onChange={(e) => setNextTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nextHomework">Homework (optional)</Label>
+                  <Textarea
+                    id="nextHomework"
+                    value={nextHomework}
+                    onChange={(e) => setNextHomework(e.target.value)}
+                    rows={2}
+                    placeholder="Homework for the next lecture"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  disabled={schedulingNext || !reportStudentId}
+                  onClick={() => void scheduleNextSession()}
+                >
+                  {schedulingNext ? "Scheduling…" : "Schedule Next Session"}
+                </Button>
                 <div className="space-y-1.5">
                   <Label htmlFor="unableReason">Reason (optional)</Label>
                   <Textarea

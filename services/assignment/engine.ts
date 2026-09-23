@@ -7,16 +7,23 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import {
+  ATPL_PACKAGE_LECTURE_TITLE,
+  combineLocalDateAndTime,
+  formatAtplPackageScheduleLabel,
+} from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
+import { appJoinUrl } from "@/lib/site-origin";
 import { findUserById, readAuthDb } from "@/services/auth/store";
 import { assignInstructor, getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/classes/class-service";
+import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
-import { notifyUsers } from "@/services/notifications/notification-service";
+import { emitNotification, notifyUsers } from "@/services/notifications/notification-service";
 import {
   AssignmentError,
   ensureDefaultAvailability,
@@ -54,7 +61,9 @@ function getRequest(id: string): AssignmentRequest | null {
   return readAssignmentDb().requests.find((r) => r.id === id) ?? null;
 }
 
-function displayName(user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined) {
+function displayName(
+  user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined,
+) {
   if (!user) return "Unknown";
   return [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email;
 }
@@ -68,9 +77,7 @@ async function alertUnableToSchedule(input: {
   const student = input.request.studentId ? findUserById(input.request.studentId) : null;
   const instructor = findUserById(input.request.instructorId);
   const course = input.request.courseId ? getCourseById(input.request.courseId) : null;
-  const subjectTitle = course
-    ? `${course.code} — ${course.title}`
-    : input.request.lessonTitle;
+  const subjectTitle = course ? `${course.code} — ${course.title}` : input.request.lessonTitle;
   const studentLabel = displayName(student);
   const instructorLabel = displayName(instructor);
   const title = "Unable to Schedule";
@@ -89,8 +96,7 @@ async function alertUnableToSchedule(input: {
     .map((u) => u.id);
   const adminIds = auth.users
     .filter(
-      (u) =>
-        (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
+      (u) => (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
     )
     .map((u) => u.id);
   const recipients = [...new Set([...cgiIds, ...adminIds])];
@@ -773,6 +779,225 @@ export async function reportUnableToScheduleNextLecture(input: {
     actorId: input.actorId,
   });
   return { request, studentId, notifiedUserIds };
+}
+
+const NEXT_SESSION_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const NEXT_SESSION_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function subjectNameFromClass(title: string, courseTitle: string | null): string {
+  const prefix = `${ATPL_PACKAGE_LECTURE_TITLE} · `;
+  if (title.startsWith(prefix)) return title.slice(prefix.length).trim() || title;
+  return courseTitle?.trim() || title.trim() || "your subject";
+}
+
+/**
+ * Official ATPL journey: instructor presses Schedule Next Session after a lecture.
+ * Emails the student the next date, time, join URL, and subject name.
+ */
+export async function scheduleNextLectureFromClass(input: {
+  liveClassId: string;
+  studentId?: string | null;
+  studyStartDate: string;
+  lectureTime: string;
+  homework?: string | null;
+  comments?: string | null;
+  actorId: string;
+}): Promise<{
+  request: AssignmentRequest;
+  liveClassId: string;
+  studentId: string;
+  subjectName: string;
+  date: string;
+  time: string;
+  joinUrl: string | null;
+}> {
+  ensureCoursesSeeded();
+  ensureClassesSeeded();
+  const liveClass = getLiveClass(input.liveClassId);
+  if (!liveClass) throw new AssignmentError("Live class not found", 404);
+  if (!liveClass.courseId) {
+    throw new AssignmentError("This class is not linked to a subject", 400);
+  }
+
+  const date = input.studyStartDate.trim();
+  const time = input.lectureTime.trim();
+  if (!NEXT_SESSION_DATE_RE.test(date) || !NEXT_SESSION_TIME_RE.test(time)) {
+    throw new AssignmentError("Enter a valid date and time for the next lecture", 400);
+  }
+  const when = combineLocalDateAndTime(date, time);
+  if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+    throw new AssignmentError("Next lecture must be in the future", 400);
+  }
+
+  const participants = readClassesDb().participants.filter(
+    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  );
+  const studentId = input.studentId?.trim() || participants[0]?.userId || null;
+  if (!studentId) throw new AssignmentError("Select a student", 400);
+  const student = findUserById(studentId);
+  if (!student || student.role !== ROLES.STUDENT) {
+    throw new AssignmentError("Student not found", 404);
+  }
+
+  const course = getCourseById(liveClass.courseId);
+  const subjectName = subjectNameFromClass(liveClass.title, course?.title ?? null);
+  const homework = input.homework?.trim() || "";
+  const comments = input.comments?.trim() || "";
+  const settings = readAssignmentDb().settings;
+  const stamp = nowIso();
+  const startsAt = when.toISOString();
+  const endsAt = new Date(when.getTime() + liveClass.durationMinutes * 60_000).toISOString();
+
+  const existing =
+    listAssignmentRequests({ courseId: liveClass.courseId }).find(
+      (r) =>
+        r.studentId === studentId &&
+        (r.status === "scheduling_required" ||
+          r.status === "queued" ||
+          r.status === "unable_to_schedule"),
+    ) ?? null;
+
+  const created = await createLiveClass({
+    title: liveClass.title,
+    description: comments || `Next session after ${liveClass.title}`,
+    courseId: liveClass.courseId,
+    lessonId: liveClass.lessonId,
+    instructorId: liveClass.instructorId,
+    startsAt,
+    endsAt,
+    durationMinutes: liveClass.durationMinutes,
+    timezone: liveClass.timezone,
+    status: "scheduled",
+    enrollStudentIds: [studentId],
+    actorId: input.actorId,
+    omitScheduleEmail: true,
+  });
+  if (!created) throw new AssignmentError("Failed to create the next lecture", 500);
+
+  const meeting = getZoomMeetingByClassId(created.id);
+  const joinUrl = meeting ? appJoinUrl(created.id, meeting.zoomMeetingId) : null;
+  const label = formatAtplPackageScheduleLabel(date, time);
+
+  let requestId = existing?.id ?? null;
+  if (existing) {
+    writeAssignmentDb((db) => {
+      const req = db.requests.find((r) => r.id === existing.id);
+      if (!req) return;
+      req.status = "scheduled";
+      req.liveClassId = created.id;
+      req.zoomMeetingId = created.zoomMeetingId;
+      req.preferredStartsAt = startsAt;
+      req.scheduledAt = startsAt;
+      req.unableReason = null;
+      req.conflictSummary = null;
+      req.queuePosition = null;
+      req.updatedAt = stamp;
+      req.notes = [req.notes, comments || `Schedule Next Session after ${liveClass.title}`]
+        .filter(Boolean)
+        .join("\n");
+    });
+    requestId = existing.id;
+  } else {
+    const request: AssignmentRequest = {
+      id: generateId(),
+      kind: "schedule_session",
+      courseId: liveClass.courseId,
+      lessonId: liveClass.lessonId,
+      lessonTitle: liveClass.title,
+      studentId,
+      instructorId: liveClass.instructorId,
+      previousInstructorId: null,
+      preferredStartsAt: startsAt,
+      durationMinutes: liveClass.durationMinutes,
+      status: "scheduled",
+      liveClassId: created.id,
+      zoomMeetingId: created.zoomMeetingId,
+      conflictSummary: null,
+      queuePosition: null,
+      attempts: 1,
+      maxAttempts: settings.maxQueueAttempts,
+      autoZoom: settings.autoZoom,
+      notes: comments || `Schedule Next Session after ${liveClass.title}`,
+      createdById: input.actorId,
+      createdAt: stamp,
+      updatedAt: stamp,
+      scheduledAt: startsAt,
+      unableReason: null,
+    };
+    writeAssignmentDb((db) => {
+      db.requests.unshift(request);
+    });
+    requestId = request.id;
+  }
+
+  const detailParts = [
+    `Subject: ${subjectName}`,
+    `Date: ${date}`,
+    `Time: ${time}`,
+    `When: ${label}`,
+  ];
+  if (homework) detailParts.push(`Homework: ${homework}`);
+  if (comments) detailParts.push(`Comments: ${comments}`);
+
+  await dispatchEmailEvent({
+    event: "schedule",
+    userIds: [studentId],
+    to: student.email,
+    subject: "Your next lecture is scheduled",
+    data: {
+      recipientName:
+        [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
+      title: subjectName,
+      when: label,
+      joinUrl: joinUrl ?? "",
+      detail: detailParts.join(" · "),
+    },
+    actorId: input.actorId,
+    system: true,
+    meta: { liveClassId: created.id, previousLiveClassId: liveClass.id, kind: "next_session" },
+  });
+
+  if (homework) {
+    await dispatchEmailEvent({
+      event: "homework",
+      userIds: [studentId],
+      data: {
+        title: subjectName,
+        detail: homework,
+        when: label,
+      },
+      actorId: input.actorId,
+      meta: { liveClassId: created.id, previousLiveClassId: liveClass.id },
+    });
+  }
+
+  await emitNotification({
+    userId: studentId,
+    type: "class.next_session",
+    title: "Next lecture scheduled",
+    body: `${subjectName} · ${label}`,
+    actionUrl: "/student/calendar",
+    email: false,
+    data: {
+      liveClassId: created.id,
+      previousLiveClassId: liveClass.id,
+      subjectName,
+      date,
+      time,
+      joinUrl,
+    },
+    dedupeKey: `next-session:${created.id}:${studentId}`,
+  });
+
+  return {
+    request: getRequest(requestId)!,
+    liveClassId: created.id,
+    studentId,
+    subjectName,
+    date,
+    time,
+    joinUrl,
+  };
 }
 
 /** Process waiting queue — try to schedule each waiting item. */

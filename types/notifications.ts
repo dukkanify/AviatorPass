@@ -376,6 +376,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     defaultBody: "A new live class was published.",
     audiences: ["student", "instructor"],
   },
+  "class.next_session": {
+    type: "class.next_session",
+    category: "booking",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: false,
+    defaultTitle: "Next lecture scheduled",
+    defaultBody: "Your next lecture date, time, and join link are ready.",
+    audiences: ["student"],
+  },
   "class.updated": {
     type: "class.updated",
     category: "booking",

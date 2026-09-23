@@ -37,6 +37,10 @@ export async function POST(request: Request, { params }: Params) {
       startsAt?: string;
       endsAt?: string;
       durationMinutes?: number;
+      studyStartDate?: string;
+      lectureTime?: string;
+      homework?: string;
+      comments?: string;
     };
     const ctx = getRequestContext(request);
 
@@ -80,15 +84,29 @@ export async function POST(request: Request, { params }: Params) {
       });
     }
     if (body.action === "unable_to_schedule") {
-      const { reportUnableToScheduleNextLecture } = await import(
-        "@/services/assignment/engine"
-      );
+      const { reportUnableToScheduleNextLecture } = await import("@/services/assignment/engine");
       return NextResponse.json({
         success: true,
         data: await reportUnableToScheduleNextLecture({
           liveClassId: id,
           studentId: body.studentId,
           reason: body.reason,
+          actorId: user.id,
+        }),
+        error: null,
+      });
+    }
+    if (body.action === "schedule_next_session") {
+      const { scheduleNextLectureFromClass } = await import("@/services/assignment/engine");
+      return NextResponse.json({
+        success: true,
+        data: await scheduleNextLectureFromClass({
+          liveClassId: id,
+          studentId: body.studentId,
+          studyStartDate: body.studyStartDate ?? "",
+          lectureTime: body.lectureTime ?? "",
+          homework: body.homework,
+          comments: body.comments,
           actorId: user.id,
         }),
         error: null,

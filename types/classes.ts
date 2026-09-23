@@ -213,4 +213,6 @@ export interface CreateLiveClassInput {
   actorId: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
+  /** Skip generic Zoom/schedule emails when a journey-specific email is sent instead. */
+  omitScheduleEmail?: boolean;
 }
