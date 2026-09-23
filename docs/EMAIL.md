@@ -54,6 +54,7 @@ Until step 4 succeeds, branded `noreply@aviatorpass.com` From addresses will fai
 
 - Resend is tried first when `RESEND_API_KEY` is set; SMTP is the fallback.
 - Failed sends are stored on the outbox and retried by `/api/cron/email-queue` (daily at 06:00 UTC on Hobby; use `*/5 * * * *` on Pro).
+- New AviatorPass messages email the recipient (`New message from {name}`). Optional inbound replies need a Resend inbound mailbox (`messages+{conversationId}@…`) posting to `/api/webhooks/inbound/email` with `RESEND_INBOUND_WEBHOOK_SECRET`.
 - Non-OTP notification emails go through the automation catalog (in-app + email). OTP itself is still sent only by the existing OTP engine — no second “code sent” email.
 - Super Admin → Platform Settings → Email shows Resend domain status, public nameservers, a public-DNS probe vs Resend expected records, a cPanel / Namecheap **Copy TSV** sheet, **Register domain**, the resolved admin copy inbox, and recent outbound. **Test email** sends to that inbox.
 

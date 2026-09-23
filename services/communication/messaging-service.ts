@@ -433,10 +433,10 @@ export async function sendMessage(input: {
       notifyUsers([uid], {
         title:
           notifType === "document.shared"
-            ? "Document shared"
+            ? `Document shared by ${message.senderName}`
             : conv.kind === "support"
-              ? "Support reply"
-              : "New message",
+              ? `Support reply from ${message.senderName}`
+              : `New message from ${message.senderName}`,
         body: `${shareLabel}${message.senderName}: ${message.body.slice(0, 80)}`,
         type: notifType,
         data: { conversationId: conv.id, messageId: message.id, shareKind: message.shareKind },
