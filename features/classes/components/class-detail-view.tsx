@@ -74,20 +74,23 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
   const [nextHomework, setNextHomework] = React.useState("");
   const [schedulingNext, setSchedulingNext] = React.useState(false);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    const [d, a, r] = await Promise.all([
-      classFetch<NonNullable<typeof detail>>(`/api/classes/${classId}`),
-      classFetch<AttendanceWithStudent[]>(`/api/classes/${classId}/attendance`),
-      classFetch<PerformanceReportWithNames[]>(`/api/classes/${classId}/performance-reports`),
-    ]);
-    setDetail(d.data);
-    setAttendance(a.data ?? []);
-    setReports(r.data ?? []);
-    const firstParticipant = d.data?.participants.find((p) => p.role === "participant")?.userId;
-    if (firstParticipant) setReportStudentId((prev) => prev || firstParticipant);
-    setLoading(false);
-  }, [classId]);
+  const load = React.useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true);
+      const [d, a, r] = await Promise.all([
+        classFetch<NonNullable<typeof detail>>(`/api/classes/${classId}`),
+        classFetch<AttendanceWithStudent[]>(`/api/classes/${classId}/attendance`),
+        classFetch<PerformanceReportWithNames[]>(`/api/classes/${classId}/performance-reports`),
+      ]);
+      setDetail(d.data);
+      setAttendance(a.data ?? []);
+      setReports(r.data ?? []);
+      const firstParticipant = d.data?.participants.find((p) => p.role === "participant")?.userId;
+      if (firstParticipant) setReportStudentId((prev) => prev || firstParticipant);
+      if (!opts?.silent) setLoading(false);
+    },
+    [classId],
+  );
 
   React.useEffect(() => {
     void load();
@@ -103,7 +106,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
       return;
     }
     toast.success("Attendance updated");
-    void load();
+    void load({ silent: true });
   }
 
   async function submitPerformanceReport() {
@@ -132,7 +135,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
     }
     toast.success("Performance report saved and emailed to the student");
     setComments("");
-    void load();
+    void load({ silent: true });
   }
 
   async function reportUnableToSchedule() {
@@ -197,7 +200,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
       `Next lecture emailed to the student${result.data?.subjectName ? ` · ${result.data.subjectName}` : ""}.`,
     );
     setNextHomework("");
-    void load();
+    void load({ silent: true });
   }
 
   const participants = detail?.participants.filter((p) => p.role === "participant") ?? [];

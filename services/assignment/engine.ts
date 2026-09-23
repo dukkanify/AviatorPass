@@ -787,7 +787,9 @@ const NEXT_SESSION_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 function subjectNameFromClass(title: string, courseTitle: string | null): string {
   const prefix = `${ATPL_PACKAGE_LECTURE_TITLE} · `;
   if (title.startsWith(prefix)) return title.slice(prefix.length).trim() || title;
-  return courseTitle?.trim() || title.trim() || "your subject";
+  const lecture = title.trim();
+  if (lecture) return lecture;
+  return courseTitle?.trim() || "your subject";
 }
 
 /**
