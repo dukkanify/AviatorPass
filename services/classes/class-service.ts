@@ -282,10 +282,11 @@ async function notifyUsers(
   body: string,
   type: string,
   data: Record<string, unknown>,
+  email?: boolean,
 ) {
   const { notifyUsers: emitToUsers } =
     await import("@/services/notifications/notification-service");
-  await emitToUsers(userIds, { title, body, type, data });
+  await emitToUsers(userIds, { title, body, type, data, email });
 }
 
 export async function createLiveClass(
@@ -455,6 +456,7 @@ export async function createLiveClass(
       `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
       "class.created",
       { liveClassId: cls.id },
+      input.omitScheduleEmail ? false : undefined,
     );
     if (!input.omitScheduleEmail) {
       const createdMeeting = getZoomMeetingByClassId(cls.id);
