@@ -2,16 +2,14 @@
  * Course media storage — local public/uploads/courses with Supabase readiness.
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
-import { isSupabaseConfigured } from "@/config/env";
 import { logActivity } from "@/services/auth/activity-log";
 import { getPlatformSettings } from "@/services/settings/settings-service";
-import { uploadFile as uploadToSupabase } from "@/services/storage/storage-service";
 import { CourseValidationError } from "@/services/courses/validation";
+import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 
 const COURSE_MIME_ALLOW = new Set([
   "image/jpeg",
@@ -100,28 +98,18 @@ export async function uploadCourseMedia(input: {
     : `courses/shared/${fileName}`;
 
   let publicUrl: string;
-
-  if (settings.storage.provider === "supabase" && isSupabaseConfigured()) {
-    const result = await uploadToSupabase(relativePath, input.file);
-    if (!result.success || !result.data) {
-      throw new CourseValidationError(result.error ?? "Supabase upload failed");
+  try {
+    const stored = await putUploadedFile({
+      relativePath,
+      bytes: Buffer.from(await input.file.arrayBuffer()),
+      contentType: mime,
+    });
+    publicUrl = stored.publicUrl;
+  } catch (error) {
+    if (error instanceof UploadBackendError) {
+      throw new CourseValidationError(error.message);
     }
-    publicUrl = result.data.publicUrl ?? result.data.path;
-  } else if (settings.storage.provider === "supabase") {
-    throw new CourseValidationError(
-      "Supabase Storage is selected but credentials are not configured",
-    );
-  } else {
-    const dir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      input.courseId ? path.join("courses", input.courseId) : path.join("courses", "shared"),
-    );
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const buffer = Buffer.from(await input.file.arrayBuffer());
-    writeFileSync(path.join(dir, fileName), buffer);
-    publicUrl = `/uploads/${relativePath}`;
+    throw error;
   }
 
   await logActivity({

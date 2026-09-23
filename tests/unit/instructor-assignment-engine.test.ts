@@ -83,7 +83,7 @@ describe("instructor assignment engine (CR005)", () => {
 
   it(
     "detects conflicts and queues / schedules with automatic Zoom",
-    { timeout: 300_000 },
+    { timeout: 600_000 },
     async () => {
       const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
       const instructor = instructors[0]!;

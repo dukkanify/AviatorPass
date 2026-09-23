@@ -1636,6 +1636,7 @@ function PlatformSettingsShell() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="local">Local (dev)</SelectItem>
+                    <SelectItem value="vercel_blob">Vercel Blob</SelectItem>
                     <SelectItem value="supabase">Supabase Storage</SelectItem>
                   </SelectContent>
                 </Select>

@@ -167,7 +167,7 @@ export interface SecuritySettings {
 }
 
 export interface StorageSettings {
-  provider: "local" | "supabase";
+  provider: "local" | "supabase" | "vercel_blob";
   supabaseBucket: string;
   allowedExtensions: string[];
   storageQuotaGb: number;

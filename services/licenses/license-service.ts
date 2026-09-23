@@ -2,19 +2,15 @@
  * Commercial license service — secure PDF storage with version history.
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import path from "path";
-
 import { generateId } from "@/lib/security/crypto";
 import { validateUpload, virusScanHook, UploadSecurityError } from "@/lib/security/upload";
+import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 import { readLicensesDb, writeLicensesDb } from "@/services/licenses/store";
 import type {
   CommercialLicenseRecord,
   CommercialLicenseStatus,
   CommercialLicenseVersion,
 } from "@/types/licenses";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "licenses");
 
 export function listCommercialLicenses(): CommercialLicenseRecord[] {
   return readLicensesDb().licenses.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -82,10 +78,21 @@ export async function uploadLicenseVersion(input: {
   const scan = await virusScanHook(buffer);
   if (!scan.clean) throw new UploadSecurityError("File failed security scan");
 
-  if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
   const filename = `${input.licenseId.slice(0, 8)}-${generateId().slice(0, 10)}-${safeName}`;
-  writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
-  const publicUrl = `/uploads/licenses/${filename}`;
+  let publicUrl: string;
+  try {
+    const stored = await putUploadedFile({
+      relativePath: `licenses/${filename}`,
+      bytes: buffer,
+      contentType: input.file.type || "application/pdf",
+    });
+    publicUrl = stored.publicUrl;
+  } catch (error) {
+    if (error instanceof UploadBackendError) {
+      throw new UploadSecurityError(error.message, error.status);
+    }
+    throw error;
+  }
 
   const now = new Date().toISOString();
   const version: CommercialLicenseVersion = {
