@@ -173,9 +173,11 @@ export function ScheduleHubView({
           {atplSchedule.orderId ? (
             <>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                {atplSchedule.scheduleProvisional
-                  ? "Provisional first lecture"
-                  : "Confirmed first lecture"}
+                {atplSchedule.instructorAssignmentStatus === "pending"
+                  ? atplSchedule.instructorAssignmentLabel || "Pending Instructor Assignment"
+                  : atplSchedule.scheduleProvisional
+                    ? "Provisional first lecture"
+                    : "Confirmed first lecture"}
               </p>
               <p className="mt-1 font-medium">
                 {atplSchedule.scheduleProvisional

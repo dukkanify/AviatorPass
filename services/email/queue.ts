@@ -86,7 +86,10 @@ export async function retryFailedOutbound(limit = 10) {
 export async function processEmailQueue(limit = 10) {
   const retries = await retryFailedOutbound(limit);
   const jobs = await processQueue(limit);
-  return { retries, jobs };
+  const { processDueLiveProgramWelcomes } =
+    await import("@/services/payments/live-welcome-service");
+  const liveWelcomes = await processDueLiveProgramWelcomes({ limit });
+  return { retries, jobs, liveWelcomes };
 }
 
 export function getQueuedOutbound(id: string) {

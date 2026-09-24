@@ -319,6 +319,12 @@ export function publicOrderSnapshot(order: Order) {
       typeof order.metadata.scheduleNotice === "string"
         ? order.metadata.scheduleNotice
         : ATPL_PACKAGE_TKI_NOTICE,
+    instructorAssignmentStatus:
+      order.metadata.instructorAssignmentStatus === "assigned" ? "assigned" : "pending",
+    instructorAssignmentLabel:
+      typeof order.metadata.instructorAssignmentLabel === "string"
+        ? order.metadata.instructorAssignmentLabel
+        : "Pending Instructor Assignment",
   };
 }
 

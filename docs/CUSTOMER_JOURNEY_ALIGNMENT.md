@@ -15,14 +15,14 @@ Folder: `public/brand/source/journeys/` (see README there).
 
 ## Journeys
 
-| Journey                             | Status             | Notes                                                                                                                                                                                                                                  |
-| ----------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Private Pilot License — Recorded    | Aligned            | `PPL-REC-01` · 100h · sequential lock · DRM settings · checkout SKU                                                                                                                                                                    |
-| Private Pilot License — Live Online | Aligned            | `PPL-LIVE-01` · 8 weeks · publishable separately from recorded                                                                                                                                                                         |
-| Basics of Aviation — Recorded       | Aligned            | `BASICS-REC-01` · 10h                                                                                                                                                                                                                  |
-| Basics of Aviation — Live Online    | Aligned            | `BASICS-LIVE-01`                                                                                                                                                                                                                       |
-| ATPL Complete Package               | Aligned (platform) | SKU `ATPL-PACKAGE` · CGI · assignment · reports · schedule · instructor **Schedule Next Session** emails the student date / time / join URL / subject · **Unable to Schedule** emails TKI 1 + Super Admin and sets Scheduling Required |
-| ELP Mock Exam                       | Aligned            | Exam type `ELP-MOCK` · Kuwait hours Mon–Fri 17–20 / Sat–Sun 09–18 · rush 24h / 6–12h · pay then Zoom `Mock Exam / family / date` · emails to student, instructor, Super Admin · cert after examiner approval                           |
+| Journey                             | Status             | Notes                                                                                                                                                                                                                                |
+| ----------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Private Pilot License — Recorded    | Aligned            | `PPL-REC-01` · 100h · sequential lock · DRM settings · checkout SKU                                                                                                                                                                  |
+| Private Pilot License — Live Online | Aligned            | `PPL-LIVE-01` · 8 weeks · publishable separately from recorded · official welcome email 3 days after payment                                                                                                                         |
+| Basics of Aviation — Recorded       | Aligned            | `BASICS-REC-01` · 10h                                                                                                                                                                                                                |
+| Basics of Aviation — Live Online    | Aligned            | `BASICS-LIVE-01` · official welcome email 3 days after payment                                                                                                                                                                       |
+| ATPL Complete Package               | Aligned (platform) | SKU `ATPL-PACKAGE` · CGI · assignment email “TK n has been assigned to you.” · reports · **Schedule Next Session** · **Unable to Schedule** · Pending Instructor Assignment after pay · EUR 2000 + 4×1000 for non-KW/AE installments |
+| ELP Mock Exam                       | Aligned            | Exam type `ELP-MOCK` · Kuwait hours Mon–Fri 17–20 / Sat–Sun 09–18 · rush 24h / 6–12h · pay then Zoom `Mock Exam / family / date` · emails to student, instructor, Super Admin · cert after examiner approval                         |
 
 ## Cross-cutting
 
@@ -33,7 +33,7 @@ Folder: `public/brand/source/journeys/` (see README there).
 | No screenshot/recording          | UI deterrents in learning player (browser cannot fully block capture)              |
 | Course detail fields             | Objectives, hours, language AR/EN, AviatorPass instructor, price, enroll CTA       |
 | Taly KW / Tamara AE+SA / Stripe  | `regional-rules-service` country gateway routing + installments 4/5/6              |
-| Invoice to student + Super Admin | Invoice/receipt emails + `admin_alert` on paid checkout                            |
+| Invoice to student + Super Admin | Invoice/receipt emails on first checkout payment and each later installment        |
 | Course available email           | Payment automation event after successful checkout                                 |
 | Auto certificate                 | `maybeAutoIssueCertificate` wired from lesson completion                           |
 | Sequential lessons               | `assertLessonUnlocked` when `sequentialLock` / recorded journey                    |

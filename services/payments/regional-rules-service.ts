@@ -165,10 +165,10 @@ export function defaultRegionalPaymentRules(currency: string): RegionalPaymentRu
     }),
     base("XX", "Other / International", [], {
       allowInstallments: true,
-      maxInstallments: 4,
+      maxInstallments: 5,
       requiresPassport: true,
       requiresAgreement: true,
-      notes: "Stripe only.",
+      notes: "Stripe only. ATPL installments: €2,000 + 4×€1,000 with school name and passport.",
     }),
   ];
 }
@@ -212,7 +212,7 @@ export function ensureRegionalRulesSeeded(): void {
       applyCountryGatewayRouting(rule);
       if (rule.countryCode === "XX" && !rule.allowInstallments) {
         rule.allowInstallments = true;
-        rule.maxInstallments = Math.max(rule.maxInstallments, 4);
+        rule.maxInstallments = Math.max(rule.maxInstallments, 5);
         rule.requiresPassport = true;
         rule.requiresAgreement = true;
         rule.updatedAt = nowIso();

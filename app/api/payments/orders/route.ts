@@ -107,6 +107,7 @@ export async function POST(request: Request) {
       installmentCount?: number;
       agreementAccepted?: boolean;
       passportDocumentId?: string | null;
+      schoolName?: string | null;
       scheduleItemId?: string;
     } | null;
 
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
         installmentCount: body.installmentCount,
         agreementAccepted: body.agreementAccepted,
         passportDocumentId: body.passportDocumentId,
+        schoolName: body.schoolName,
         scheduleItemId: body.scheduleItemId,
       });
       return NextResponse.json({ success: true, data: result, error: null });

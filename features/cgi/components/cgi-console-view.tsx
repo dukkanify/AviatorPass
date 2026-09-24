@@ -37,6 +37,14 @@ type Snapshot = {
     scheduleProvisional: boolean;
     firstLectureOnTimetable?: boolean;
     firstLectureSubjectTitle?: string | null;
+    instructorAssignmentStatus?: "pending" | "assigned";
+    instructorAssignmentLabel?: string | null;
+  }>;
+  pendingInstructorAssignments: Array<{
+    studentId: string;
+    name: string;
+    email: string;
+    instructorAssignmentLabel?: string | null;
   }>;
   pendingFirstLectures: Array<{
     studentId: string;
@@ -304,6 +312,29 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Pending Instructor Assignment</h2>
+        <p className="text-sm text-muted-foreground">
+          Students who have paid and are waiting for TKI 1 to assign a theoretical-knowledge
+          instructor.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {(data.pendingInstructorAssignments ?? []).length === 0 ? (
+            <li className="text-muted-foreground">No students are waiting for an instructor.</li>
+          ) : (
+            (data.pendingInstructorAssignments ?? []).map((s) => (
+              <li key={s.studentId} className="rounded-xl border border-border bg-card px-4 py-3">
+                <p className="font-medium">{s.name}</p>
+                <p className="text-muted-foreground">{s.email}</p>
+                <p className="mt-1 text-xs uppercase tracking-wide text-accent">
+                  {s.instructorAssignmentLabel || "Pending Instructor Assignment"}
+                </p>
+              </li>
+            ))
+          )}
+        </ul>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Provisional first lectures (TKI 1)</h2>

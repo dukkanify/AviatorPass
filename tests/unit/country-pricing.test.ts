@@ -66,6 +66,11 @@ describe("country-first pricing", () => {
       currency: "USD",
       amount: ATPL_PACKAGE_PRICES.USD,
     });
+    expect(resolveCountryPrice(atpl, "DE")).toEqual({
+      country: "DE",
+      currency: "EUR",
+      amount: ATPL_PACKAGE_PRICES.EUR,
+    });
     expect(resolveCountryPrice(atpl, "AE").currency).not.toBe("KWD");
     expect(resolveCountryPrice(atpl, "KW").currency).not.toBe("AED");
   });

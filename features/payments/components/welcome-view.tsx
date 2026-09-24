@@ -43,6 +43,8 @@ type WelcomeSnapshot = {
   firstLectureTime: string | null;
   scheduleNotice: string | null;
   scheduleProvisional?: boolean;
+  instructorAssignmentStatus?: "pending" | "assigned";
+  instructorAssignmentLabel?: string | null;
 };
 
 function WelcomeView() {
@@ -146,6 +148,16 @@ function WelcomeView() {
             <span className="font-medium text-foreground">
               {formatAtplPackageScheduleLabel(data.studyStartDate, data.firstLectureTime)}
             </span>
+          </p>
+        ) : null}
+        {data?.instructorAssignmentStatus === "pending" ||
+        (!data?.instructorAssignmentStatus && data?.studyStartDate) ? (
+          <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+            {data.instructorAssignmentLabel || "Pending Instructor Assignment"}
+          </p>
+        ) : data?.instructorAssignmentLabel ? (
+          <p className="mt-3 text-sm font-medium text-foreground">
+            {data.instructorAssignmentLabel}
           </p>
         ) : null}
         <p className="mt-3 text-muted-foreground">

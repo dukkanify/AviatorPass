@@ -22,6 +22,7 @@ import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/class
 import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { emitNotification, notifyUsers } from "@/services/notifications/notification-service";
 import {
@@ -591,6 +592,7 @@ export async function scheduleAssignmentSession(input: {
     durationMinutes: request.durationMinutes,
     status: "scheduled",
     enrollStudentIds: request.studentId ? [request.studentId] : undefined,
+    omitScheduleEmail: true,
     actorId: input.actorId,
   });
 
@@ -628,20 +630,20 @@ export async function scheduleAssignmentSession(input: {
   });
   bumpQueuePositions(request.instructorId);
 
-  const alertUserIds = [request.instructorId, request.studentId].filter((id): id is string =>
-    Boolean(id),
-  );
-  await dispatchEmailEvent({
-    event: "assignment",
-    userIds: alertUserIds,
-    data: {
-      title: request.lessonTitle,
-      detail: "ATPL assignment engine scheduled a live session with Zoom.",
-      when: new Date(preferred).toLocaleString(),
-    },
-    actorId: input.actorId,
-    meta: { assignmentRequestId: request.id, liveClassId: created.id },
-  });
+  try {
+    await notifyAtplInstructorAssigned({
+      instructorId: request.instructorId,
+      studentId: request.studentId,
+      courseId: request.courseId,
+      lessonTitle: request.lessonTitle,
+      scheduledAt: preferred,
+      comments: request.notes,
+      liveClassId: created.id,
+      actorId: input.actorId,
+    });
+  } catch {
+    // Session is stored; official assignment email is best-effort.
+  }
 
   return {
     request: getRequest(request.id)!,

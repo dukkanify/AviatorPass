@@ -21,6 +21,9 @@ import {
 } from "@/services/communication/moderation-service";
 import { writeCommunicationDb } from "@/services/communication/store";
 import { readAuthDb, toUserProfile, writeAuthDb } from "@/services/auth/store";
+import { listOutboundEmails } from "@/services/email/outbox";
+import { listNotifications } from "@/services/notifications/notification-service";
+import { patchStoredSettings } from "@/services/settings/store";
 import type { UserProfile } from "@/types";
 
 function profile(role: UserProfile["role"], id: string): UserProfile {
@@ -180,6 +183,20 @@ describe("enterprise messaging flows", () => {
     });
     clearJsonFileCache();
     ensureDefaultModerationRules();
+    patchStoredSettings(
+      {
+        notifications: {
+          emailNotifications: true,
+          inAppNotifications: true,
+          reminderEmails: true,
+          marketingEmails: false,
+          systemAlerts: true,
+          classReminderOffsetsMinutes: [1440, 120],
+          classReminderFifteenMinutesEnabled: true,
+        },
+      },
+      null,
+    );
   });
 
   afterEach(() => {
@@ -205,6 +222,7 @@ describe("enterprise messaging flows", () => {
       user: instructor,
       peerUserId: student.id,
     });
+    const beforeIds = new Set(listOutboundEmails(80).map((row) => row.id));
     const msg = await sendMessage({
       user: instructor,
       conversationId: conv.id,
@@ -213,6 +231,17 @@ describe("enterprise messaging flows", () => {
     });
     expect(msg.deliveryStatus).toBe("delivered");
     expect(msg.shareKind).toBe("homework");
+    expect(listNotifications(student.id).data.some((row) => row.type === "document.shared")).toBe(
+      true,
+    );
+    expect(
+      listOutboundEmails(80).some(
+        (row) =>
+          !beforeIds.has(row.id) &&
+          row.to.toLowerCase() === student.email.toLowerCase() &&
+          /Document shared/i.test(row.subject),
+      ),
+    ).toBe(true);
 
     markConversationRead(student, conv.id);
     const { readCommunicationDb } = await import("@/services/communication/store");
@@ -253,5 +282,27 @@ describe("enterprise messaging flows", () => {
     });
 
     expect(() => deleteOwnMessage(instructor, msg.id)).toThrow(/Delete window expired/);
+  });
+
+  it("emails the student when the instructor sends a chat message", async () => {
+    const conv = await startDirectConversation({
+      user: instructor,
+      peerUserId: student.id,
+    });
+    const beforeIds = new Set(listOutboundEmails(80).map((row) => row.id));
+    await sendMessage({
+      user: instructor,
+      conversationId: conv.id,
+      body: "See you in Instrumentation tomorrow.",
+    });
+    const sent = listOutboundEmails(80).filter((row) => !beforeIds.has(row.id));
+    expect(
+      sent.some(
+        (row) =>
+          row.to.toLowerCase() === student.email.toLowerCase() &&
+          /New message from/i.test(row.subject),
+      ),
+    ).toBe(true);
+    expect(listNotifications(student.id).data.some((row) => row.type === "message.new")).toBe(true);
   });
 });

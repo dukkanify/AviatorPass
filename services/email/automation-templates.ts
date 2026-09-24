@@ -77,17 +77,28 @@ export function renderAutomationTemplate(
           <p>Review billing in AviatorPass anytime.</p>`,
       };
       break;
-    case "assignment":
+    case "assignment": {
+      const instructor = escapeHtml(str(data, "instructor", ""));
+      const subjectName = escapeHtml(str(data, "subjectName", title));
+      const date = escapeHtml(str(data, "date", ""));
+      const time = escapeHtml(str(data, "time", ""));
+      const comments = escapeHtml(str(data, "comments", ""));
       payload = {
         title: subjectOverride ?? "New assignment",
         preheader: title || detail,
         bodyHtml: `<p>Hello ${name},</p>
-          <p>You have a new assignment${title ? `: <strong>${title}</strong>` : ""}.</p>
-          <p>${detail}</p>
-          ${when ? `<p>Preferred / scheduled: ${when}</p>` : ""}
-          <p>${cta} to review your Assignment Engine queue.</p>`,
+          <p>${detail || `You have a new assignment${title ? `: <strong>${title}</strong>` : ""}.`}</p>
+          ${instructor ? `<p>Instructor: <strong>${instructor}</strong></p>` : ""}
+          ${subjectName ? `<p>Subject: <strong>${subjectName}</strong></p>` : ""}
+          ${date ? `<p>Date: ${date}</p>` : ""}
+          ${time ? `<p>Time: ${time}</p>` : ""}
+          ${comments ? `<p>Comments: ${comments}</p>` : ""}
+          ${when && !date && !time ? `<p>Preferred / scheduled: ${when}</p>` : ""}
+          ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : ""}
+          <p>${cta}</p>`,
       };
       break;
+    }
     case "reminder":
       payload = {
         title: subjectOverride ?? str(data, "title", "Reminder"),
