@@ -457,6 +457,17 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     audiences: ["instructor", "cgi"],
   },
 
+  "student.instructor_assigned": {
+    type: "student.instructor_assigned",
+    category: "assignment",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Instructor assigned",
+    defaultBody: "A theoretical knowledge instructor has been assigned to you.",
+    audiences: ["student"],
+  },
+
   // Assignments / quizzes / exams
   "assignment.published": {
     type: "assignment.published",
@@ -830,6 +841,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     emailDefault: true,
     defaultTitle: "Unable to Schedule",
     defaultBody: "A student needs a new lecture time (Scheduling Required).",
+    audiences: ["admin", "super_admin"],
+  },
+  "admin.instructor_assigned": {
+    type: "admin.instructor_assigned",
+    category: "ops",
+    priority: "medium",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Instructor assigned",
+    defaultBody: "A theoretical knowledge instructor was assigned to a student.",
     audiences: ["admin", "super_admin"],
   },
   "system.maintenance": {

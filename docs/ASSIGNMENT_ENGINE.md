@@ -4,13 +4,14 @@ ATPL journey orchestration for instructor assign/reassign, availability, conflic
 
 ## Outcomes
 
-| Status                | Meaning                                        |
-| --------------------- | ---------------------------------------------- |
-| `scheduling_required` | Instructor assigned; session time not yet set  |
-| `queued`              | Waiting queue — conflicts or no open slot      |
-| `scheduled`           | Live class created + Zoom meeting provisioned  |
-| `unable_to_schedule`  | Exhausted attempts / no capacity in look-ahead. Emails TKI 1 (CGI) and Super Admin. |
-| Instructor **Unable to Schedule** | After a lecture, the instructor can mark the next session as `scheduling_required`. The student status becomes Scheduling Required. Email + in-app go to TKI 1 and Super Admin (`POST /api/classes/:id/actions` `unable_to_schedule`). |
+| Status                            | Meaning                                                                                                                                                                                                                                               |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scheduling_required`             | Instructor assigned; session time not yet set                                                                                                                                                                                                         |
+| `queued`                          | Waiting queue — conflicts or no open slot                                                                                                                                                                                                             |
+| `scheduled`                       | Live class created + Zoom meeting provisioned                                                                                                                                                                                                         |
+| `unable_to_schedule`              | Exhausted attempts / no capacity in look-ahead. Emails TKI 1 (CGI) and Super Admin.                                                                                                                                                                   |
+| Instructor **Unable to Schedule** | After a lecture, the instructor can mark the next session as `scheduling_required`. The student status becomes Scheduling Required. Email + in-app go to TKI 1 and Super Admin (`POST /api/classes/:id/actions` `unable_to_schedule`).                |
+| Official assignment email         | When TKI 1 distributes a lecture or the engine schedules a session, the student subject is `{TK n} has been assigned to you.` (CGI = TKI 1, first instructor = TK 2). Instructor + TKI 1 get student / subject / link / time; Super User gets a copy. |
 
 ## Capabilities
 
