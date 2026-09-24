@@ -40,6 +40,20 @@ export interface PublicDnsProbe {
   publishedCount: number;
   missingCount: number;
   checkedAt: string;
+  /** Leftover CNAME on Host `send` — must be deleted before Resend MX/TXT can publish. */
+  leftoverSendCname: string | null;
+}
+
+/** cPanel Zone Editor steps when Host `send` is still a Forge / non-Resend CNAME. */
+export function leftoverSendCnameInstruction(cname: string): string {
+  const host = cname.trim().replace(/\.$/, "") || "the current CNAME target";
+  return (
+    `Delete leftover CNAME Host send → ${host} first. ` +
+    "A hostname cannot be CNAME and MX/TXT at the same time. " +
+    "Then add MX Host send Priority 10 → feedback-smtp.us-east-1.amazonses.com " +
+    "and TXT Host send → v=spf1 include:amazonses.com ~all. " +
+    "Keep resend._domainkey and the apex mailbox SPF."
+  );
 }
 
 /** cPanel / Namecheap hosting default when Resend prints "Auto". */

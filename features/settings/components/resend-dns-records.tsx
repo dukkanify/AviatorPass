@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   formatDnsRecordLine,
   formatNamecheapTsv,
+  leftoverSendCnameInstruction,
   probeRowState,
   registrarHost,
   zoneTtl,
@@ -96,6 +97,7 @@ export function ResendDnsRecords({
   probe = [],
   publishedCount,
   missingCount,
+  leftoverSendCname = null,
 }: {
   domain: string;
   records: ResendDomainRecord[];
@@ -104,6 +106,7 @@ export function ResendDnsRecords({
   probe?: PublicDnsProbeRow[];
   publishedCount?: number;
   missingCount?: number;
+  leftoverSendCname?: string | null;
 }) {
   const editor = dnsEditor ?? {
     kind: "unknown" as const,
@@ -136,6 +139,14 @@ export function ResendDnsRecords({
 
   return (
     <div className="space-y-3">
+      {leftoverSendCname ? (
+        <Alert variant="warning">
+          <AlertTitle>Delete leftover CNAME on Host send first</AlertTitle>
+          <AlertDescription>
+            <p>{leftoverSendCnameInstruction(leftoverSendCname)}</p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Alert variant={editor.kind === "cpanel_zone_editor" ? "warning" : "info"}>
         <AlertTitle>{editor.title}</AlertTitle>
         <AlertDescription>
