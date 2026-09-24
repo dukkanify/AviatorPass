@@ -14,6 +14,8 @@ Included:
 - Targeted announcements
 - Global communication search
 - In-app notification hooks for message / community / ticket / announcement events
+- Outbound email on new messages (`message.new`) and group adds
+- Optional inbound email replies via `POST /api/webhooks/inbound/email` (Resend inbound + `RESEND_INBOUND_WEBHOOK_SECRET`)
 - Attachments via local uploads with Supabase Storage readiness
 
 **Not included:** AI assistant, payments, instructor wallets, mobile apps.
