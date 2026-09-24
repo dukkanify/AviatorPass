@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getHealthSnapshot } from "@/services/ops/health-service";
+import { getHealthSnapshotAsync } from "@/services/ops/health-service";
 import { writeOpsLog } from "@/services/ops/logging-service";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const deep = searchParams.get("deep") === "1";
     const ready = searchParams.get("ready") === "1";
 
-    const snapshot = getHealthSnapshot({ deep: deep || ready });
+    const snapshot = await getHealthSnapshotAsync({ deep: deep || ready });
 
     if (ready) {
       // Readiness = can the process serve traffic. Soft ops signals (error buffer,
