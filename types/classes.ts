@@ -210,11 +210,9 @@ export interface CreateLiveClassInput {
     until?: string | null;
   };
   enrollStudentIds?: string[];
-  /** Skip generic “Class scheduled” email — official ATPL assignment mail is sent instead. */
+  /** Skip generic Zoom/schedule emails when the official ATPL assignment mail is sent instead. */
   omitScheduleEmail?: boolean;
   actorId: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
-  /** Skip generic Zoom/schedule emails when a journey-specific email is sent instead. */
-  omitScheduleEmail?: boolean;
 }

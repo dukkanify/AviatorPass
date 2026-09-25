@@ -487,17 +487,6 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     audiences: ["student"],
   },
 
-  "student.instructor_assigned": {
-    type: "student.instructor_assigned",
-    category: "assignment",
-    priority: "high",
-    delivery: "immediate",
-    emailDefault: true,
-    defaultTitle: "Instructor assigned",
-    defaultBody: "A theoretical knowledge instructor has been assigned to you.",
-    audiences: ["student"],
-  },
-
   // Assignments / quizzes / exams
   "assignment.published": {
     type: "assignment.published",
