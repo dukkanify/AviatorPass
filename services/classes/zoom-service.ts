@@ -6,6 +6,10 @@
 import { generateId, generateToken } from "@/lib/security/crypto";
 import { appJoinUrl, rewriteAppAbsoluteUrl } from "@/lib/site-origin";
 import { getServerEnv } from "@/config/env";
+import {
+  PROJECT_CONTACT_EMAIL,
+  PROJECT_SUPPORT_EMAIL,
+} from "@/lib/branding/legacy-client-identity";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
@@ -50,6 +54,25 @@ function zoomCredsPresent(): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+/** Support/contact mailboxes are not Zoom users on the S2S account. */
+export function resolveZoomS2SUser(accountEmail: string | null | undefined): string {
+  const value = accountEmail?.trim() ?? "";
+  if (!value || !value.includes("@")) return "me";
+  const lower = value.toLowerCase();
+  if (lower === PROJECT_SUPPORT_EMAIL.toLowerCase()) return "me";
+  if (lower === PROJECT_CONTACT_EMAIL.toLowerCase()) return "me";
+  return value;
+}
+
+export function isZoomMissingUserError(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body) as { code?: number };
+    return parsed.code === 1001;
+  } catch {
+    return /user does not exist/i.test(body);
   }
 }
 
@@ -134,7 +157,6 @@ async function createZoomApiMeeting(
   if (!token) return null;
 
   const settings = getPlatformSettings();
-  const user = settings.zoom.accountEmail || "me";
   const body = {
     topic: liveClass.title,
     type: 2,
@@ -154,19 +176,33 @@ async function createZoomApiMeeting(
     },
   };
 
-  const endpoint =
-    opts.meetingType === "webinar"
-      ? `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/webinars`
-      : `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/meetings`;
+  const postMeeting = (user: string) => {
+    const endpoint =
+      opts.meetingType === "webinar"
+        ? `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/webinars`
+        : `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/meetings`;
+    return fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  };
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let user = resolveZoomS2SUser(settings.zoom.accountEmail);
+  let res = await postMeeting(user);
+  if (!res.ok) {
+    const errorText = await res.text();
+    if (user !== "me" && isZoomMissingUserError(errorText)) {
+      user = "me";
+      res = await postMeeting(user);
+    } else {
+      console.error("Zoom create meeting failed", errorText);
+      return null;
+    }
+  }
 
   if (!res.ok) {
     console.error("Zoom create meeting failed", await res.text());
@@ -179,6 +215,7 @@ async function createZoomApiMeeting(
     join_url: string;
     start_url: string;
     password?: string;
+    host_email?: string;
   };
 
   return {
@@ -188,7 +225,7 @@ async function createZoomApiMeeting(
     joinUrl: json.join_url,
     startUrl: json.start_url,
     password: json.password ?? "",
-    hostEmail: settings.zoom.accountEmail || null,
+    hostEmail: json.host_email ?? settings.zoom.accountEmail ?? null,
     waitingRoom: opts.waitingRoom,
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
