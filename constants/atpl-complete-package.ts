@@ -8,6 +8,8 @@ export const ATPL_COMPLETE_PACKAGE_NAME = "ATPL Complete Package";
 export const ATPL_PACKAGE_MIN_NOTICE_HOURS = 72;
 export const ATPL_PACKAGE_MIN_NOTICE_MS = ATPL_PACKAGE_MIN_NOTICE_HOURS * 60 * 60 * 1000;
 
+export const ATPL_PENDING_INSTRUCTOR_ASSIGNMENT = "Pending Instructor Assignment";
+
 export const ATPL_PACKAGE_TKI_NOTICE =
   "The requested date and time are provisional and subject to final coordination with the Chief Theoretical Knowledge Instructor (TKI 1).";
 
@@ -59,6 +61,11 @@ export type AtplPackageScheduleSnapshot = {
   nextSubjectStatus: "locked" | "available" | "in_progress" | "completed" | null;
   nextLectureLabel: string | null;
   nextLectureLiveClassId: string | null;
+  instructorAssignmentStatus: "pending" | "assigned";
+  instructorAssignmentLabel: string;
+  assignedTkLabel: string | null;
+  assignedInstructorName: string | null;
+  instructorAssignedAt: string | null;
 };
 
 export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
@@ -85,6 +92,11 @@ export const EMPTY_ATPL_PACKAGE_SCHEDULE: AtplPackageScheduleSnapshot = {
   nextSubjectStatus: null,
   nextLectureLabel: null,
   nextLectureLiveClassId: null,
+  instructorAssignmentStatus: "pending",
+  instructorAssignmentLabel: ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+  assignedTkLabel: null,
+  assignedInstructorName: null,
+  instructorAssignedAt: null,
 };
 
 export const ATPL_COMPLETE_PACKAGE_SUBJECTS = [

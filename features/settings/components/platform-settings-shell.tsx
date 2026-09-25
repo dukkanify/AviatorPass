@@ -831,6 +831,7 @@ function PlatformSettingsShell() {
                   probe={emailStatus.resend?.dns?.rows ?? []}
                   publishedCount={emailStatus.resend?.dns?.publishedCount}
                   missingCount={emailStatus.resend?.dns?.missingCount}
+                  leftoverSendCname={emailStatus.resend?.dns?.leftoverSendCname ?? null}
                 />
                 {emailStatus.recent && emailStatus.recent.length > 0 ? (
                   <div className="space-y-1 text-xs text-muted-foreground">

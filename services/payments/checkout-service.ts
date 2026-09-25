@@ -25,7 +25,8 @@ import {
   markInstallmentPaid,
   resumePackageService,
 } from "@/services/payments/installment-service";
-import { issueInvoiceForOrder } from "@/services/payments/invoice-service";
+import { markAtplInstructorAssignmentPending } from "@/services/cgi/instructor-assignment-status";
+import { issueInvoiceForOrder, issueInvoiceForPayment } from "@/services/payments/invoice-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
 import {
@@ -256,6 +257,7 @@ export async function payOrder(input: {
   installmentCount?: number;
   agreementAccepted?: boolean;
   passportDocumentId?: string | null;
+  schoolName?: string | null;
   scheduleItemId?: string;
 }): Promise<{ order: Order; payment: PaymentRecord }> {
   assertCanCheckout(input.user);
@@ -301,6 +303,7 @@ export async function payOrder(input: {
     installmentCount: input.installmentCount,
     agreementAccepted: Boolean(input.agreementAccepted),
     passportDocumentId: input.passportDocumentId ?? null,
+    schoolName: input.schoolName ?? null,
   });
 }
 
@@ -388,8 +391,12 @@ async function payScheduleItem(input: {
     actorId: input.user.id,
   });
   await resumePackageService({ planId: plan.id, actorId: input.user.id });
+  await issueInvoiceForPayment(getOrder(order.id) ?? order, payment, {
+    installmentSequence: item.sequence,
+    installmentCount: plan.installmentCount,
+  });
 
-  return { order: getOrder(order.id)!, payment };
+  return { order: getOrder(order.id)!, payment: getPayment(payment.id) ?? payment };
 }
 
 async function finalizeSuccessfulPayment(input: {
@@ -402,8 +409,9 @@ async function finalizeSuccessfulPayment(input: {
   installmentCount?: number;
   agreementAccepted?: boolean;
   passportDocumentId?: string | null;
+  schoolName?: string | null;
 }): Promise<{ order: Order; payment: PaymentRecord }> {
-  const order = getOrder(input.orderId);
+  let order = getOrder(input.orderId);
   if (!order) throw new PaymentError("Order not found", 404);
 
   const mode = input.paymentMode ?? "full";
@@ -438,13 +446,18 @@ async function finalizeSuccessfulPayment(input: {
         mode === "installments" ? count : mode === "tamara" || mode === "tabby" ? 4 : 1,
       agreementAccepted: mode === "full" ? true : Boolean(input.agreementAccepted),
       passportDocumentId: mode === "full" ? null : (input.passportDocumentId ?? null),
+      schoolName: input.schoolName ?? null,
       actorId: input.user.id,
     });
     planId = plan.id;
+    const rebilled = getOrder(order.id) ?? order;
+    order = rebilled;
     const schedule = listScheduleForPlan(plan.id);
     firstScheduleId = schedule[0]?.id ?? null;
     amountToCharge =
-      mode === "installments" ? (schedule[0]?.amount ?? order.totalAmount) : order.totalAmount;
+      mode === "installments"
+        ? (schedule[0]?.amount ?? rebilled.totalAmount)
+        : rebilled.totalAmount;
   }
 
   const methodBrand =
@@ -616,6 +629,17 @@ async function finalizeSuccessfulPayment(input: {
     } else if (mode === "installments" && planId) {
       const unlocked = getInstallmentPlan(planId);
       if (unlocked) await grantPackageAccess(unlocked, input.user.id);
+      const firstItem = listScheduleForPlan(planId).find((row) => row.id === firstScheduleId);
+      await issueInvoiceForPayment(updated, savedPayment, {
+        installmentSequence: firstItem?.sequence ?? 1,
+        installmentCount: unlocked?.installmentCount,
+      });
+      if (
+        /ATPL/i.test(updated.items[0]?.productName ?? "") ||
+        updated.metadata.sku === "ATPL-PACKAGE"
+      ) {
+        markAtplInstructorAssignmentPending(updated.id);
+      }
       await notifyPayment(updated.studentId, {
         title: "First installment received",
         body: `${updated.orderNumber} — access unlocked. Remaining installments stay on your billing schedule.`,
@@ -631,6 +655,13 @@ async function finalizeSuccessfulPayment(input: {
 
 export async function completePaidOrder(order: Order, payment: PaymentRecord, actorId: string) {
   const invoice = await issueInvoiceForOrder(order, payment);
+  if (
+    /ATPL/i.test(order.items[0]?.productName ?? "") ||
+    order.metadata.sku === "ATPL-PACKAGE" ||
+    Boolean(order.metadata.purchaseFirst)
+  ) {
+    markAtplInstructorAssignmentPending(order.id);
+  }
 
   for (const item of order.items) {
     if (item.instructorId && item.totalAmount > 0) {

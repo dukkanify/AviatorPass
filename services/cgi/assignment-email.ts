@@ -17,6 +17,7 @@ import { findUserById, readAuthDb, type StoredUser } from "@/services/auth/store
 import { getCourseById } from "@/services/courses/course-service";
 import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { markAtplInstructorAssignmentAssigned } from "@/services/cgi/instructor-assignment-status";
 import { notifyUsers } from "@/services/notifications/notification-service";
 
 export type AtplAssignmentNotifyInput = {
@@ -285,6 +286,12 @@ export async function notifyAtplInstructorAssigned(
       meta: { liveClassId: input.liveClassId, tkLabel, audience: "admin" },
     });
   }
+
+  markAtplInstructorAssignmentAssigned({
+    studentId: student?.id,
+    tkLabel,
+    instructorName,
+  });
 
   return {
     tkLabel,

@@ -11,8 +11,9 @@ import {
 } from "@/config/env";
 import { demoOtpEnabled } from "@/services/auth/otp-service";
 import { getJsonStoreStatus } from "@/lib/data/json-file-store";
-import { isEmailDeliveryConfigured } from "@/services/email/mailer";
+import { isEmailDeliveryConfigured, RESEND_ONBOARDING_MAILBOX } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
+import { getSenderDomain, inspectResendDelivery } from "@/services/email/resend-status";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getActivityMonitoring } from "@/services/settings/monitoring";
 import { listBackups } from "@/services/ops/backup-service";
@@ -40,6 +41,115 @@ type HealthSnapshot = {
 
 let deepCache: { at: number; value: HealthSnapshot } | null = null;
 const DEEP_CACHE_MS = 5000;
+const RESEND_HEALTH_TIMEOUT_MS = 2500;
+
+export type ResendHealthHint = {
+  configured: boolean;
+  apiReachable: boolean;
+  domainVerified: boolean;
+  domainStatus: string | null;
+  senderDomain: string;
+  senderEmail: string;
+  error: string | null;
+};
+
+function configuredEmailDetail(input: {
+  smtpHost: string;
+  hasResendKey: boolean;
+  senderEmail: string;
+  adminNotificationEmail?: string;
+}): string {
+  if (input.smtpHost) return `SMTP ${input.smtpHost}`;
+  if (input.hasResendKey) {
+    return `Resend API configured · from ${input.senderEmail} · admin ${
+      input.adminNotificationEmail || "unset"
+    }`;
+  }
+  return `Email delivery configured · admin ${input.adminNotificationEmail || "unset"}`;
+}
+
+function isOnboardingSender(senderEmail: string): boolean {
+  const mailbox = senderEmail.trim().toLowerCase();
+  return mailbox === RESEND_ONBOARDING_MAILBOX || getSenderDomain(mailbox) === "example.com";
+}
+
+/** Live Resend status wins. Stale outbox "domain is not verified" never fails this check. */
+export function evaluateEmailQueueHealth(input: {
+  emailConfigured: boolean;
+  productionRuntime: boolean;
+  senderEmail: string;
+  smtpHost: string;
+  hasResendKey: boolean;
+  adminNotificationEmail?: string;
+  lastFailed?: { error?: string | null } | null;
+  resend?: ResendHealthHint | null;
+}): HealthCheck {
+  const configuredDetail = configuredEmailDetail(input);
+
+  if (!input.emailConfigured) {
+    return {
+      id: "email_queue",
+      label: "Email queue",
+      status: input.productionRuntime ? "fail" : "warn",
+      detail: "SMTP/Resend not configured — emails stay in the outbox",
+    };
+  }
+
+  const senderDomain = getSenderDomain(input.senderEmail);
+  const onboarding = isOnboardingSender(input.senderEmail);
+  const resend = input.resend;
+
+  if (resend) {
+    if (resend.domainVerified) {
+      return {
+        id: "email_queue",
+        label: "Email queue",
+        status: "pass",
+        detail: `Resend domain ${resend.senderDomain || senderDomain} verified · from ${
+          input.senderEmail
+        } · admin ${input.adminNotificationEmail || "unset"}`,
+      };
+    }
+    if (
+      resend.configured &&
+      resend.apiReachable &&
+      !resend.domainVerified &&
+      !onboarding &&
+      senderDomain
+    ) {
+      return {
+        id: "email_queue",
+        label: "Email queue",
+        status: "fail",
+        detail: resend.error || `Resend domain ${senderDomain} is not verified`,
+      };
+    }
+    if (resend.configured && !resend.apiReachable) {
+      return {
+        id: "email_queue",
+        label: "Email queue",
+        status: "warn",
+        detail: resend.error || "Resend API unreachable — delivery still configured",
+      };
+    }
+  }
+
+  // Historical outbox rows (aviatorpass.com + beth.t@example.com fallback) are not live status.
+  if (input.lastFailed?.error && /domain is not verified/i.test(input.lastFailed.error)) {
+    return {
+      id: "email_queue",
+      label: "Email queue",
+      status: "pass",
+      detail: configuredDetail,
+    };
+  }
+  return {
+    id: "email_queue",
+    label: "Email queue",
+    status: "pass",
+    detail: configuredDetail,
+  };
+}
 
 function timed<T>(fn: () => T): { value: T; ms: number } {
   const start = Date.now();
@@ -47,7 +157,10 @@ function timed<T>(fn: () => T): { value: T; ms: number } {
   return { value, ms: Date.now() - start };
 }
 
-function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
+function buildHealthSnapshot(opts?: {
+  deep?: boolean;
+  resend?: ResendHealthHint | null;
+}): HealthSnapshot {
   const checks: HealthCheck[] = [];
   const deep = Boolean(opts?.deep);
 
@@ -92,29 +205,18 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
 
   const emailConfigured = isEmailDeliveryConfigured();
   const lastFailed = listOutboundEmails(20).find((m) => m.mode === "failed");
-  const domainUnverified = Boolean(
-    lastFailed?.error && /domain is not verified/i.test(lastFailed.error),
+  checks.push(
+    evaluateEmailQueueHealth({
+      emailConfigured,
+      productionRuntime,
+      senderEmail: settings.email.senderEmail,
+      smtpHost: settings.email.smtpHost,
+      hasResendKey: Boolean(process.env.RESEND_API_KEY?.trim()),
+      adminNotificationEmail: settings.email.adminNotificationEmail,
+      lastFailed,
+      resend: opts?.resend,
+    }),
   );
-  checks.push({
-    id: "email_queue",
-    label: "Email queue",
-    status: emailConfigured
-      ? domainUnverified
-        ? "fail"
-        : "pass"
-      : productionRuntime
-        ? "fail"
-        : "warn",
-    detail: domainUnverified
-      ? lastFailed?.error || "Resend domain is not verified"
-      : emailConfigured
-        ? settings.email.smtpHost
-          ? `SMTP ${settings.email.smtpHost}`
-          : process.env.RESEND_API_KEY
-            ? `Resend API configured · from ${settings.email.senderEmail} · admin ${settings.email.adminNotificationEmail || "unset"}`
-            : `Email delivery configured · admin ${settings.email.adminNotificationEmail || "unset"}`
-        : "SMTP/Resend not configured — emails stay in the outbox",
-  });
 
   const zoom = getZoomCredentialInventory();
   const s2sReady = zoom.accountId && zoom.clientId && zoom.clientSecret;
@@ -263,8 +365,11 @@ function buildHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
   };
 }
 
-export function getHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
-  if (opts?.deep) {
+export function getHealthSnapshot(opts?: {
+  deep?: boolean;
+  resend?: ResendHealthHint | null;
+}): HealthSnapshot {
+  if (opts?.deep && opts.resend == null) {
     const age = deepCache ? Date.now() - deepCache.at : Infinity;
     if (deepCache && age < DEEP_CACHE_MS) return deepCache.value;
     const value = buildHealthSnapshot({ deep: true });
@@ -272,6 +377,35 @@ export function getHealthSnapshot(opts?: { deep?: boolean }): HealthSnapshot {
     return value;
   }
   return buildHealthSnapshot(opts);
+}
+
+async function inspectResendForHealth(senderEmail: string): Promise<ResendHealthHint | undefined> {
+  try {
+    const inspected = await Promise.race([
+      inspectResendDelivery({ senderEmail }),
+      new Promise<undefined>((resolve) => {
+        setTimeout(() => resolve(undefined), RESEND_HEALTH_TIMEOUT_MS);
+      }),
+    ]);
+    if (!inspected) return undefined;
+    return {
+      configured: inspected.configured,
+      apiReachable: inspected.apiReachable,
+      domainVerified: inspected.domainVerified,
+      domainStatus: inspected.domainStatus,
+      senderDomain: inspected.senderDomain,
+      senderEmail: inspected.senderEmail,
+      error: inspected.error,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+export async function getHealthSnapshotAsync(opts?: { deep?: boolean }): Promise<HealthSnapshot> {
+  const settings = getPlatformSettings();
+  const resend = await inspectResendForHealth(settings.email.senderEmail);
+  return getHealthSnapshot({ ...opts, resend });
 }
 
 export function getProductionChecklist(): Array<{

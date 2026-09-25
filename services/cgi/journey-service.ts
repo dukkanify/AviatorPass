@@ -39,6 +39,7 @@ import {
 } from "@/services/courses/enrollment-service";
 import { CourseValidationError } from "@/services/courses/validation";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
+import { instructorAssignmentFromOrder } from "@/services/cgi/instructor-assignment-status";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -771,15 +772,20 @@ function latestPaidPackageOrder(studentId: string, email: string) {
   const needle = email.trim().toLowerCase();
   return (
     readPaymentsDb()
-      .orders.filter(
-        (order) =>
-          order.status === "paid" &&
+      .orders.filter((order) => {
+        const identity =
+          order.studentId === studentId ||
+          order.studentEmail?.toLowerCase() === needle ||
+          order.billingEmail?.toLowerCase() === needle;
+        if (!identity) return false;
+        const unlocked = order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
+        if (!unlocked) return false;
+        const purchaseFirst =
           Boolean(order.metadata?.purchaseFirst) &&
-          typeof order.metadata?.studyStartDate === "string" &&
-          (order.studentId === studentId ||
-            order.studentEmail?.toLowerCase() === needle ||
-            order.billingEmail?.toLowerCase() === needle),
-      )
+          typeof order.metadata?.studyStartDate === "string";
+        const atplNamed = /ATPL/i.test(order.items[0]?.productName ?? "");
+        return purchaseFirst || atplNamed || order.metadata?.sku === "ATPL-PACKAGE";
+      })
       .sort((a, b) => (b.paidAt ?? b.updatedAt).localeCompare(a.paidAt ?? a.updatedAt))[0] ?? null
   );
 }
@@ -924,6 +930,7 @@ function packageScheduleFromOrder(
     nextSubjectStatus: next.nextSubjectStatus,
     nextLectureLabel: next.nextLectureLabel,
     nextLectureLiveClassId: next.nextLectureLiveClassId,
+    ...instructorAssignmentFromOrder(order, studentId),
   };
 }
 
@@ -1642,6 +1649,9 @@ export function getCgiDashboardSnapshot() {
     recentAudit: readCgiDb().audit.slice(0, 12),
     subjects,
     students: students.slice(0, 12),
+    pendingInstructorAssignments: students.filter(
+      (s) => Boolean(s.orderId) && s.instructorAssignmentStatus === "pending",
+    ),
     pendingFirstLectures: students.filter(
       (s) => s.scheduleProvisional && Boolean(s.requestedFirstLectureLabel),
     ),

@@ -191,6 +191,10 @@ describe("ATPL Complete Package journey", () => {
     expect(cgiStudent?.requestedFirstLectureTime).toBe(schedule.firstLectureTime);
     expect(cgiStudent?.scheduleProvisional).toBe(true);
     expect(cgiStudent?.requestedFirstLectureLabel).toBeTruthy();
+    expect(result.order.metadata.instructorAssignmentStatus).toBe("pending");
+    expect(cgiStudent?.instructorAssignmentStatus).toBe("pending");
+    expect(cgiStudent?.instructorAssignmentLabel).toBe("Pending Instructor Assignment");
+    expect(welcome?.instructorAssignmentStatus).toBe("pending");
   });
 
   it("keeps checkout on the guest form so the schedule is collected before Stripe", () => {
@@ -575,14 +579,18 @@ describe("ATPL Complete Package journey", () => {
     );
     expect(instructorDash).toContain("First lectures assigned by TKI 1");
     expect(instructorDash).toContain("/instructor/schedule");
+    expect(cgiView).toContain("Pending Instructor Assignment");
     expect(cgiView).toContain("Confirmed first lectures");
     expect(cgiView).toContain("Instrumentation");
     expect(cgiView).toContain("always opens with Instrumentation");
+    expect(dash).toContain("Pending Instructor Assignment");
+    expect(dash).toContain("instructorAssignmentStatus");
     expect(dash).toContain("firstLectureSubjectTitle");
     expect(dash).toContain("atplSchedule.subjects");
     expect(dash).toContain("Follows TKI 1");
     expect(scheduleHub).toContain("atplSchedule.subjects");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
+    expect(getCgiDashboardSnapshot()).toHaveProperty("pendingInstructorAssignments");
   });
 
   it("lets TKI 1 open General Navigation and book that lecture after Instrumentation", async () => {

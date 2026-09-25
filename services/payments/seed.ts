@@ -306,6 +306,7 @@ export function ensurePaymentsSeeded(): void {
     id: invoiceId,
     invoiceNumber: `INV-${new Date().getFullYear()}-00001`,
     orderId,
+    paymentId,
     studentId: student.id,
     studentName: order.studentName,
     studentEmail: order.studentEmail,
@@ -327,6 +328,7 @@ export function ensurePaymentsSeeded(): void {
     paidAt: stamp,
     pdfReady: true,
     emailedAt: stamp,
+    metadata: { paymentId, seeded: true },
     createdAt: stamp,
     updatedAt: stamp,
   };

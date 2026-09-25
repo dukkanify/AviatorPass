@@ -55,7 +55,7 @@ export function inferDnsEditor(nameservers: string[]): DnsEditorHint {
       title: "cPanel Zone Editor",
       nameservers: ns,
       instruction:
-        "Add these records in cPanel → Zone Editor. The domain uses dns1.namecheaphosting.com / dns2.namecheaphosting.com. Do not use Namecheap Domain List → Advanced DNS — those records will not publish.",
+        "Add these records in cPanel → Zone Editor. The domain uses dns1.namecheaphosting.com / dns2.namecheaphosting.com. Do not use Namecheap Domain List → Advanced DNS — those records will not publish. If Host send is still a leftover CNAME, delete that CNAME before adding Resend MX/TXT.",
     };
   }
   if (ns.some((name) => name.includes("registrar-servers.com") || name.endsWith("namecheap.com"))) {
@@ -196,6 +196,14 @@ export async function probePublicDns(input: {
   }
 
   const publishedCount = rows.filter((row) => row.matched).length;
+  let leftoverSendCname: string | null = null;
+  try {
+    const cnames = await input.lookup.resolveCname(`send.${domain}`);
+    leftoverSendCname = cnames.map(normalizeName).find(Boolean) ?? null;
+  } catch (error) {
+    if (!emptyOnMiss(error)) leftoverSendCname = null;
+  }
+
   return {
     domain,
     nameservers,
@@ -204,5 +212,6 @@ export async function probePublicDns(input: {
     publishedCount,
     missingCount: rows.length - publishedCount,
     checkedAt,
+    leftoverSendCname,
   };
 }

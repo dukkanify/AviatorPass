@@ -42,6 +42,7 @@ function CheckoutView() {
   const [agreementAccepted, setAgreementAccepted] = React.useState(false);
   const [passport, setPassport] = React.useState<StudentKycDocument | null>(null);
   const [installmentCount, setInstallmentCount] = React.useState(4);
+  const [schoolName, setSchoolName] = React.useState("");
   const [order, setOrder] = React.useState<Order | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
@@ -76,10 +77,15 @@ function CheckoutView() {
   }, [billingCountry, paymentMode]);
 
   const product = products.find((p) => p.id === selected);
+  const officialEurInstallments =
+    paymentMode === "installments" &&
+    product?.metadata?.sku === "ATPL-PACKAGE" &&
+    !["KW", "AE", "SA"].includes(billingCountry);
   const needsKyc =
-    paymentMode !== "full" &&
-    paymentMode !== "taly" &&
-    Boolean(rule?.requiresPassport || rule?.requiresAgreement);
+    (paymentMode !== "full" &&
+      paymentMode !== "taly" &&
+      Boolean(rule?.requiresPassport || rule?.requiresAgreement)) ||
+    officialEurInstallments;
 
   async function uploadPassport(file: File) {
     setError(null);
@@ -114,8 +120,12 @@ function CheckoutView() {
       setError("Accept the installment agreement to continue.");
       return;
     }
-    if (needsKyc && rule?.requiresPassport && !passport) {
+    if (needsKyc && (rule?.requiresPassport || officialEurInstallments) && !passport) {
       setError("Upload your passport before installments or BNPL.");
+      return;
+    }
+    if (officialEurInstallments && !schoolName.trim()) {
+      setError("Enter your flight school name for international ATPL installments.");
       return;
     }
 
@@ -183,9 +193,10 @@ function CheckoutView() {
         methodBrand: payMethod,
         paymentToken: token,
         paymentMode,
-        installmentCount,
+        installmentCount: officialEurInstallments ? 5 : installmentCount,
         agreementAccepted,
         passportDocumentId: passport?.id ?? null,
+        schoolName: schoolName.trim() || undefined,
       },
     );
     if (!paid.success || !paid.data) {
@@ -285,7 +296,7 @@ function CheckoutView() {
               value={billingCountry}
               onChange={(e) => setBillingCountry(e.target.value)}
             >
-              {["KW", "SA", "AE", "BH", "QA", "OM", "XX"].map((c) => (
+              {["KW", "SA", "AE", "BH", "QA", "OM", "DE", "FR", "GB", "US", "XX"].map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -309,7 +320,21 @@ function CheckoutView() {
               ))}
             </select>
 
-            {paymentMode === "installments" ? (
+            {paymentMode === "installments" && officialEurInstallments ? (
+              <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                <p className="font-medium">Official international ATPL plan</p>
+                <p className="text-muted-foreground">
+                  €2,000 today, then four monthly payments of €1,000. School name and passport are
+                  required.
+                </p>
+                <Input
+                  id="schoolName"
+                  placeholder="Flight school name"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                />
+              </div>
+            ) : paymentMode === "installments" ? (
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={installmentCount}

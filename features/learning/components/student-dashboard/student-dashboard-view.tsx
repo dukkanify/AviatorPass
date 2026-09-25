@@ -623,9 +623,11 @@ function LearningDashboardView() {
                 <Link href="/student/schedule">Open</Link>
               </div>
               <p className="sl-muted">
-                {atplSchedule.scheduleProvisional
-                  ? "Provisional — waiting for TKI 1"
-                  : "Confirmed by TKI 1"}
+                {atplSchedule.instructorAssignmentStatus === "pending"
+                  ? atplSchedule.instructorAssignmentLabel || "Pending Instructor Assignment"
+                  : atplSchedule.scheduleProvisional
+                    ? "Provisional — waiting for TKI 1"
+                    : "Confirmed by TKI 1"}
               </p>
               <p>
                 <strong>

@@ -16,6 +16,8 @@ import {
 import { quoteMockExam } from "@/services/mock-exams/pricing-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getRegionalPaymentRule } from "@/services/payments/regional-rules-service";
+import { ATPL_PACKAGE_PRICES } from "@/services/payments/country-pricing";
+import { officialAtplEurInstallmentAmounts } from "@/services/payments/atpl-official-installments";
 import { readPaymentsDb } from "@/services/payments/store";
 import { ROLES } from "@/constants/roles";
 
@@ -58,6 +60,12 @@ describe("customer journey alignment", () => {
     expect(sa.bnplProviders).toEqual(["tamara"]);
     expect(kw.maxInstallments).toBeGreaterThanOrEqual(6);
     expect(ae.maxInstallments).toBeGreaterThanOrEqual(6);
+  });
+
+  it("prices official international ATPL installments as EUR 2000 + 4x1000", () => {
+    const amounts = officialAtplEurInstallmentAmounts();
+    expect(amounts).toEqual([200_000, 100_000, 100_000, 100_000, 100_000]);
+    expect(ATPL_PACKAGE_PRICES.EUR).toBe(600_000);
   });
 
   it("creates checkout products for journey SKUs", () => {

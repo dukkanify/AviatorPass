@@ -32,36 +32,73 @@ export function listInvoices(filters?: { studentId?: string }) {
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord): Promise<Invoice> {
-  const existing = readPaymentsDb().invoices.find((i) => i.orderId === order.id);
+export function findInvoiceForPayment(paymentId: string): Invoice | null {
+  return (
+    readPaymentsDb().invoices.find(
+      (invoice) => invoice.paymentId === paymentId || invoice.metadata?.paymentId === paymentId,
+    ) ?? null
+  );
+}
+
+export async function issueInvoiceForPayment(
+  order: Order,
+  payment: PaymentRecord,
+  options?: { installmentSequence?: number; installmentCount?: number },
+): Promise<Invoice> {
+  const existing = findInvoiceForPayment(payment.id);
   if (existing) return existing;
 
   const stamp = nowIso();
+  const amount = payment.amount > 0 ? payment.amount : order.totalAmount;
+  const productName = order.items[0]?.productName ?? "AviatorPass";
+  const installmentSequence =
+    options?.installmentSequence ??
+    (typeof payment.rawProviderPayload?.installmentSequence === "number"
+      ? payment.rawProviderPayload.installmentSequence
+      : undefined);
+  const installmentCount =
+    options?.installmentCount ??
+    (typeof payment.rawProviderPayload?.installmentCount === "number"
+      ? payment.rawProviderPayload.installmentCount
+      : undefined);
+  const description =
+    installmentSequence && installmentCount
+      ? `${productName} — Installment ${installmentSequence} of ${installmentCount}`
+      : productName;
+
   const invoice: Invoice = {
     id: generateId(),
     invoiceNumber: nextInvoiceNumber(),
     orderId: order.id,
+    paymentId: payment.id,
     studentId: order.studentId,
     studentName: order.studentName,
     studentEmail: order.studentEmail,
     status: "paid",
-    currency: order.currency,
-    subtotalAmount: order.subtotalAmount,
-    discountAmount: order.discountAmount,
-    taxAmount: order.taxAmount,
-    totalAmount: order.totalAmount,
+    currency: payment.currency || order.currency,
+    subtotalAmount: amount,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: amount,
     paymentMethodSummary: payment.paymentMethodSummary,
-    items: order.items.map((item) => ({
-      id: generateId(),
-      description: item.productName,
-      quantity: item.quantity,
-      unitAmount: item.unitAmount,
-      totalAmount: item.totalAmount,
-    })),
+    items: [
+      {
+        id: generateId(),
+        description,
+        quantity: 1,
+        unitAmount: amount,
+        totalAmount: amount,
+      },
+    ],
     issuedAt: stamp,
     paidAt: stamp,
     pdfReady: true,
     emailedAt: stamp,
+    metadata: {
+      paymentId: payment.id,
+      ...(installmentSequence ? { installmentSequence } : {}),
+      ...(installmentCount ? { installmentCount } : {}),
+    },
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -70,6 +107,8 @@ export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord)
     db.invoices.unshift(invoice);
     const o = db.orders.find((x) => x.id === order.id);
     if (o) o.invoiceId = invoice.id;
+    const p = db.payments.find((x) => x.id === payment.id);
+    if (p) p.invoiceNumber = invoice.invoiceNumber;
     db.transactionLogs.unshift({
       id: generateId(),
       kind: "invoice",
@@ -80,7 +119,7 @@ export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord)
       amount: invoice.totalAmount,
       currency: invoice.currency,
       description: `Invoice ${invoice.invoiceNumber} issued`,
-      metadata: { orderId: order.id },
+      metadata: { orderId: order.id, paymentId: payment.id },
       createdAt: stamp,
     });
   });
@@ -90,7 +129,7 @@ export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord)
     title: "Invoice generated",
     body: `${invoice.invoiceNumber} for ${amountLabel} is ready.`,
     type: "invoice.generated",
-    data: { invoiceId: invoice.id, orderId: order.id },
+    data: { invoiceId: invoice.id, orderId: order.id, paymentId: payment.id },
     amountLabel,
     reference: invoice.invoiceNumber,
     email: false,
@@ -105,7 +144,7 @@ export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord)
       detail: `Order ${order.orderNumber} — thank you for your payment.`,
     },
     actorId: order.studentId,
-    meta: { invoiceId: invoice.id, orderId: order.id },
+    meta: { invoiceId: invoice.id, orderId: order.id, paymentId: payment.id },
   });
 
   await dispatchEmailEvent({
@@ -128,6 +167,10 @@ export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord)
   });
 
   return invoice;
+}
+
+export async function issueInvoiceForOrder(order: Order, payment: PaymentRecord): Promise<Invoice> {
+  return issueInvoiceForPayment(order, payment);
 }
 
 export function renderInvoiceHtml(invoiceId: string): string {

@@ -11,6 +11,12 @@ import {
   updateEnrollmentStatus,
 } from "@/services/courses/enrollment-service";
 import { CourseValidationError } from "@/services/courses/validation";
+import {
+  normalizeSchoolName,
+  officialAtplEurInstallmentAmounts,
+  officialAtplEurTotalMinor,
+  usesOfficialAtplEurInstallments,
+} from "@/services/payments/atpl-official-installments";
 import { hasUsablePassport } from "@/services/payments/kyc-document-service";
 import {
   assertCheckoutModeAllowed,
@@ -81,6 +87,35 @@ export function buildInstallmentAmounts(total: number, count: number): number[] 
   return amounts;
 }
 
+export function productSkuOfOrder(order: Order): string | null {
+  const product = readPaymentsDb().products.find((p) => p.id === order.items[0]?.productId);
+  const sku = product?.metadata?.sku;
+  return typeof sku === "string" ? sku : null;
+}
+
+function applyOfficialAtplEurTotals(orderId: string, total: number): void {
+  writePaymentsDb((db) => {
+    const order = db.orders.find((row) => row.id === orderId);
+    if (!order) return;
+    order.currency = "EUR";
+    order.subtotalAmount = total;
+    order.discountAmount = 0;
+    order.taxAmount = 0;
+    order.totalAmount = total;
+    if (order.items[0]) {
+      order.items[0].unitAmount = total;
+      order.items[0].discountAmount = 0;
+      order.items[0].taxAmount = 0;
+      order.items[0].totalAmount = total;
+    }
+    order.metadata = {
+      ...order.metadata,
+      officialAtplEurInstallments: true,
+    };
+    order.updatedAt = nowIso();
+  });
+}
+
 export async function createInstallmentPlanForOrder(input: {
   order: Order;
   user: UserProfile;
@@ -88,25 +123,38 @@ export async function createInstallmentPlanForOrder(input: {
   installmentCount?: number;
   agreementAccepted: boolean;
   passportDocumentId?: string | null;
+  schoolName?: string | null;
   actorId: string;
 }): Promise<InstallmentPlan> {
   const countryCode = (input.order.billingCountry || input.user.countryCode || "XX").toUpperCase();
   const rule = getRegionalPaymentRule(countryCode);
   assertCheckoutModeAllowed(rule, input.mode);
+  const sku = productSkuOfOrder(input.order);
+  const officialEur =
+    input.mode === "installments" && usesOfficialAtplEurInstallments(countryCode, sku);
+  const schoolName = normalizeSchoolName(input.schoolName);
 
-  if (input.order.totalAmount < rule.minAmount) {
+  if (officialEur && !schoolName) {
+    throw new InstallmentError(
+      "School name is required for international ATPL installments (EUR 2,000 + 4×1,000).",
+    );
+  }
+
+  const billedTotal = officialEur ? officialAtplEurTotalMinor() : input.order.totalAmount;
+  if (billedTotal < rule.minAmount) {
     throw new InstallmentError(
       `Minimum amount for ${rule.countryName} is not met for this payment mode.`,
     );
   }
 
-  const needsKyc = input.mode !== "full" && (rule.requiresPassport || rule.requiresAgreement);
+  const needsKyc =
+    input.mode !== "full" && (officialEur || rule.requiresPassport || rule.requiresAgreement);
 
-  if (needsKyc && rule.requiresAgreement && !input.agreementAccepted) {
+  if (needsKyc && (officialEur || rule.requiresAgreement) && !input.agreementAccepted) {
     throw new InstallmentError("You must accept the installment agreement to continue.");
   }
 
-  if (needsKyc && rule.requiresPassport) {
+  if (needsKyc && (officialEur || rule.requiresPassport)) {
     const passportOk =
       (input.passportDocumentId &&
         readPaymentsDb().kycDocuments.some(
@@ -121,9 +169,14 @@ export async function createInstallmentPlanForOrder(input: {
     }
   }
 
+  if (officialEur) {
+    applyOfficialAtplEurTotals(input.order.id, billedTotal);
+  }
+
   const settings = readPaymentsDb().settings;
-  const count =
-    input.mode === "full"
+  const count = officialEur
+    ? officialAtplEurInstallmentAmounts().length
+    : input.mode === "full"
       ? 1
       : Math.min(
           rule.maxInstallments,
@@ -132,16 +185,19 @@ export async function createInstallmentPlanForOrder(input: {
 
   const item = input.order.items[0];
   const courseIds = productCourseIds(item?.productId ?? "", item?.courseId ?? null);
-  const amounts = buildInstallmentAmounts(input.order.totalAmount, count);
+  const amounts = officialEur
+    ? officialAtplEurInstallmentAmounts()
+    : buildInstallmentAmounts(billedTotal, count);
   const stamp = nowIso();
   const planId = generateId();
+  const currency = officialEur ? "EUR" : input.order.currency;
 
   const schedule: InstallmentScheduleItem[] = amounts.map((amount, index) => ({
     id: generateId(),
     planId,
     sequence: index + 1,
     amount,
-    currency: input.order.currency,
+    currency,
     dueAt: addDays(index * 30),
     status: index === 0 ? "due" : "upcoming",
     paidAt: null,
@@ -165,15 +221,19 @@ export async function createInstallmentPlanForOrder(input: {
       needsKyc && rule.requiresPassport && !hasUsablePassport(input.user.id)
         ? "pending_kyc"
         : "active",
-    currency: input.order.currency,
-    totalAmount: input.order.totalAmount,
+    currency,
+    totalAmount: billedTotal,
     installmentCount: count,
     agreementAcceptedAt: input.agreementAccepted ? stamp : null,
     agreementVersion: input.agreementAccepted ? settings.agreementVersion : null,
     passportDocumentId: input.passportDocumentId ?? getLatestPassportId(input.user.id),
     suspendedAt: null,
     resumedAt: null,
-    metadata: { regionalRuleId: rule.id },
+    metadata: {
+      regionalRuleId: rule.id,
+      ...(officialEur ? { officialAtplEurInstallments: true } : {}),
+      ...(schoolName ? { schoolName } : {}),
+    },
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -192,6 +252,8 @@ export async function createInstallmentPlanForOrder(input: {
         ...order.metadata,
         installmentPlanId: plan.id,
         paymentMode: input.mode,
+        ...(officialEur ? { officialAtplEurInstallments: true } : {}),
+        ...(schoolName ? { schoolName } : {}),
       };
       order.updatedAt = stamp;
     }

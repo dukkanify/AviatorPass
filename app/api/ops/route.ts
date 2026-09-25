@@ -8,7 +8,7 @@ import {
   restoreBackup,
   testRestore,
 } from "@/services/ops/backup-service";
-import { getHealthSnapshot, getProductionChecklist } from "@/services/ops/health-service";
+import { getHealthSnapshotAsync, getProductionChecklist } from "@/services/ops/health-service";
 import { exportOpsLogsCsv, listOpsLogs } from "@/services/ops/logging-service";
 import type { BackupRetention, OpsLogCategory, OpsLogLevel } from "@/services/ops";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      data: getHealthSnapshot({ deep: true }),
+      data: await getHealthSnapshotAsync({ deep: true }),
       error: null,
     });
   } catch (error) {

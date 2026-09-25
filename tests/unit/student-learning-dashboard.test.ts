@@ -130,6 +130,8 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("First lecture");
     expect(view).toContain("firstLectureLiveClassId");
     expect(view).toContain("confirmedFirstLectureAt");
+    expect(view).toContain("Pending Instructor Assignment");
+    expect(view).toContain("instructorAssignmentStatus");
     expect(view).toContain("firstLectureSubjectTitle");
     expect(view).toContain("ATPL_COMPLETE_PACKAGE_NAME");
     expect(view).toContain("Follows TKI 1");

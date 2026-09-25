@@ -17,8 +17,8 @@ What is already true in Vercel Production:
 | SMTP                        | Not configured (`smtpHost` empty)                                                                    |
 | Provider stored in settings | `smtp` (ignored when only Resend is set)                                                             |
 | SPF                         | `v=spf1 +a +mx +ip4:162.0.229.206 include:spf.web-hosting.com ~all` (Namecheap mail, **not** Resend) |
-| DKIM for Resend             | **Missing** (`resend._domainkey.aviatorpass.com` NXDOMAIN)                                           |
-| `send` MX / TXT             | **Missing** (Resend bounce / SPF host not published)                                                 |
+| DKIM for Resend             | Published (`resend._domainkey.aviatorpass.com`)                                                      |
+| `send` host                 | **Leftover CNAME** `send.forge.rmta.net` (Forge MX/SPF). Must be deleted before Resend MX/TXT        |
 | DMARC                       | `v=DMARC1; p=none;`                                                                                  |
 | DNS host                    | Namecheap **hosting** NS (`dns1.namecheaphosting.com` / `dns2.namecheaphosting.com`)                 |
 | Where to add records        | **cPanel → Zone Editor** — not Namecheap Domain List → Advanced DNS                                  |
@@ -38,11 +38,11 @@ Authentication, Stripe, Tamara, Taly, and Zoom were not changed.
 1. Open [Resend Domains](https://resend.com/domains) with the same account as `RESEND_API_KEY`.
 2. Add `aviatorpass.com` (or click **Register domain** in Super Admin → Platform Settings → Email).
 3. Open **cPanel → Zone Editor** for `aviatorpass.com`. Public NS are Namecheap _hosting_ (`dns1.namecheaphosting.com`). Do **not** use Namecheap Domain List → Advanced DNS — those records stay unpublished while hosting NS are in use.
-   Super Admin → Platform Settings → Email shows a live public-DNS probe and a **Copy TSV** sheet (`Type / Host / Value / TTL / Priority`). Typical Resend rows:
-   - **MX** Host `send` Priority `10` → `feedback-smtp.us-east-1.amazonses.com` (or the exact MX Resend prints).
-   - **TXT** Host `send` → `v=spf1 include:amazonses.com ~all`.
-   - **TXT** Host `resend._domainkey` → the DKIM public key Resend prints.
-   - Keep the apex SPF / MX for existing Namecheap mailbox mail. Live `send.aviatorpass.com` currently publishes a non-Resend host (`feedback.forge.rmta.net` / a non-Amazon SPF). Replace those rows with Resend’s MX/TXT — do not add a second `send` of the same type.
+   Super Admin → Platform Settings → Email shows a live public-DNS probe and a **Copy TSV** sheet (`Type / Host / Value / TTL / Priority`). `send.aviatorpass.com` is still a leftover **CNAME** to `send.forge.rmta.net` (Forge MX `feedback.forge.rmta.net`). A name cannot be CNAME and MX/TXT at the same time:
+   1. **Delete** CNAME Host `send` → `send.forge.rmta.net`.
+   2. **Add MX** Host `send` Priority `10` → `feedback-smtp.us-east-1.amazonses.com` (or the exact MX Resend prints).
+   3. **Add TXT** Host `send` → `v=spf1 include:amazonses.com ~all`.
+   4. **Keep** TXT Host `resend._domainkey` (already published) and the apex mailbox SPF / MX. Do not add a second `send` of the same type.
    - Optional **DMARC** stay `p=none` until inboxing is confirmed.
 4. Click **Verify** in Resend. Wait until status is `verified`.
 5. Confirm `EMAIL_FROM` / Platform sender is `AviatorPass <noreply@aviatorpass.com>` (or another mailbox on the verified domain).

@@ -219,6 +219,7 @@ export interface Invoice {
   id: string;
   invoiceNumber: string;
   orderId: string;
+  paymentId: string | null;
   studentId: string;
   studentName: string;
   studentEmail: string;
@@ -234,6 +235,7 @@ export interface Invoice {
   paidAt: string | null;
   pdfReady: boolean;
   emailedAt: string | null;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

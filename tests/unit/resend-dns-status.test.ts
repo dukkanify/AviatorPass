@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDnsRecordLine,
   formatNamecheapTsv,
+  leftoverSendCnameInstruction,
   probeRowState,
   registrarHost,
 } from "@/services/email/resend-dns";
@@ -301,5 +302,33 @@ describe("public DNS probe", () => {
     );
     expect(probeRowState({ matched: false, published: [] })).toBe("missing");
     expect(probeRowState({ matched: true, published: ["v=DKIM1"] })).toBe("published");
+  });
+
+  it("flags a leftover Forge CNAME on Host send", async () => {
+    const probe = await probePublicDns({
+      domain: "aviatorpass.com",
+      records: DETAIL_RECORDS,
+      lookup: lookup({
+        resolveNs: async () => ["dns1.namecheaphosting.com"],
+        resolveMx: async (name) =>
+          name === "send.aviatorpass.com"
+            ? [{ exchange: "feedback.forge.rmta.net.", priority: 10 }]
+            : [],
+        resolveTxt: async (name) =>
+          name === "send.aviatorpass.com"
+            ? [["v=spf1 ip4:52.3.252.119 ip4:44.222.39.36 ip4:199.249.231.0/24 ~all"]]
+            : [],
+        resolveCname: async (name) =>
+          name === "send.aviatorpass.com" ? ["send.forge.rmta.net."] : [],
+      }),
+    });
+    expect(probe.leftoverSendCname).toBe("send.forge.rmta.net");
+    expect(probe.rows.find((row) => row.type === "MX")?.matched).toBe(false);
+    expect(leftoverSendCnameInstruction(probe.leftoverSendCname!)).toMatch(
+      /Delete leftover CNAME Host send → send\.forge\.rmta\.net/,
+    );
+    expect(leftoverSendCnameInstruction(probe.leftoverSendCname!)).toMatch(
+      /feedback-smtp\.us-east-1\.amazonses\.com/,
+    );
   });
 });

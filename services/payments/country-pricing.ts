@@ -32,6 +32,7 @@ export const ATPL_PACKAGE_PRICES = {
   SAR: majorToMinor(5850, "SAR"),
   KWD: majorToMinor(480, "KWD"),
   USD: majorToMinor(1570, "USD"),
+  EUR: majorToMinor(6000, "EUR"),
 } as const;
 
 export const ATPL_PACKAGE_COMPARE_AT = {
@@ -39,6 +40,7 @@ export const ATPL_PACKAGE_COMPARE_AT = {
   SAR: majorToMinor(6825, "SAR"),
   KWD: majorToMinor(560, "KWD"),
   USD: majorToMinor(1830, "USD"),
+  EUR: majorToMinor(7000, "EUR"),
 } as const;
 
 type AtplCurrency = keyof typeof ATPL_PACKAGE_PRICES;
