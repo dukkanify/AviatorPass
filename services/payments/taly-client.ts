@@ -115,15 +115,31 @@ async function loginTaly(): Promise<string> {
   let lastStatus = 0;
   let lastJson: unknown = null;
   for (const attempt of attempts) {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: attempt.authorization,
-        "Content-Type": attempt.contentType,
-        Accept: "application/json",
-      },
-      body: attempt.body,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: attempt.authorization,
+          "Content-Type": attempt.contentType,
+          Accept: "application/json",
+        },
+        body: attempt.body,
+      });
+    } catch (error) {
+      logTalyEvent({
+        level: "error",
+        message: "Merchant login transport failed",
+        path: "/uaa/oauth/token",
+        details: {
+          reason: error instanceof Error ? error.message : "fetch failed",
+        },
+      });
+      throw new PaymentError(
+        "Taly login failed. Check TALY_BASE_URL, merchant credentials, and Taly API TLS.",
+        502,
+      );
+    }
     const text = await response.text();
     const json = await parseJson(text);
     lastStatus = response.status;
