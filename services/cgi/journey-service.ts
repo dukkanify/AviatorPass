@@ -38,6 +38,7 @@ import {
   updateEnrollmentStatus,
 } from "@/services/courses/enrollment-service";
 import { CourseValidationError } from "@/services/courses/validation";
+import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -602,6 +603,7 @@ export async function distributeLecture(input: {
       startsAt: input.scheduledAt,
       durationMinutes: 60,
       enrollStudentIds: input.studentId ? [input.studentId] : undefined,
+      omitScheduleEmail: true,
       actorId: input.actorId,
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
@@ -629,6 +631,20 @@ export async function distributeLecture(input: {
     db.lectureAssignments.unshift(row);
   });
   audit("cgi.lectures.distribute", input.actorId, "lecture", row.id, row.lessonTitle);
+  try {
+    await notifyAtplInstructorAssigned({
+      instructorId: input.instructorId,
+      studentId: input.studentId,
+      courseId: input.courseId,
+      lessonTitle: row.lessonTitle,
+      scheduledAt: input.scheduledAt,
+      comments: input.notes,
+      liveClassId,
+      actorId: input.actorId,
+    });
+  } catch {
+    // Lecture is stored; official assignment email is best-effort.
+  }
   return row;
 }
 

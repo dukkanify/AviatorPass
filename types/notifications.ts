@@ -467,6 +467,17 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     audiences: ["instructor", "cgi"],
   },
 
+  "student.instructor_assigned": {
+    type: "student.instructor_assigned",
+    category: "assignment",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Instructor assigned",
+    defaultBody: "A theoretical knowledge instructor has been assigned to you.",
+    audiences: ["student"],
+  },
+
   // Assignments / quizzes / exams
   "assignment.published": {
     type: "assignment.published",
@@ -579,8 +590,8 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     type: "message.new",
     category: "message",
     priority: "medium",
-    delivery: "grouped",
-    emailDefault: false,
+    delivery: "immediate",
+    emailDefault: true,
     groupKey: "message.new",
     defaultTitle: "New message",
     defaultBody: "You have a new message.",
@@ -621,7 +632,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     category: "message",
     priority: "medium",
     delivery: "immediate",
-    emailDefault: false,
+    emailDefault: true,
     defaultTitle: "Added to conversation",
     defaultBody: "You were added to a group conversation.",
     audiences: ["all"],
@@ -840,6 +851,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     emailDefault: true,
     defaultTitle: "Unable to Schedule",
     defaultBody: "A student needs a new lecture time (Scheduling Required).",
+    audiences: ["admin", "super_admin"],
+  },
+  "admin.instructor_assigned": {
+    type: "admin.instructor_assigned",
+    category: "ops",
+    priority: "medium",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Instructor assigned",
+    defaultBody: "A theoretical knowledge instructor was assigned to a student.",
     audiences: ["admin", "super_admin"],
   },
   "system.maintenance": {

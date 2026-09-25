@@ -666,5 +666,9 @@ export function notificationTypeToEmailEvent(type: string): EmailAutomationEvent
   if (type === "payment.succeeded" || type === "payment.purchase") return "purchase";
   if (type.startsWith("payment.") || type.startsWith("invoice.")) return "payment";
   if (type.startsWith("assignment.")) return "assignment";
+  if (type === "message.new" || type === "message.group_added" || type === "document.shared") {
+    return "student_alert";
+  }
+  if (type.startsWith("ticket.")) return "student_alert";
   return "student_alert";
 }

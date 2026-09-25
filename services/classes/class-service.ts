@@ -282,10 +282,11 @@ async function notifyUsers(
   body: string,
   type: string,
   data: Record<string, unknown>,
+  email?: boolean,
 ) {
   const { notifyUsers: emitToUsers } =
     await import("@/services/notifications/notification-service");
-  await emitToUsers(userIds, { title, body, type, data });
+  await emitToUsers(userIds, { title, body, type, data, email });
 }
 
 export async function createLiveClass(
@@ -436,15 +437,17 @@ export async function createLiveClass(
     );
     addParticipants(cls.id, students, "participant");
 
-    const { enqueueZoomNotification } = await import("@/services/zoom/notifications");
-    enqueueZoomNotification({
-      kind: "created",
-      liveClassId: cls.id,
-      classTitle: cls.title,
-      startsAt: cls.startsAt,
-      actorId: input.actorId,
-      userIds: [...participantIds],
-    });
+    if (!input.omitScheduleEmail) {
+      const { enqueueZoomNotification } = await import("@/services/zoom/notifications");
+      enqueueZoomNotification({
+        kind: "created",
+        liveClassId: cls.id,
+        classTitle: cls.title,
+        startsAt: cls.startsAt,
+        actorId: input.actorId,
+        userIds: [...participantIds],
+      });
+    }
 
     await queueClassReminders(cls.id);
     await notifyUsers(
@@ -453,18 +456,21 @@ export async function createLiveClass(
       `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
       "class.created",
       { liveClassId: cls.id },
+      input.omitScheduleEmail ? false : undefined,
     );
-    const createdMeeting = getZoomMeetingByClassId(cls.id);
-    await emailScheduleLifecycle({
-      event: "schedule",
-      userIds: [...participantIds],
-      title: cls.title,
-      when: new Date(cls.startsAt).toLocaleString(),
-      detail: "A Zoom meeting has been prepared for this session.",
-      liveClassId: cls.id,
-      actorId: input.actorId,
-      joinUrl: createdMeeting ? appJoinUrl(cls.id, createdMeeting.zoomMeetingId) : undefined,
-    });
+    if (!input.omitScheduleEmail) {
+      const createdMeeting = getZoomMeetingByClassId(cls.id);
+      await emailScheduleLifecycle({
+        event: "schedule",
+        userIds: [...participantIds],
+        title: cls.title,
+        when: new Date(cls.startsAt).toLocaleString(),
+        detail: "A Zoom meeting has been prepared for this session.",
+        liveClassId: cls.id,
+        actorId: input.actorId,
+        joinUrl: createdMeeting ? appJoinUrl(cls.id, createdMeeting.zoomMeetingId) : undefined,
+      });
+    }
   }
 
   await logActivity({

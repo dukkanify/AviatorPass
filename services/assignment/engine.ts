@@ -15,6 +15,7 @@ import { readCoursesDb } from "@/services/courses/store";
 import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { notifyUsers } from "@/services/notifications/notification-service";
 import {
@@ -54,7 +55,9 @@ function getRequest(id: string): AssignmentRequest | null {
   return readAssignmentDb().requests.find((r) => r.id === id) ?? null;
 }
 
-function displayName(user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined) {
+function displayName(
+  user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined,
+) {
   if (!user) return "Unknown";
   return [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email;
 }
@@ -68,9 +71,7 @@ async function alertUnableToSchedule(input: {
   const student = input.request.studentId ? findUserById(input.request.studentId) : null;
   const instructor = findUserById(input.request.instructorId);
   const course = input.request.courseId ? getCourseById(input.request.courseId) : null;
-  const subjectTitle = course
-    ? `${course.code} — ${course.title}`
-    : input.request.lessonTitle;
+  const subjectTitle = course ? `${course.code} — ${course.title}` : input.request.lessonTitle;
   const studentLabel = displayName(student);
   const instructorLabel = displayName(instructor);
   const title = "Unable to Schedule";
@@ -89,8 +90,7 @@ async function alertUnableToSchedule(input: {
     .map((u) => u.id);
   const adminIds = auth.users
     .filter(
-      (u) =>
-        (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
+      (u) => (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
     )
     .map((u) => u.id);
   const recipients = [...new Set([...cgiIds, ...adminIds])];
@@ -585,6 +585,7 @@ export async function scheduleAssignmentSession(input: {
     durationMinutes: request.durationMinutes,
     status: "scheduled",
     enrollStudentIds: request.studentId ? [request.studentId] : undefined,
+    omitScheduleEmail: true,
     actorId: input.actorId,
   });
 
@@ -622,20 +623,20 @@ export async function scheduleAssignmentSession(input: {
   });
   bumpQueuePositions(request.instructorId);
 
-  const alertUserIds = [request.instructorId, request.studentId].filter((id): id is string =>
-    Boolean(id),
-  );
-  await dispatchEmailEvent({
-    event: "assignment",
-    userIds: alertUserIds,
-    data: {
-      title: request.lessonTitle,
-      detail: "ATPL assignment engine scheduled a live session with Zoom.",
-      when: new Date(preferred).toLocaleString(),
-    },
-    actorId: input.actorId,
-    meta: { assignmentRequestId: request.id, liveClassId: created.id },
-  });
+  try {
+    await notifyAtplInstructorAssigned({
+      instructorId: request.instructorId,
+      studentId: request.studentId,
+      courseId: request.courseId,
+      lessonTitle: request.lessonTitle,
+      scheduledAt: preferred,
+      comments: request.notes,
+      liveClassId: created.id,
+      actorId: input.actorId,
+    });
+  } catch {
+    // Session is stored; official assignment email is best-effort.
+  }
 
   return {
     request: getRequest(request.id)!,
