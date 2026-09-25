@@ -715,6 +715,13 @@ export async function completePaidOrder(order: Order, payment: PaymentRecord, ac
     entityId: order.id,
     metadata: { invoiceId: invoice.id, amount: order.totalAmount },
   });
+
+  try {
+    const { scheduleLiveProgramWelcome } = await import("@/services/payments/live-welcome-service");
+    scheduleLiveProgramWelcome(getOrder(order.id) ?? order);
+  } catch {
+    // Payment is complete; the 3-day live welcome is best-effort.
+  }
 }
 
 function createSubscriptionFromItem(order: Order, model: PricingModel, item: OrderItem) {
