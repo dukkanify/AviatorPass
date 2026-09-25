@@ -89,7 +89,9 @@ export async function processEmailQueue(limit = 10) {
   const { processDueLiveProgramWelcomes } =
     await import("@/services/payments/live-welcome-service");
   const liveWelcomes = await processDueLiveProgramWelcomes({ limit });
-  return { retries, jobs, liveWelcomes };
+  const { processDueReminders } = await import("@/services/classes/reminder-service");
+  const classReminders = await processDueReminders();
+  return { retries, jobs, liveWelcomes, classReminders };
 }
 
 export function getQueuedOutbound(id: string) {
