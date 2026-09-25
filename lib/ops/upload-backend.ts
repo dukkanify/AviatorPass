@@ -149,10 +149,31 @@ export async function putUploadedFile(input: {
     };
   }
 
-  const { put } = await import("@vercel/blob");
-  const blob = await put(`aep-uploads/${relativePath}`, input.bytes, {
-    access: "public",
-    contentType: input.contentType,
-  });
+  const blob = await putVercelBlob(`aep-uploads/${relativePath}`, input.bytes, input.contentType);
   return { publicUrl: blob.url, backend: "vercel_blob", storagePath: blob.pathname };
+}
+
+function isPrivateBlobStoreError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /cannot use public access on a private store/i.test(message);
+}
+
+export async function putVercelBlob(
+  pathname: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<{ url: string; pathname: string }> {
+  const { put } = await import("@vercel/blob");
+  const options = { contentType, addRandomSuffix: false as const };
+  try {
+    return await put(pathname, bytes, { ...options, access: "public" });
+  } catch (error) {
+    if (!isPrivateBlobStoreError(error)) {
+      throw new UploadBackendError(
+        error instanceof Error ? error.message : "Vercel Blob upload failed",
+        503,
+      );
+    }
+    return await put(pathname, bytes, { ...options, access: "private" });
+  }
 }
