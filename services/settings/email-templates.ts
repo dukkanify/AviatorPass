@@ -3,6 +3,10 @@
  * Uses platform settings for logo, colors, and footer.
  */
 
+import {
+  remapAtplpassMailbox,
+  rewriteLegacyPublicHost,
+} from "@/lib/branding/legacy-client-identity";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 
 export interface EmailTemplatePayload {
@@ -47,7 +51,10 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
 
   const locations = general.primaryLocations.join(" · ");
 
-  const site = general.websiteUrl.replace(/\/$/, "") || "https://www.aviatorpass.com";
+  const site =
+    rewriteLegacyPublicHost(general.websiteUrl).replace(/\/$/, "") || "https://www.aviatorpass.com";
+  const contactEmail = remapAtplpassMailbox(general.contactEmail);
+  const supportEmail = remapAtplpassMailbox(general.supportEmail);
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,9 +103,9 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
               ${general.footerText}<br/>
               ${locations}<br/>
               <a href="${site}" style="color:${accent};">${site}</a><br/>
-              <a href="mailto:${general.contactEmail}" style="color:${accent};">${general.contactEmail}</a>
+              <a href="mailto:${contactEmail}" style="color:${accent};">${contactEmail}</a>
               ·
-              <a href="mailto:${general.supportEmail}" style="color:${accent};">${general.supportEmail}</a>
+              <a href="mailto:${supportEmail}" style="color:${accent};">${supportEmail}</a>
               <div style="margin-top:10px;">
                 <a href="${site}/legal/terms" style="color:${accent};">Terms of Service</a>
                 ·
@@ -120,8 +127,8 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
     payload.bodyHtml.replace(/<[^>]+>/g, " "),
     "",
     `${general.companyName} · ${locations}`,
-    general.contactEmail,
-    general.supportEmail,
+    contactEmail,
+    supportEmail,
     general.socialHandle,
   ].join("\n");
 

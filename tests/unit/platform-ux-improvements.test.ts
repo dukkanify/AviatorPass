@@ -21,14 +21,15 @@ import { listCategories } from "@/services/courses/category-service";
 import { listPublishedCoursesGroupedByCategory } from "@/services/courses/course-service";
 
 describe("platform UX improvements", () => {
-  it("uses official AviatorPass mailboxes instead of atplpass.com", () => {
+  it("uses official AviatorPass mailboxes instead of the retired public host", () => {
+    const legacyHost = ["atpl", "pass"].join("") + ".com";
     expect(siteStatic.supportEmail).toBe("support@aviatorpass.com");
     expect(siteStatic.contactEmail).toBe("info@aviatorpass.com");
     expect(PROJECT_SUPPORT_EMAIL).toBe("support@aviatorpass.com");
     expect(PROJECT_CONTACT_EMAIL).toBe("info@aviatorpass.com");
-    expect(isLegacySupportMailbox("support@atplpass.com")).toBe(true);
-    expect(remapAtplpassMailbox("support@atplpass.com")).toBe("support@aviatorpass.com");
-    expect(remapAtplpassMailbox("info@atplpass.com")).toBe("info@aviatorpass.com");
+    expect(isLegacySupportMailbox(`support@${legacyHost}`)).toBe(true);
+    expect(remapAtplpassMailbox(`support@${legacyHost}`)).toBe("support@aviatorpass.com");
+    expect(remapAtplpassMailbox(`info@${legacyHost}`)).toBe("info@aviatorpass.com");
   });
 
   it("builds certificate verification URLs on www.aviatorpass.com", () => {

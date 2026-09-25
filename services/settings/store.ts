@@ -15,6 +15,7 @@ import {
   PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
   remapAtplpassMailbox,
+  rewriteLegacyPublicHost,
 } from "@/lib/branding/legacy-client-identity";
 
 interface SettingsDatabase {
@@ -204,6 +205,26 @@ function migrateClientSupportBranding(settings: PlatformSettings): PlatformSetti
     general.websiteUrl = DEFAULT_PLATFORM_SETTINGS.general.websiteUrl;
     changed = true;
   }
+  const nextWebsite = rewriteLegacyPublicHost(general.websiteUrl);
+  if (nextWebsite !== general.websiteUrl) {
+    general.websiteUrl = nextWebsite.includes("aviatorpass.com")
+      ? nextWebsite
+      : DEFAULT_PLATFORM_SETTINGS.general.websiteUrl;
+    changed = true;
+  }
+  const nextFooter = rewriteLegacyPublicHost(general.footerText);
+  if (nextFooter !== general.footerText) {
+    general.footerText = nextFooter;
+    changed = true;
+  }
+  const nextFooterInfo = rewriteLegacyPublicHost(settings.branding.footerInformation);
+  if (nextFooterInfo !== settings.branding.footerInformation) {
+    settings = {
+      ...settings,
+      branding: { ...settings.branding, footerInformation: nextFooterInfo },
+    };
+    changed = true;
+  }
   const nextSender = remapSupportEmail(email.senderEmail);
   if (nextSender !== email.senderEmail) {
     email.senderEmail = nextSender;
@@ -237,8 +258,15 @@ function migrateClientSupportBranding(settings: PlatformSettings): PlatformSetti
   }
   for (const key of ["instagram", "twitter", "linkedin", "youtube"] as const) {
     const current = general.socialLinks[key];
-    if (current && isPersonalClientSocial(current)) {
+    if (!current) continue;
+    if (isPersonalClientSocial(current)) {
       general.socialLinks[key] = DEFAULT_PLATFORM_SETTINGS.general.socialLinks[key];
+      changed = true;
+      continue;
+    }
+    const nextLink = rewriteLegacyPublicHost(current);
+    if (nextLink !== current) {
+      general.socialLinks[key] = nextLink;
       changed = true;
     }
   }
@@ -267,7 +295,13 @@ function ensureStore(): SettingsDatabase {
   const rawHistoryLen = Array.isArray(raw.history) ? raw.history.length : 0;
   const rawAdmin = raw.settings?.email?.adminNotificationEmail?.trim() ?? "";
   const healedAdmin = Boolean(!rawAdmin && settings.email.adminNotificationEmail?.trim());
-  if (rawHistoryLen > MAX_SETTINGS_HISTORY || healedAdmin) {
+  const healedLegacyHost =
+    raw.settings?.general?.websiteUrl !== settings.general.websiteUrl ||
+    raw.settings?.general?.contactEmail !== settings.general.contactEmail ||
+    raw.settings?.general?.supportEmail !== settings.general.supportEmail ||
+    raw.settings?.general?.footerText !== settings.general.footerText ||
+    raw.settings?.email?.replyToEmail !== settings.email.replyToEmail;
+  if (rawHistoryLen > MAX_SETTINGS_HISTORY || healedAdmin || healedLegacyHost) {
     writeJsonFile(DATA_FILE, db);
   }
 
