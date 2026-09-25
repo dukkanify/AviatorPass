@@ -1813,7 +1813,10 @@ function PlatformSettingsShell() {
                 onCheckedChange={(v) => setDraft({ ...draft, zoom: { ...draft.zoom, enabled: v } })}
               />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Host account email">
+                <Field
+                  label="Host account email"
+                  description="Must be a user on the Zoom Server-to-Server account (for example ceo@aviatorpass.com). The support mailbox is not a Zoom user and is ignored when creating meetings."
+                >
                   <Input
                     value={draft.zoom.accountEmail}
                     onChange={(e) =>
