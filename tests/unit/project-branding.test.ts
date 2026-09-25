@@ -65,6 +65,6 @@ describe("AviatorPass project branding", () => {
     expect(siteStatic.supportEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
     expect(siteStatic.contactEmail.toLowerCase()).not.toContain(LEGACY_CLIENT_FAMILY.toLowerCase());
     expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toBe("support@aviatorpass.com");
-    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).not.toContain("atplpass.com");
+    expect(PROJECT_SUPPORT_EMAIL.toLowerCase()).toMatch(/@aviatorpass\.com$/);
   });
 });
