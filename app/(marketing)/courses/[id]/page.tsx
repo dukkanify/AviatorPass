@@ -6,7 +6,7 @@ import { PublicCatalogCoursePage } from "@/features/marketing/components/public-
 import { routes } from "@/constants/routes";
 import { resolveRequestCheckoutCountry } from "@/lib/marketing/checkout-country";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
-import { resolveAtplSubjectRef } from "@/lib/marketing/atpl-subject-ref";
+import { resolveAtplSubjectRef } from "@/lib/marketing/resolve-atpl-subject";
 import { getPublicListedCourseByRef } from "@/services/courses/course-service";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
