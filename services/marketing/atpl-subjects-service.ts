@@ -2,6 +2,7 @@
  * Super Admin CMS for ATPL landing-page subjects.
  */
 
+import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { generateId } from "@/lib/security/crypto";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
@@ -44,6 +45,29 @@ export function listPublicAtplSubjects(): AtplLandingSubjectPublic[] {
     badgeLabel: row.badgeLabel || DEFAULT_ATPL_SUBJECT_BADGE,
     imageUrl: row.imageUrl,
   }));
+}
+
+/** Create the official package row if Super Admin edits a subject that was never saved. */
+export async function ensureOfficialPackageSubject(
+  code: string,
+  ctx?: ActorCtx,
+): Promise<AtplLandingSubject> {
+  const official = ATPL_COMPLETE_PACKAGE_SUBJECTS.find((item) => item.code === code);
+  if (!official) throw new CourseValidationError("Unknown ATPL subject");
+  const existing = listAtplLandingSubjects({ includeHidden: true }).find(
+    (row) => row.code === official.code,
+  );
+  if (existing) return existing;
+  return createAtplLandingSubject(
+    {
+      code: official.code,
+      title: official.title,
+      shortDescription: official.shortDescription,
+      badgeLabel: DEFAULT_ATPL_SUBJECT_BADGE,
+      visible: true,
+    },
+    ctx,
+  );
 }
 
 export async function createAtplLandingSubject(
