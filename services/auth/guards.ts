@@ -8,14 +8,24 @@ import { getCurrentSession } from "@/services/auth/auth-service";
 import { assertPermission, PermissionError } from "@/services/auth/permissions";
 import type { Permission } from "@/constants/permissions";
 import type { UserProfile } from "@/types";
+import { clientContextFromRequest } from "@/lib/ops/client-telemetry";
+import { bindRequestContext } from "@/lib/ops/request-als";
 
 export function getRequestContext(request: Request) {
+  const ctx = clientContextFromRequest(request);
+  bindRequestContext({
+    ipAddress: ctx.ipAddress,
+    userAgent: ctx.userAgent,
+    city: ctx.city,
+    region: ctx.region,
+    country: ctx.country,
+  });
   return {
-    ipAddress:
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      null,
-    userAgent: request.headers.get("user-agent"),
+    ipAddress: ctx.ipAddress,
+    userAgent: ctx.userAgent,
+    city: ctx.city,
+    region: ctx.region,
+    country: ctx.country,
   };
 }
 
@@ -49,16 +59,12 @@ export async function requirePageRole(allowed: Role | Role[]): Promise<UserProfi
   if (user.status === ACCOUNT_STATUS.SUSPENDED) redirect(routes.accountSuspended);
 
   const allowedRoles = Array.isArray(allowed) ? allowed : [allowed];
-  const elevatedAdmin =
-    allowedRoles.includes(ROLES.ADMIN) && user.role === ROLES.SUPER_ADMIN;
+  const elevatedAdmin = allowedRoles.includes(ROLES.ADMIN) && user.role === ROLES.SUPER_ADMIN;
   const elevatedInstructor =
-    allowedRoles.includes(ROLES.INSTRUCTOR) &&
-    user.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
+    allowedRoles.includes(ROLES.INSTRUCTOR) && user.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
 
   if (!allowedRoles.includes(user.role) && !elevatedAdmin && !elevatedInstructor) {
-    redirect(
-      user.profileComplete ? ROLE_DASHBOARD[user.role] : routes.completeProfile,
-    );
+    redirect(user.profileComplete ? ROLE_DASHBOARD[user.role] : routes.completeProfile);
   }
 
   return user;

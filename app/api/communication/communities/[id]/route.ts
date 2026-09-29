@@ -28,12 +28,30 @@ export async function GET(request: Request, context: Ctx) {
         { status: 404 },
       );
     }
+    const postId = searchParams.get("postId");
+    if (postId) {
+      return NextResponse.json({
+        success: true,
+        data: { comments: listComments("community_post", postId) },
+        error: null,
+      });
+    }
     const posts = listPosts(user, id, {
       q: searchParams.get("q") ?? undefined,
       limit: Number(searchParams.get("limit") ?? 30),
       offset: Number(searchParams.get("offset") ?? 0),
     });
-    return NextResponse.json({ success: true, data: { community, posts }, error: null });
+    return NextResponse.json({
+      success: true,
+      data: {
+        community,
+        posts: posts.map((post) => ({
+          ...post,
+          comments: listComments("community_post", post.id),
+        })),
+      },
+      error: null,
+    });
   } catch (error) {
     return communicationErrorResponse(error);
   }

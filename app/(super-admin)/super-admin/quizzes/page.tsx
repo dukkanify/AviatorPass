@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { InstructorQuizzesView } from "@/features/quizzes";
-
-export default function SuperAdminQuizzesPage() {
-  return <InstructorQuizzesView roleLabel="Super Admin" basePath="/super-admin/quizzes" />;
+export default function QuizzesRemovedPage() {
+  redirect("/super-admin/mock-exams");
 }

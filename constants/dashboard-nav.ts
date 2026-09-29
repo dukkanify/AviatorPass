@@ -63,7 +63,6 @@ export const SUPER_ADMIN_NAV: DashboardNavItem[] = [
   { label: "Courses", href: "/super-admin/courses", icon: "courses" },
   { label: "ATPL subjects", href: "/super-admin/courses/atpl-subjects", icon: "courses" },
   { label: "Course publishing", href: "/super-admin/courses/publishing", icon: "courses" },
-  { label: "Quizzes", href: "/super-admin/quizzes", icon: "quizzes" },
   { label: "Certificates", href: "/super-admin/certificates", icon: "certificates" },
   { label: "Classes", href: "/super-admin/classes", icon: "classes" },
   { label: "Schedule", href: "/admin/schedule", icon: "calendar" },
@@ -98,6 +97,7 @@ export const SUPER_ADMIN_NAV: DashboardNavItem[] = [
   { label: "Activity Logs", href: "/super-admin/activity-logs", icon: "activity" },
   { label: "Notifications", href: "/super-admin/notifications", icon: "notifications" },
   { label: "Profile", href: "/super-admin/profile", icon: "profile" },
+  { label: "Settings", href: "/super-admin/account", icon: "settings" },
 ];
 
 export const ADMIN_NAV: DashboardNavItem[] = [
@@ -105,7 +105,6 @@ export const ADMIN_NAV: DashboardNavItem[] = [
   { label: "Students", href: "/admin/students", icon: "students" },
   { label: "Instructors", href: "/admin/instructors", icon: "instructors" },
   { label: "Courses", href: "/admin/courses", icon: "courses" },
-  { label: "Quizzes", href: "/admin/quizzes", icon: "quizzes" },
   { label: "Certificates", href: "/admin/certificates", icon: "certificates" },
   { label: "Classes", href: "/admin/classes", icon: "classes" },
   { label: "Schedule", href: "/admin/schedule", icon: "calendar" },
@@ -125,13 +124,13 @@ export const ADMIN_NAV: DashboardNavItem[] = [
   { label: "Reports", href: "/admin/reports", icon: "reports" },
   { label: "Notifications", href: "/admin/notifications", icon: "notifications" },
   { label: "Profile", href: "/admin/profile", icon: "profile" },
+  { label: "Settings", href: "/admin/settings", icon: "settings" },
 ];
 
 export const INSTRUCTOR_NAV: DashboardNavItem[] = [
   { label: "Dashboard", href: "/instructor/dashboard", icon: "dashboard" },
   { label: "My Courses", href: "/instructor/courses", icon: "courses" },
   { label: "Students", href: "/instructor/students", icon: "students" },
-  { label: "Quizzes", href: "/instructor/quizzes", icon: "quizzes" },
   { label: "Certificates", href: "/instructor/certificates", icon: "certificates" },
   { label: "Calendar", href: "/instructor/calendar", icon: "calendar" },
   { label: "Schedule", href: "/instructor/schedule", icon: "classes" },
@@ -153,6 +152,7 @@ export const INSTRUCTOR_NAV: DashboardNavItem[] = [
   { label: "Reports", href: "/instructor/reports", icon: "reports" },
   { label: "Notifications", href: "/instructor/notifications", icon: "notifications" },
   { label: "Profile", href: "/instructor/profile", icon: "profile" },
+  { label: "Settings", href: "/instructor/settings", icon: "settings" },
 ];
 
 export const CGI_NAV: DashboardNavItem[] = [
@@ -167,6 +167,7 @@ export const CGI_NAV: DashboardNavItem[] = [
   { label: "Messages", href: "/cgi/messages", icon: "messages" },
   { label: "Notifications", href: "/cgi/notifications", icon: "notifications" },
   { label: "Profile", href: "/cgi/profile", icon: "profile" },
+  { label: "Settings", href: "/cgi/settings", icon: "settings" },
 ];
 
 export const STUDENT_NAV: DashboardNavItem[] = [
@@ -182,7 +183,6 @@ export const STUDENT_NAV: DashboardNavItem[] = [
   { label: "Mock exams", href: "/student/mock-exams", icon: "quizzes" },
   { label: "History", href: "/student/history", icon: "history" },
   { label: "Search", href: "/student/search", icon: "search" },
-  { label: "Quizzes", href: "/student/quizzes", icon: "quizzes" },
   { label: "Progress", href: "/student/progress", icon: "activity" },
   {
     label: "Performance reports",
@@ -202,6 +202,7 @@ export const STUDENT_NAV: DashboardNavItem[] = [
   { label: "Search messages", href: "/student/comm-search", icon: "search" },
   { label: "Notifications", href: "/student/notifications", icon: "notifications" },
   { label: "Profile", href: "/student/profile", icon: "profile" },
+  { label: "Settings", href: "/student/settings", icon: "settings" },
 ];
 
 export const DASHBOARD_NAV: Record<Role, DashboardNavItem[]> = {

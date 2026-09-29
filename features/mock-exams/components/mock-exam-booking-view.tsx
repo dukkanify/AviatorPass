@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatZonedDateTime, todayInZone } from "@/lib/datetime/zoned";
 import { formatMinor } from "@/lib/money";
+import { InAppZoomRoom } from "@/features/zoom/components/in-app-zoom-room";
+import { MockExamWrittenView } from "@/features/mock-exams/components/mock-exam-written-view";
 import type { MockExamSessionWithNames, MockExamSlot, MockExamType } from "@/types/mock-exams";
 
 type Catalog = {
@@ -55,6 +57,7 @@ export function MockExamBookingView() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [studentName, setStudentName] = React.useState("");
+  const [tab, setTab] = React.useState<"written" | "live">("written");
 
   const load = React.useCallback(async () => {
     const [c, s, me] = await Promise.all([
@@ -128,17 +131,31 @@ export function MockExamBookingView() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="ELP mock exam"
-        description="Choose a published slot, review the total including rush fees, then confirm and pay. The Zoom room is created after payment."
+        title="Mock exams"
+        description="Sit a timed written paper with saved attempts, or book a live examiner session."
         breadcrumbs={[{ label: "Student" }, { label: "Mock exams" }]}
       />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {!catalog ? (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={tab === "written" ? "default" : "outline"}
+          onClick={() => setTab("written")}
+        >
+          Written paper
+        </Button>
+        <Button variant={tab === "live" ? "default" : "outline"} onClick={() => setTab("live")}>
+          Live examiner
+        </Button>
+      </div>
+
+      {tab === "written" ? <MockExamWrittenView /> : null}
+
+      {tab === "live" && error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {tab === "live" && !catalog ? (
         <p className="text-sm text-muted-foreground">Loading catalog…</p>
-      ) : !catalog.settings.enabled ? (
+      ) : tab === "live" && catalog && !catalog.settings.enabled ? (
         <p className="text-sm text-muted-foreground">Mock exam booking is currently disabled.</p>
-      ) : (
+      ) : tab === "live" && catalog ? (
         <section className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Working hours ({catalog.settings.timezone}): Monday–Friday 17:00–20:00 · Saturday–Sunday
@@ -206,83 +223,84 @@ export function MockExamBookingView() {
             </div>
           ) : null}
         </section>
-      )}
+      ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">My mock exams</h2>
-        <ul className="space-y-3 text-sm">
-          {sessions.length === 0 ? (
-            <li className="text-muted-foreground">No mock exams booked yet.</li>
-          ) : (
-            sessions.map((s) => (
-              <li key={s.id} className="border-b border-border/60 pb-3">
-                <p className="font-medium">
-                  {s.examTypeName} · <Badge variant="secondary">{s.status}</Badge>
-                </p>
-                <p className="text-muted-foreground">
-                  {formatZonedDateTime(new Date(s.startsAt), s.timezone)} · Examiner:{" "}
-                  {s.examinerName ?? "—"} · {formatMinor(s.quote.total, s.currency)}
-                </p>
-                {s.zoom ? (
-                  <p>
-                    {s.zoom.topic ? (
-                      <span className="block text-muted-foreground">{s.zoom.topic}</span>
-                    ) : null}
-                    <a
-                      className="text-primary hover:underline"
-                      href={s.zoom.joinUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Join Zoom meeting
-                    </a>
+      {tab === "live" ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">My mock exams</h2>
+          <ul className="space-y-3 text-sm">
+            {sessions.length === 0 ? (
+              <li className="text-muted-foreground">No mock exams booked yet.</li>
+            ) : (
+              sessions.map((s) => (
+                <li key={s.id} className="border-b border-border/60 pb-3">
+                  <p className="font-medium">
+                    {s.examTypeName} · <Badge variant="secondary">{s.status}</Badge>
                   </p>
-                ) : null}
-                {s.documents?.length ? (
-                  <ul className="mt-1 text-muted-foreground">
-                    {s.documents.map((doc) => (
-                      <li key={doc.id}>
-                        <a
-                          className="text-primary hover:underline"
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {doc.name}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {s.certificateId ? (
                   <p className="text-muted-foreground">
-                    Aviator Pass certificate available · score {s.scorePercent ?? "—"}% ·{" "}
-                    <a
-                      className="text-primary hover:underline"
-                      href={`/api/mock-exams/certificate/${s.certificateId}`}
-                    >
-                      View certificate
-                    </a>
+                    {formatZonedDateTime(new Date(s.startsAt), s.timezone)} · Examiner:{" "}
+                    {s.examinerName ?? "—"} · {formatMinor(s.quote.total, s.currency)}
                   </p>
-                ) : null}
-                {s.status === "pending_payment" ? (
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    onClick={() =>
-                      void apiPost({ action: "confirm_payment", sessionId: s.id }).then(() =>
-                        load(),
-                      )
-                    }
-                  >
-                    Pay now
-                  </Button>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
+                  {s.zoom ? (
+                    <div className="mt-3 space-y-3">
+                      {s.zoom.topic ? (
+                        <span className="block text-muted-foreground">{s.zoom.topic}</span>
+                      ) : null}
+                      <InAppZoomRoom
+                        joinUrl={s.zoom.joinUrl}
+                        startUrl={s.zoom.startUrl}
+                        meetingNumber={s.zoom.meetingNumber}
+                        password={s.zoom.password}
+                        title={s.examTypeName}
+                      />
+                    </div>
+                  ) : null}
+                  {s.documents?.length ? (
+                    <ul className="mt-1 text-muted-foreground">
+                      {s.documents.map((doc) => (
+                        <li key={doc.id}>
+                          <a
+                            className="text-primary hover:underline"
+                            href={doc.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {doc.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {s.certificateId ? (
+                    <p className="text-muted-foreground">
+                      Aviator Pass certificate available · score {s.scorePercent ?? "—"}% ·{" "}
+                      <a
+                        className="text-primary hover:underline"
+                        href={`/api/mock-exams/certificate/${s.certificateId}`}
+                      >
+                        View certificate
+                      </a>
+                    </p>
+                  ) : null}
+                  {s.status === "pending_payment" ? (
+                    <Button
+                      size="sm"
+                      className="mt-2"
+                      onClick={() =>
+                        void apiPost({ action: "confirm_payment", sessionId: s.id }).then(() =>
+                          load(),
+                        )
+                      }
+                    >
+                      Pay now
+                    </Button>
+                  ) : null}
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

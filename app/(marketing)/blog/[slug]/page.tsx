@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +69,13 @@ export default function BlogArticlePage() {
           {post.authorName} ·{" "}
           {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : ""}
         </p>
+        {post.featuredImageUrl ? (
+          <SafeImage
+            src={post.featuredImageUrl}
+            alt={post.title}
+            className="mt-4 h-64 w-full rounded-2xl object-cover"
+          />
+        ) : null}
       </header>
       <div
         className="prose prose-lg dark:prose-invert max-w-none"

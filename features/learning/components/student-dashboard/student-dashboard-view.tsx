@@ -337,16 +337,7 @@ function LearningDashboardView() {
       return;
     }
     setJoining(true);
-    const result = await learningFetch<{ join?: { joinUrl?: string | null } | null }>(
-      `/api/classes/${classId}/join`,
-    );
-    setJoining(false);
-    const url = result.data?.join?.joinUrl;
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    window.location.href = "/student/schedule";
+    window.location.href = `/join/${classId}`;
   }
 
   if (loading) {

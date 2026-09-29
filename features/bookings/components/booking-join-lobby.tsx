@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "@/components/ui/app-link";
-import { Copy, ExternalLink, Radio, Shield, Video } from "lucide-react";
+import { Copy, Radio, Shield, Video } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { bookingFetch } from "@/features/bookings/lib/api";
 import type { BookingJoinPayload } from "@/types/bookings";
 import { routes } from "@/constants/routes";
+import { InAppZoomRoom } from "@/features/zoom/components/in-app-zoom-room";
 
 interface BookingJoinLobbyProps {
   bookingId: string;
@@ -81,7 +82,6 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
   }
 
   const { booking, join, isHost, canJoin, joinWindowLabel } = data;
-  const enterUrl = isHost && join.startUrl ? join.startUrl : join.joinUrl;
 
   return (
     <div className="booking-aurora relative min-h-dvh overflow-hidden text-white">
@@ -154,33 +154,20 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
                 </div>
               </dl>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  size="lg"
-                  variant="accent"
-                  className="flex-1"
-                  disabled={!canJoin}
-                  asChild={canJoin}
-                >
-                  {canJoin ? (
-                    <a href={enterUrl} target="_blank" rel="noreferrer">
-                      {isHost ? "Start Zoom as host" : "Enter Zoom meeting"}
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  ) : (
-                    <span>Waiting for join window</span>
-                  )}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
-                  onClick={() => copy(enterUrl)}
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </Button>
-              </div>
+              {canJoin ? (
+                <div className="mt-8">
+                  <InAppZoomRoom
+                    joinUrl={join.joinUrl}
+                    startUrl={join.startUrl}
+                    meetingNumber={join.meetingNumber}
+                    password={join.password}
+                    isHost={isHost}
+                    title={booking.title}
+                  />
+                </div>
+              ) : (
+                <p className="mt-8 text-sm text-white/70">Waiting for join window</p>
+              )}
 
               <p className="mt-4 flex items-center gap-2 text-xs text-white/45">
                 <Shield className="h-3.5 w-3.5" />

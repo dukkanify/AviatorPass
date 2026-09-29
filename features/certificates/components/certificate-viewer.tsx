@@ -59,7 +59,7 @@ function CertificateViewer() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
         <Card className="overflow-hidden border-2">
-          <CardContent className="space-y-4 bg-gradient-to-br from-background via-muted/20 to-background p-8">
+          <CardContent className="space-y-4 bg-gradient-to-br from-background via-muted/20 to-background p-8 text-center">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Certificate of Completion
             </p>
@@ -70,7 +70,9 @@ function CertificateViewer() {
               Instructor {c.instructorName} · Completed {c.completionDate} · Issued{" "}
               {c.issueDate ?? "—"}
             </p>
-            <Badge variant="secondary">{CERTIFICATE_STATUS_LABELS[c.status]}</Badge>
+            <div className="flex justify-center">
+              <Badge variant="secondary">{CERTIFICATE_STATUS_LABELS[c.status]}</Badge>
+            </div>
           </CardContent>
         </Card>
         <Card>

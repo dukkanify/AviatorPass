@@ -17,6 +17,8 @@ import type {
   MockExamSettings,
   MockExamSession,
   MockExamType,
+  WrittenExamAttempt,
+  WrittenExamQuestion,
 } from "@/types/mock-exams";
 
 export interface MockExamsDatabase {
@@ -25,6 +27,8 @@ export interface MockExamsDatabase {
   extraFees: MockExamExtraFee[];
   sessions: MockExamSession[];
   certificates: MockExamCertificate[];
+  questions: WrittenExamQuestion[];
+  attempts: WrittenExamAttempt[];
   seeded: boolean;
 }
 
@@ -176,6 +180,8 @@ function emptyDb(): MockExamsDatabase {
     extraFees: defaultExtraFees(),
     sessions: [],
     certificates: [],
+    questions: [],
+    attempts: [],
     seeded: false,
   };
 }
@@ -192,6 +198,8 @@ function normalizeDb(raw: Partial<MockExamsDatabase>): MockExamsDatabase {
       documents: Array.isArray(s.documents) ? s.documents : [],
     })),
     certificates: raw.certificates ?? [],
+    questions: raw.questions ?? [],
+    attempts: raw.attempts ?? [],
     seeded: Boolean(raw.seeded),
   };
 }

@@ -1,23 +1,17 @@
-import { withApiHandler } from "@/lib/api/with-handler";
-import { ok, parsePagination } from "@/lib/api/envelope";
-import { requireApiUser } from "@/lib/api/auth";
-import { ROLES } from "@/constants/roles";
-import { listPublishedQuizzesForStudent, listQuizzes } from "@/services/quizzes/quiz-service";
-import { ensureQuizzesSeeded } from "@/services/quizzes/seed";
+import { quizzesRemoved } from "@/app/api/quizzes/_gone";
 
-export const GET = withApiHandler(async (request) => {
-  const ctx = await requireApiUser(request);
-  ensureQuizzesSeeded();
-  if (ctx.user.role === ROLES.STUDENT) {
-    return ok(listPublishedQuizzesForStudent(ctx.user.id));
-  }
-  const url = new URL(request.url);
-  const p = parsePagination(url);
-  return ok(
-    listQuizzes({
-      q: p.q,
-      page: p.page,
-      pageSize: p.pageSize,
-    }),
-  );
-});
+export function GET() {
+  return quizzesRemoved();
+}
+
+export function POST() {
+  return quizzesRemoved();
+}
+
+export function PATCH() {
+  return quizzesRemoved();
+}
+
+export function DELETE() {
+  return quizzesRemoved();
+}

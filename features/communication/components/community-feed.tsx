@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { COMMUNITY_KIND_LABELS } from "@/constants/communication";
 import { cn } from "@/lib/utils";
 import { commFetch, commJson } from "@/features/communication/lib/api";
-import type { Community, CommunityPost } from "@/types/communication";
+import type { CommentRecord, Community, CommunityPost } from "@/types/communication";
 
 function CommunityFeedView({ canModerate = false }: { canModerate?: boolean }) {
   const [communities, setCommunities] = React.useState<Community[]>([]);
@@ -22,6 +22,8 @@ function CommunityFeedView({ canModerate = false }: { canModerate?: boolean }) {
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [comments, setComments] = React.useState<Record<string, CommentRecord[]>>({});
+  const [commentDraft, setCommentDraft] = React.useState<Record<string, string>>({});
 
   const loadCommunities = React.useCallback(async () => {
     const result = await commFetch<Community[]>("/api/communication/communities");
@@ -34,8 +36,14 @@ function CommunityFeedView({ canModerate = false }: { canModerate?: boolean }) {
     const result = await commFetch<{ community: Community; posts: CommunityPost[] }>(
       `/api/communication/communities/${id}${qs}`,
     );
-    if (result.success && result.data) setPosts(result.data.posts);
-    else setError(result.error);
+    if (result.success && result.data) {
+      setPosts(result.data.posts);
+      const next: Record<string, CommentRecord[]> = {};
+      for (const post of result.data.posts) {
+        next[post.id] = (post as CommunityPost & { comments?: CommentRecord[] }).comments ?? [];
+      }
+      setComments(next);
+    } else setError(result.error);
   }, []);
 
   React.useEffect(() => {
@@ -153,8 +161,46 @@ function CommunityFeedView({ canModerate = false }: { canModerate?: boolean }) {
                     {p.authorName} · {new Date(p.createdAt).toLocaleString()}
                   </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <p className="whitespace-pre-wrap text-sm">{p.body}</p>
+                  <div className="space-y-2 border-t border-border pt-3">
+                    {(comments[p.id] ?? []).map((c) => (
+                      <div key={c.id} className="rounded-md bg-muted/50 px-3 py-2 text-sm">
+                        <p className="text-xs text-muted-foreground">
+                          {c.authorName} · {new Date(c.createdAt).toLocaleString()}
+                        </p>
+                        <p>{c.body}</p>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <Textarea
+                        className="min-h-[64px]"
+                        placeholder="Write a comment…"
+                        value={commentDraft[p.id] ?? ""}
+                        onChange={(e) =>
+                          setCommentDraft((prev) => ({ ...prev, [p.id]: e.target.value }))
+                        }
+                      />
+                      <Button
+                        onClick={() =>
+                          void commJson(`/api/communication/communities/${activeId}`, "POST", {
+                            action: "comment",
+                            postId: p.id,
+                            body: commentDraft[p.id] ?? "",
+                          }).then(async (result) => {
+                            if (!result.success) {
+                              setError(result.error);
+                              return;
+                            }
+                            setCommentDraft((prev) => ({ ...prev, [p.id]: "" }));
+                            if (activeId) void loadFeed(activeId, q || undefined);
+                          })
+                        }
+                      >
+                        Comment
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}

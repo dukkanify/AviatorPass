@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { authErrorResponse, requirePermission } from "@/services/auth/guards";
+import { authErrorResponse, getRequestContext, requirePermission } from "@/services/auth/guards";
 import { listActivityLogs } from "@/services/auth/activity-log";
 import { PERMISSIONS } from "@/constants/permissions";
 import { parsePagination } from "@/lib/api/envelope";
 
 export async function GET(request: Request) {
   try {
+    getRequestContext(request);
     await requirePermission(PERMISSIONS.AUDIT_READ);
 
     const url = new URL(request.url);

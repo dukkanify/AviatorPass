@@ -135,7 +135,7 @@ function InstructorDashboardView({
           { label: "Manage courses", href: "/instructor/courses", icon: BookOpen },
           { label: "Open timetable", href: "/instructor/schedule", icon: Video },
           { label: "Upload material", href: "/instructor/courses", icon: FileUp },
-          { label: "Create quiz", href: "/instructor/quizzes", icon: HelpCircle },
+          { label: "Mock exams", href: "/instructor/mock-exams", icon: HelpCircle },
         ]}
       />
     </div>

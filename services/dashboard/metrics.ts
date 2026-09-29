@@ -17,7 +17,8 @@ import { readCommunicationDb } from "@/services/communication/store";
 import type { SeriesPoint } from "@/components/dashboard/chart-types";
 import type { CalendarEvent } from "@/components/dashboard/calendar-widget";
 import type { ActivityItem } from "@/components/dashboard/recent-activity";
-import { format, addDays } from "date-fns";
+import { listWallets } from "@/services/payments/wallet-service";
+import { listWrittenAttempts } from "@/services/mock-exams/written-exam-service";
 import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
 import { ensureLearningSeeded } from "@/services/learning/seed";
 import { getLearningDashboard } from "@/services/learning/learning-service";
@@ -25,7 +26,6 @@ import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { listCertificates } from "@/services/certificates/certificate-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getFinanceDashboard } from "@/services/payments/report-service";
-import { listWallets } from "@/services/payments/wallet-service";
 import { ensureAnalyticsSeeded } from "@/services/analytics/seed";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
 import type { UserProfile } from "@/types";
@@ -161,17 +161,29 @@ export function getEnrollmentSeries(): SeriesPoint[] {
 
 export function getAttendanceSeries(instructorId?: string, studentId?: string): SeriesPoint[] {
   ensureClassesSeeded();
-  const rate = getClassStats(
-    studentId ? { studentId } : instructorId ? { instructorId } : undefined,
-  ).attendanceRate;
-  return [
-    { name: "Mon", value: Math.max(40, rate - 10) },
-    { name: "Tue", value: Math.max(45, rate - 5) },
-    { name: "Wed", value: rate },
-    { name: "Thu", value: Math.min(100, rate + 3) },
-    { name: "Fri", value: Math.min(100, rate + 5) },
-    { name: "Sat", value: Math.max(50, rate - 8) },
-  ];
+  const db = readClassesDb();
+  const now = Date.now();
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const counts = new Map<string, { present: number; total: number }>();
+  for (const cls of db.classes) {
+    const start = Date.parse(cls.startsAt);
+    if (!Number.isFinite(start) || start > now) continue;
+    if (instructorId && cls.instructorId !== instructorId) continue;
+    const day = days[new Date(start).getDay()] ?? "Mon";
+    const bucket = counts.get(day) ?? { present: 0, total: 0 };
+    const records = db.attendance?.filter((a) => a.liveClassId === cls.id) ?? [];
+    const scoped = studentId ? records.filter((a) => a.studentId === studentId) : records;
+    bucket.total += scoped.length || (studentId ? 0 : 1);
+    bucket.present += scoped.filter((a) => a.status === "present" || a.status === "late").length;
+    counts.set(day, bucket);
+  }
+  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => {
+    const bucket = counts.get(name);
+    return {
+      name,
+      value: bucket && bucket.total ? Math.round((bucket.present / bucket.total) * 100) : 0,
+    };
+  });
 }
 
 export function getEarningsSeries(): SeriesPoint[] {
@@ -204,9 +216,9 @@ export function getProgressBreakdown(studentUserId?: string | null): {
     }
   }
   return [
-    { name: "Completed", value: 42 },
-    { name: "In progress", value: 35 },
-    { name: "Not started", value: 23 },
+    { name: "Completed", value: 0 },
+    { name: "In progress", value: 0 },
+    { name: "Not started", value: 0 },
   ];
 }
 
@@ -221,23 +233,7 @@ export function getDashboardCalendarEvents(user?: UserProfile | null): CalendarE
       type: e.type,
     }));
   }
-  const today = new Date();
-  return [
-    {
-      id: "1",
-      title: "PPL Ground School",
-      date: format(today, "yyyy-MM-dd"),
-      time: "09:00",
-      type: "Class",
-    },
-    {
-      id: "2",
-      title: "IR Briefing",
-      date: format(addDays(today, 1), "yyyy-MM-dd"),
-      time: "14:00",
-      type: "Live",
-    },
-  ];
+  return [];
 }
 
 export function getRecentActivityFeed(actorUserId?: string | null): ActivityItem[] {
@@ -299,10 +295,11 @@ export function getInstructorOverview(instructorUserId?: string | null) {
     todaysClasses: classStats.today,
     upcomingClasses: classStats.upcoming,
     students,
-    assignments: 7,
-    quizzes: 3,
-    earnings: 2400,
-    walletBalance: 1850,
+    assignments: 0,
+    quizzes: 0,
+    earnings: listWallets().find((w) => w.instructorId === instructor.id)?.lifetimeEarned ?? 0,
+    walletBalance:
+      listWallets().find((w) => w.instructorId === instructor.id)?.availableBalance ?? 0,
   };
 }
 
@@ -325,9 +322,9 @@ export function getStudentOverview(studentUserId?: string | null) {
       certificates,
       notifications: learning.notifications,
       assignments: learning.assignments,
-      quizzes: 0,
+      quizzes: listWrittenAttempts(student.id).filter((a) => a.status !== "in_progress").length,
       weeklyProgress: learning.weeklyGoalPercent,
-      attendance: 0,
+      attendance: getClassStats({ studentId: student.id }).attendanceRate,
       learningHours: learning.learningHours,
     };
   }

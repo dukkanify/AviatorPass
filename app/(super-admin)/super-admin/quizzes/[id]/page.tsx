@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { QuizBuilderView } from "@/features/quizzes";
-
-export default function SuperAdminQuizBuilderPage() {
-  return <QuizBuilderView basePath="/super-admin/quizzes" />;
+export default function QuizzesRemovedPage() {
+  redirect("/super-admin/mock-exams");
 }

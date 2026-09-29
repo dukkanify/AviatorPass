@@ -19,7 +19,6 @@ import {
   StudentAccountFields,
   type StudentAccountFieldValues,
 } from "@/features/profile/components/student-account-fields";
-import { SessionManagementCard } from "@/features/profile/components/session-management-card";
 import type { UserProfile } from "@/types";
 
 interface ProfilePageViewProps {
@@ -117,8 +116,8 @@ function ProfilePageView({ roleLabel }: ProfilePageViewProps) {
         title={isStudent ? "My student account" : "Profile"}
         description={
           isStudent
-            ? "Your private account with personal, contact, and emergency details."
-            : `Your ${roleLabel} account overview.`
+            ? "Your private account with personal, contact, and emergency details. Timezone and devices are on Settings."
+            : `Your ${roleLabel} account overview. Preferences live on Settings.`
         }
         breadcrumbs={[{ label: "Profile" }]}
       />
@@ -139,8 +138,6 @@ function ProfilePageView({ roleLabel }: ProfilePageViewProps) {
         </CardHeader>
       </Card>
 
-      <SessionManagementCard />
-
       <Card>
         <CardHeader>
           <CardTitle className="font-display text-xl">
@@ -160,6 +157,7 @@ function ProfilePageView({ roleLabel }: ProfilePageViewProps) {
               requireStudentBasics={isStudent}
               emailReadonly={user.email}
               disabled={pending}
+              sections={["profile"]}
             />
             <Button type="submit" disabled={pending}>
               {pending ? "Saving..." : "Save changes"}

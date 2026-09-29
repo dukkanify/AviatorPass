@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { QuestionBankView } from "@/features/quizzes";
-
-export default function SuperAdminQuestionBankPage() {
-  return <QuestionBankView basePath="/super-admin/quizzes" />;
+export default function QuizzesRemovedPage() {
+  redirect("/super-admin/mock-exams");
 }

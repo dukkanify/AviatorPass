@@ -3,21 +3,20 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
-import {
-  assertAiAccess,
-  canUseAdminInsights,
-  AiError,
-  resolvePersona,
-} from "@/services/ai/access";
+import { assertAiAccess, canUseAdminInsights, AiError, resolvePersona } from "@/services/ai/access";
 import { ensureAiSeeded } from "@/services/ai/seed";
 import { writeAiDb } from "@/services/ai/store";
-import { buildExecutiveAnalytics, buildLearningAnalytics, buildSupportAnalytics } from "@/services/analytics/aggregator";
+import {
+  buildExecutiveAnalytics,
+  buildLearningAnalytics,
+  buildSupportAnalytics,
+} from "@/services/analytics/aggregator";
 import { getClassStats } from "@/services/classes/class-service";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getStudentProgressSnapshot } from "@/services/certificates/progress-service";
-import { getPlatformAssessmentOverview } from "@/services/quizzes/analytics-service";
+import { listWrittenAttempts } from "@/services/mock-exams/written-exam-service";
 import type { AiInsight } from "@/types/ai";
 import type { UserProfile } from "@/types";
 
@@ -32,12 +31,11 @@ export function generateInsights(user: UserProfile): AiInsight[] {
   const learning = buildLearningAnalytics();
   const support = buildSupportAnalytics();
   const classStats = getClassStats();
-  let quizOverview: { totalAttempts?: number; needsReview?: number } = {};
-  try {
-    quizOverview = getPlatformAssessmentOverview();
-  } catch {
-    quizOverview = {};
-  }
+  const written = listWrittenAttempts();
+  const quizOverview = {
+    totalAttempts: written.length,
+    needsReview: written.filter((a) => a.status === "in_progress").length,
+  };
 
   const insights: AiInsight[] = [];
 
