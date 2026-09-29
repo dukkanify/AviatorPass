@@ -1,6 +1,4 @@
 import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
-import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
-import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 /** Short public URLs for official ATPL subjects (`/courses/met`). */
 export const ATPL_SUBJECT_PUBLIC_ALIASES: Record<string, readonly string[]> = {
@@ -27,12 +25,23 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizeRef(value: string): string {
+export function normalizeAtplSubjectRef(value: string): string {
   return decodeURIComponent(value || "")
     .trim()
     .toLowerCase()
     .replace(/^atpl-/, "")
     .replace(/^course-/, "");
+}
+
+export function officialAtplSubjectForRef(ref: string): { code: string; title: string } | null {
+  const key = normalizeAtplSubjectRef(ref);
+  if (!key) return null;
+  const official = ATPL_COMPLETE_PACKAGE_SUBJECTS.find((item) => {
+    if (item.code.toLowerCase() === key) return true;
+    if (slugify(item.title) === key) return true;
+    return (ATPL_SUBJECT_PUBLIC_ALIASES[item.code] ?? []).includes(key);
+  });
+  return official ? { code: official.code, title: official.title } : null;
 }
 
 export function atplSubjectPublicSlug(code: string, title: string): string {
@@ -43,18 +52,4 @@ export function atplSubjectPublicSlug(code: string, title: string): string {
 
 export function atplSubjectPublicHref(subject: { code: string; title: string }): string {
   return `/courses/${encodeURIComponent(atplSubjectPublicSlug(subject.code, subject.title))}`;
-}
-
-export function resolveAtplSubjectRef(ref: string): AtplLandingSubjectPublic | null {
-  const key = normalizeRef(ref);
-  if (!key) return null;
-
-  const subjects = listAtplPackageReviewSubjects();
-  const official = ATPL_COMPLETE_PACKAGE_SUBJECTS.find((item) => {
-    if (item.code.toLowerCase() === key) return true;
-    if (slugify(item.title) === key) return true;
-    return (ATPL_SUBJECT_PUBLIC_ALIASES[item.code] ?? []).includes(key);
-  });
-  if (!official) return null;
-  return subjects.find((row) => row.code === official.code) ?? null;
 }

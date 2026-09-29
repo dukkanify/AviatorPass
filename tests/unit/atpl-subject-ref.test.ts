@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { resetAtplMarketingDbForTests } from "@/services/marketing/atpl-subjects-store";
-import { atplSubjectPublicHref, resolveAtplSubjectRef } from "@/lib/marketing/atpl-subject-ref";
+import { atplSubjectPublicHref } from "@/lib/marketing/atpl-subject-ref";
+import { resolveAtplSubjectRef } from "@/lib/marketing/resolve-atpl-subject";
 
 describe("ATPL public subject URLs", () => {
   it("opens Meteorology from met, meteorology, and 050", () => {
