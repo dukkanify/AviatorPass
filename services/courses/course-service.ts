@@ -3,7 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
-import { stableCourseId } from "@/lib/courses/public-course-path";
+import { publicCourseRef, stableCourseId } from "@/lib/courses/public-course-path";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_COURSE_PAGE_SIZE } from "@/constants/courses";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
@@ -94,6 +94,22 @@ export function getCourseById(id: string, includeDeleted = false): Course | null
   if (!course) return null;
   if (course.deletedAt && !includeDeleted) return null;
   return course;
+}
+
+/** Public catalog lookup by id, code, or marketing slug. */
+export function getPublicListedCourseByRef(ref: string): Course | null {
+  const direct = getCourseById(ref);
+  if (direct && isCoursePubliclyListed(direct)) return direct;
+  const key = decodeURIComponent(ref || "")
+    .trim()
+    .toLowerCase();
+  if (!key) return null;
+  ensureCoursesSeeded();
+  const match = readCoursesDb().courses.find(
+    (course) => publicCourseRef(course).toLowerCase() === key,
+  );
+  if (!match || match.deletedAt) return null;
+  return isCoursePubliclyListed(match) ? match : null;
 }
 
 /** True when the user is primary instructor or assigned on the course. */
