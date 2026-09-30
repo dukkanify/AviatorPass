@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SafeImage } from "@/components/media/safe-image";
 import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
 import { CourseMediaUploader } from "@/features/courses/components/course-studio/course-media-uploader";
 import { courseFetch } from "@/features/courses/lib/api";
@@ -102,8 +103,7 @@ function AtplSubjectsEasyPanel() {
                 className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left hover:border-accent"
               >
                 {card.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <SafeImage
                     src={card.imageUrl}
                     alt=""
                     className="h-14 w-20 shrink-0 rounded-lg object-cover"
