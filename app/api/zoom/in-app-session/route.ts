@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authErrorResponse, requireAuth } from "@/services/auth/guards";
+import { fetchZoomHostZak } from "@/services/classes/zoom-service";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import {
   displayMeetingName,
@@ -43,6 +44,12 @@ export async function POST(request: Request) {
           })
         : null;
 
+    let zak: string | null = null;
+    if (body.isHost && signature) {
+      zak = zakFromStartUrl(body.startUrl);
+      if (!zak) zak = await fetchZoomHostZak();
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -53,7 +60,7 @@ export async function POST(request: Request) {
         userEmail: user.email,
         sdkKey: signature ? (credentials?.sdkKey ?? null) : null,
         signature,
-        zak: body.isHost ? zakFromStartUrl(body.startUrl) : null,
+        zak,
         role,
       },
       error: null,

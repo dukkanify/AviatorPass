@@ -79,10 +79,12 @@ describe("Zoom stays inside AviatorPass", () => {
       mn: string;
       role: number;
       sdkKey: string;
+      video_webrtc_mode?: number;
     };
     expect(decoded.mn).toBe("123456789");
     expect(decoded.role).toBe(0);
     expect(decoded.sdkKey).toBe("sdk-key");
+    expect(decoded.video_webrtc_mode).toBe(1);
   });
 
   it("uses the signed-in AviatorPass name inside the classroom", () => {
@@ -102,6 +104,11 @@ describe("Zoom stays inside AviatorPass", () => {
       expect(src).not.toMatch(/href=\{[^}]*startUrl/);
       expect(src).not.toMatch(/href=\{[^}]*joinUrl/);
     }
+    const room = readFileSync(
+      resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
+      "utf8",
+    );
+    expect(room).toMatch(/sdkKey:\s*active\.sdkKey/);
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {

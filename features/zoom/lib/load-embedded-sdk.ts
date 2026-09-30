@@ -7,6 +7,7 @@ export interface ZoomEmbeddedClient {
   }) => Promise<void>;
   join: (opts: {
     signature: string;
+    sdkKey?: string;
     meetingNumber: string;
     password?: string;
     userName: string;

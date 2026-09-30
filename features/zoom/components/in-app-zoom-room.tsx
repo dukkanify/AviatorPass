@@ -139,6 +139,7 @@ function InAppZoomRoom({
           });
           await client.join({
             signature: active.signature,
+            sdkKey: active.sdkKey || undefined,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
