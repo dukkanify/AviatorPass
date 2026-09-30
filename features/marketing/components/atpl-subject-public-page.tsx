@@ -1,6 +1,8 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight } from "lucide-react";
 
+import { SafeImage } from "@/components/media/safe-image";
+
 import { Button } from "@/components/ui/button";
 import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
 import { ACTION_LABELS } from "@/constants/programme-terms";
@@ -49,8 +51,11 @@ function AtplSubjectPublicPage({
           </div>
           {subject.imageUrl ? (
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={subject.imageUrl} alt="" className="aspect-[4/3] w-full object-cover" />
+              <SafeImage
+                src={subject.imageUrl}
+                alt={subject.title}
+                className="aspect-[4/3] w-full object-cover"
+              />
             </div>
           ) : (
             <div className="flex aspect-[4/3] items-center justify-center rounded-3xl border border-white/10 bg-white/5 text-sm text-white/50">
