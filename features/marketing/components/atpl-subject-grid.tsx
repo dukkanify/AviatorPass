@@ -1,3 +1,6 @@
+import Link from "@/components/ui/app-link";
+
+import { atplSubjectPublicHref } from "@/lib/marketing/atpl-subject-ref";
 import { cn } from "@/lib/utils";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
@@ -13,8 +16,9 @@ function AtplSubjectGrid({
   return (
     <div className="atpl-subject-grid mt-12">
       {subjects.map((subject, index) => (
-        <article
+        <Link
           key={subject.id}
+          href={atplSubjectPublicHref(subject)}
           className={cn("atpl-subject-card", reveal && "atpl-reveal")}
           style={reveal ? { animationDelay: `${index * 40}ms` } : undefined}
         >
@@ -32,7 +36,7 @@ function AtplSubjectGrid({
             </p>
           )}
           <span className="atpl-subject-badge">{subject.badgeLabel}</span>
-        </article>
+        </Link>
       ))}
     </div>
   );
