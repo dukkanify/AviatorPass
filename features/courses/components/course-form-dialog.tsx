@@ -22,15 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DIFFICULTY_LABELS,
-  DIFFICULTY_LEVELS,
-  ENROLLMENT_MODE_LABELS,
-  ENROLLMENT_MODES,
-} from "@/constants/courses";
 import { courseFetch } from "@/features/courses/lib/api";
 import { CourseMediaUploader } from "@/features/courses/components/course-studio/course-media-uploader";
-import { COURSE_CURRENCIES, formatDurationHours } from "@/features/courses/lib/course-studio";
+import { COURSE_CURRENCIES, suggestCourseCode } from "@/features/courses/lib/course-studio";
 import { currencyExponent, majorToMinor } from "@/services/payments/money";
 import type { CourseCategory, CourseListItem } from "@/types/courses";
 import type { UserProfile } from "@/types";
@@ -42,7 +36,6 @@ interface CourseFormDialogProps {
   categories: CourseCategory[];
   instructors: UserProfile[];
   onSaved: (course: CourseListItem) => void;
-  /** When set, locks primary instructor to this user (instructor self-serve create). */
   lockedInstructorId?: string | null;
 }
 
@@ -60,27 +53,20 @@ function CourseFormDialog({
   const [title, setTitle] = React.useState("");
   const [code, setCode] = React.useState("");
   const [shortDescription, setShortDescription] = React.useState("");
-  const [fullDescription, setFullDescription] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string>("none");
-  const [difficulty, setDifficulty] = React.useState("intermediate");
-  const [enrollmentMode, setEnrollmentMode] = React.useState("manual");
   const [primaryInstructorId, setPrimaryInstructorId] = React.useState<string>("none");
-  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = React.useState("0");
   const [priceMajor, setPriceMajor] = React.useState("");
   const [currency, setCurrency] = React.useState("AED");
   const [thumbnailUrl, setThumbnailUrl] = React.useState("");
+  const [codeTouched, setCodeTouched] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
     setTitle(course?.title ?? "");
     setCode(course?.code ?? "");
     setShortDescription(course?.shortDescription ?? "");
-    setFullDescription(course?.fullDescription ?? "");
     setCategoryId(course?.categoryId ?? "none");
-    setDifficulty(course?.difficulty ?? "intermediate");
-    setEnrollmentMode(course?.enrollmentMode ?? "manual");
     setPrimaryInstructorId(lockedInstructorId ?? course?.primaryInstructorId ?? "none");
-    setEstimatedDurationMinutes(String(course?.estimatedDurationMinutes ?? 0));
     const nextCurrency = course?.currency || "AED";
     setCurrency(nextCurrency);
     const existingMinor = course?.priceAmount;
@@ -90,25 +76,27 @@ function CourseFormDialog({
         : "",
     );
     setThumbnailUrl(course?.thumbnailUrl ?? "");
+    setCodeTouched(Boolean(course?.code));
   }, [open, course, lockedInstructorId]);
+
+  function changeTitle(value: string) {
+    setTitle(value);
+    if (!course && !codeTouched) setCode(suggestCourseCode(value));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     const payload = {
       title,
-      code,
+      code: code.trim() || suggestCourseCode(title),
       shortDescription,
-      fullDescription,
       categoryId: categoryId === "none" ? null : categoryId,
-      difficulty,
-      enrollmentMode,
       primaryInstructorId: lockInstructor
         ? lockedInstructorId
         : primaryInstructorId === "none"
           ? null
           : primaryInstructorId,
-      estimatedDurationMinutes: Number(estimatedDurationMinutes) || 0,
       language: "en",
       currency,
       priceAmount: priceMajor.trim() ? majorToMinor(Number(priceMajor), currency) : null,
@@ -130,157 +118,47 @@ function CourseFormDialog({
       toast.error(result.error ?? "Unable to save course");
       return;
     }
-    toast.success(course ? "Course updated" : "Course created as draft");
+    toast.success(course ? "Course updated" : "Course added as a draft");
     onSaved(result.data);
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{course ? "Edit course" : "Create course"}</DialogTitle>
+          <DialogTitle>{course ? "Edit course" : "Add a course"}</DialogTitle>
           <DialogDescription>
-            {lockInstructor
-              ? "Create a course under your instructor account. Super Admin controls publishing and catalog visibility."
-              : "Configure catalog details and instructor assignment. Publishing & visibility are managed by Super Admin."}
+            Name, photo, and price only. Publish later from the course menu if students should see
+            it.
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="course-title">Title</Label>
-              <Input
-                id="course-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                maxLength={160}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="course-code">Course code</Label>
-              <Input
-                id="course-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                required
-                maxLength={32}
-                placeholder="ATPL-010"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Uncategorized</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.parentId ? `↳ ${c.name}` : c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label htmlFor="course-short">Short description</Label>
-            <Textarea
-              id="course-short"
-              value={shortDescription}
-              onChange={(e) => setShortDescription(e.target.value)}
-              rows={2}
+            <Label htmlFor="course-title">Course name</Label>
+            <Input
+              id="course-title"
+              value={title}
+              onChange={(e) => changeTitle(e.target.value)}
+              required
+              maxLength={160}
+              placeholder="Private Pilot License — Live Online"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="course-full">Full description</Label>
-            <Textarea
-              id="course-full"
-              value={fullDescription}
-              onChange={(e) => setFullDescription(e.target.value)}
-              rows={4}
+            <Label htmlFor="course-code">Code</Label>
+            <Input
+              id="course-code"
+              value={code}
+              onChange={(e) => {
+                setCodeTouched(true);
+                setCode(e.target.value.toUpperCase());
+              }}
+              maxLength={32}
+              placeholder="Filled automatically from the name"
             />
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Difficulty</Label>
-              <Select value={difficulty} onValueChange={setDifficulty}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DIFFICULTY_LEVELS.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {DIFFICULTY_LABELS[d]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Enrollment mode</Label>
-              <Select value={enrollmentMode} onValueChange={setEnrollmentMode}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ENROLLMENT_MODES.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {ENROLLMENT_MODE_LABELS[m]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {lockInstructor ? (
-              <div className="space-y-2">
-                <Label>Primary instructor</Label>
-                <Input
-                  value={
-                    instructors.find((i) => i.id === lockedInstructorId)?.fullName ||
-                    instructors.find((i) => i.id === lockedInstructorId)?.email ||
-                    "You"
-                  }
-                  disabled
-                  readOnly
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Primary instructor</Label>
-                <Select value={primaryInstructorId} onValueChange={setPrimaryInstructorId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Assign instructor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Unassigned</SelectItem>
-                    {instructors.map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.fullName || i.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="duration">Estimated duration (minutes)</Label>
-              <Input
-                id="duration"
-                type="number"
-                min={0}
-                value={estimatedDurationMinutes}
-                onChange={(e) => setEstimatedDurationMinutes(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                {formatDurationHours(Number(estimatedDurationMinutes) || 0).label}
-              </p>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
             <div className="space-y-2">
               <Label htmlFor="course-price">Price</Label>
               <Input
@@ -290,7 +168,7 @@ function CourseFormDialog({
                 step="0.001"
                 value={priceMajor}
                 onChange={(e) => setPriceMajor(e.target.value)}
-                placeholder="e.g. 480"
+                placeholder="480"
               />
             </div>
             <div className="space-y-2">
@@ -302,28 +180,72 @@ function CourseFormDialog({
                 <SelectContent>
                   {COURSE_CURRENCIES.map((item) => (
                     <SelectItem key={item.code} value={item.code}>
-                      {item.flag} {item.code} ({item.label})
+                      {item.flag} {item.code}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
-              <CourseMediaUploader
-                value={thumbnailUrl}
-                onChange={setThumbnailUrl}
-                courseId={course?.id}
-                label="Course image"
-              />
-            </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="course-short">Short description</Label>
+            <Textarea
+              id="course-short"
+              value={shortDescription}
+              onChange={(e) => setShortDescription(e.target.value)}
+              rows={3}
+              placeholder="What the student gets in one or two sentences."
+            />
+          </div>
+          <CourseMediaUploader
+            value={thumbnailUrl}
+            onChange={setThumbnailUrl}
+            courseId={course?.id}
+            label="Course photo"
+          />
+          {categories.length ? (
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No category</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {!lockInstructor && instructors.length ? (
+            <div className="space-y-2">
+              <Label>Instructor</Label>
+              <Select value={primaryInstructorId} onValueChange={setPrimaryInstructorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Assign later</SelectItem>
+                  {instructors.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>
+                      {i.fullName || i.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" loading={saving}>
-              {course ? "Save changes" : "Create course"}
+              {course ? "Save course" : "Add course"}
             </Button>
           </DialogFooter>
         </form>

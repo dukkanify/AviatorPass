@@ -6,6 +6,7 @@ import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { assertCanManageFinance, PaymentError } from "@/services/payments/access";
+import { majorToMinor, minorToMajor } from "@/services/payments/money";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { CatalogProduct, Coupon, CouponType, PricingModel } from "@/types/payments";
 import type { UserProfile } from "@/types";
@@ -106,6 +107,60 @@ export function upsertProduct(
   const saved = savedId ? getProduct(savedId) : null;
   if (!saved) throw new PaymentError("Product not found", 404);
   return saved;
+}
+
+export function getAtplPackageProduct(): CatalogProduct | null {
+  return (
+    readPaymentsDb().products.find((product) => product.metadata?.sku === "ATPL-PACKAGE") ?? null
+  );
+}
+
+const ATPL_PRICE_CODES = ["KWD", "AED", "SAR", "USD", "EUR"] as const;
+
+export function atplPackagePricesMajor(product = getAtplPackageProduct()): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const code of ATPL_PRICE_CODES) {
+    const minor = product?.pricesByCurrency?.[code];
+    next[code] = typeof minor === "number" ? minorToMajor(minor, code) : 0;
+  }
+  return next;
+}
+
+export function updateAtplPackagePrices(
+  user: UserProfile,
+  majors: Record<string, number>,
+): CatalogProduct {
+  assertCanManageFinance(user);
+  const existing = getAtplPackageProduct();
+  if (!existing) throw new PaymentError("ATPL package product is missing", 404);
+
+  const pricesByCurrency: Record<string, number> = { ...(existing.pricesByCurrency ?? {}) };
+  for (const code of ATPL_PRICE_CODES) {
+    if (majors[code] == null) continue;
+    const major = Number(majors[code]);
+    if (!Number.isFinite(major) || major < 0) {
+      throw new PaymentError(`Enter a valid ${code} price`, 400);
+    }
+    pricesByCurrency[code] = majorToMinor(major, code);
+  }
+
+  const defaultCurrency = existing.currency || "KWD";
+  const priceAmount = pricesByCurrency[defaultCurrency] ?? existing.priceAmount;
+
+  return upsertProduct(user, {
+    id: existing.id,
+    name: existing.name,
+    description: existing.description,
+    pricingModel: existing.pricingModel,
+    courseId: existing.courseId,
+    instructorId: existing.instructorId,
+    priceAmount,
+    compareAtAmount: existing.compareAtAmount,
+    currency: defaultCurrency,
+    pricesByCurrency,
+    isFree: existing.isFree,
+    active: existing.active,
+  });
 }
 
 export function listCoupons() {

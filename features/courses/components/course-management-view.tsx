@@ -57,12 +57,14 @@ import {
   COURSE_DELIVERY_LABELS,
   DIFFICULTY_LABELS,
   DIFFICULTY_LEVELS,
-  ENROLLMENT_MODE_LABELS,
 } from "@/constants/courses";
 import { routes } from "@/constants/routes";
 import { COURSE_CURRENCIES } from "@/features/courses/lib/course-studio";
 import { courseFetch } from "@/features/courses/lib/api";
 import { AtplSubjectsEasyPanel } from "@/features/courses/components/atpl-subjects-easy-panel";
+import { CourseFormDialog } from "@/features/courses/components/course-form-dialog";
+import { EasyAtplPrices } from "@/features/courses/components/easy-atpl-prices";
+import { InlineCoursePrice } from "@/features/courses/components/inline-course-price";
 import { CourseStatsWidgets } from "@/features/courses/components/course-stats-widgets";
 import { formatRelative } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -104,6 +106,8 @@ function CourseManagementView({
   const [priceOpen, setPriceOpen] = React.useState(false);
   const [bulkPrice, setBulkPrice] = React.useState("");
   const [bulkCurrency, setBulkCurrency] = React.useState("AED");
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editingCourse, setEditingCourse] = React.useState<CourseListItem | null>(null);
   const importRef = React.useRef<HTMLInputElement>(null);
 
   const load = React.useCallback(async () => {
@@ -281,10 +285,9 @@ function CourseManagementView({
     },
     {
       id: "priceAmount",
-      header: "Price",
+      header: "Price (click to edit)",
       sortable: true,
-      cell: (row) =>
-        row.priceAmount != null ? formatMinor(row.priceAmount, row.currency || "AED") : "—",
+      cell: (row) => <InlineCoursePrice course={row} onSaved={() => void load()} />,
     },
     {
       id: "status",
@@ -326,8 +329,13 @@ function CourseManagementView({
                 <Eye className="mr-2 h-4 w-4" /> Open curriculum
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`${basePath}/${row.id}/edit`}>Edit course</Link>
+            <DropdownMenuItem
+              onClick={() => {
+                setEditingCourse(row);
+                setFormOpen(true);
+              }}
+            >
+              Edit course
             </DropdownMenuItem>
             {canManagePublishing ? (
               <>
@@ -359,11 +367,7 @@ function CourseManagementView({
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        description={
-          canManagePublishing
-            ? "ATPL subjects first — change photo and text. Live and Basics courses stay in the catalog below."
-            : "Create, price, publish, and manage the AviatorPass catalogue."
-        }
+        description="Add a course or click a price to change it. ATPL checkout prices sit at the top."
         breadcrumbs={[{ label: roleLabel }, { label: "Courses" }]}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -380,15 +384,37 @@ function CourseManagementView({
                 <Link href={routes.superAdminAtplSubjects}>ATPL subjects</Link>
               </Button>
             ) : null}
-            <Button asChild>
-              <Link href={`${basePath}/new`}>
-                <Plus className="mr-2 h-4 w-4" /> Create course
-              </Link>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingCourse(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add course
             </Button>
           </div>
         }
       />
 
+      <Card className="rounded-2xl border-accent/30 bg-accent/5 shadow-soft">
+        <CardHeader>
+          <CardTitle className="text-base">How to add a course and change prices</CardTitle>
+          <CardDescription className="space-y-1 text-sm">
+            <span className="block">
+              1. ATPL package — set KWD / AED / SAR / USD / EUR, then Save ATPL prices.
+            </span>
+            <span className="block">
+              2. Add course — name, photo, and price. It starts as a draft.
+            </span>
+            <span className="block">
+              3. Catalog price — click the price in the table, type the new amount, Save.
+            </span>
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {canManagePublishing ? <EasyAtplPrices /> : null}
       {canManagePublishing ? <AtplSubjectsEasyPanel /> : null}
 
       <CourseStatsWidgets stats={stats} loading={loading} />
@@ -399,7 +425,7 @@ function CourseManagementView({
             <div>
               <CardTitle className="text-base">Catalog</CardTitle>
               <CardDescription>
-                Search, filter, sort, and run bulk actions without reloading the page.
+                Click a price to edit it. Use Add course for a new title.
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -526,9 +552,12 @@ function CourseManagementView({
             <EmptyState
               icon={<BookOpen className="h-6 w-6" />}
               title="No courses yet"
-              description="Create your first course in the new studio — media, SEO, pricing, and live preview included."
-              actionLabel="Create course"
-              actionHref={`${basePath}/new`}
+              description="Add a name, photo, and price. You can publish it when it is ready."
+              actionLabel="Add course"
+              onAction={() => {
+                setEditingCourse(null);
+                setFormOpen(true);
+              }}
             />
           ) : view === "table" ? (
             <DataTable
@@ -580,15 +609,18 @@ function CourseManagementView({
                       {course.primaryInstructorName ?? "Unassigned"} ·{" "}
                       {course.counts.activeEnrollments} students
                     </p>
-                    <p>
-                      {course.priceAmount != null
-                        ? formatMinor(course.priceAmount, course.currency || "AED")
-                        : "No price"}{" "}
-                      · {DIFFICULTY_LABELS[course.difficulty]} ·{" "}
-                      {ENROLLMENT_MODE_LABELS[course.enrollmentMode]}
-                    </p>
-                    <Button asChild size="sm" variant="outline" className="w-full">
-                      <Link href={`${basePath}/${course.id}/edit`}>Edit course</Link>
+                    <InlineCoursePrice course={course} onSaved={() => void load()} />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setEditingCourse(course);
+                        setFormOpen(true);
+                      }}
+                    >
+                      Edit course
                     </Button>
                   </CardContent>
                 </Card>
@@ -666,6 +698,18 @@ function CourseManagementView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CourseFormDialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingCourse(null);
+        }}
+        course={editingCourse}
+        categories={categories}
+        instructors={[]}
+        onSaved={() => void load()}
+      />
 
       <AlertDialog open={priceOpen} onOpenChange={setPriceOpen}>
         <AlertDialogContent>

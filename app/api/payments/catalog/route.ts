@@ -7,7 +7,10 @@ import {
   createCoupon,
   getPaymentSettings,
   listCoupons,
+  atplPackagePricesMajor,
+  getAtplPackageProduct,
   listProducts,
+  updateAtplPackagePrices,
   updatePaymentSettings,
   upsertProduct,
   validateCoupon,
@@ -31,6 +34,19 @@ export async function GET(request: Request) {
     if (view === "coupons") {
       await requirePermission(PERMISSIONS.FINANCE_REPORTS);
       return NextResponse.json({ success: true, data: listCoupons(), error: null });
+    }
+    if (view === "atpl_prices") {
+      await requirePermission(PERMISSIONS.SYSTEM_PAYMENTS);
+      const product = getAtplPackageProduct();
+      return NextResponse.json({
+        success: true,
+        data: {
+          productId: product?.id ?? null,
+          name: product?.name ?? "ATPL Theory Package",
+          prices: atplPackagePricesMajor(product),
+        },
+        error: null,
+      });
     }
     if (view === "validate_coupon") {
       await requireAuth();
@@ -61,6 +77,20 @@ export async function POST(request: Request) {
     ensurePaymentsSeeded();
     const user = await requirePermission(PERMISSIONS.SYSTEM_PAYMENTS);
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+
+    if (body?.action === "atpl_prices") {
+      const majors = (body.prices ?? {}) as Record<string, number>;
+      const product = updateAtplPackagePrices(user, majors);
+      return NextResponse.json({
+        success: true,
+        data: {
+          productId: product.id,
+          name: product.name,
+          prices: atplPackagePricesMajor(product),
+        },
+        error: null,
+      });
+    }
 
     if (body?.action === "settings") {
       return NextResponse.json({
