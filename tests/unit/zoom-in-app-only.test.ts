@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { ZOOM_EMBEDDED_SDK_SCRIPTS } from "@/features/zoom/lib/load-embedded-sdk";
 import {
   displayMeetingName,
   extractZoomMeetingNumber,
@@ -109,6 +110,17 @@ describe("Zoom stays inside AviatorPass", () => {
       "utf8",
     );
     expect(room).toMatch(/sdkKey:\s*active\.sdkKey/);
+    expect(room).toMatch(/tk:\s*""/);
+  });
+
+  it("loads Zoom vendor React before the embedded Meeting SDK", () => {
+    expect(ZOOM_EMBEDDED_SDK_SCRIPTS[0]).toMatch(/\/lib\/vendor\/react\.min\.js$/);
+    expect(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1)).toMatch(/zoom-meeting-embedded-3\.13\.2\.min\.js$/);
+    const joinRoute = readFileSync(
+      resolve(process.cwd(), "app/api/classes/[id]/join/route.ts"),
+      "utf8",
+    );
+    expect(joinRoute).toMatch(/markJoin failed; student can still enter the classroom/);
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {
