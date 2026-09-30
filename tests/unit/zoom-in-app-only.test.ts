@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { ZOOM_EMBEDDED_SDK_SCRIPTS } from "@/features/zoom/lib/load-embedded-sdk";
 import {
   displayMeetingName,
   extractZoomMeetingNumber,
@@ -79,10 +80,12 @@ describe("Zoom stays inside AviatorPass", () => {
       mn: string;
       role: number;
       sdkKey: string;
+      video_webrtc_mode?: number;
     };
     expect(decoded.mn).toBe("123456789");
     expect(decoded.role).toBe(0);
     expect(decoded.sdkKey).toBe("sdk-key");
+    expect(decoded.video_webrtc_mode).toBe(1);
   });
 
   it("uses the signed-in AviatorPass name inside the classroom", () => {
@@ -102,6 +105,23 @@ describe("Zoom stays inside AviatorPass", () => {
       expect(src).not.toMatch(/href=\{[^}]*startUrl/);
       expect(src).not.toMatch(/href=\{[^}]*joinUrl/);
     }
+    const room = readFileSync(
+      resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
+      "utf8",
+    );
+    expect(room).toMatch(/sdkKey:\s*active\.sdkKey/);
+    expect(room).toMatch(/tk:\s*""/);
+    expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
+  });
+
+  it("loads Zoom vendor React before the embedded Meeting SDK", () => {
+    expect(ZOOM_EMBEDDED_SDK_SCRIPTS[0]).toMatch(/\/lib\/vendor\/react\.min\.js$/);
+    expect(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1)).toMatch(/zoom-meeting-embedded-3\.13\.2\.min\.js$/);
+    const joinRoute = readFileSync(
+      resolve(process.cwd(), "app/api/classes/[id]/join/route.ts"),
+      "utf8",
+    );
+    expect(joinRoute).toMatch(/markJoin failed; student can still enter the classroom/);
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {

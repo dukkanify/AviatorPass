@@ -90,6 +90,7 @@ export function generateMeetingSdkSignature(input: {
     iat,
     exp,
     tokenExp: exp,
+    video_webrtc_mode: 1,
   };
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");

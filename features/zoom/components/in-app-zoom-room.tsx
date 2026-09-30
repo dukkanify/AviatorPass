@@ -139,10 +139,12 @@ function InAppZoomRoom({
           });
           await client.join({
             signature: active.signature,
+            sdkKey: active.sdkKey || undefined,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
             userEmail: active.userEmail,
+            tk: "",
             zak: active.zak || undefined,
           });
           if (cancelled) return;
@@ -150,9 +152,18 @@ function InAppZoomRoom({
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
           return;
-        } catch {
+        } catch (error) {
           if (cancelled) return;
-          setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+          console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
+          await sdkRef.current?.leave?.().catch(() => undefined);
+          sdkRef.current = null;
+          if (stageRef.current) stageRef.current.replaceChildren();
+          setPhase("classroom");
+          await startLocalMedia();
+          if (!cancelled) {
+            setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+          }
+          return;
         }
       }
       setPhase("classroom");
