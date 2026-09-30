@@ -156,6 +156,9 @@ function InAppZoomRoom({
       }
       setPhase("classroom");
       await startLocalMedia();
+      if (!cancelled) {
+        setNotice("You are in the AviatorPass classroom. The meeting stays on this page.");
+      }
     }
 
     void enter();
