@@ -62,6 +62,7 @@ import {
 import { routes } from "@/constants/routes";
 import { COURSE_CURRENCIES } from "@/features/courses/lib/course-studio";
 import { courseFetch } from "@/features/courses/lib/api";
+import { AtplSubjectsEasyPanel } from "@/features/courses/components/atpl-subjects-easy-panel";
 import { CourseStatsWidgets } from "@/features/courses/components/course-stats-widgets";
 import { formatRelative } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -358,7 +359,11 @@ function CourseManagementView({
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        description="Create, price, publish, and manage the AviatorPass catalogue."
+        description={
+          canManagePublishing
+            ? "ATPL subjects first — change photo and text. Live and Basics courses stay in the catalog below."
+            : "Create, price, publish, and manage the AviatorPass catalogue."
+        }
         breadcrumbs={[{ label: roleLabel }, { label: "Courses" }]}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -383,6 +388,8 @@ function CourseManagementView({
           </div>
         }
       />
+
+      {canManagePublishing ? <AtplSubjectsEasyPanel /> : null}
 
       <CourseStatsWidgets stats={stats} loading={loading} />
 
