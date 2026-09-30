@@ -155,6 +155,9 @@ function InAppZoomRoom({
         } catch (error) {
           if (cancelled) return;
           console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
+          await sdkRef.current?.leave?.().catch(() => undefined);
+          sdkRef.current = null;
+          if (stageRef.current) stageRef.current.replaceChildren();
           setPhase("classroom");
           await startLocalMedia();
           if (!cancelled) {

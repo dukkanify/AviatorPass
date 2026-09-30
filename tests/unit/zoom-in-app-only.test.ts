@@ -111,6 +111,7 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(room).toMatch(/sdkKey:\s*active\.sdkKey/);
     expect(room).toMatch(/tk:\s*""/);
+    expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
