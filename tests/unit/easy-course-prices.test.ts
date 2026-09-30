@@ -27,6 +27,7 @@ describe("easy course prices", () => {
 
   it("saves ATPL package amounts and uses them for country checkout", () => {
     const admin = toUserProfile(findUserByEmail("superadmin@aviatorpass.com")!);
+    const original = atplPackagePricesMajor(getAtplPackageProduct());
     const updated = updateAtplPackagePrices(admin, {
       KWD: 500,
       AED: 6000,
@@ -48,5 +49,6 @@ describe("easy course prices", () => {
       currency: "AED",
       amount: majorToMinor(6000, "AED"),
     });
+    updateAtplPackagePrices(admin, original);
   });
 });
