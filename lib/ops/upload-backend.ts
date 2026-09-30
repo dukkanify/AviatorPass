@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
 
 import { isSupabaseConfigured } from "@/config/env";
+import { toFirstPartyMediaUrl } from "@/lib/media/public-media-url";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { uploadFile as uploadToSupabase } from "@/services/storage/storage-service";
 import type { StorageSettings } from "@/types/settings";
@@ -150,7 +151,11 @@ export async function putUploadedFile(input: {
   }
 
   const blob = await putVercelBlob(`aep-uploads/${relativePath}`, input.bytes, input.contentType);
-  return { publicUrl: blob.url, backend: "vercel_blob", storagePath: blob.pathname };
+  return {
+    publicUrl: toFirstPartyMediaUrl(blob.pathname),
+    backend: "vercel_blob",
+    storagePath: blob.pathname,
+  };
 }
 
 function isPrivateBlobStoreError(error: unknown): boolean {

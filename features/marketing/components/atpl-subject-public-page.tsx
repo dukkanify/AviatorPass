@@ -1,7 +1,7 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight } from "lucide-react";
 
-import { SafeImage } from "@/components/media/safe-image";
+import { AtplSubjectCover } from "@/components/media/atpl-subject-cover";
 
 import { Button } from "@/components/ui/button";
 import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
@@ -49,19 +49,14 @@ function AtplSubjectPublicPage({
               <p className="mt-4 text-sm text-white/60">From {priceLabel} · live training</p>
             ) : null}
           </div>
-          {subject.imageUrl ? (
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-              <SafeImage
-                src={subject.imageUrl}
-                alt={subject.title}
-                className="aspect-[4/3] w-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="flex aspect-[4/3] items-center justify-center rounded-3xl border border-white/10 bg-white/5 text-sm text-white/50">
-              Photo added from Super Admin → Courses
-            </div>
-          )}
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+            <AtplSubjectCover
+              src={subject.imageUrl}
+              title={subject.title}
+              code={subject.code}
+              className="aspect-[4/3] w-full object-cover"
+            />
+          </div>
         </div>
       </section>
       <section className="atpl-section atpl-section-light">

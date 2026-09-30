@@ -2,18 +2,13 @@
 
 import * as React from "react";
 
+import { usableMediaSrc } from "@/lib/media/public-media-url";
 import { cn } from "@/lib/utils";
 
 const PLACEHOLDER = "/brand/logo.png";
 
 function usableSrc(src: string | null | undefined): string | null {
-  if (!src) return null;
-  const value = src.trim();
-  if (!value) return null;
-  if (/^(unknown|null|undefined|n\/a)$/i.test(value)) return null;
-  if (value.startsWith("blob:") || value.startsWith("data:")) return value;
-  if (value.startsWith("/") || /^https?:\/\//i.test(value)) return value;
-  return null;
+  return usableMediaSrc(src);
 }
 
 interface SafeImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {

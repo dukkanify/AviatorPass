@@ -4,6 +4,7 @@ import * as React from "react";
 import { ImagePlus, Library, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { SafeImage } from "@/components/media/safe-image";
 import { Button } from "@/components/ui/button";
 import { courseFetch } from "@/features/courses/lib/api";
 import { COURSE_IMAGE_ACCEPT, COURSE_IMAGE_MAX_BYTES } from "@/features/courses/lib/course-studio";
@@ -103,8 +104,7 @@ export function CourseMediaUploader({
       />
       {value ? (
         <div className="cs-uploader__preview">
-          {/* eslint-disable-next-line @next/next/no-img-element -- course cover */}
-          <img src={value} alt="Course cover preview" />
+          <SafeImage src={value} alt="Course cover preview" />
           <div className="cs-uploader__actions">
             <Button
               type="button"

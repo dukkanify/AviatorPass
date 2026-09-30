@@ -589,6 +589,25 @@ export async function provisionStandaloneZoomMeeting(input: {
   };
 }
 
+export async function fetchZoomHostZak(accountEmail?: string | null): Promise<string | null> {
+  const token = await getZoomAccessToken();
+  if (!token) return null;
+  const users = [resolveZoomS2SUser(accountEmail), "me"].filter(
+    (value, index, all) => all.indexOf(value) === index,
+  );
+  for (const user of users) {
+    const res = await fetch(
+      `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/token?type=zak`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) continue;
+    const json = (await res.json()) as { token?: string };
+    const zak = json.token?.trim();
+    if (zak) return zak;
+  }
+  return null;
+}
+
 export async function cancelStandaloneZoomMeeting(input: {
   meetingNumber: string;
   providerMode: "mock" | "zoom";

@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { routes } from "@/constants/routes";
 import { classFetch } from "@/features/classes/lib/api";
-import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
 import { InAppZoomRoom } from "@/features/zoom/components/in-app-zoom-room";
+import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
 import type { LiveClassListItem } from "@/types/classes";
 
 interface JoinClassClientProps {
@@ -150,8 +151,8 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   <Shield className="h-3 w-3" />
                   {join.providerMode === "mock"
-                    ? "Secure mock meeting (Zoom credentials not configured)"
-                    : "Zoom-connected meeting"}
+                    ? "Live classroom on AviatorPass"
+                    : "Zoom meeting inside AviatorPass"}
                   {join.waitingRoom ? " · Waiting room on" : ""}
                 </p>
               </div>
@@ -164,6 +165,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   isHost={data.isHost}
                   providerMode={join.providerMode}
                   title={cls.title}
+                  leaveHref={routes.studentDashboard}
                 />
               ) : null}
             </>

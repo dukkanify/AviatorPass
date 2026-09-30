@@ -335,6 +335,33 @@ a.atpl-subject-card {
   margin-bottom: 0.85rem;
 }
 
+.atpl-subject-cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  background:
+    linear-gradient(160deg, rgba(204, 160, 76, 0.28), transparent 46%),
+    linear-gradient(180deg, #1a3d5c 0%, #143048 58%, #0d2235 100%);
+  color: white;
+  padding: 1rem 1.1rem;
+}
+
+.atpl-subject-cover-kicker {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f6c36c;
+}
+
+.atpl-subject-cover-name {
+  font-family: var(--font-display), "Exo 2", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .atpl-subject-title {
   margin-top: 0.75rem;
   font-family: var(--font-display), "Exo 2", sans-serif;

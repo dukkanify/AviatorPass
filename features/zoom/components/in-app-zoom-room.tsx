@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Mic, MicOff, Radio, Shield, Video, VideoOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import {
   loadZoomEmbeddedClient,
@@ -44,7 +45,7 @@ function InAppZoomRoom({
   isHost = false,
   providerMode = null,
   title = "Live class",
-  leaveHref,
+  leaveHref = routes.dashboard,
   className,
 }: InAppZoomRoomProps) {
   const router = useRouter();
@@ -138,10 +139,12 @@ function InAppZoomRoom({
           });
           await client.join({
             signature: active.signature,
+            sdkKey: active.sdkKey || undefined,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
             userEmail: active.userEmail,
+            tk: "",
             zak: active.zak || undefined,
           });
           if (cancelled) return;
@@ -149,9 +152,18 @@ function InAppZoomRoom({
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
           return;
-        } catch {
+        } catch (error) {
           if (cancelled) return;
-          setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+          console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
+          await sdkRef.current?.leave?.().catch(() => undefined);
+          sdkRef.current = null;
+          if (stageRef.current) stageRef.current.replaceChildren();
+          setPhase("classroom");
+          await startLocalMedia();
+          if (!cancelled) {
+            setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+          }
+          return;
         }
       }
       setPhase("classroom");
@@ -212,8 +224,8 @@ function InAppZoomRoom({
           <p className="flex items-center gap-1 text-xs text-white/70">
             <Radio className="size-3 text-[#CCA04C]" />
             {phase === "sdk"
-              ? "Zoom is open inside AviatorPass"
-              : "Classroom stays inside AviatorPass"}
+              ? "Live Zoom · inside AviatorPass"
+              : "Live classroom · inside AviatorPass"}
           </p>
         </div>
         <Button
