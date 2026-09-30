@@ -105,9 +105,12 @@ describe("Zoom stays inside AviatorPass", () => {
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {
-    const src = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
-    expect(src).toMatch(/camera=\(self/);
-    expect(src).toMatch(/microphone=\(self/);
-    expect(src).not.toMatch(/camera=\(\)/);
+    const nextConfig = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
+    const vercel = readFileSync(resolve(process.cwd(), "vercel.json"), "utf8");
+    expect(nextConfig).toMatch(/camera=\(self/);
+    expect(nextConfig).toMatch(/microphone=\(self/);
+    expect(nextConfig).not.toMatch(/camera=\(\)/);
+    expect(vercel).toMatch(/camera=\(self/);
+    expect(vercel).not.toMatch(/camera=\(\)/);
   });
 });
