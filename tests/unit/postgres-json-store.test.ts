@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearJsonFileCache,
   dataDir,
+  isRetryableJsonStoreError,
   postgresStoreEnabled,
   readJsonFile,
   resetJsonStoreRuntime,
@@ -37,6 +38,20 @@ describe("json file store keys", () => {
 
   it("does not use Postgres during unit tests by default", () => {
     expect(postgresStoreEnabled()).toBe(false);
+  });
+
+  it("retries chunk writes that hit a duplicate-key race", () => {
+    expect(
+      isRetryableJsonStoreError(
+        new Error('duplicate key value violates unique constraint "aep_json_store_chunks_pkey"'),
+      ),
+    ).toBe(true);
+    expect(isRetryableJsonStoreError(new Error('{"code":"23505"}'))).toBe(true);
+    expect(isRetryableJsonStoreError(new Error("connection refused"))).toBe(false);
+    const src = readFileSync(path.join(process.cwd(), "lib/data/json-file-store.ts"), "utf8");
+    expect(src).toMatch(/ON CONFLICT \(key, chunk_index\) DO UPDATE SET data = EXCLUDED\.data/);
+    expect(src).toMatch(/chunk_index >= \$2/);
+    expect(src).toMatch(/attempt < 3/);
   });
 });
 
