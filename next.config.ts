@@ -4,15 +4,20 @@ const isProd = process.env.NODE_ENV === "production";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://source.zoom.us https://*.zoom.us",
+  "style-src 'self' 'unsafe-inline' https://source.zoom.us https://*.zoom.us",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://source.zoom.us https://*.zoom.us",
   "connect-src 'self' https: wss:",
+  "media-src 'self' blob: mediastream:",
+  "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
 ].join("; ");
+
+const inAppMediaPolicy =
+  'camera=(self "https://zoom.us" "https://*.zoom.us"), microphone=(self "https://zoom.us" "https://*.zoom.us"), display-capture=(self), autoplay=(self), geolocation=()';
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -94,7 +99,7 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=()",
+        value: inAppMediaPolicy,
       },
       {
         key: "Content-Security-Policy-Report-Only",

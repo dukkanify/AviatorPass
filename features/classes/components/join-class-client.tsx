@@ -101,7 +101,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const finished = audience === "Finished" || audience === "Cancelled";
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center gap-6 p-6">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-5xl flex-col justify-center gap-6 p-4 sm:p-6">
       <BrandLogo href="/" />
       <Card>
         <CardHeader>
@@ -162,6 +162,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   meetingNumber={join.zoomMeetingId}
                   password={join.password}
                   isHost={data.isHost}
+                  providerMode={join.providerMode}
                   title={cls.title}
                 />
               ) : null}

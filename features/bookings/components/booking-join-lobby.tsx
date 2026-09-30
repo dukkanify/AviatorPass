@@ -162,7 +162,9 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
                     meetingNumber={join.meetingNumber}
                     password={join.password}
                     isHost={isHost}
+                    providerMode={join.providerMode}
                     title={booking.title}
+                    leaveHref="/student/bookings"
                   />
                 </div>
               ) : (

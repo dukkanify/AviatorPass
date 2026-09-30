@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { formatZonedDateTime } from "@/lib/datetime/zoned";
 import { csrfHeaders } from "@/lib/security/browser-csrf";
 import { formatMinor } from "@/lib/money";
+import { InAppZoomRoom } from "@/features/zoom/components/in-app-zoom-room";
 import type { MockExamSessionWithNames } from "@/types/mock-exams";
 
 export function MockExamExaminerView() {
@@ -104,19 +105,20 @@ export function MockExamExaminerView() {
                 {formatMinor(s.quote.total, s.currency)}
               </p>
               {s.zoom ? (
-                <p>
+                <div className="mt-3 space-y-3">
                   {s.zoom.topic ? (
                     <span className="block text-muted-foreground">{s.zoom.topic}</span>
                   ) : null}
-                  <a
-                    className="text-primary hover:underline"
-                    href={s.zoom.startUrl || s.zoom.joinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Start Zoom meeting
-                  </a>
-                </p>
+                  <InAppZoomRoom
+                    joinUrl={s.zoom.joinUrl}
+                    startUrl={s.zoom.startUrl}
+                    meetingNumber={s.zoom.meetingNumber}
+                    password={s.zoom.password}
+                    isHost
+                    title={s.examTypeName}
+                    leaveHref="/instructor/mock-exams"
+                  />
+                </div>
               ) : null}
               {s.documents?.length ? (
                 <ul className="mt-1 text-muted-foreground">
