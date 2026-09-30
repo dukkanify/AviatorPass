@@ -12,6 +12,15 @@ export const COURSE_CURRENCIES = [
   { code: "GBP", label: "British Pound", flag: "🇬🇧" },
 ] as const;
 
+export function suggestCourseCode(title: string): string {
+  const slug = slugifyCourse(title)
+    .toUpperCase()
+    .replace(/[^A-Z0-9._-]/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+  return slug || "COURSE-1";
+}
+
 export function slugifyCourse(value: string): string {
   return value
     .trim()
