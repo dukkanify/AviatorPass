@@ -24,7 +24,7 @@ import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { writeCgiDb, readCgiDb } from "@/services/cgi/store";
 import { ensureLearningSeeded } from "@/services/learning/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
-import { ensureQuizzesSeeded } from "@/services/quizzes/seed";
+import { ensureWrittenExamsSeeded } from "@/services/mock-exams/written-exam-service";
 import { writeBookingsDb, readBookingsDb } from "@/services/bookings/store";
 import { writePerformanceDb, readPerformanceDb } from "@/services/performance/store";
 import type { AppointmentBooking } from "@/types/bookings";
@@ -47,7 +47,7 @@ export function ensurePlatformDemoEnvironment(): void {
     ensureCommunicationSeeded();
     ensureCertificatesSeeded();
     ensureLearningSeeded();
-    ensureQuizzesSeeded();
+    ensureWrittenExamsSeeded();
     ensureAnalyticsSeeded();
     ensureAiSeeded();
 

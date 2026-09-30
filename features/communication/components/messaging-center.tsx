@@ -8,7 +8,6 @@ import {
   CheckCheck,
   ChevronLeft,
   Copy,
-  Headphones,
   MessageSquare,
   Paperclip,
   Pin,
@@ -120,11 +119,13 @@ function MessagingCenterInner({ basePath }: { basePath: string }) {
         return;
       }
       setError(result.error);
+      setLoading(false);
       return;
     }
     setConversations(result.data?.conversations ?? []);
     setTotalUnread(result.data?.totalUnread ?? 0);
     setLoading(false);
+    setActiveId((current) => current ?? result.data?.conversations?.[0]?.id ?? null);
   }, [convSearch]);
 
   const loadThread = React.useCallback(async (id: string, q?: string) => {
@@ -323,10 +324,6 @@ function MessagingCenterInner({ basePath }: { basePath: string }) {
         actions={
           <div className="flex flex-wrap gap-2">
             {totalUnread > 0 ? <Badge variant="accent">{totalUnread} unread</Badge> : null}
-            <Button variant="outline" size="sm" onClick={() => void openSupport()}>
-              <Headphones className="size-4" />
-              Support chat
-            </Button>
             <Button asChild variant="outline" size="sm">
               <a href={`${basePath}/support`}>Tickets</a>
             </Button>

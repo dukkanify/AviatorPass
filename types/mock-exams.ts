@@ -167,3 +167,41 @@ export interface MockExamSlot {
   reason?: string;
   quote?: MockExamPriceQuote;
 }
+
+export interface WrittenExamOption {
+  id: string;
+  label: string;
+}
+
+export interface WrittenExamQuestion {
+  id: string;
+  examTypeId: string;
+  stem: string;
+  options: WrittenExamOption[];
+  correctOptionId: string;
+  order: number;
+  explanation: string;
+}
+
+export type WrittenExamAttemptStatus = "in_progress" | "submitted" | "expired";
+
+export interface WrittenExamAttempt {
+  id: string;
+  examTypeId: string;
+  examTypeName: string;
+  studentId: string;
+  questionIds: string[];
+  answers: Record<string, string>;
+  status: WrittenExamAttemptStatus;
+  startedAt: string;
+  submittedAt: string | null;
+  expiresAt: string;
+  timeLimitMinutes: number;
+  score: number | null;
+  maxScore: number;
+  percent: number | null;
+  passed: boolean | null;
+  attemptNumber: number;
+  createdAt: string;
+  updatedAt: string;
+}

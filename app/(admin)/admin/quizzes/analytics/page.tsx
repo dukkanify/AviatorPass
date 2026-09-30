@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { AnalyticsDashboardView } from "@/features/quizzes";
-
-export default function AdminQuizAnalyticsPage() {
-  return <AnalyticsDashboardView basePath="/admin/quizzes" />;
+export default function QuizzesRemovedPage() {
+  redirect("/admin/mock-exams");
 }

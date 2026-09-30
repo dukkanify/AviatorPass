@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requirePermission } from "@/services/auth/guards";
+import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ensureCommunicationSeeded } from "@/services/communication/seed";
 import {
@@ -18,6 +18,7 @@ import type { TicketStatus, TicketType } from "@/types/communication";
 export async function GET(request: Request) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.SUPPORT_OWN);
     const { searchParams } = new URL(request.url);
     if (searchParams.get("stats") === "1" && canManageSupport(user)) {
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.SUPPORT_OWN);
     const body = (await request.json().catch(() => null)) as {
       action?: "create" | "reply" | "update";

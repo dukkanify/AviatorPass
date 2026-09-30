@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "@/components/ui/app-link";
-import { ExternalLink, Radio, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { classFetch } from "@/features/classes/lib/api";
 import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
+import { InAppZoomRoom } from "@/features/zoom/components/in-app-zoom-room";
 import type { LiveClassListItem } from "@/types/classes";
 
 interface JoinClassClientProps {
@@ -154,26 +155,16 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   {join.waitingRoom ? " · Waiting room on" : ""}
                 </p>
               </div>
-              <div className="flex flex-col gap-2">
-                {data.isHost && join.startUrl && !finished ? (
-                  <Button asChild>
-                    <a href={join.startUrl} target="_blank" rel="noreferrer">
-                      <Radio className="mr-2 h-4 w-4" /> Start meeting
-                    </a>
-                  </Button>
-                ) : null}
-                {data.isHost ? (
-                  <Button type="button" variant="outline" onClick={() => copy(join.joinUrl)}>
-                    Copy join link
-                  </Button>
-                ) : null}
-                <Button asChild variant={data.isHost ? "outline" : "default"} disabled={finished}>
-                  <a href={join.joinUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" />{" "}
-                    {data.isHost ? "Open join URL" : "Join Zoom"}
-                  </a>
-                </Button>
-              </div>
+              {!finished ? (
+                <InAppZoomRoom
+                  joinUrl={join.joinUrl}
+                  startUrl={join.startUrl}
+                  meetingNumber={join.zoomMeetingId}
+                  password={join.password}
+                  isHost={data.isHost}
+                  title={cls.title}
+                />
+              ) : null}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Meeting details unavailable.</p>

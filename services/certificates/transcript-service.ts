@@ -8,8 +8,7 @@ import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { getCourseLearningState } from "@/services/learning/progress-service";
-import { listAttemptsForStudent } from "@/services/quizzes/attempt-service";
-import { readQuizzesDb } from "@/services/quizzes/store";
+import { listWrittenAttempts } from "@/services/mock-exams/written-exam-service";
 import { listCertificates } from "@/services/certificates/certificate-service";
 import { getAcademicPerformance } from "@/services/certificates/progress-service";
 import { CertificateError } from "@/services/certificates/access";
@@ -26,8 +25,8 @@ export async function generateTranscript(
   if (!student) throw new CertificateError("Student not found", 404);
   const profile = toUserProfile(student);
   const performance = getAcademicPerformance(studentId);
-  const attempts = listAttemptsForStudent(studentId).filter((a) =>
-    ["submitted", "graded", "expired"].includes(a.status),
+  const attempts = listWrittenAttempts(studentId).filter((a) =>
+    ["submitted", "expired"].includes(a.status),
   );
   const scored = attempts.filter((a) => typeof a.percent === "number");
 
@@ -46,16 +45,14 @@ export async function generateTranscript(
       } catch {
         /* skip */
       }
-      const courseAttempts = attempts.filter((a) => {
-        const quiz = readQuizzesDb().quizzes.find((q) => q.id === a.quizId);
-        return quiz?.courseId === e.courseId;
-      });
+      const courseAttempts = attempts.filter((a) =>
+        a.examTypeName.toLowerCase().includes((course?.title ?? "").toLowerCase().slice(0, 8)),
+      );
       const quizAvg =
         courseAttempts.length === 0
           ? null
           : Math.round(
-              (courseAttempts.reduce((s, a) => s + (a.percent ?? 0), 0) /
-                courseAttempts.length) *
+              (courseAttempts.reduce((s, a) => s + (a.percent ?? 0), 0) / courseAttempts.length) *
                 10,
             ) / 10;
       const cert = listCertificates({
@@ -83,19 +80,13 @@ export async function generateTranscript(
     status: c.status,
   }));
 
-  // Pull instructor review comments from quiz reviews linked to student attempts
-  const reviews = readQuizzesDb().reviews.filter((r) =>
-    attempts.some((a) => a.id === r.attemptId),
-  );
-  const instructorEvaluations = reviews.map((r) => {
-    const attempt = attempts.find((a) => a.id === r.attemptId);
-    const quiz = attempt ? readQuizzesDb().quizzes.find((q) => q.id === attempt.quizId) : null;
-    return {
-      courseName: quiz?.title ?? "Assessment",
-      comment: r.comments || "No written evaluation",
-      at: r.updatedAt,
-    };
-  });
+  const instructorEvaluations = attempts
+    .filter((a) => a.percent != null)
+    .map((a) => ({
+      courseName: a.examTypeName,
+      comment: a.passed ? "Passed written mock exam" : "Written mock exam recorded",
+      at: a.updatedAt,
+    }));
 
   const transcript: StudentTranscript = {
     studentId,
@@ -112,9 +103,8 @@ export async function generateTranscript(
       averagePercent:
         scored.length === 0
           ? 0
-          : Math.round(
-              (scored.reduce((s, a) => s + (a.percent ?? 0), 0) / scored.length) * 10,
-            ) / 10,
+          : Math.round((scored.reduce((s, a) => s + (a.percent ?? 0), 0) / scored.length) * 10) /
+            10,
       passRate: performance.passRate,
     },
     instructorEvaluations,

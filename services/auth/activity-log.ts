@@ -1,7 +1,9 @@
 import { generateId } from "@/lib/security/crypto";
 import type { ActivityLogRecord, AuditLogRecord } from "@/types";
 import type { ActivityAction } from "@/constants/activity-actions";
-import { writeAuthDb, readAuthDb } from "@/services/auth/store";
+import { writeAuthDb, readAuthDb, findUserById, toUserProfile } from "@/services/auth/store";
+import { locationFromParts, parseUserAgent } from "@/lib/ops/client-telemetry";
+import { currentRequestContext } from "@/lib/ops/request-als";
 
 export async function logActivity(input: {
   actorId: string | null;
@@ -12,15 +14,23 @@ export async function logActivity(input: {
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<ActivityLogRecord> {
+  const bound = currentRequestContext();
+  const ipAddress = input.ipAddress ?? bound?.ipAddress ?? null;
+  const userAgent = input.userAgent ?? bound?.userAgent ?? null;
   const record: ActivityLogRecord = {
     id: generateId(),
     actorId: input.actorId,
     action: input.action,
     entityType: input.entityType ?? null,
     entityId: input.entityId ?? null,
-    metadata: input.metadata ?? {},
-    ipAddress: input.ipAddress ?? null,
-    userAgent: input.userAgent ?? null,
+    metadata: {
+      ...(input.metadata ?? {}),
+      city: bound?.city ?? null,
+      region: bound?.region ?? null,
+      country: bound?.country ?? null,
+    },
+    ipAddress,
+    userAgent,
     createdAt: new Date().toISOString(),
   };
 
@@ -65,12 +75,39 @@ export async function logAudit(input: {
   return record;
 }
 
-export function listActivityLogs(options?: {
-  page?: number;
-  pageSize?: number;
-  action?: string;
-}): {
-  data: ActivityLogRecord[];
+export interface ActivityLogView extends ActivityLogRecord {
+  actorName: string | null;
+  actorEmail: string | null;
+  device: string;
+  browser: string;
+  os: string;
+  location: string;
+}
+
+function enrichActivityLog(log: ActivityLogRecord): ActivityLogView {
+  const actor = log.actorId ? findUserById(log.actorId) : null;
+  const profile = actor ? toUserProfile(actor) : null;
+  const ua = parseUserAgent(log.userAgent);
+  const meta = log.metadata ?? {};
+  const location = locationFromParts({
+    city: typeof meta.city === "string" ? meta.city : null,
+    region: typeof meta.region === "string" ? meta.region : null,
+    country: typeof meta.country === "string" ? meta.country : null,
+  });
+  return {
+    ...log,
+    actorName:
+      profile?.fullName || profile?.email || (log.actorId ? log.actorId.slice(0, 8) : null),
+    actorEmail: profile?.email ?? null,
+    device: ua.device,
+    browser: ua.browser,
+    os: ua.os,
+    location: location.label,
+  };
+}
+
+export function listActivityLogs(options?: { page?: number; pageSize?: number; action?: string }): {
+  data: ActivityLogView[];
   total: number;
   page: number;
   pageSize: number;
@@ -86,7 +123,7 @@ export function listActivityLogs(options?: {
   const total = rows.length;
   const start = (page - 1) * pageSize;
   return {
-    data: rows.slice(start, start + pageSize),
+    data: rows.slice(start, start + pageSize).map(enrichActivityLog),
     total,
     page,
     pageSize,

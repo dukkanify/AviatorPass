@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { QuizBuilderView } from "@/features/quizzes";
-
-export default function InstructorQuizBuilderPage() {
-  return <QuizBuilderView />;
+export default function QuizzesRemovedPage() {
+  redirect("/instructor/mock-exams");
 }

@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { QuestionBankView } from "@/features/quizzes";
-
-export default function InstructorQuestionBankPage() {
-  return <QuestionBankView />;
+export default function QuizzesRemovedPage() {
+  redirect("/instructor/mock-exams");
 }

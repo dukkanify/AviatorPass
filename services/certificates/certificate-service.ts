@@ -18,6 +18,7 @@ import { getDefaultTemplate, getTemplateById } from "@/services/certificates/tem
 import { readCertificatesDb, writeCertificatesDb } from "@/services/certificates/store";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
+import { resolveCertificateSubjectName } from "@/lib/certificates/subject-name";
 import type { Certificate, CertificateIssueMode, CertificateStatus } from "@/types/certificates";
 import type { UserProfile } from "@/types";
 
@@ -137,7 +138,10 @@ export async function createCertificate(input: {
     studentId: input.studentId,
     studentName: toUserProfile(student).fullName || student.email,
     courseId: input.courseId,
-    courseName: course.title,
+    courseName: resolveCertificateSubjectName({
+      courseId: input.courseId,
+      fallback: course.title,
+    }),
     instructorId,
     instructorName,
     templateId: template.id,
@@ -461,7 +465,10 @@ export async function renderCertificateHtml(certificateId: string): Promise<{
 
   const values: Record<string, string> = {
     studentName: certificate.studentName,
-    courseName: certificate.courseName,
+    courseName: resolveCertificateSubjectName({
+      courseId: certificate.courseId,
+      fallback: certificate.courseName,
+    }),
     instructorName: certificate.instructorName,
     completionDate: certificate.completionDate,
     issueDate: certificate.issueDate ?? "—",
@@ -489,13 +496,15 @@ export async function renderCertificateHtml(certificateId: string): Promise<{
 <title>${certificate.certificateNumber}</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
-  body { margin: 0; font-family: Georgia, 'Times New Roman', serif; background: #f5f5f5; }
+  body { margin: 0; font-family: Georgia, 'Times New Roman', serif; background: #f5f5f5; text-align: center; }
   .sheet {
     width: 1100px; min-height: 760px; margin: 24px auto; padding: 48px 64px;
     background: linear-gradient(135deg, #fff 0%, #faf7f2 100%);
     border: 12px solid ${template.primaryColor};
     box-shadow: 0 10px 40px rgba(0,0,0,.12);
     position: relative; color: ${template.primaryColor};
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
   .accent { height: 6px; background: ${template.accentColor}; margin: 16px 0 28px; }
   img.logo { height: 56px; }

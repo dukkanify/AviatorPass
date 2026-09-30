@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requirePermission } from "@/services/auth/guards";
+import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ensureCommunicationSeeded } from "@/services/communication/seed";
 import {
@@ -26,6 +26,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Ctx) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.MESSAGING_OWN);
     heartbeatPresence(user.id);
     const { id } = await context.params;
@@ -51,6 +52,7 @@ export async function GET(request: Request, context: Ctx) {
 export async function POST(request: Request, context: Ctx) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.MESSAGING_OWN);
     heartbeatPresence(user.id);
     const { id } = await context.params;

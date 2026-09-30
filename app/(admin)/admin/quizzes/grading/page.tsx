@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { GradingPanelView } from "@/features/quizzes";
-
-export default function AdminGradingPage() {
-  return <GradingPanelView basePath="/admin/quizzes" />;
+export default function QuizzesRemovedPage() {
+  redirect("/admin/mock-exams");
 }

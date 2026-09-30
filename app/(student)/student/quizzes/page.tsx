@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { StudentQuizzesView } from "@/features/quizzes";
-
-export default function StudentQuizzesPage() {
-  return <StudentQuizzesView />;
+export default function QuizzesRemovedPage() {
+  redirect("/student/mock-exams");
 }

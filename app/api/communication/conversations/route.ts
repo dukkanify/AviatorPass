@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requirePermission } from "@/services/auth/guards";
+import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ensureCommunicationSeeded } from "@/services/communication/seed";
 import {
@@ -18,6 +18,7 @@ import type { ConversationKind } from "@/types/communication";
 export async function GET(request: Request) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.MESSAGING_OWN);
     heartbeatPresence(user.id);
     const { searchParams } = new URL(request.url);
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     ensureCommunicationSeeded();
+    getRequestContext(request);
     const user = await requirePermission(PERMISSIONS.MESSAGING_OWN);
     heartbeatPresence(user.id);
     const body = (await request.json().catch(() => null)) as {

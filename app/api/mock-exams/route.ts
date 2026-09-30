@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
-import { requireAuth, requirePermission } from "@/services/auth/guards";
+import { getRequestContext, requireAuth, requirePermission } from "@/services/auth/guards";
 import { assertPermission, PermissionError } from "@/services/auth/permissions";
 import {
   attachMockExamDocument,
@@ -17,9 +17,21 @@ import {
 } from "@/services/mock-exams/booking-service";
 import { getMockExamSlots, listMockExaminers } from "@/services/mock-exams/availability-service";
 import { MockExamError, quoteMockExam } from "@/services/mock-exams/pricing-service";
+import {
+  getWrittenAttemptView,
+  getWrittenCatalog,
+  saveWrittenAnswer,
+  startWrittenAttempt,
+  submitWrittenAttempt,
+  WrittenExamError,
+} from "@/services/mock-exams/written-exam-service";
 
 function errorResponse(error: unknown) {
-  if (error instanceof MockExamError || error instanceof PermissionError) {
+  if (
+    error instanceof MockExamError ||
+    error instanceof WrittenExamError ||
+    error instanceof PermissionError
+  ) {
     return NextResponse.json(
       { success: false, data: null, error: error.message },
       { status: error.status },
@@ -32,6 +44,7 @@ function errorResponse(error: unknown) {
 export async function GET(request: Request) {
   try {
     const user = await requireAuth();
+    getRequestContext(request);
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "sessions";
 
@@ -85,6 +98,25 @@ export async function GET(request: Request) {
 
     if (view === "examiners") {
       return NextResponse.json({ success: true, data: listMockExaminers(), error: null });
+    }
+
+    if (view === "written") {
+      return NextResponse.json({ success: true, data: getWrittenCatalog(user), error: null });
+    }
+
+    if (view === "written_attempt") {
+      const id = searchParams.get("id");
+      if (!id) {
+        return NextResponse.json(
+          { success: false, data: null, error: "id required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: getWrittenAttemptView(user, id),
+        error: null,
+      });
     }
 
     if (view === "admin") {
@@ -161,6 +193,7 @@ function assertCanManage(role: string) {
 export async function POST(request: Request) {
   try {
     const user = await requireAuth();
+    getRequestContext(request);
     const body = (await request.json().catch(() => ({}))) as {
       action?: string;
       examinerId?: string;
@@ -169,6 +202,9 @@ export async function POST(request: Request) {
       selectedExtraFeeIds?: string[];
       studentId?: string;
       sessionId?: string;
+      attemptId?: string;
+      questionId?: string;
+      optionId?: string;
       markPaid?: boolean;
       documentName?: string;
       documentUrl?: string;
@@ -178,6 +214,51 @@ export async function POST(request: Request) {
       settings?: Record<string, unknown>;
     };
     const action = body.action;
+
+    if (action === "start_written") {
+      assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
+      if (!body.examTypeId) {
+        return NextResponse.json(
+          { success: false, data: null, error: "examTypeId required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: startWrittenAttempt(user, body.examTypeId),
+        error: null,
+      });
+    }
+
+    if (action === "save_written") {
+      assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
+      if (!body.attemptId || !body.questionId || !body.optionId) {
+        return NextResponse.json(
+          { success: false, data: null, error: "attemptId, questionId, optionId required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: saveWrittenAnswer(user, body.attemptId, body.questionId, body.optionId),
+        error: null,
+      });
+    }
+
+    if (action === "submit_written") {
+      assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
+      if (!body.attemptId) {
+        return NextResponse.json(
+          { success: false, data: null, error: "attemptId required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: submitWrittenAttempt(user, body.attemptId),
+        error: null,
+      });
+    }
 
     if (action === "book") {
       assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
