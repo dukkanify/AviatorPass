@@ -1,3 +1,7 @@
+import Link from "@/components/ui/app-link";
+
+import { SafeImage } from "@/components/media/safe-image";
+import { atplSubjectPublicHref } from "@/lib/marketing/atpl-subject-ref";
 import { cn } from "@/lib/utils";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
@@ -13,14 +17,14 @@ function AtplSubjectGrid({
   return (
     <div className="atpl-subject-grid mt-12">
       {subjects.map((subject, index) => (
-        <article
+        <Link
           key={subject.id}
+          href={atplSubjectPublicHref(subject)}
           className={cn("atpl-subject-card", reveal && "atpl-reveal")}
           style={reveal ? { animationDelay: `${index * 40}ms` } : undefined}
         >
           {subject.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={subject.imageUrl} alt="" className="atpl-subject-media" />
+            <SafeImage src={subject.imageUrl} alt="" className="atpl-subject-media" />
           ) : null}
           <span className="atpl-subject-code">{subject.code || "\u00a0"}</span>
           <h3 className="atpl-subject-title">{subject.title}</h3>
@@ -32,7 +36,7 @@ function AtplSubjectGrid({
             </p>
           )}
           <span className="atpl-subject-badge">{subject.badgeLabel}</span>
-        </article>
+        </Link>
       ))}
     </div>
   );

@@ -306,6 +306,11 @@
   }
 }
 
+a.atpl-subject-card {
+  text-decoration: none;
+  color: inherit;
+}
+
 .atpl-subject-card {
   display: flex;
   flex-direction: column;

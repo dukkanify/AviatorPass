@@ -9,6 +9,7 @@ import { OFFICIAL_ATPL_SUBJECTS } from "@/services/marketing/atpl-subjects-seed"
 import {
   createAtplLandingSubject,
   deleteAtplLandingSubject,
+  ensureOfficialPackageSubject,
   listAtplLandingSubjects,
   listPublicAtplSubjects,
   reorderAtplLandingSubjects,
@@ -116,6 +117,14 @@ describe("ATPL subjects CMS", () => {
     expect(listAtplLandingSubjects({ includeHidden: true }).some((s) => s.id === created.id)).toBe(
       false,
     );
+  });
+
+  it("reuses the official Meteorology row when Super Admin saves a photo", async () => {
+    const first = await ensureOfficialPackageSubject("050");
+    const again = await ensureOfficialPackageSubject("050");
+    expect(first.code).toBe("050");
+    expect(again.id).toBe(first.id);
+    expect(first.title).toMatch(/Meteorology/i);
   });
 
   it("exposes Super Admin management and keeps public pages CMS-driven", () => {

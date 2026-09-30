@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "@/components/ui/app-link";
-import { ArrowLeft, ExternalLink, Radio } from "lucide-react";
+import { ArrowLeft, Radio } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -242,19 +242,12 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
-            {detail.zoom?.startUrl ? (
-              <Button asChild>
-                <a href={detail.zoom.startUrl} target="_blank" rel="noreferrer">
-                  <Radio className="mr-2 h-4 w-4" /> Start meeting
-                </a>
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link href={`/join/${detail.id}`}>
-                  <Radio className="mr-2 h-4 w-4" /> Join / Start
-                </Link>
-              </Button>
-            )}
+            <Button asChild>
+              <Link href={`/join/${detail.id}`}>
+                <Radio className="mr-2 h-4 w-4" />{" "}
+                {detail.zoom?.startUrl ? "Start meeting" : "Join / Start"}
+              </Link>
+            </Button>
           </div>
         }
       />
@@ -317,29 +310,24 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                   {detail.zoom.waitingRoom ? "On" : "Off"}
                 </p>
                 <div className="flex flex-col gap-2">
-                  {detail.zoom.startUrl ? (
-                    <Button asChild size="sm">
-                      <a href={detail.zoom.startUrl} target="_blank" rel="noreferrer">
-                        <Radio className="mr-2 h-4 w-4" /> Start meeting
-                      </a>
-                    </Button>
-                  ) : null}
+                  <Button asChild size="sm">
+                    <Link href={`/join/${detail.id}`}>
+                      <Radio className="mr-2 h-4 w-4" /> Open classroom
+                    </Link>
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     className="w-full"
                     onClick={() => {
-                      void navigator.clipboard.writeText(detail.zoom!.joinUrl);
-                      toast.success("Join link copied");
+                      void navigator.clipboard.writeText(
+                        `${window.location.origin}/join/${detail.id}`,
+                      );
+                      toast.success("AviatorPass classroom link copied");
                     }}
                   >
-                    Copy join link
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="w-full">
-                    <a href={detail.zoom.joinUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" /> Open join URL
-                    </a>
+                    Copy classroom link
                   </Button>
                 </div>
               </>

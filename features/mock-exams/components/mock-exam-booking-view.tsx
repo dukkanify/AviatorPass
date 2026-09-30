@@ -251,7 +251,9 @@ export function MockExamBookingView() {
                         startUrl={s.zoom.startUrl}
                         meetingNumber={s.zoom.meetingNumber}
                         password={s.zoom.password}
+                        providerMode={s.zoom.providerMode}
                         title={s.examTypeName}
+                        leaveHref="/student/mock-exams"
                       />
                     </div>
                   ) : null}
