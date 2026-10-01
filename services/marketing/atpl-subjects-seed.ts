@@ -1,7 +1,16 @@
 /**
  * Official ATPL syllabus seed — persisted on first boot, then edited in Super Admin.
- * Not rendered directly by marketing pages.
+ * Extra 034 / 082 / Dynamic Management rows stay in the store but stay hidden.
+ * Marketing checkout uses ATPL_COMPLETE_PACKAGE_SUBJECTS (13 titles).
  */
+
+export const ATPL_CMS_SYLLABUS_EXTRA_CODES = new Set(["034", "082"]);
+
+export function isAtplCmsSyllabusExtra(input: { code?: string | null; title?: string | null }) {
+  const code = input.code?.trim() ?? "";
+  if (ATPL_CMS_SYLLABUS_EXTRA_CODES.has(code)) return true;
+  return !code && /dynamic management/i.test(input.title ?? "");
+}
 
 export const OFFICIAL_ATPL_SUBJECTS: ReadonlyArray<{
   code: string;

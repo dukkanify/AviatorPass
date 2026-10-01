@@ -2,7 +2,6 @@ import Link from "@/components/ui/app-link";
 import { ArrowUpRight } from "lucide-react";
 
 import { AtplSubjectCover } from "@/components/media/atpl-subject-cover";
-
 import { Button } from "@/components/ui/button";
 import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
 import { ACTION_LABELS } from "@/constants/programme-terms";

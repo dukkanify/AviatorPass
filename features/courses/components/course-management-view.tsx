@@ -367,7 +367,11 @@ function CourseManagementView({
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        description="Add a course or click a price to change it. ATPL checkout prices sit at the top."
+        description={
+          canManagePublishing
+            ? "ATPL subjects first — change photo, text, and checkout prices. Add a course or click a catalog price below."
+            : "Add a course or click a price to change it."
+        }
         breadcrumbs={[{ label: roleLabel }, { label: "Courses" }]}
         actions={
           <div className="flex flex-wrap gap-2">

@@ -120,7 +120,7 @@ export function listAtplCourses() {
     .map((c) => ({
       id: c.id,
       code: c.code,
-      title: c.title,
+      title: officialTitleForAtplCourse(c),
       primaryInstructorId: c.primaryInstructorId,
       status: c.status,
       subjectCode: typeof c.metadata?.subjectCode === "string" ? c.metadata.subjectCode : c.code,
