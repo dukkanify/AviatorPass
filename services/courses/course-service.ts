@@ -121,6 +121,22 @@ export function getPublicListedCourseByRef(ref: string): Course | null {
   return isCoursePubliclyListed(match) ? match : null;
 }
 
+/** Public catalog lookup by id, code, or marketing slug. */
+export function getPublicListedCourseByRef(ref: string): Course | null {
+  const direct = getCourseById(ref);
+  if (direct && isCoursePubliclyListed(direct)) return direct;
+  const key = decodeURIComponent(ref || "")
+    .trim()
+    .toLowerCase();
+  if (!key) return null;
+  ensureCoursesSeeded();
+  const match = readCoursesDb().courses.find(
+    (course) => publicCourseRef(course).toLowerCase() === key,
+  );
+  if (!match || match.deletedAt) return null;
+  return isCoursePubliclyListed(match) ? match : null;
+}
+
 /** True when the user is primary instructor or assigned on the course. */
 export function instructorOwnsCourse(userId: string, courseId: string): boolean {
   const course = getCourseById(courseId);
