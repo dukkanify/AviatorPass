@@ -72,6 +72,7 @@ export function resolveInAppMeetingMode(input: {
   return "sdk";
 }
 
+/** Official Meeting SDK JWT: https://developers.zoom.us/docs/meeting-sdk/auth/ */
 export function generateMeetingSdkSignature(input: {
   clientId: string;
   clientSecret: string;

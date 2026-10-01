@@ -55,6 +55,8 @@ const serverEnvSchema = z.object({
   /** General App Client ID/Secret for Meeting SDK join (not S2S, not legacy SDK Key) */
   ZOOM_SDK_KEY: z.string().optional(),
   ZOOM_SDK_SECRET: z.string().optional(),
+  ZOOM_MEETING_SDK_KEY: z.string().optional(),
+  ZOOM_MEETING_SDK_SECRET: z.string().optional(),
   TAMARA_API_TOKEN: z.string().optional(),
   TAMARA_BASE_URL: z.string().url().optional(),
   TAMARA_NOTIFICATION_TOKEN: z.string().optional(),
@@ -148,6 +150,8 @@ export function getServerEnv() {
     ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
     ZOOM_SDK_KEY: emptyToUndef(process.env.ZOOM_SDK_KEY),
     ZOOM_SDK_SECRET: emptyToUndef(process.env.ZOOM_SDK_SECRET),
+    ZOOM_MEETING_SDK_KEY: emptyToUndef(process.env.ZOOM_MEETING_SDK_KEY),
+    ZOOM_MEETING_SDK_SECRET: emptyToUndef(process.env.ZOOM_MEETING_SDK_SECRET),
     TAMARA_API_TOKEN: emptyToUndef(process.env.TAMARA_API_TOKEN),
     TAMARA_BASE_URL: emptyToUndef(process.env.TAMARA_BASE_URL),
     TAMARA_NOTIFICATION_TOKEN: emptyToUndef(process.env.TAMARA_NOTIFICATION_TOKEN),
