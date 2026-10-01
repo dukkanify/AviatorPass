@@ -18,7 +18,13 @@ import { getDefaultTemplate, getTemplateById } from "@/services/certificates/tem
 import { readCertificatesDb, writeCertificatesDb } from "@/services/certificates/store";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
+import { DEFAULT_CERTIFICATE_BODY } from "@/constants/certificates";
 import { resolveCertificateSubjectName } from "@/lib/certificates/subject-name";
+import {
+  alignCertificateNumber,
+  makeCourseCertificateNumber,
+} from "@/lib/certificates/certificate-number";
+import { embedCertificateLogo } from "@/lib/certificates/print-logo";
 import type { Certificate, CertificateIssueMode, CertificateStatus } from "@/types/certificates";
 import type { UserProfile } from "@/types";
 
@@ -26,10 +32,44 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function makeCertificateNumber(): string {
-  const y = new Date().getFullYear();
-  const rand = randomBytes(3).toString("hex").toUpperCase();
-  return `ATPL-${y}-${rand}`;
+function makeCertificateNumber(input: {
+  courseId?: string | null;
+  courseCode?: string | null;
+  courseTitle?: string | null;
+}): string {
+  return makeCourseCertificateNumber({
+    ...input,
+    suffix: randomBytes(3).toString("hex").toUpperCase(),
+  });
+}
+
+function presentCertificate(cert: Certificate): Certificate {
+  const course = cert.courseId ? getCourseById(cert.courseId) : null;
+  const courseName = resolveCertificateSubjectName({
+    courseId: cert.courseId,
+    fallback: cert.courseName,
+  });
+  const certificateNumber = alignCertificateNumber(cert.certificateNumber, {
+    courseId: cert.courseId,
+    courseCode: course?.code,
+    courseTitle: courseName,
+  });
+  if (courseName === cert.courseName && certificateNumber === cert.certificateNumber) {
+    return cert;
+  }
+  return { ...cert, courseName, certificateNumber };
+}
+
+function persistPresentedCertificate(cert: Certificate): Certificate {
+  const next = presentCertificate(cert);
+  if (next === cert) return withCanonicalQr(cert);
+  writeCertificatesDb((d) => {
+    const idx = d.certificates.findIndex((row) => row.id === cert.id);
+    if (idx >= 0) {
+      d.certificates[idx] = { ...d.certificates[idx]!, ...next, updatedAt: nowIso() };
+    }
+  });
+  return withCanonicalQr(next);
 }
 
 function makeVerificationCode(): string {
@@ -62,12 +102,14 @@ export function listCertificates(filters?: {
   if (filters?.status && filters.status !== "all") {
     rows = rows.filter((c) => c.status === filters.status);
   }
-  return [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withCanonicalQr);
+  return [...rows]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(persistPresentedCertificate);
 }
 
 export function getCertificateById(id: string): Certificate | null {
   const cert = readCertificatesDb().certificates.find((c) => c.id === id) ?? null;
-  return cert ? withCanonicalQr(cert) : null;
+  return cert ? persistPresentedCertificate(cert) : null;
 }
 
 export function findCertificateByVerification(query: string): Certificate | null {
@@ -79,7 +121,7 @@ export function findCertificateByVerification(query: string): Certificate | null
         c.certificateNumber.toUpperCase() === q ||
         c.id === query.trim(),
     ) ?? null;
-  return cert ? withCanonicalQr(cert) : null;
+  return cert ? persistPresentedCertificate(cert) : null;
 }
 
 export async function createCertificate(input: {
@@ -122,7 +164,11 @@ export async function createCertificate(input: {
 
   const stamp = nowIso();
   const verificationCode = makeVerificationCode();
-  const certificateNumber = makeCertificateNumber();
+  const certificateNumber = makeCertificateNumber({
+    courseId: course.id,
+    courseCode: course.code,
+    courseTitle: course.title,
+  });
   const qrPayload = publicVerifyUrl(verificationCode);
   const digitalSignature = signCertificatePayload(
     `${certificateNumber}|${input.studentId}|${input.courseId}|${verificationCode}`,
@@ -477,69 +523,199 @@ export async function renderCertificateHtml(certificateId: string): Promise<{
     organizationName: org,
   };
 
-  let body = template.bodyHtml;
+  let body = /<h1>|<h3>/.test(template.bodyHtml) ? template.bodyHtml : DEFAULT_CERTIFICATE_BODY;
   for (const [key, value] of Object.entries(values)) {
     body = body.replaceAll(`{{${key}}}`, value);
   }
 
   const qrDataUrl = await QRCode.toDataURL(certificate.qrPayload, {
     margin: 1,
-    width: 180,
+    width: 160,
     color: { dark: template.primaryColor, light: "#ffffff" },
   });
 
-  const logo = template.logoUrl || brand.logoUrl || "/brand/logo.png";
+  const logo = embedCertificateLogo(template.logoUrl || brand.logoUrl);
+  const navy = template.primaryColor || "#143048";
+  const gold = template.accentColor || "#CCA04C";
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>${certificate.certificateNumber}</title>
+<title>${values.courseName} · ${certificate.certificateNumber}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"/>
 <style>
-  @page { size: A4 landscape; margin: 0; }
-  body { margin: 0; font-family: Georgia, 'Times New Roman', serif; background: #f5f5f5; text-align: center; }
-  .sheet {
-    width: 1100px; min-height: 760px; margin: 24px auto; padding: 48px 64px;
-    background: linear-gradient(135deg, #fff 0%, #faf7f2 100%);
-    border: 12px solid ${template.primaryColor};
-    box-shadow: 0 10px 40px rgba(0,0,0,.12);
-    position: relative; color: ${template.primaryColor};
-    text-align: center;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    background: #f4f6f8;
+    color: ${navy};
   }
-  .accent { height: 6px; background: ${template.accentColor}; margin: 16px 0 28px; }
-  img.logo { height: 56px; }
-  h1 { font-size: 28px; letter-spacing: .08em; text-transform: uppercase; margin: 0; }
-  h2 { font-size: 42px; margin: 8px 0; color: ${template.accentColor}; }
-  h3 { font-size: 26px; margin: 8px 0 24px; }
-  .eyebrow { letter-spacing: .2em; text-transform: uppercase; font-size: 12px; opacity: .7; }
-  .recipient, .body, .meta { font-size: 16px; }
-  .footer { display:flex; justify-content: space-between; align-items:flex-end; margin-top: 48px; }
-  .sig { border-top: 1px solid ${template.primaryColor}; padding-top: 8px; min-width: 220px; }
-  .sig strong { display:block; }
-  .qr { text-align:center; font-size: 11px; }
-  .verify { margin-top: 8px; font-family: ui-monospace, monospace; }
-  .status { position:absolute; top: 24px; right: 32px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+  .page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+  }
+  .sheet {
+    width: min(1100px, 100%);
+    min-height: 720px;
+    margin: 0 auto;
+    padding: 36px 64px 32px;
+    background: linear-gradient(180deg, #ffffff 0%, #faf7f2 100%);
+    border: 10px solid ${navy};
+    box-shadow: 0 12px 40px rgba(20, 48, 72, 0.12);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .status {
+    position: absolute;
+    top: 22px;
+    right: 28px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #7C7B80;
+  }
+  .logo-wrap {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 8px 0 6px;
+  }
+  img.logo {
+    display: block;
+    height: 72px;
+    width: auto;
+    max-width: 440px;
+    object-fit: contain;
+    object-position: center;
+  }
+  .accent {
+    width: 168px;
+    height: 4px;
+    margin: 18px auto 22px;
+    background: ${gold};
+    border-radius: 2px;
+  }
+  .centerpiece { width: min(780px, 100%); margin: 0 auto; }
+  h1 {
+    margin: 0 0 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    word-spacing: 0.28em;
+  }
+  .eyebrow {
+    margin: 0 0 28px;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #7C7B80;
+  }
+  .recipient, .body {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    word-spacing: 0.08em;
+    color: #7C7B80;
+  }
+  h2 {
+    margin: 18px 0 16px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 40px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: ${gold};
+  }
+  h3 {
+    margin: 16px 0 22px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: ${navy};
+  }
+  .meta {
+    margin: 0 0 12px;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+    word-spacing: 0.06em;
+    color: ${navy};
+  }
+  .number {
+    margin: 4px 0 0;
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: ${navy};
+  }
+  .footer {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 140px minmax(180px, 1fr);
+    align-items: end;
+    gap: 20px 36px;
+    margin-top: auto;
+    padding-top: 36px;
+  }
+  .sig {
+    border-top: 1px solid ${navy};
+    padding-top: 10px;
+    min-width: 200px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .sig strong { display: block; font-size: 13px; }
+  .sig.right { text-align: right; justify-self: end; }
+  .qr { text-align: center; font-size: 10px; color: #7C7B80; }
+  .qr img { display: block; margin: 0 auto 8px; }
+  .verify {
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.04em;
+    color: ${navy};
+    word-break: break-all;
+  }
+  @media print {
+    body { background: white; }
+    .page { padding: 0; min-height: auto; }
+    .sheet { box-shadow: none; }
+  }
 </style>
 </head>
 <body>
-  <div class="sheet">
-    <div class="status">${certificate.status}</div>
-    <img class="logo" src="${logo}" alt="Logo"/>
-    <div class="accent"></div>
-    ${body}
-    <div class="footer">
-      <div class="sig">
-        <strong>${template.signatureName}</strong>
-        <span>${template.signatureTitle}</span>
+  <div class="page">
+    <div class="sheet">
+      <div class="status">${certificate.status}</div>
+      <div class="logo-wrap">
+        <img class="logo" src="${logo}" alt="${org}" width="440" height="72"/>
       </div>
-      <div class="qr">
-        <img src="${qrDataUrl}" alt="Verification QR" width="120" height="120"/>
-        <div class="verify">${certificate.verificationCode}</div>
-        <div>Scan to verify</div>
-      </div>
-      <div class="sig" style="text-align:right">
-        <strong>Digital signature</strong>
-        <span style="font-size:10px;word-break:break-all">${certificate.digitalSignature.slice(0, 24)}…</span>
+      <div class="accent"></div>
+      ${body}
+      <div class="footer">
+        <div class="sig">
+          <strong>${template.signatureName}</strong>
+          <span>${template.signatureTitle}</span>
+        </div>
+        <div class="qr">
+          <img src="${qrDataUrl}" alt="Verification QR" width="104" height="104"/>
+          <div class="verify">${certificate.verificationCode}</div>
+          <div>Scan to verify</div>
+        </div>
+        <div class="sig right">
+          <strong>Digital signature</strong>
+          <span>${certificate.digitalSignature.slice(0, 24)}…</span>
+        </div>
       </div>
     </div>
   </div>

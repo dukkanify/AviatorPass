@@ -58,19 +58,14 @@ function CertificateViewer() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-        <Card className="overflow-hidden border-2">
-          <CardContent className="space-y-4 bg-gradient-to-br from-background via-muted/20 to-background p-8 text-center">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              Certificate of Completion
-            </p>
-            <h2 className="font-display text-4xl font-semibold tracking-tight">{c.studentName}</h2>
-            <p className="text-muted-foreground">has successfully completed</p>
-            <h3 className="font-display text-2xl">{c.courseName}</h3>
-            <p className="text-sm">
-              Instructor {c.instructorName} · Completed {c.completionDate} · Issued{" "}
-              {c.issueDate ?? "—"}
-            </p>
-            <div className="flex justify-center">
+        <Card className="overflow-hidden border-0 bg-transparent shadow-none">
+          <CardContent className="p-0">
+            <iframe
+              title={`${c.courseName} certificate`}
+              src={`/api/certificates/${c.id}?print=1`}
+              className="aspect-[1.414/1] w-full rounded-2xl border bg-muted"
+            />
+            <div className="mt-3 flex justify-center">
               <Badge variant="secondary">{CERTIFICATE_STATUS_LABELS[c.status]}</Badge>
             </div>
           </CardContent>
