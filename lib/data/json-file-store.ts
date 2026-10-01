@@ -131,16 +131,21 @@ function readChunkedValue(key: string): unknown | undefined {
   return JSON.parse(text) as unknown;
 }
 
+export function isRetryableJsonStoreError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /23505|duplicate key/i.test(message);
+}
+
 function writeChunkedValue(key: string, value: unknown): void {
   const text = JSON.stringify(value);
-  neonSql("DELETE FROM aep_json_store_chunks WHERE key = $1", [key]);
   const values: unknown[] = [];
   const placeholders: string[] = [];
   let idx = 0;
   const flush = () => {
     if (!placeholders.length) return;
     neonSql(
-      `INSERT INTO aep_json_store_chunks (key, chunk_index, data) VALUES ${placeholders.join(",")}`,
+      `INSERT INTO aep_json_store_chunks (key, chunk_index, data) VALUES ${placeholders.join(",")}
+       ON CONFLICT (key, chunk_index) DO UPDATE SET data = EXCLUDED.data`,
       values,
     );
     values.length = 0;
@@ -154,6 +159,7 @@ function writeChunkedValue(key: string, value: unknown): void {
     if (placeholders.length >= 8) flush();
   }
   flush();
+  neonSql("DELETE FROM aep_json_store_chunks WHERE key = $1 AND chunk_index >= $2", [key, idx]);
   neonSql(
     `INSERT INTO aep_json_store (key, value, updated_at)
      VALUES ($1, $2::jsonb, NOW())
@@ -202,7 +208,18 @@ function hydrateKeyFromPostgres(filePath: string): void {
 
 function persistToPostgres(filePath: string, value: unknown): void {
   ensureTable();
-  writeChunkedValue(storeKeyFromPath(filePath), value);
+  const key = storeKeyFromPath(filePath);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      writeChunkedValue(key, value);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableJsonStoreError(error) || attempt === 2) throw error;
+    }
+  }
+  throw lastError;
 }
 
 function writeLocalFile(filePath: string, raw: string): boolean {

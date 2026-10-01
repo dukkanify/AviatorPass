@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ZOOM_EMBEDDED_SDK_SCRIPTS } from "@/features/zoom/lib/load-embedded-sdk";
+import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import {
   displayMeetingName,
   extractZoomMeetingNumber,
@@ -122,6 +123,31 @@ describe("Zoom stays inside AviatorPass", () => {
       "utf8",
     );
     expect(joinRoute).toMatch(/markJoin failed; student can still enter the classroom/);
+  });
+
+  it("does not sign Meeting SDK JWTs with Server-to-Server OAuth keys", () => {
+    const previous = {
+      ZOOM_SDK_KEY: process.env.ZOOM_SDK_KEY,
+      ZOOM_SDK_SECRET: process.env.ZOOM_SDK_SECRET,
+      ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
+      ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+    };
+    process.env.ZOOM_CLIENT_ID = "s2s-client";
+    process.env.ZOOM_CLIENT_SECRET = "s2s-secret";
+    delete process.env.ZOOM_SDK_KEY;
+    delete process.env.ZOOM_SDK_SECRET;
+    expect(getZoomMeetingSdkCredentials()).toBeNull();
+    process.env.ZOOM_SDK_KEY = "sdk-key";
+    process.env.ZOOM_SDK_SECRET = "sdk-secret";
+    expect(getZoomMeetingSdkCredentials()).toEqual({ sdkKey: "sdk-key", sdkSecret: "sdk-secret" });
+    if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
+    else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
+    if (previous.ZOOM_SDK_SECRET === undefined) delete process.env.ZOOM_SDK_SECRET;
+    else process.env.ZOOM_SDK_SECRET = previous.ZOOM_SDK_SECRET;
+    if (previous.ZOOM_CLIENT_ID === undefined) delete process.env.ZOOM_CLIENT_ID;
+    else process.env.ZOOM_CLIENT_ID = previous.ZOOM_CLIENT_ID;
+    if (previous.ZOOM_CLIENT_SECRET === undefined) delete process.env.ZOOM_CLIENT_SECRET;
+    else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {
