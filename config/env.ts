@@ -42,8 +42,15 @@ const serverEnvSchema = z.object({
   SUPER_ADMIN_EMAIL: z.string().email().default("superadmin@aviatorpass.com"),
   SUPER_ADMIN_FIRST_NAME: z.string().default("Super"),
   SUPER_ADMIN_LAST_NAME: z.string().default("Admin"),
-  /** Zoom Server-to-Server OAuth — never expose to client */
+  /** Zoom Account ID is Server-to-Server OAuth only (create/update/delete). */
   ZOOM_ACCOUNT_ID: z.string().optional(),
+  /**
+   * Server-to-Server OAuth Client ID/Secret — REST create/update/delete only.
+   * Do not reuse these for Meeting SDK JWTs.
+   */
+  ZOOM_S2S_CLIENT_ID: z.string().optional(),
+  ZOOM_S2S_CLIENT_SECRET: z.string().optional(),
+  /** General App Client ID — Meeting SDK JWT appKey and instructor OAuth. */
   ZOOM_CLIENT_ID: z.string().optional(),
   ZOOM_CLIENT_SECRET: z.string().optional(),
   /** Zoom General OAuth (instructor connect) */
@@ -52,9 +59,11 @@ const serverEnvSchema = z.object({
   ZOOM_OAUTH_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
-  /** Zoom Meeting SDK — embeds the live meeting inside AviatorPass */
+  /** General App Client ID/Secret for Meeting SDK join (not S2S, not legacy SDK Key) */
   ZOOM_SDK_KEY: z.string().optional(),
   ZOOM_SDK_SECRET: z.string().optional(),
+  ZOOM_MEETING_SDK_KEY: z.string().optional(),
+  ZOOM_MEETING_SDK_SECRET: z.string().optional(),
   TAMARA_API_TOKEN: z.string().optional(),
   TAMARA_BASE_URL: z.string().url().optional(),
   TAMARA_NOTIFICATION_TOKEN: z.string().optional(),
@@ -139,6 +148,8 @@ export function getServerEnv() {
     SUPER_ADMIN_FIRST_NAME: process.env.SUPER_ADMIN_FIRST_NAME,
     SUPER_ADMIN_LAST_NAME: process.env.SUPER_ADMIN_LAST_NAME,
     ZOOM_ACCOUNT_ID: emptyToUndef(process.env.ZOOM_ACCOUNT_ID),
+    ZOOM_S2S_CLIENT_ID: emptyToUndef(process.env.ZOOM_S2S_CLIENT_ID),
+    ZOOM_S2S_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_S2S_CLIENT_SECRET),
     ZOOM_CLIENT_ID: emptyToUndef(process.env.ZOOM_CLIENT_ID),
     ZOOM_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_CLIENT_SECRET),
     ZOOM_REDIRECT_URI: emptyToUndef(process.env.ZOOM_REDIRECT_URI),
@@ -148,6 +159,8 @@ export function getServerEnv() {
     ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
     ZOOM_SDK_KEY: emptyToUndef(process.env.ZOOM_SDK_KEY),
     ZOOM_SDK_SECRET: emptyToUndef(process.env.ZOOM_SDK_SECRET),
+    ZOOM_MEETING_SDK_KEY: emptyToUndef(process.env.ZOOM_MEETING_SDK_KEY),
+    ZOOM_MEETING_SDK_SECRET: emptyToUndef(process.env.ZOOM_MEETING_SDK_SECRET),
     TAMARA_API_TOKEN: emptyToUndef(process.env.TAMARA_API_TOKEN),
     TAMARA_BASE_URL: emptyToUndef(process.env.TAMARA_BASE_URL),
     TAMARA_NOTIFICATION_TOKEN: emptyToUndef(process.env.TAMARA_NOTIFICATION_TOKEN),

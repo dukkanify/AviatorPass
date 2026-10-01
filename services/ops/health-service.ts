@@ -219,26 +219,38 @@ function buildHealthSnapshot(opts?: {
   );
 
   const zoom = getZoomCredentialInventory();
-  const s2sReady = zoom.accountId && zoom.clientId && zoom.clientSecret;
-  const zoomPresent = [zoom.accountId, zoom.clientId, zoom.clientSecret, zoom.webhookSecret].filter(
-    Boolean,
-  ).length;
+  const s2sReady = zoom.accountId && zoom.s2sClientId && zoom.s2sClientSecret;
+  const zoomPresent = [
+    zoom.accountId,
+    zoom.s2sClientId,
+    zoom.s2sClientSecret,
+    zoom.webhookSecret,
+  ].filter(Boolean).length;
   checks.push({
     id: "zoom",
     label: "Zoom API",
     status: s2sReady ? "pass" : productionRuntime ? "fail" : "warn",
     detail: s2sReady
-      ? "Server-to-Server OAuth ready (Account ID + Client ID + Client Secret)"
+      ? "Server-to-Server OAuth ready (Account ID + S2S Client ID + S2S Client Secret)"
       : `S2S incomplete — present: ${
           [
             zoom.accountId ? "Account ID" : null,
-            zoom.clientId ? "Client ID" : null,
-            zoom.clientSecret ? "Client Secret" : null,
+            zoom.s2sClientId ? "S2S Client ID" : null,
+            zoom.s2sClientSecret ? "S2S Client Secret" : null,
             zoom.webhookSecret ? "Webhook Secret" : null,
           ]
             .filter(Boolean)
             .join(", ") || "none"
         } (${zoomPresent}/4)`,
+  });
+
+  checks.push({
+    id: "zoom_meeting_sdk",
+    label: "Zoom Meeting SDK",
+    status: zoom.meetingSdk ? "pass" : "warn",
+    detail: zoom.meetingSdk
+      ? "General App Client ID/Secret present for in-app join"
+      : "Missing ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET (General App → Features → Embed → Meeting SDK)",
   });
 
   checks.push({

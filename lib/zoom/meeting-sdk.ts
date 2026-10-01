@@ -72,9 +72,10 @@ export function resolveInAppMeetingMode(input: {
   return "sdk";
 }
 
+/** Official Meeting SDK JWT: https://developers.zoom.us/docs/meeting-sdk/auth/ */
 export function generateMeetingSdkSignature(input: {
-  sdkKey: string;
-  sdkSecret: string;
+  clientId: string;
+  clientSecret: string;
   meetingNumber: string;
   role: 0 | 1;
   nowSec?: number;
@@ -83,9 +84,8 @@ export function generateMeetingSdkSignature(input: {
   const exp = iat + 60 * 60 * 2;
   const header = { alg: "HS256", typ: "JWT" };
   const payload = {
-    appKey: input.sdkKey,
-    sdkKey: input.sdkKey,
-    mn: input.meetingNumber,
+    appKey: input.clientId,
+    mn: String(input.meetingNumber).replace(/\D/g, ""),
     role: input.role,
     iat,
     exp,
@@ -95,6 +95,6 @@ export function generateMeetingSdkSignature(input: {
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const data = `${encodedHeader}.${encodedPayload}`;
-  const signature = createHmac("sha256", input.sdkSecret).update(data).digest("base64url");
+  const signature = createHmac("sha256", input.clientSecret).update(data).digest("base64url");
   return `${data}.${signature}`;
 }

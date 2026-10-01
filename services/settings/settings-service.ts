@@ -164,8 +164,8 @@ export function getPlatformSettings(): PlatformSettings {
   const admin = resolveAdminNotificationEmail(settings);
   const configured = Boolean(
     process.env.ZOOM_ACCOUNT_ID?.trim() &&
-    process.env.ZOOM_CLIENT_ID?.trim() &&
-    process.env.ZOOM_CLIENT_SECRET?.trim(),
+    process.env.ZOOM_S2S_CLIENT_ID?.trim() &&
+    process.env.ZOOM_S2S_CLIENT_SECRET?.trim(),
   );
   return {
     ...settings,

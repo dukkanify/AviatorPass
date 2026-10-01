@@ -41,6 +41,8 @@ export async function POST(request: Request, { params }: Params) {
       lectureTime?: string;
       homework?: string;
       comments?: string;
+      zoomMeetingNumber?: string;
+      password?: string;
     };
     const ctx = getRequestContext(request);
 
@@ -91,6 +93,33 @@ export async function POST(request: Request, { params }: Params) {
           liveClassId: id,
           studentId: body.studentId,
           reason: body.reason,
+          actorId: user.id,
+        }),
+        error: null,
+      });
+    }
+    if (body.action === "attach_zoom") {
+      if (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.ADMIN) {
+        return NextResponse.json(
+          { success: false, data: null, error: "Forbidden" },
+          { status: 403 },
+        );
+      }
+      const { getLiveClass } = await import("@/services/classes/class-service");
+      const { linkExistingZoomMeeting } = await import("@/services/classes/zoom-service");
+      const liveClass = getLiveClass(id);
+      if (!liveClass) {
+        return NextResponse.json(
+          { success: false, data: null, error: "Live class not found" },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: linkExistingZoomMeeting({
+          liveClass,
+          zoomMeetingNumber: body.zoomMeetingNumber ?? "",
+          password: body.password,
           actorId: user.id,
         }),
         error: null,

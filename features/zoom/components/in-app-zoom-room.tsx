@@ -31,7 +31,6 @@ interface InAppSession {
   password: string;
   userName: string;
   userEmail: string;
-  sdkKey: string | null;
   signature: string | null;
   zak: string | null;
   role: 0 | 1;
@@ -105,7 +104,6 @@ function InAppZoomRoom({
           password: password ?? "",
           userName: "AviatorPass student",
           userEmail: "",
-          sdkKey: null,
           signature: null,
           zak: null,
           role: isHost ? 1 : 0,
@@ -137,20 +135,31 @@ function InAppZoomRoom({
             patchJsMedia: true,
             leaveOnPageUnload: true,
           });
-          await client.join({
+          const joinOpts = {
             signature: active.signature,
-            sdkKey: active.sdkKey || undefined,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
             userEmail: active.userEmail,
             tk: "",
             zak: active.zak || undefined,
-          });
+          };
+          try {
+            await client.join(joinOpts);
+          } catch (hostError) {
+            const detail =
+              hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
+            const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
+            if (!staleHostToken || !joinOpts.zak) throw hostError;
+            console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+            await client.leave?.().catch(() => undefined);
+            await client.join({ ...joinOpts, zak: undefined });
+          }
           if (cancelled) return;
           stopLocalMedia();
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
+          console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
           return;
         } catch (error) {
           if (cancelled) return;
@@ -161,7 +170,12 @@ function InAppZoomRoom({
           setPhase("classroom");
           await startLocalMedia();
           if (!cancelled) {
-            setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+            const detail = error instanceof Error ? error.message : String(error);
+            setNotice(
+              /3712|invalid sdk|sdk key/i.test(detail)
+                ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
+                : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+            );
           }
           return;
         }

@@ -9,7 +9,6 @@ import {
   extractZoomPassword,
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
-  zakFromStartUrl,
 } from "@/lib/zoom/meeting-sdk";
 
 export async function POST(request: Request) {
@@ -33,22 +32,22 @@ export async function POST(request: Request) {
       hasSdkCredentials: Boolean(credentials),
     });
 
-    const role: 0 | 1 = body.isHost ? 1 : 0;
+    let zak: string | null = null;
+    if (body.isHost && mode === "sdk" && meetingNumber) {
+      zak = await fetchZoomHostZak(null, user.id);
+    }
+    // Role 1 starts the meeting and requires a live ZAK. Without one, join as
+    // a participant with the General App JWT (official Meeting SDK auth).
+    const role: 0 | 1 = body.isHost && zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
-            sdkKey: credentials.sdkKey,
-            sdkSecret: credentials.sdkSecret,
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
             meetingNumber,
             role,
           })
         : null;
-
-    let zak: string | null = null;
-    if (body.isHost && signature) {
-      zak = zakFromStartUrl(body.startUrl);
-      if (!zak) zak = await fetchZoomHostZak();
-    }
 
     return NextResponse.json({
       success: true,
@@ -58,7 +57,6 @@ export async function POST(request: Request) {
         password,
         userName: displayMeetingName(user),
         userEmail: user.email,
-        sdkKey: signature ? (credentials?.sdkKey ?? null) : null,
         signature,
         zak,
         role,

@@ -5,11 +5,12 @@
 
 import { generateId, generateToken } from "@/lib/security/crypto";
 import { appJoinUrl, rewriteAppAbsoluteUrl } from "@/lib/site-origin";
-import { getServerEnv } from "@/config/env";
 import {
   PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
+import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
+import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
@@ -32,9 +33,12 @@ export function getZoomCredentialInventory() {
     accountId: envPresent("ZOOM_ACCOUNT_ID"),
     clientId: envPresent("ZOOM_CLIENT_ID"),
     clientSecret: envPresent("ZOOM_CLIENT_SECRET"),
+    s2sClientId: envPresent("ZOOM_S2S_CLIENT_ID"),
+    s2sClientSecret: envPresent("ZOOM_S2S_CLIENT_SECRET"),
     webhookSecret: envPresent("ZOOM_WEBHOOK_SECRET"),
     secretToken: envPresent("ZOOM_SECRET_TOKEN"),
     redirectUri: envPresent("ZOOM_REDIRECT_URI"),
+    meetingSdk: Boolean(getZoomMeetingSdkCredentials()),
   };
 }
 
@@ -48,10 +52,7 @@ export function isMockZoomAllowed(): boolean {
 
 function zoomCredsPresent(): boolean {
   try {
-    const env = getServerEnv();
-    return Boolean(
-      env.ZOOM_ACCOUNT_ID?.trim() && env.ZOOM_CLIENT_ID?.trim() && env.ZOOM_CLIENT_SECRET?.trim(),
-    );
+    return Boolean(getZoomS2SCredentials());
   } catch {
     return false;
   }
@@ -82,17 +83,18 @@ function requireLiveZoom(reason: string): never {
 
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 
+/** Server-to-Server OAuth only — create / update / delete / ZAK. Never a Meeting SDK JWT. */
 async function getZoomAccessToken(): Promise<string | null> {
-  if (!zoomCredsPresent()) return null;
-  const env = getServerEnv();
+  const creds = getZoomS2SCredentials();
+  if (!creds) return null;
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
     return cachedToken.accessToken;
   }
 
-  const basic = Buffer.from(`${env.ZOOM_CLIENT_ID}:${env.ZOOM_CLIENT_SECRET}`).toString("base64");
+  const basic = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64");
   const url = new URL("https://zoom.us/oauth/token");
   url.searchParams.set("grant_type", "account_credentials");
-  url.searchParams.set("account_id", env.ZOOM_ACCOUNT_ID!);
+  url.searchParams.set("account_id", creds.accountId);
 
   const res = await fetch(url.toString(), {
     method: "POST",
@@ -275,7 +277,7 @@ export async function createMeetingForClass(input: {
       requireLiveZoom(
         zoomCredsPresent()
           ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
-          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET, or connect an instructor Zoom account.",
+          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
       );
     }
     payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
@@ -539,7 +541,7 @@ export async function provisionStandaloneZoomMeeting(input: {
       requireLiveZoom(
         zoomCredsPresent()
           ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
-          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET, or connect an instructor Zoom account.",
+          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
       );
     }
     const zoomMeetingId = String(Math.floor(100_000_000 + Math.random() * 899_999_999));
@@ -589,7 +591,29 @@ export async function provisionStandaloneZoomMeeting(input: {
   };
 }
 
-export async function fetchZoomHostZak(accountEmail?: string | null): Promise<string | null> {
+export async function fetchZoomHostZak(
+  accountEmail?: string | null,
+  instructorUserId?: string | null,
+): Promise<string | null> {
+  if (instructorUserId) {
+    try {
+      const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+      const instructorToken = await getValidInstructorAccessToken(instructorUserId);
+      if (instructorToken) {
+        const res = await fetch("https://api.zoom.us/v2/users/me/token?type=zak", {
+          headers: { Authorization: `Bearer ${instructorToken}` },
+        });
+        if (res.ok) {
+          const json = (await res.json()) as { token?: string };
+          const zak = json.token?.trim();
+          if (zak) return zak;
+        }
+      }
+    } catch (error) {
+      console.error("Instructor Zoom ZAK failed", error);
+    }
+  }
+
   const token = await getZoomAccessToken();
   if (!token) return null;
   const users = [resolveZoomS2SUser(accountEmail), "me"].filter(
@@ -606,6 +630,60 @@ export async function fetchZoomHostZak(accountEmail?: string | null): Promise<st
     if (zak) return zak;
   }
   return null;
+}
+
+/** Attach a meeting that already exists in Zoom — no S2S create call. */
+export function linkExistingZoomMeeting(input: {
+  liveClass: LiveClass;
+  zoomMeetingNumber: string;
+  password?: string | null;
+  actorId?: string | null;
+}): ZoomMeetingRecord {
+  const zoomMeetingId = String(input.zoomMeetingNumber).replace(/\D/g, "");
+  if (zoomMeetingId.length < 9) {
+    throw new ClassValidationError("A valid Zoom meeting number is required", 400);
+  }
+  const now = new Date().toISOString();
+  const record: ZoomMeetingRecord = {
+    id: generateId(),
+    liveClassId: input.liveClass.id,
+    zoomMeetingId,
+    zoomUuid: null,
+    joinUrl: appJoinUrl(input.liveClass.id, zoomMeetingId),
+    startUrl: appJoinUrl(input.liveClass.id, zoomMeetingId, true),
+    password: input.password?.trim() ?? "",
+    hostEmail: getPlatformSettings().zoom.accountEmail || null,
+    waitingRoom: getPlatformSettings().zoom.defaultWaitingRoom,
+    passcodeEnabled: Boolean(input.password?.trim()),
+    coHostEmails: [],
+    providerMode: "zoom",
+    hostId: null,
+    timezone: input.liveClass.timezone,
+    durationMinutes: input.liveClass.durationMinutes,
+    startTime: input.liveClass.startsAt,
+    status: "scheduled",
+    oauthUserId: null,
+    participantCount: null,
+    raw: { attached: true, zoomMeetingId },
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  writeClassesDb((d) => {
+    d.zoomMeetings = d.zoomMeetings.filter((z) => z.liveClassId !== input.liveClass.id);
+    d.zoomMeetings.push(record);
+    const idx = d.classes.findIndex((c) => c.id === input.liveClass.id);
+    if (idx >= 0) {
+      const current = d.classes[idx]!;
+      d.classes[idx] = {
+        ...current,
+        zoomMeetingId: record.id,
+        updatedAt: now,
+      };
+    }
+  });
+
+  return record;
 }
 
 export async function cancelStandaloneZoomMeeting(input: {
