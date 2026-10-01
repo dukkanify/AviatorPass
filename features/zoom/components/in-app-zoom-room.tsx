@@ -135,7 +135,7 @@ function InAppZoomRoom({
             patchJsMedia: true,
             leaveOnPageUnload: true,
           });
-          await client.join({
+          const joinOpts = {
             signature: active.signature,
             meetingNumber: active.meetingNumber,
             password: active.password,
@@ -143,7 +143,18 @@ function InAppZoomRoom({
             userEmail: active.userEmail,
             tk: "",
             zak: active.zak || undefined,
-          });
+          };
+          try {
+            await client.join(joinOpts);
+          } catch (hostError) {
+            const detail =
+              hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
+            const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
+            if (!staleHostToken || !joinOpts.zak) throw hostError;
+            console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+            await client.leave?.().catch(() => undefined);
+            await client.join({ ...joinOpts, zak: undefined });
+          }
           if (cancelled) return;
           stopLocalMedia();
           setPhase("sdk");

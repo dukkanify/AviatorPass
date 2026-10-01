@@ -46,8 +46,10 @@ export async function POST(request: Request) {
 
     let zak: string | null = null;
     if (body.isHost && signature) {
-      zak = zakFromStartUrl(body.startUrl);
-      if (!zak) zak = await fetchZoomHostZak(null, user.id);
+      // Prefer a fresh ZAK. Stored start_url tokens expire and Zoom then
+      // rejects the join with "Not support start meeting via tokens".
+      zak = await fetchZoomHostZak(null, user.id);
+      if (!zak) zak = zakFromStartUrl(body.startUrl);
     }
 
     return NextResponse.json({

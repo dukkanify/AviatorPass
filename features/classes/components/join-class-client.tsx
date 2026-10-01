@@ -156,7 +156,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   {join.waitingRoom ? " · Waiting room on" : ""}
                 </p>
               </div>
-              {!finished ? (
+              {audience !== "Cancelled" ? (
                 <InAppZoomRoom
                   joinUrl={join.joinUrl}
                   startUrl={join.startUrl}

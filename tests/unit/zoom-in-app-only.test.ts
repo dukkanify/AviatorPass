@@ -117,6 +117,7 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
+    expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
     expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
   });
 
