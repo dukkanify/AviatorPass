@@ -9,7 +9,6 @@ import {
   extractZoomPassword,
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
-  zakFromStartUrl,
 } from "@/lib/zoom/meeting-sdk";
 
 export async function POST(request: Request) {
@@ -33,7 +32,13 @@ export async function POST(request: Request) {
       hasSdkCredentials: Boolean(credentials),
     });
 
-    const role: 0 | 1 = body.isHost ? 1 : 0;
+    let zak: string | null = null;
+    if (body.isHost && mode === "sdk" && meetingNumber) {
+      zak = await fetchZoomHostZak(null, user.id);
+    }
+    // Role 1 starts the meeting and requires a live ZAK. Without one, join as
+    // a participant with the General App JWT (official Meeting SDK auth).
+    const role: 0 | 1 = body.isHost && zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
@@ -43,14 +48,6 @@ export async function POST(request: Request) {
             role,
           })
         : null;
-
-    let zak: string | null = null;
-    if (body.isHost && signature) {
-      // Prefer a fresh ZAK. Stored start_url tokens expire and Zoom then
-      // rejects the join with "Not support start meeting via tokens".
-      zak = await fetchZoomHostZak(null, user.id);
-      if (!zak) zak = zakFromStartUrl(body.startUrl);
-    }
 
     return NextResponse.json({
       success: true,
