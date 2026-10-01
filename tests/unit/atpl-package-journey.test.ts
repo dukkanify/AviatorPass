@@ -111,7 +111,7 @@ describe("ATPL Complete Package journey", () => {
     expect(review.map((s) => s.title)).toEqual(CLIENT_TITLES);
     expect(review.every((s) => s.shortDescription.trim().length > 0)).toBe(true);
     expect(review.map((s) => s.title)).not.toContain("Dynamic Management");
-    expect(listPublicAtplSubjects()).toHaveLength(16);
+    expect(listPublicAtplSubjects()).toHaveLength(13);
   });
 
   it("keeps hidden CMS extras off the package review without dropping a required subject", async () => {

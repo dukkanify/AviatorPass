@@ -21,6 +21,7 @@ import {
   assertScheduledPublish,
   assertStatus,
 } from "@/services/courses/validation";
+import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { getPublicDeliveryFilter, isCoursePubliclyListed } from "@/services/courses/publishing";
 import { syncCatalogProductForCourse } from "@/services/stripe/catalog-sync";
 import { isIso4217Currency } from "@/services/stripe/currency";
@@ -42,17 +43,25 @@ function userDisplayName(userId: string | null): string | null {
   return name || u.email;
 }
 
+function presentCourse<T extends Course>(course: T): T {
+  const title = officialCourseDisplayTitle(course);
+  return title === course.title ? course : { ...course, title };
+}
+
 function toListItem(course: Course): CourseListItem {
   const db = readCoursesDb();
-  const category = course.categoryId ? db.categories.find((c) => c.id === course.categoryId) : null;
+  const presented = presentCourse(course);
+  const category = presented.categoryId
+    ? db.categories.find((c) => c.id === presented.categoryId)
+    : null;
   const modules = db.modules.filter((m) => m.courseId === course.id);
   const lessons = db.lessons.filter((l) => l.courseId === course.id);
   const resources = db.resources.filter((r) => lessons.some((l) => l.id === r.lessonId));
   const enrollments = db.enrollments.filter((e) => e.courseId === course.id);
   return {
-    ...course,
+    ...presented,
     categoryName: category?.name ?? null,
-    primaryInstructorName: userDisplayName(course.primaryInstructorId),
+    primaryInstructorName: userDisplayName(presented.primaryInstructorId),
     counts: {
       modules: modules.length,
       lessons: lessons.length,
@@ -93,7 +102,7 @@ export function getCourseById(id: string, includeDeleted = false): Course | null
     courses.find((c) => c.code && stableCourseId(c.code) === ref);
   if (!course) return null;
   if (course.deletedAt && !includeDeleted) return null;
-  return course;
+  return presentCourse(course);
 }
 
 /** Public catalog lookup by id, code, or marketing slug. */

@@ -10,6 +10,7 @@ import {
   ATPL_COMPLETE_PACKAGE_SUBJECTS,
   ATPL_PACKAGE_LMS_COURSE_CODES,
   atplPackageLmsCourseCode,
+  atplPackageSubjectTitle,
 } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
@@ -51,7 +52,7 @@ function officialPackageSubject(easaCode: string) {
 const MISSING_ATPL_PACKAGE_LMS = ATPL_COMPLETE_PACKAGE_SUBJECTS.filter(
   (subject) => !EXISTING_ATPL_LMS_CODES.has(atplPackageLmsCourseCode(subject.code)),
 ).map((subject) => ({
-  title: `ATPL ${subject.code} — ${subject.title}`,
+  title: subject.title,
   code: atplPackageLmsCourseCode(subject.code),
   easa: subject.code,
   short: subject.shortDescription,
@@ -326,6 +327,7 @@ function catalogNeedsEnrichment(
         course.code.replace(/^ATPL-/i, ""),
     );
     if (easa && course.metadata?.subjectCode !== easa.code) return true;
+    if (easa && course.title !== easa.title) return true;
   }
   for (const course of db.courses) {
     if (!PUBLIC_CATALOG_CODES.includes(course.code as (typeof PUBLIC_CATALOG_CODES)[number])) {
@@ -370,9 +372,17 @@ function ensurePublishedCatalogEnrichment(): void {
         String(course.metadata?.subjectCode ?? "").replace(/^ATPL-/i, "") ||
           course.code.replace(/^ATPL-/i, ""),
       );
-      if (!easa || course.metadata?.subjectCode === easa.code) continue;
-      course.metadata = { ...course.metadata, subjectCode: easa.code };
-      course.updatedAt = ts;
+      if (!easa) continue;
+      let touched = false;
+      if (course.metadata?.subjectCode !== easa.code) {
+        course.metadata = { ...course.metadata, subjectCode: easa.code };
+        touched = true;
+      }
+      if (course.title !== easa.title) {
+        course.title = easa.title;
+        touched = true;
+      }
+      if (touched) course.updatedAt = ts;
     }
 
     // Publish older seed drafts that belong in the public catalog.
@@ -453,7 +463,7 @@ function ensurePublishedCatalogEnrichment(): void {
       difficulty: Course["difficulty"];
     }> = [
       {
-        title: "ATPL 010 — Air Law",
+        title: atplPackageSubjectTitle("ATPL-010") ?? "Air Law",
         code: "ATPL-010",
         short: "International and national aviation law for ATPL candidates.",
         full: "Comprehensive coverage of ICAO annexes, EASA regulations, licensing, rules of the air, and aerodrome operations.",
@@ -461,7 +471,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "advanced",
       },
       {
-        title: "ATPL 031 — Mass & Balance",
+        title: atplPackageSubjectTitle("ATPL-031") ?? "Mass and Balance",
         code: "ATPL-031",
         short: "Aircraft loading, CG, and performance implications.",
         full: "Mass & balance theory, documentation, and practical loading scenarios for multi-engine aircraft.",
@@ -469,7 +479,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "intermediate",
       },
       {
-        title: "ATPL 050 — Meteorology",
+        title: atplPackageSubjectTitle("ATPL-050") ?? "Meteorology",
         code: "ATPL-050",
         short: "Atmosphere, weather hazards, and operational meteorology.",
         full: "ATPL meteorology covering pressure systems, icing, thunderstorms, and interpreting aviation weather products.",
@@ -477,7 +487,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "intermediate",
       },
       {
-        title: "ATPL 061 — General Navigation",
+        title: atplPackageSubjectTitle("ATPL-061") ?? "General Navigation",
         code: "ATPL-061",
         short: "Earth geometry, charts, and navigation techniques.",
         full: "Foundations of general navigation including magnetic variation, rhumb lines, and chart projections.",
@@ -485,7 +495,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "advanced",
       },
       {
-        title: "ATPL 062 — Radio Navigation",
+        title: atplPackageSubjectTitle("ATPL-062") ?? "Radio Navigation",
         code: "ATPL-062",
         short: "VOR, ILS, GNSS, and radio aids for IFR operations.",
         full: "Radio navigation systems used on the ATPL syllabus — from ground-based aids to modern GNSS procedures.",
@@ -493,7 +503,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "advanced",
       },
       {
-        title: "ATPL 070 — Operational Procedures",
+        title: atplPackageSubjectTitle("ATPL-070") ?? "Operational Procedures",
         code: "ATPL-070",
         short: "Airline SOPs, special ops, and abnormal procedures.",
         full: "Operational procedures for transport-category aircraft including special airports, RVSM, and abnormal checklists.",
@@ -501,7 +511,7 @@ function ensurePublishedCatalogEnrichment(): void {
         difficulty: "advanced",
       },
       {
-        title: "ATPL 081 — Principles of Flight",
+        title: atplPackageSubjectTitle("ATPL-081") ?? "Principles of Flight",
         code: "ATPL-081",
         short: "Aerodynamics for high-performance jet aircraft.",
         full: "Principles of flight covering lift, drag, stability, high-speed flight, and performance implications.",
@@ -724,7 +734,7 @@ export function ensureCoursesSeeded(): void {
     enrollmentMode: Course["enrollmentMode"];
   }> = [
     {
-      title: "ATPL 010 — Air Law",
+      title: atplPackageSubjectTitle("ATPL-010") ?? "Air Law",
       code: "ATPL-010",
       short: "International and national aviation law for ATPL candidates.",
       full: "Comprehensive coverage of ICAO annexes, EASA regulations, licensing, rules of the air, and aerodrome operations required for ATPL theoretical knowledge.",
@@ -734,7 +744,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "manual",
     },
     {
-      title: "ATPL 031 — Mass & Balance",
+      title: atplPackageSubjectTitle("ATPL-031") ?? "Mass and Balance",
       code: "ATPL-031",
       short: "Aircraft loading, CG, and performance implications.",
       full: "Mass & balance theory, documentation, and practical loading scenarios for multi-engine aircraft.",
@@ -744,7 +754,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "open",
     },
     {
-      title: "ATPL 050 — Meteorology",
+      title: atplPackageSubjectTitle("ATPL-050") ?? "Meteorology",
       code: "ATPL-050",
       short: "Atmosphere, weather hazards, and operational meteorology.",
       full: "ATPL meteorology covering pressure systems, icing, thunderstorms, and interpreting aviation weather products for dispatch and flight.",
@@ -754,7 +764,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "open",
     },
     {
-      title: "ATPL 061 — General Navigation",
+      title: atplPackageSubjectTitle("ATPL-061") ?? "General Navigation",
       code: "ATPL-061",
       short: "Earth geometry, charts, and navigation techniques.",
       full: "Foundations of general navigation including magnetic variation, rhumb lines, and chart projections.",
@@ -764,7 +774,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "open",
     },
     {
-      title: "ATPL 062 — Radio Navigation",
+      title: atplPackageSubjectTitle("ATPL-062") ?? "Radio Navigation",
       code: "ATPL-062",
       short: "VOR, ILS, GNSS, and radio aids for IFR operations.",
       full: "Radio navigation systems used on the ATPL syllabus — from ground-based aids to modern GNSS procedures and approach design.",
@@ -774,7 +784,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "open",
     },
     {
-      title: "ATPL 070 — Operational Procedures",
+      title: atplPackageSubjectTitle("ATPL-070") ?? "Operational Procedures",
       code: "ATPL-070",
       short: "Airline SOPs, special ops, and abnormal procedures.",
       full: "Operational procedures for transport-category aircraft including special airports, RVSM, and abnormal/emergency checklists.",
@@ -784,7 +794,7 @@ export function ensureCoursesSeeded(): void {
       enrollmentMode: "manual",
     },
     {
-      title: "ATPL 081 — Principles of Flight",
+      title: atplPackageSubjectTitle("ATPL-081") ?? "Principles of Flight",
       code: "ATPL-081",
       short: "Aerodynamics for high-performance jet aircraft.",
       full: "Principles of flight covering lift, drag, stability, high-speed flight, and performance implications for ATPL candidates.",

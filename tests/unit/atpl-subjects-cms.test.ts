@@ -48,7 +48,7 @@ describe("ATPL subjects CMS", () => {
     resetAtplMarketingDbForTests();
   });
 
-  it("seeds the official 16-subject syllabus with no retired names", () => {
+  it("seeds the official 16-subject syllabus with extras hidden from the public list", () => {
     expect(OFFICIAL_ATPL_SUBJECTS.map((s) => s.title)).toEqual(OFFICIAL_TITLES);
     expect(OFFICIAL_ATPL_SUBJECTS.map((s) => s.code)).toEqual([
       "010",
@@ -68,13 +68,21 @@ describe("ATPL subjects CMS", () => {
       "090",
       "",
     ]);
-    const titles = listPublicAtplSubjects().map((s) => s.title);
-    expect(titles).toEqual(OFFICIAL_TITLES);
-    expect(titles).toHaveLength(new Set(titles).size);
+    expect(listAtplLandingSubjects({ includeHidden: true })).toHaveLength(16);
+    const publicRows = listPublicAtplSubjects();
+    expect(publicRows).toHaveLength(13);
+    expect(publicRows.map((s) => s.code)).not.toContain("034");
+    expect(publicRows.map((s) => s.code)).not.toContain("082");
+    expect(publicRows.map((s) => s.title)).not.toContain("Dynamic Management");
+    expect(publicRows.find((s) => s.code === "021")?.title).toBe("Aircraft General Knowledge");
+    expect(publicRows.find((s) => s.code === "031")?.title).toBe("Mass and Balance");
+    expect(publicRows.map((s) => s.title)).toHaveLength(
+      new Set(publicRows.map((s) => s.title)).size,
+    );
     for (const retired of RETIRED_TITLES) {
-      expect(titles).not.toContain(retired);
+      expect(publicRows.map((s) => s.title)).not.toContain(retired);
     }
-    expect(listPublicAtplSubjects().every((s) => s.badgeLabel === "Included")).toBe(true);
+    expect(publicRows.every((s) => s.badgeLabel === "Included")).toBe(true);
   });
 
   it("hides subjects from the public list without deleting them", async () => {

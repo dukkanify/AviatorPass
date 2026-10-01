@@ -6,8 +6,10 @@ import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import { generateId, stableId } from "@/lib/security/crypto";
+import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
 import {
   DEFAULT_ATPL_SUBJECT_BADGE,
+  isAtplCmsSyllabusExtra,
   OFFICIAL_ATPL_SUBJECTS,
 } from "@/services/marketing/atpl-subjects-seed";
 import type { AtplLandingSubject } from "@/types/atpl-subjects";
@@ -43,20 +45,33 @@ function normalizeSubject(row: AtplLandingSubject, index: number): AtplLandingSu
   };
 }
 
+function officialPackageOverlay(item: { code: string; title: string; shortDescription: string }) {
+  const official = ATPL_COMPLETE_PACKAGE_SUBJECTS.find((row) => row.code === item.code);
+  if (!official) return item;
+  return {
+    ...item,
+    title: official.title,
+    shortDescription: official.shortDescription,
+  };
+}
+
 function seedSubjects(): AtplLandingSubject[] {
   const ts = nowIso();
-  return OFFICIAL_ATPL_SUBJECTS.map((item, index) => ({
-    id: stableId("atpl-subject", item.code || item.title),
-    code: item.code,
-    title: item.title,
-    shortDescription: item.shortDescription,
-    badgeLabel: DEFAULT_ATPL_SUBJECT_BADGE,
-    imageUrl: null,
-    sortOrder: index,
-    visible: true,
-    createdAt: ts,
-    updatedAt: ts,
-  }));
+  return OFFICIAL_ATPL_SUBJECTS.map((item, index) => {
+    const overlay = officialPackageOverlay(item);
+    return {
+      id: stableId("atpl-subject", item.code || item.title),
+      code: item.code,
+      title: overlay.title,
+      shortDescription: overlay.shortDescription,
+      badgeLabel: DEFAULT_ATPL_SUBJECT_BADGE,
+      imageUrl: null,
+      sortOrder: index,
+      visible: !isAtplCmsSyllabusExtra(item),
+      createdAt: ts,
+      updatedAt: ts,
+    };
+  });
 }
 
 export function readAtplMarketingDb(): AtplMarketingDatabase {
@@ -68,8 +83,29 @@ export function readAtplMarketingDb(): AtplMarketingDatabase {
     writeJsonFile(DATA_FILE, db);
     return db;
   }
-  db.subjects = db.subjects.map(normalizeSubject);
+  let healed = false;
+  db.subjects = db.subjects.map((row, index) => {
+    const next = normalizeSubject(row, index);
+    const overlay = officialPackageOverlay(next);
+    const hideExtra = isAtplCmsSyllabusExtra(next) && next.visible;
+    if (
+      overlay.title !== next.title ||
+      overlay.shortDescription !== next.shortDescription ||
+      hideExtra
+    ) {
+      healed = true;
+      return {
+        ...next,
+        title: overlay.title,
+        shortDescription: overlay.shortDescription,
+        visible: hideExtra ? false : next.visible,
+        updatedAt: nowIso(),
+      };
+    }
+    return next;
+  });
   db.seeded = true;
+  if (healed) writeJsonFile(DATA_FILE, db);
   return db;
 }
 
