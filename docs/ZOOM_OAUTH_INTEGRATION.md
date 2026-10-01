@@ -108,7 +108,9 @@ ZOOM_ACCOUNT_ID=
 | `ZOOM_SECRET_TOKEN`   | Webhooks                      | Marketplace Secret Token                 |
 | `ZOOM_WEBHOOK_SECRET` | Webhooks                      | Alias if Secret Token is stored here     |
 | `ZOOM_OAUTH_SCOPES`   | Optional                      | Defaults to granular meeting + user read |
-| `ZOOM_ACCOUNT_ID`     | S2S fallback only             | Platform-level meetings                  |
+| `ZOOM_ACCOUNT_ID`     | S2S fallback only             | Platform-level create/update/delete      |
+| `ZOOM_SDK_KEY`        | In-app Meeting SDK            | General App Client ID (Features → Embed) |
+| `ZOOM_SDK_SECRET`     | In-app Meeting SDK            | General App Client Secret                |
 
 Tokens are encrypted with AES-256-GCM using a key derived from `AUTH_SECRET`.
 

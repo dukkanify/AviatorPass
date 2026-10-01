@@ -31,7 +31,6 @@ interface InAppSession {
   password: string;
   userName: string;
   userEmail: string;
-  sdkKey: string | null;
   signature: string | null;
   zak: string | null;
   role: 0 | 1;
@@ -105,7 +104,6 @@ function InAppZoomRoom({
           password: password ?? "",
           userName: "AviatorPass student",
           userEmail: "",
-          sdkKey: null,
           signature: null,
           zak: null,
           role: isHost ? 1 : 0,
@@ -139,7 +137,6 @@ function InAppZoomRoom({
           });
           await client.join({
             signature: active.signature,
-            sdkKey: active.sdkKey || undefined,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
@@ -161,7 +158,12 @@ function InAppZoomRoom({
           setPhase("classroom");
           await startLocalMedia();
           if (!cancelled) {
-            setNotice("Zoom stays on AviatorPass. Opening the in-platform classroom.");
+            const detail = error instanceof Error ? error.message : String(error);
+            setNotice(
+              /3712|invalid sdk|sdk key/i.test(detail)
+                ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_SDK_KEY and ZOOM_SDK_SECRET."
+                : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+            );
           }
           return;
         }

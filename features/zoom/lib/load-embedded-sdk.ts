@@ -7,7 +7,6 @@ export interface ZoomEmbeddedClient {
   }) => Promise<void>;
   join: (opts: {
     signature: string;
-    sdkKey?: string;
     meetingNumber: string;
     password?: string;
     userName: string;
@@ -22,7 +21,7 @@ interface ZoomEmbeddedFactory {
   createClient: () => ZoomEmbeddedClient;
 }
 
-const ZOOM_SDK_VERSION = "3.13.2";
+const ZOOM_SDK_VERSION = "6.2.0";
 const ZOOM_CDN = `https://source.zoom.us/${ZOOM_SDK_VERSION}`;
 export const ZOOM_EMBEDDED_SDK_SCRIPTS = [
   `${ZOOM_CDN}/lib/vendor/react.min.js`,

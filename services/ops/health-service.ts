@@ -242,6 +242,15 @@ function buildHealthSnapshot(opts?: {
   });
 
   checks.push({
+    id: "zoom_meeting_sdk",
+    label: "Zoom Meeting SDK",
+    status: zoom.meetingSdk ? "pass" : "warn",
+    detail: zoom.meetingSdk
+      ? "General App Client ID/Secret present for in-app join"
+      : "Missing ZOOM_SDK_KEY / ZOOM_SDK_SECRET (General App → Features → Embed → Meeting SDK)",
+  });
+
+  checks.push({
     id: "payments",
     label: "Payment gateway",
     status: process.env.STRIPE_SECRET_KEY ? "pass" : "warn",

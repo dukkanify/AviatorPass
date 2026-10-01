@@ -65,10 +65,10 @@ describe("Zoom stays inside AviatorPass", () => {
     ).toBe("classroom");
   });
 
-  it("signs a Meeting SDK JWT for the in-app client", () => {
+  it("signs a Meeting SDK JWT from General App Client ID and Secret", () => {
     const token = generateMeetingSdkSignature({
-      sdkKey: "sdk-key",
-      sdkSecret: "sdk-secret",
+      clientId: "general-app-client",
+      clientSecret: "general-app-secret",
       meetingNumber: "123456789",
       role: 0,
       nowSec: 1_700_000_030,
@@ -80,12 +80,14 @@ describe("Zoom stays inside AviatorPass", () => {
     const decoded = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as {
       mn: string;
       role: number;
-      sdkKey: string;
+      appKey: string;
+      sdkKey?: string;
       video_webrtc_mode?: number;
     };
     expect(decoded.mn).toBe("123456789");
     expect(decoded.role).toBe(0);
-    expect(decoded.sdkKey).toBe("sdk-key");
+    expect(decoded.appKey).toBe("general-app-client");
+    expect(decoded.sdkKey).toBeUndefined();
     expect(decoded.video_webrtc_mode).toBe(1);
   });
 
@@ -110,14 +112,14 @@ describe("Zoom stays inside AviatorPass", () => {
       resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
       "utf8",
     );
-    expect(room).toMatch(/sdkKey:\s*active\.sdkKey/);
+    expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
     expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
     expect(ZOOM_EMBEDDED_SDK_SCRIPTS[0]).toMatch(/\/lib\/vendor\/react\.min\.js$/);
-    expect(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1)).toMatch(/zoom-meeting-embedded-3\.13\.2\.min\.js$/);
+    expect(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1)).toMatch(/zoom-meeting-embedded-6\.2\.0\.min\.js$/);
     const joinRoute = readFileSync(
       resolve(process.cwd(), "app/api/classes/[id]/join/route.ts"),
       "utf8",
@@ -137,9 +139,12 @@ describe("Zoom stays inside AviatorPass", () => {
     delete process.env.ZOOM_SDK_KEY;
     delete process.env.ZOOM_SDK_SECRET;
     expect(getZoomMeetingSdkCredentials()).toBeNull();
-    process.env.ZOOM_SDK_KEY = "sdk-key";
-    process.env.ZOOM_SDK_SECRET = "sdk-secret";
-    expect(getZoomMeetingSdkCredentials()).toEqual({ sdkKey: "sdk-key", sdkSecret: "sdk-secret" });
+    process.env.ZOOM_SDK_KEY = "general-app-client";
+    process.env.ZOOM_SDK_SECRET = "general-app-secret";
+    expect(getZoomMeetingSdkCredentials()).toEqual({
+      clientId: "general-app-client",
+      clientSecret: "general-app-secret",
+    });
     if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
     else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
     if (previous.ZOOM_SDK_SECRET === undefined) delete process.env.ZOOM_SDK_SECRET;

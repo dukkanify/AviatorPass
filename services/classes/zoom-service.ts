@@ -35,6 +35,7 @@ export function getZoomCredentialInventory() {
     webhookSecret: envPresent("ZOOM_WEBHOOK_SECRET"),
     secretToken: envPresent("ZOOM_SECRET_TOKEN"),
     redirectUri: envPresent("ZOOM_REDIRECT_URI"),
+    meetingSdk: envPresent("ZOOM_SDK_KEY") && envPresent("ZOOM_SDK_SECRET"),
   };
 }
 

@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
-            sdkKey: credentials.sdkKey,
-            sdkSecret: credentials.sdkSecret,
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
             meetingNumber,
             role,
           })
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
         password,
         userName: displayMeetingName(user),
         userEmail: user.email,
-        sdkKey: signature ? (credentials?.sdkKey ?? null) : null,
         signature,
         zak,
         role,

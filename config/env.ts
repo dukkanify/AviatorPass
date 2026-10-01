@@ -52,7 +52,7 @@ const serverEnvSchema = z.object({
   ZOOM_OAUTH_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
-  /** Zoom Meeting SDK — embeds the live meeting inside AviatorPass */
+  /** General App Client ID/Secret for Meeting SDK join (not S2S, not legacy SDK Key) */
   ZOOM_SDK_KEY: z.string().optional(),
   ZOOM_SDK_SECRET: z.string().optional(),
   TAMARA_API_TOKEN: z.string().optional(),

@@ -1801,8 +1801,9 @@ function PlatformSettingsShell() {
             <CardHeader>
               <CardTitle>Zoom integration</CardTitle>
               <CardDescription>
-                Meeting defaults for live classes. API credentials are set via server env
-                (`ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`) and never shown here.
+                Meeting defaults for live classes. Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`,
+                `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`) creates meetings. In-app join uses the
+                General App Meeting SDK (`ZOOM_SDK_KEY`, `ZOOM_SDK_SECRET`).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
