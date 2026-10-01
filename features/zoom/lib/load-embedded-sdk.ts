@@ -21,7 +21,8 @@ interface ZoomEmbeddedFactory {
   createClient: () => ZoomEmbeddedClient;
 }
 
-const ZOOM_SDK_VERSION = "6.2.0";
+export const ZOOM_EMBEDDED_SDK_VERSION = "6.2.0";
+const ZOOM_SDK_VERSION = ZOOM_EMBEDDED_SDK_VERSION;
 const ZOOM_CDN = `https://source.zoom.us/${ZOOM_SDK_VERSION}`;
 export const ZOOM_EMBEDDED_SDK_SCRIPTS = [
   `${ZOOM_CDN}/lib/vendor/react.min.js`,

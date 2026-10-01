@@ -44,7 +44,13 @@ const serverEnvSchema = z.object({
   SUPER_ADMIN_LAST_NAME: z.string().default("Admin"),
   /** Zoom Account ID is Server-to-Server OAuth only (create/update/delete). */
   ZOOM_ACCOUNT_ID: z.string().optional(),
-  /** General App Client ID — Meeting SDK JWT appKey. S2S REST also uses this pair + account id. */
+  /**
+   * Server-to-Server OAuth Client ID/Secret — REST create/update/delete only.
+   * Do not reuse these for Meeting SDK JWTs.
+   */
+  ZOOM_S2S_CLIENT_ID: z.string().optional(),
+  ZOOM_S2S_CLIENT_SECRET: z.string().optional(),
+  /** General App Client ID — Meeting SDK JWT appKey and instructor OAuth. */
   ZOOM_CLIENT_ID: z.string().optional(),
   ZOOM_CLIENT_SECRET: z.string().optional(),
   /** Zoom General OAuth (instructor connect) */
@@ -142,6 +148,8 @@ export function getServerEnv() {
     SUPER_ADMIN_FIRST_NAME: process.env.SUPER_ADMIN_FIRST_NAME,
     SUPER_ADMIN_LAST_NAME: process.env.SUPER_ADMIN_LAST_NAME,
     ZOOM_ACCOUNT_ID: emptyToUndef(process.env.ZOOM_ACCOUNT_ID),
+    ZOOM_S2S_CLIENT_ID: emptyToUndef(process.env.ZOOM_S2S_CLIENT_ID),
+    ZOOM_S2S_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_S2S_CLIENT_SECRET),
     ZOOM_CLIENT_ID: emptyToUndef(process.env.ZOOM_CLIENT_ID),
     ZOOM_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_CLIENT_SECRET),
     ZOOM_REDIRECT_URI: emptyToUndef(process.env.ZOOM_REDIRECT_URI),

@@ -148,6 +148,7 @@ function InAppZoomRoom({
           stopLocalMedia();
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
+          console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
           return;
         } catch (error) {
           if (cancelled) return;
@@ -161,7 +162,7 @@ function InAppZoomRoom({
             const detail = error instanceof Error ? error.message : String(error);
             setNotice(
               /3712|invalid sdk|sdk key/i.test(detail)
-                ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_SDK_KEY and ZOOM_SDK_SECRET."
+                ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
                 : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
             );
           }

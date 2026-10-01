@@ -14,16 +14,8 @@ export function getZoomMeetingSdkCredentials(): {
   clientSecret: string;
 } | null {
   const env = getServerEnv();
-  const clientId =
-    env.ZOOM_CLIENT_ID?.trim() ||
-    env.ZOOM_SDK_KEY?.trim() ||
-    env.ZOOM_MEETING_SDK_KEY?.trim() ||
-    "";
-  const clientSecret =
-    env.ZOOM_CLIENT_SECRET?.trim() ||
-    env.ZOOM_SDK_SECRET?.trim() ||
-    env.ZOOM_MEETING_SDK_SECRET?.trim() ||
-    "";
+  const clientId = env.ZOOM_CLIENT_ID?.trim() || "";
+  const clientSecret = env.ZOOM_CLIENT_SECRET?.trim() || "";
   if (!clientId || !clientSecret) return null;
   return { clientId, clientSecret };
 }

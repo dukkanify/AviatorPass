@@ -28,16 +28,16 @@ ZOOM_REDIRECT_URI=https://www.aviatorpass.com/api/integrations/zoom/callback
 ZOOM_BASE_URL=https://api.zoom.us/v2
 ZOOM_SECRET_TOKEN=
 ZOOM_ACCOUNT_ID=
+ZOOM_S2S_CLIENT_ID=
+ZOOM_S2S_CLIENT_SECRET=
 ZOOM_WEBHOOK_SECRET=
-ZOOM_SDK_KEY=
-ZOOM_SDK_SECRET=
 ```
 
 Instructors connect their own Zoom account via **General OAuth** (`/api/integrations/zoom/connect`). Live classes then call `POST /users/me/meetings` with that instructor’s token.
 
-`ZOOM_ACCOUNT_ID` remains optional Server-to-Server OAuth for platform/booking meetings (create / update / delete only).
+`ZOOM_ACCOUNT_ID` + `ZOOM_S2S_CLIENT_ID` + `ZOOM_S2S_CLIENT_SECRET` are Server-to-Server OAuth for platform/booking meetings (create / update / delete only).
 
-In-app join uses the **General App Meeting SDK**. Store that app’s Client ID and Client Secret as `ZOOM_SDK_KEY` / `ZOOM_SDK_SECRET`. Enable **Features → Embed → Meeting SDK** on the General App. Do not use the retired standalone Meeting SDK Key/Secret, and do not reuse S2S credentials for signatures.
+In-app join uses the **General App Meeting SDK**. Store that app’s Client ID and Client Secret as `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`. Enable **Features → Embed → Meeting SDK** on the General App. Do not use the retired standalone Meeting SDK Key/Secret, and do not reuse S2S credentials for signatures.
 
 When neither instructor OAuth nor S2S is available, meetings are created in **mock mode** with join URLs under `/join/[id]`.
 

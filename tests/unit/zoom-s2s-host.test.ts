@@ -58,8 +58,8 @@ describe("Zoom S2S meeting create host fallback", () => {
 
   it("posts meetings to /users/me when settings still use the support mailbox", async () => {
     process.env.ZOOM_ACCOUNT_ID = "acct_test";
-    process.env.ZOOM_CLIENT_ID = "client_test";
-    process.env.ZOOM_CLIENT_SECRET = "secret_test";
+    process.env.ZOOM_S2S_CLIENT_ID = "s2s_client_test";
+    process.env.ZOOM_S2S_CLIENT_SECRET = "s2s_secret_test";
     process.env.NEXT_PUBLIC_APP_ENV = "production";
     process.env.VERCEL_ENV = "production";
     delete process.env.ALLOW_ZOOM_MOCK;

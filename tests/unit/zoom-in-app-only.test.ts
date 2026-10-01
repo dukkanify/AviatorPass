@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import { ZOOM_EMBEDDED_SDK_SCRIPTS } from "@/features/zoom/lib/load-embedded-sdk";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
+import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
+import { linkExistingZoomMeeting } from "@/services/classes/zoom-service";
+import { writeClassesDb } from "@/services/classes/store";
 import {
   displayMeetingName,
   extractZoomMeetingNumber,
@@ -134,12 +137,16 @@ describe("Zoom stays inside AviatorPass", () => {
       ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
       ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
       ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID,
+      ZOOM_S2S_CLIENT_ID: process.env.ZOOM_S2S_CLIENT_ID,
+      ZOOM_S2S_CLIENT_SECRET: process.env.ZOOM_S2S_CLIENT_SECRET,
     };
-    delete process.env.ZOOM_SDK_KEY;
-    delete process.env.ZOOM_SDK_SECRET;
+    process.env.ZOOM_SDK_KEY = "legacy-sdk-key";
+    process.env.ZOOM_SDK_SECRET = "legacy-sdk-secret";
     process.env.ZOOM_CLIENT_ID = "general-app-client";
     process.env.ZOOM_CLIENT_SECRET = "general-app-secret";
     process.env.ZOOM_ACCOUNT_ID = "s2s-account";
+    process.env.ZOOM_S2S_CLIENT_ID = "s2s-client";
+    process.env.ZOOM_S2S_CLIENT_SECRET = "s2s-secret";
     expect(getZoomMeetingSdkCredentials()).toEqual({
       clientId: "general-app-client",
       clientSecret: "general-app-secret",
@@ -155,6 +162,9 @@ describe("Zoom stays inside AviatorPass", () => {
       appKey: string;
     };
     expect(decoded.appKey).toBe("general-app-client");
+    delete process.env.ZOOM_CLIENT_ID;
+    delete process.env.ZOOM_CLIENT_SECRET;
+    expect(getZoomMeetingSdkCredentials()).toBeNull();
     if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
     else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
     if (previous.ZOOM_SDK_SECRET === undefined) delete process.env.ZOOM_SDK_SECRET;
@@ -165,6 +175,85 @@ describe("Zoom stays inside AviatorPass", () => {
     else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
     if (previous.ZOOM_ACCOUNT_ID === undefined) delete process.env.ZOOM_ACCOUNT_ID;
     else process.env.ZOOM_ACCOUNT_ID = previous.ZOOM_ACCOUNT_ID;
+    if (previous.ZOOM_S2S_CLIENT_ID === undefined) delete process.env.ZOOM_S2S_CLIENT_ID;
+    else process.env.ZOOM_S2S_CLIENT_ID = previous.ZOOM_S2S_CLIENT_ID;
+    if (previous.ZOOM_S2S_CLIENT_SECRET === undefined) delete process.env.ZOOM_S2S_CLIENT_SECRET;
+    else process.env.ZOOM_S2S_CLIENT_SECRET = previous.ZOOM_S2S_CLIENT_SECRET;
+  });
+
+  it("keeps Server-to-Server OAuth off the Meeting SDK JWT path", () => {
+    const previous = {
+      ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
+      ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+      ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID,
+      ZOOM_S2S_CLIENT_ID: process.env.ZOOM_S2S_CLIENT_ID,
+      ZOOM_S2S_CLIENT_SECRET: process.env.ZOOM_S2S_CLIENT_SECRET,
+    };
+    process.env.ZOOM_CLIENT_ID = "general-app-client";
+    process.env.ZOOM_CLIENT_SECRET = "general-app-secret";
+    process.env.ZOOM_ACCOUNT_ID = "s2s-account";
+    delete process.env.ZOOM_S2S_CLIENT_ID;
+    delete process.env.ZOOM_S2S_CLIENT_SECRET;
+    expect(getZoomS2SCredentials()).toBeNull();
+    process.env.ZOOM_S2S_CLIENT_ID = "s2s-client";
+    process.env.ZOOM_S2S_CLIENT_SECRET = "s2s-secret";
+    expect(getZoomS2SCredentials()).toEqual({
+      accountId: "s2s-account",
+      clientId: "s2s-client",
+      clientSecret: "s2s-secret",
+    });
+    if (previous.ZOOM_CLIENT_ID === undefined) delete process.env.ZOOM_CLIENT_ID;
+    else process.env.ZOOM_CLIENT_ID = previous.ZOOM_CLIENT_ID;
+    if (previous.ZOOM_CLIENT_SECRET === undefined) delete process.env.ZOOM_CLIENT_SECRET;
+    else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
+    if (previous.ZOOM_ACCOUNT_ID === undefined) delete process.env.ZOOM_ACCOUNT_ID;
+    else process.env.ZOOM_ACCOUNT_ID = previous.ZOOM_ACCOUNT_ID;
+    if (previous.ZOOM_S2S_CLIENT_ID === undefined) delete process.env.ZOOM_S2S_CLIENT_ID;
+    else process.env.ZOOM_S2S_CLIENT_ID = previous.ZOOM_S2S_CLIENT_ID;
+    if (previous.ZOOM_S2S_CLIENT_SECRET === undefined) delete process.env.ZOOM_S2S_CLIENT_SECRET;
+    else process.env.ZOOM_S2S_CLIENT_SECRET = previous.ZOOM_S2S_CLIENT_SECRET;
+  });
+
+  it("attaches an existing Zoom meeting without calling S2S", () => {
+    const startsAt = new Date(Date.now() + 60 * 60_000).toISOString();
+    const meeting = linkExistingZoomMeeting({
+      liveClass: {
+        id: "cls_attach_zoom",
+        title: "Attached Zoom",
+        description: "",
+        courseId: null,
+        moduleId: null,
+        lessonId: null,
+        instructorId: "instructor_1",
+        assistantInstructorId: null,
+        startsAt,
+        endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString(),
+        durationMinutes: 30,
+        timezone: "Asia/Kuwait",
+        maxStudents: 10,
+        meetingType: "meeting",
+        status: "scheduled",
+        zoomMeetingId: null,
+        recurringRuleId: null,
+        parentClassId: null,
+        cancelledAt: null,
+        cancelReason: null,
+        rescheduledFromId: null,
+        createdById: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      },
+      zoomMeetingNumber: "86524929538",
+      password: "pass1",
+    });
+    expect(meeting.providerMode).toBe("zoom");
+    expect(meeting.zoomMeetingId).toBe("86524929538");
+    expect(meeting.joinUrl).not.toMatch(/zoom\.us/);
+    writeClassesDb((db) => {
+      db.classes = db.classes.filter((item) => item.id !== "cls_attach_zoom");
+      db.zoomMeetings = db.zoomMeetings.filter((item) => item.liveClassId !== "cls_attach_zoom");
+    });
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     let zak: string | null = null;
     if (body.isHost && signature) {
       zak = zakFromStartUrl(body.startUrl);
-      if (!zak) zak = await fetchZoomHostZak();
+      if (!zak) zak = await fetchZoomHostZak(null, user.id);
     }
 
     return NextResponse.json({

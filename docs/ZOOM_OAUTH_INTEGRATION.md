@@ -97,20 +97,22 @@ ZOOM_SECRET_TOKEN=
 ZOOM_WEBHOOK_SECRET=
 ZOOM_OAUTH_SCOPES=
 ZOOM_ACCOUNT_ID=
+ZOOM_S2S_CLIENT_ID=
+ZOOM_S2S_CLIENT_SECRET=
 ```
 
-| Variable              | Required for instructor OAuth | Notes                                    |
-| --------------------- | ----------------------------- | ---------------------------------------- |
-| `ZOOM_CLIENT_ID`      | Yes                           | General OAuth app                        |
-| `ZOOM_CLIENT_SECRET`  | Yes                           | General OAuth app                        |
-| `ZOOM_REDIRECT_URI`   | Yes in production             | Must match Zoom Marketplace exactly      |
-| `ZOOM_BASE_URL`       | Optional                      | Defaults to `https://api.zoom.us/v2`     |
-| `ZOOM_SECRET_TOKEN`   | Webhooks                      | Marketplace Secret Token                 |
-| `ZOOM_WEBHOOK_SECRET` | Webhooks                      | Alias if Secret Token is stored here     |
-| `ZOOM_OAUTH_SCOPES`   | Optional                      | Defaults to granular meeting + user read |
-| `ZOOM_ACCOUNT_ID`     | S2S fallback only             | Platform-level create/update/delete      |
-| `ZOOM_SDK_KEY`        | In-app Meeting SDK            | General App Client ID (Features → Embed) |
-| `ZOOM_SDK_SECRET`     | In-app Meeting SDK            | General App Client Secret                |
+| Variable                 | Required for instructor OAuth | Notes                                                |
+| ------------------------ | ----------------------------- | ---------------------------------------------------- |
+| `ZOOM_CLIENT_ID`         | Yes                           | General App Client ID (Meeting SDK JWT + OAuth)      |
+| `ZOOM_CLIENT_SECRET`     | Yes                           | General App Client Secret                            |
+| `ZOOM_REDIRECT_URI`      | Yes in production             | Must match Zoom Marketplace exactly                  |
+| `ZOOM_BASE_URL`          | Optional                      | Defaults to `https://api.zoom.us/v2`                 |
+| `ZOOM_SECRET_TOKEN`      | Webhooks                      | Marketplace Secret Token                             |
+| `ZOOM_WEBHOOK_SECRET`    | Webhooks                      | Alias if Secret Token is stored here                 |
+| `ZOOM_OAUTH_SCOPES`      | Optional                      | Defaults to granular meeting + user read             |
+| `ZOOM_ACCOUNT_ID`        | S2S create/update/delete      | Server-to-Server Account ID                          |
+| `ZOOM_S2S_CLIENT_ID`     | S2S create/update/delete      | Server-to-Server Client ID — never a Meeting SDK JWT |
+| `ZOOM_S2S_CLIENT_SECRET` | S2S create/update/delete      | Server-to-Server Client Secret                       |
 
 Tokens are encrypted with AES-256-GCM using a key derived from `AUTH_SECRET`.
 

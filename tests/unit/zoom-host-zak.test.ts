@@ -13,8 +13,8 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
 
   it("returns the host ZAK from the Zoom token API", async () => {
     process.env.ZOOM_ACCOUNT_ID = "acct_1";
-    process.env.ZOOM_CLIENT_ID = "client_1";
-    process.env.ZOOM_CLIENT_SECRET = "secret_1";
+    process.env.ZOOM_S2S_CLIENT_ID = "s2s_client_1";
+    process.env.ZOOM_S2S_CLIENT_SECRET = "s2s_secret_1";
     const calls: string[] = [];
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -36,6 +36,8 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
 
   it("returns null when Zoom is not configured", async () => {
     delete process.env.ZOOM_ACCOUNT_ID;
+    delete process.env.ZOOM_S2S_CLIENT_ID;
+    delete process.env.ZOOM_S2S_CLIENT_SECRET;
     delete process.env.ZOOM_CLIENT_ID;
     delete process.env.ZOOM_CLIENT_SECRET;
     await expect(fetchZoomHostZak()).resolves.toBeNull();
