@@ -127,24 +127,34 @@ describe("Zoom stays inside AviatorPass", () => {
     expect(joinRoute).toMatch(/markJoin failed; student can still enter the classroom/);
   });
 
-  it("does not sign Meeting SDK JWTs with Server-to-Server OAuth keys", () => {
+  it("signs the official Meeting SDK JWT from General App Client ID and Secret", () => {
     const previous = {
       ZOOM_SDK_KEY: process.env.ZOOM_SDK_KEY,
       ZOOM_SDK_SECRET: process.env.ZOOM_SDK_SECRET,
       ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
       ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+      ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID,
     };
-    process.env.ZOOM_CLIENT_ID = "s2s-client";
-    process.env.ZOOM_CLIENT_SECRET = "s2s-secret";
     delete process.env.ZOOM_SDK_KEY;
     delete process.env.ZOOM_SDK_SECRET;
-    expect(getZoomMeetingSdkCredentials()).toBeNull();
-    process.env.ZOOM_SDK_KEY = "general-app-client";
-    process.env.ZOOM_SDK_SECRET = "general-app-secret";
+    process.env.ZOOM_CLIENT_ID = "general-app-client";
+    process.env.ZOOM_CLIENT_SECRET = "general-app-secret";
+    process.env.ZOOM_ACCOUNT_ID = "s2s-account";
     expect(getZoomMeetingSdkCredentials()).toEqual({
       clientId: "general-app-client",
       clientSecret: "general-app-secret",
     });
+    const token = generateMeetingSdkSignature({
+      clientId: "general-app-client",
+      clientSecret: "general-app-secret",
+      meetingNumber: "86524929538",
+      role: 0,
+      nowSec: 1_700_000_030,
+    });
+    const decoded = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString("utf8")) as {
+      appKey: string;
+    };
+    expect(decoded.appKey).toBe("general-app-client");
     if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
     else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
     if (previous.ZOOM_SDK_SECRET === undefined) delete process.env.ZOOM_SDK_SECRET;
@@ -153,6 +163,8 @@ describe("Zoom stays inside AviatorPass", () => {
     else process.env.ZOOM_CLIENT_ID = previous.ZOOM_CLIENT_ID;
     if (previous.ZOOM_CLIENT_SECRET === undefined) delete process.env.ZOOM_CLIENT_SECRET;
     else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
+    if (previous.ZOOM_ACCOUNT_ID === undefined) delete process.env.ZOOM_ACCOUNT_ID;
+    else process.env.ZOOM_ACCOUNT_ID = previous.ZOOM_ACCOUNT_ID;
   });
 
   it("allows camera and microphone so the classroom can stay on-site", () => {

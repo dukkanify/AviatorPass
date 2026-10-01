@@ -36,8 +36,12 @@ export function getZoomCredentialInventory() {
     secretToken: envPresent("ZOOM_SECRET_TOKEN"),
     redirectUri: envPresent("ZOOM_REDIRECT_URI"),
     meetingSdk:
-      (envPresent("ZOOM_SDK_KEY") || envPresent("ZOOM_MEETING_SDK_KEY")) &&
-      (envPresent("ZOOM_SDK_SECRET") || envPresent("ZOOM_MEETING_SDK_SECRET")),
+      (envPresent("ZOOM_CLIENT_ID") ||
+        envPresent("ZOOM_SDK_KEY") ||
+        envPresent("ZOOM_MEETING_SDK_KEY")) &&
+      (envPresent("ZOOM_CLIENT_SECRET") ||
+        envPresent("ZOOM_SDK_SECRET") ||
+        envPresent("ZOOM_MEETING_SDK_SECRET")),
   };
 }
 
@@ -85,6 +89,7 @@ function requireLiveZoom(reason: string): never {
 
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 
+/** Server-to-Server OAuth only — create / update / delete / ZAK. Never a Meeting SDK JWT. */
 async function getZoomAccessToken(): Promise<string | null> {
   if (!zoomCredsPresent()) return null;
   const env = getServerEnv();

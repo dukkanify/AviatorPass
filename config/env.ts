@@ -42,8 +42,9 @@ const serverEnvSchema = z.object({
   SUPER_ADMIN_EMAIL: z.string().email().default("superadmin@aviatorpass.com"),
   SUPER_ADMIN_FIRST_NAME: z.string().default("Super"),
   SUPER_ADMIN_LAST_NAME: z.string().default("Admin"),
-  /** Zoom Server-to-Server OAuth — never expose to client */
+  /** Zoom Account ID is Server-to-Server OAuth only (create/update/delete). */
   ZOOM_ACCOUNT_ID: z.string().optional(),
+  /** General App Client ID — Meeting SDK JWT appKey. S2S REST also uses this pair + account id. */
   ZOOM_CLIENT_ID: z.string().optional(),
   ZOOM_CLIENT_SECRET: z.string().optional(),
   /** Zoom General OAuth (instructor connect) */
