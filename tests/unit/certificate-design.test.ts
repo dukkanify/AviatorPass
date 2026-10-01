@@ -7,6 +7,7 @@ import {
   certificateNumberPrefix,
   makeCourseCertificateNumber,
 } from "@/lib/certificates/certificate-number";
+import { embedCertificateLogo } from "@/lib/certificates/print-logo";
 import { resolveCertificateSubjectName } from "@/lib/certificates/subject-name";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { getCourseById } from "@/services/courses/course-service";
@@ -49,6 +50,16 @@ describe("certificate number follows the course", () => {
   });
 });
 
+describe("certificate logo lockup", () => {
+  it("inlines the official horizontal PNG instead of a cropped icon", () => {
+    const data = embedCertificateLogo("/brand/icon.png");
+    expect(data.startsWith("data:image/png;base64,")).toBe(true);
+    expect(data.length).toBeGreaterThan(20_000);
+    const official = embedCertificateLogo("/brand/logo.png");
+    expect(official).toBe(embedCertificateLogo(null));
+  });
+});
+
 describe("certificate print uses the real course title", () => {
   it("keeps official ATPL titles on the subject line", () => {
     ensureCoursesSeeded();
@@ -62,18 +73,20 @@ describe("certificate print uses the real course title", () => {
     ).toBe("Meteorology");
   });
 
-  it("centers the print artwork and prints the course number prefix", () => {
+  it("keeps the original navy-border layout and an uncropped lockup", () => {
     const src = readFileSync(
       resolve(process.cwd(), "services/certificates/certificate-service.ts"),
       "utf8",
     );
-    expect(src).toMatch(/centerpiece/);
-    expect(src).toMatch(/align-items: center/);
-    expect(src).toMatch(/justify-content: center/);
+    expect(src).toMatch(/embedCertificateLogo/);
+    expect(src).toMatch(/object-fit: contain/);
+    expect(src).toMatch(/border: 10px solid/);
     expect(src).toMatch(/makeCourseCertificateNumber/);
+    expect(src).not.toMatch(/linear-gradient\(180deg, \$\{gold\}/);
     const body = readFileSync(resolve(process.cwd(), "constants/certificates.ts"), "utf8");
     expect(body).toMatch(/\{\{courseName\}\}/);
     expect(body).toMatch(/\{\{certificateNumber\}\}/);
+    expect(body).toMatch(/<h1>\{\{organizationName\}\}/);
   });
 
   it("prints the stored course title and course-specific number in the artwork", async () => {
@@ -85,5 +98,7 @@ describe("certificate print uses the real course title", () => {
     expect(html).toContain(cert!.certificateNumber);
     expect(html).not.toMatch(/Certificate No\. ATPL-2026-DEMO01/);
     expect(html).toMatch(/class="page"/);
+    expect(html).toMatch(/data:image\/png;base64,/);
+    expect(html).toMatch(/object-fit: contain/);
   });
 });

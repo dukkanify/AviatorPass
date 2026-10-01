@@ -35,13 +35,13 @@ export const CERTIFICATE_TEMPLATE_FIELDS = [
 
 export const DEFAULT_CERTIFICATE_BODY = `
 <div class="centerpiece">
-  <p class="brand">{{organizationName}}</p>
+  <h1>{{organizationName}}</h1>
   <p class="eyebrow">Certificate of Completion</p>
   <p class="recipient">This certifies that</p>
   <h2>{{studentName}}</h2>
   <p class="body">has successfully completed</p>
   <h3>{{courseName}}</h3>
-  <p class="meta">Instructor {{instructorName}} · Completed {{completionDate}}</p>
+  <p class="meta">Instructor: {{instructorName}} &nbsp;&middot;&nbsp; Completed {{completionDate}}</p>
   <p class="number">Certificate No. {{certificateNumber}}</p>
 </div>
 `.trim();

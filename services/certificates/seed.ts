@@ -90,14 +90,14 @@ function healSeededCertificates(): void {
   const stamp = new Date().toISOString();
   writeCertificatesDb((d) => {
     d.templates = d.templates.map((template) =>
-      /class=["']centerpiece["']/.test(template.bodyHtml)
-        ? template
-        : {
+      template.isDefault || !/<h1>\{\{organizationName\}\}/.test(template.bodyHtml)
+        ? {
             ...template,
             bodyHtml: DEFAULT_CERTIFICATE_BODY,
             fields: [...CERTIFICATE_TEMPLATE_FIELDS],
             updatedAt: stamp,
-          },
+          }
+        : template,
     );
   });
 
