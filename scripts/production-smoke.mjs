@@ -140,6 +140,9 @@ async function main() {
     if (!quote.json?.success) throw new Error(quote.json?.error || "quote failed");
     const productId = quote.json.data?.product?.id;
     if (!productId) throw new Error("no product");
+    const start = new Date();
+    start.setDate(start.getDate() + 5);
+    const studyStartDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
     const pay = await send(jar, "POST", "/api/public/checkout", {
       productId,
       firstName: "Smoke",
@@ -147,6 +150,8 @@ async function main() {
       email: `buyer.smoke.${Date.now()}@aviatorpass.com`,
       phone: "+96550999222",
       country: "KW",
+      studyStartDate,
+      firstLectureTime: "18:00",
       methodBrand: "card",
       idempotencyKey: `smoke-${Date.now()}`,
     });
