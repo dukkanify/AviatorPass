@@ -241,7 +241,7 @@ describe("Zoom meeting lifecycle", () => {
     expect(payload.settings.participant_video).toBe(false);
     expect(payload.settings.mute_upon_entry).toBe(true);
     expect(payload.settings.waiting_room).toBe(true);
-    expect(payload.settings.approval_type).toBe(0);
+    expect(payload.settings.approval_type).toBe(2);
     expect(payload.settings.join_before_host).toBe(false);
     expect(payload.settings.meeting_authentication).toBe(false);
   });
