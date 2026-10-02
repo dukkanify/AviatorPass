@@ -114,12 +114,13 @@ export function instructorMeetingPayload(input: {
     timezone: input.timezone,
     settings: {
       host_video: true,
-      participant_video: false,
+      participant_video: true,
       mute_upon_entry: true,
-      waiting_room: true,
+      waiting_room: false,
       approval_type: 2,
-      join_before_host: false,
+      join_before_host: true,
       meeting_authentication: false,
+      who_can_share_screen: "all",
     },
   };
 }

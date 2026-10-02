@@ -27,7 +27,7 @@ export async function GET() {
         defaultWaitingRoom: settings.zoom.defaultWaitingRoom,
         defaultPasscode: settings.zoom.defaultPasscode,
         defaultMeetingType: settings.zoom.defaultMeetingType,
-        mode: configured ? "zoom" : "mock",
+        mode: inventory.meetingSdk ? "sdk" : configured ? "zoom" : "mock",
       },
       error: null,
     });
