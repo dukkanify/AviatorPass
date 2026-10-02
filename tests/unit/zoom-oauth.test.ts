@@ -238,12 +238,13 @@ describe("Zoom meeting lifecycle", () => {
     });
     expect(payload.type).toBe(2);
     expect(payload.settings.host_video).toBe(true);
-    expect(payload.settings.participant_video).toBe(false);
+    expect(payload.settings.participant_video).toBe(true);
     expect(payload.settings.mute_upon_entry).toBe(true);
-    expect(payload.settings.waiting_room).toBe(true);
+    expect(payload.settings.waiting_room).toBe(false);
     expect(payload.settings.approval_type).toBe(2);
-    expect(payload.settings.join_before_host).toBe(false);
+    expect(payload.settings.join_before_host).toBe(true);
     expect(payload.settings.meeting_authentication).toBe(false);
+    expect(payload.settings.who_can_share_screen).toBe("all");
   });
 
   it("creates a meeting via instructor OAuth and hides the start URL from students", async () => {

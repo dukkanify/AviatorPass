@@ -169,13 +169,15 @@ async function createZoomApiMeeting(
     password: opts.passcode ? undefined : "",
     settings: {
       waiting_room: opts.waitingRoom,
-      join_before_host: false,
+      // true so Meeting SDK participants can enter before a host ZAK is available (error 3008).
+      join_before_host: true,
       mute_upon_entry: true,
       host_video: true,
-      participant_video: false,
+      participant_video: true,
       // 2 = no registration. 0/1 require registration and Meeting SDK returns 3099.
       approval_type: 2,
       meeting_authentication: false,
+      who_can_share_screen: "all",
     },
   };
 
