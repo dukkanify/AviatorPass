@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import { generateMeetingSdkSignature } from "@/lib/zoom/meeting-sdk";
 import { writeClassesDb } from "@/services/classes/store";
 import {
   fetchZoomHostZak,
@@ -75,6 +76,41 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.hasZakScope).toBe(false);
     expect(resolved.usedInstructorOAuth).toBe(false);
     expect(calls).toEqual([]);
+
+    const zak = await fetchZoomHostZak({
+      meetingNumber: "82122854800",
+      instructorUserId: "instructor-app-user",
+    });
+    const role: 0 | 1 = zak ? 1 : 0;
+    const signature = generateMeetingSdkSignature({
+      clientId: "general-app-client",
+      clientSecret: "general-app-secret",
+      meetingNumber: "82122854800",
+      role,
+      nowSec: 1_700_000_030,
+    });
+    const payload = JSON.parse(
+      Buffer.from(signature.split(".")[1]!, "base64url").toString("utf8"),
+    ) as { role: number; mn: string };
+    expect(zak).toBe("stored-create-zak");
+    expect(payload.role).toBe(1);
+    expect(payload.mn).toBe("82122854800");
+  });
+
+  it("keeps students on participant role 0 without a ZAK", async () => {
+    storedMeeting("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
+    const studentRole: 0 | 1 = 0;
+    const signature = generateMeetingSdkSignature({
+      clientId: "general-app-client",
+      clientSecret: "general-app-secret",
+      meetingNumber: "82122854800",
+      role: studentRole,
+      nowSec: 1_700_000_030,
+    });
+    const payload = JSON.parse(
+      Buffer.from(signature.split(".")[1]!, "base64url").toString("utf8"),
+    ) as { role: number };
+    expect(payload.role).toBe(0);
   });
 
   it("does not treat missing user:read:zak scopes as a production blocker", async () => {
