@@ -90,6 +90,7 @@ describe("Zoom S2S meeting create host fallback", () => {
             start_url: "https://us02web.zoom.us/s/86524929538",
             password: "pass1",
             host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-ceo",
           }),
           { status: 201, headers: { "Content-Type": "application/json" } },
         );
@@ -132,5 +133,6 @@ describe("Zoom S2S meeting create host fallback", () => {
     expect(meeting.providerMode).toBe("zoom");
     expect(meeting.joinUrl).toContain("us02web.zoom.us");
     expect(meeting.hostEmail).toBe("ceo@aviatorpass.com");
+    expect(meeting.hostId).toBe("zoom-host-ceo");
   });
 });
