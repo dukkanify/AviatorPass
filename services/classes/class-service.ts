@@ -289,9 +289,13 @@ async function notifyUsers(
   await emitToUsers(userIds, { title, body, type, data, email });
 }
 
+export type CreatedLiveClassDetail = NonNullable<ReturnType<typeof getLiveClassDetail>> & {
+  zoomError: string | null;
+};
+
 export async function createLiveClass(
   input: CreateLiveClassInput,
-): Promise<ReturnType<typeof getLiveClassDetail>> {
+): Promise<CreatedLiveClassDetail | null> {
   ensureClassesSeeded();
   const title = assertTitle(input.title);
   const instructorId = assertInstructorId(input.instructorId);

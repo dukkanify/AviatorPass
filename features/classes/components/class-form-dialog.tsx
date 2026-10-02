@@ -213,6 +213,9 @@ function ClassFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Required. Zoom is created for this instructor.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Assistant</Label>

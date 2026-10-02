@@ -81,7 +81,9 @@ describe("production Zoom mock ban", () => {
     ensureDemoUsersSeeded();
     const instructor = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR);
     expect(instructor).toBeTruthy();
-    const startsAt = new Date(Date.now() + 400 * 24 * 60 * 60_000).toISOString();
+    const startsAt = new Date(
+      Date.UTC(2040, 0, 1 + Math.floor(Math.random() * 3650), Math.floor(Math.random() * 24), 0, 0),
+    ).toISOString();
     const title = `Schedule without S2S ${startsAt}`;
     const created = await createLiveClass({
       title,
