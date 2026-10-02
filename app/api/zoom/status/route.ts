@@ -35,6 +35,7 @@ export async function GET() {
         hostZak: hostZak
           ? {
               ready: hostZak.ready,
+              source: hostZak.source,
               hostUser: hostZak.hostUser,
               error: hostZak.error,
               hasZakScope: hostZak.hasZakScope,

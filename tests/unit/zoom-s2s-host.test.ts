@@ -87,7 +87,7 @@ describe("Zoom S2S meeting create host fallback", () => {
             id: 86524929538,
             uuid: "uuid-live",
             join_url: "https://us02web.zoom.us/j/86524929538",
-            start_url: "https://us02web.zoom.us/s/86524929538",
+            start_url: "https://us02web.zoom.us/s/86524929538?zak=create-zak",
             password: "pass1",
             host_email: "ceo@aviatorpass.com",
             host_id: "zoom-host-ceo",
@@ -132,6 +132,7 @@ describe("Zoom S2S meeting create host fallback", () => {
     expect(posted).toEqual(["https://api.zoom.us/v2/users/me/meetings"]);
     expect(meeting.providerMode).toBe("zoom");
     expect(meeting.joinUrl).toContain("us02web.zoom.us");
+    expect(meeting.startUrl).toContain("zak=create-zak");
     expect(meeting.hostEmail).toBe("ceo@aviatorpass.com");
     expect(meeting.hostId).toBe("zoom-host-ceo");
   });

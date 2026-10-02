@@ -374,6 +374,16 @@ describe("Zoom meeting lifecycle", () => {
         patches += 1;
         return new Response(null, { status: 204 });
       }
+      if (url.includes("/meetings/111") && method === "GET") {
+        return new Response(
+          JSON.stringify({
+            id: 111,
+            join_url: "https://zoom.us/j/111",
+            start_url: "https://zoom.us/s/111?zak=refreshed",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
 
@@ -395,6 +405,7 @@ describe("Zoom meeting lifecycle", () => {
     expect(meetings).toHaveLength(1);
     expect(patches).toBe(1);
     expect(meetings[0]?.zoomMeetingId).toBe("111");
+    expect(meetings[0]?.startUrl).toContain("zak=refreshed");
   });
 
   it("deletes the Zoom meeting and removes local references", async () => {
