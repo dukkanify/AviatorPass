@@ -23,7 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { MEETING_TYPE_LABELS, MEETING_TYPES, RECURRENCE_FREQUENCIES, RECURRENCE_LABELS } from "@/constants/classes";
+import {
+  MEETING_TYPE_LABELS,
+  MEETING_TYPES,
+  RECURRENCE_FREQUENCIES,
+  RECURRENCE_LABELS,
+} from "@/constants/classes";
 import { classFetch } from "@/features/classes/lib/api";
 import type { UserProfile } from "@/types";
 import type { CourseListItem } from "@/types/courses";
@@ -82,6 +87,10 @@ function ClassFormDialog({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (instructorId === "none") {
+      toast.error("Select an instructor");
+      return;
+    }
     setSaving(true);
     const payload: Record<string, unknown> = {
       title,
@@ -110,7 +119,17 @@ function ClassFormDialog({
       toast.error(result.error ?? "Failed to create class");
       return;
     }
-    toast.success("Live class scheduled");
+    const zoomError =
+      result.data && typeof result.data === "object" && "zoomError" in result.data
+        ? (result.data as { zoomError?: string | null }).zoomError
+        : null;
+    if (zoomError) {
+      toast.warning(
+        "Class saved. Zoom is not connected yet — connect the instructor Zoom account.",
+      );
+    } else {
+      toast.success("Live class scheduled");
+    }
     onSaved();
     onOpenChange(false);
   }
@@ -121,13 +140,19 @@ function ClassFormDialog({
         <DialogHeader>
           <DialogTitle>Schedule live class</DialogTitle>
           <DialogDescription>
-            Creates a Zoom meeting automatically (or secure mock when credentials are unset).
+            Saves the class now. A live Zoom meeting is created when the instructor has connected
+            Zoom, or when Server-to-Server credentials are set.
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-2">
             <Label htmlFor="class-title">Title</Label>
-            <Input id="class-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <Input
+              id="class-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="class-desc">Description</Label>
@@ -188,6 +213,9 @@ function ClassFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Required. Zoom is created for this instructor.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Assistant</Label>

@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
     const ctx = getRequestContext(request);
     const instructorId =
-      user.role === ROLES.INSTRUCTOR ? user.id : String(body.instructorId ?? user.id);
+      user.role === ROLES.INSTRUCTOR ? user.id : body.instructorId ? String(body.instructorId) : "";
 
     const created = await createLiveClass({
       title: String(body.title ?? ""),
