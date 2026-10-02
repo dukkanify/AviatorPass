@@ -409,14 +409,24 @@ export async function createLiveClass(
     d.classes.push(...occurrences);
   });
 
+  let zoomError: string | null = null;
   for (const cls of occurrences) {
-    await createMeetingForClass({
-      liveClass: cls,
-      waitingRoom: input.waitingRoom ?? settings.zoom.defaultWaitingRoom,
-      passcode: settings.zoom.defaultPasscode,
-      meetingType,
-      actorId: input.actorId,
-    });
+    try {
+      await createMeetingForClass({
+        liveClass: cls,
+        waitingRoom: input.waitingRoom ?? settings.zoom.defaultWaitingRoom,
+        passcode: settings.zoom.defaultPasscode,
+        meetingType,
+        actorId: input.actorId,
+      });
+    } catch (error) {
+      if (error instanceof ClassValidationError && error.status === 503) {
+        zoomError = error.message;
+        console.error("Zoom meeting not created; live class kept", error);
+      } else {
+        throw error;
+      }
+    }
 
     const participantIds = new Set<string>();
     participantIds.add(instructorId);
@@ -465,7 +475,9 @@ export async function createLiveClass(
         userIds: [...participantIds],
         title: cls.title,
         when: new Date(cls.startsAt).toLocaleString(),
-        detail: "A Zoom meeting has been prepared for this session.",
+        detail: createdMeeting
+          ? "A Zoom meeting has been prepared for this session."
+          : "The class is scheduled. The Zoom meeting will be added when Zoom is connected.",
         liveClassId: cls.id,
         actorId: input.actorId,
         joinUrl: createdMeeting ? appJoinUrl(cls.id, createdMeeting.zoomMeetingId) : undefined,
@@ -491,10 +503,12 @@ export async function createLiveClass(
     userAgent: input.userAgent,
   });
 
-  return getLiveClassDetail(
+  const detail = getLiveClassDetail(
     base.id,
     input.actorId ? { id: input.actorId, role: ROLES.INSTRUCTOR } : undefined,
   );
+  if (!detail) return null;
+  return { ...detail, zoomError };
 }
 
 export async function updateLiveClass(input: {

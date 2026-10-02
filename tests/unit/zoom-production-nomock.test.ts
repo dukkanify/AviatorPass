@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import { ROLES } from "@/constants/roles";
+import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
+import { readAuthDb } from "@/services/auth/store";
+import { createLiveClass } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import {
   createMeetingForClass,
@@ -65,5 +69,30 @@ describe("production Zoom mock ban", () => {
     await expect(createMeetingForClass({ liveClass: sampleClass() })).rejects.toBeInstanceOf(
       ClassValidationError,
     );
+  });
+
+  it("still saves the live class when production Zoom create is unavailable", async () => {
+    process.env.NEXT_PUBLIC_APP_ENV = "production";
+    process.env.VERCEL_ENV = "production";
+    delete process.env.ALLOW_ZOOM_MOCK;
+    delete process.env.ZOOM_ACCOUNT_ID;
+    delete process.env.ZOOM_S2S_CLIENT_ID;
+    delete process.env.ZOOM_S2S_CLIENT_SECRET;
+    ensureDemoUsersSeeded();
+    const instructor = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR);
+    expect(instructor).toBeTruthy();
+    const startsAt = new Date(Date.now() + 90 * 60_000).toISOString();
+    const created = await createLiveClass({
+      title: "Schedule without S2S",
+      instructorId: instructor!.id,
+      startsAt,
+      durationMinutes: 60,
+      status: "scheduled",
+      actorId: instructor!.id,
+    });
+    expect(created?.id).toBeTruthy();
+    expect(created?.title).toBe("Schedule without S2S");
+    expect(created?.zoomError).toMatch(/ZOOM_S2S_CLIENT_ID|connect an instructor Zoom account/i);
+    expect(created?.zoomMeetingId).toBeNull();
   });
 });
