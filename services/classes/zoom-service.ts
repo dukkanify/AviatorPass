@@ -173,7 +173,8 @@ async function createZoomApiMeeting(
       mute_upon_entry: true,
       host_video: true,
       participant_video: false,
-      approval_type: 0,
+      // 2 = no registration. 0/1 require registration and Meeting SDK returns 3099.
+      approval_type: 2,
       meeting_authentication: false,
     },
   };

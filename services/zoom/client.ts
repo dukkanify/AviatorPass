@@ -117,7 +117,7 @@ export function instructorMeetingPayload(input: {
       participant_video: false,
       mute_upon_entry: true,
       waiting_room: true,
-      approval_type: 0,
+      approval_type: 2,
       join_before_host: false,
       meeting_authentication: false,
     },
