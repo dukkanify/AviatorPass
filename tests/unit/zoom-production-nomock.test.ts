@@ -81,9 +81,10 @@ describe("production Zoom mock ban", () => {
     ensureDemoUsersSeeded();
     const instructor = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR);
     expect(instructor).toBeTruthy();
-    const startsAt = new Date(Date.now() + 90 * 60_000).toISOString();
+    const startsAt = new Date(Date.now() + 400 * 24 * 60 * 60_000).toISOString();
+    const title = `Schedule without S2S ${startsAt}`;
     const created = await createLiveClass({
-      title: "Schedule without S2S",
+      title,
       instructorId: instructor!.id,
       startsAt,
       durationMinutes: 60,
@@ -91,7 +92,7 @@ describe("production Zoom mock ban", () => {
       actorId: instructor!.id,
     });
     expect(created?.id).toBeTruthy();
-    expect(created?.title).toBe("Schedule without S2S");
+    expect(created?.title).toBe(title);
     expect(created?.zoomError).toMatch(/ZOOM_S2S_CLIENT_ID|connect an instructor Zoom account/i);
     expect(created?.zoomMeetingId).toBeNull();
   });
