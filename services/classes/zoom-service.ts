@@ -81,7 +81,36 @@ function requireLiveZoom(reason: string): never {
   throw new ClassValidationError(reason, 503);
 }
 
-let cachedToken: { accessToken: string; expiresAt: number } | null = null;
+let cachedToken: { accessToken: string; expiresAt: number; scopes: string[] } | null = null;
+
+const ZAK_SCOPES = [
+  "user:read:admin",
+  "user:read",
+  "user:read:token:admin",
+  "user:read:zak:admin",
+  "user_zak:read",
+  "user_zak:read:admin",
+];
+
+function parseZoomScopes(scope: string | undefined): string[] {
+  return (scope ?? "")
+    .split(/[\s,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/** Scopes on the last Server-to-Server access token — never the token itself. */
+export function getZoomS2STokenScopes(): string[] {
+  return cachedToken?.scopes ?? [];
+}
+
+export function resetZoomS2STokenCacheForTests(): void {
+  cachedToken = null;
+}
+
+export function zoomS2SHasZakScope(scopes = getZoomS2STokenScopes()): boolean {
+  return scopes.some((scope) => ZAK_SCOPES.includes(scope));
+}
 
 /** Server-to-Server OAuth only — create / update / delete / ZAK. Never a Meeting SDK JWT. */
 async function getZoomAccessToken(): Promise<string | null> {
@@ -104,10 +133,15 @@ async function getZoomAccessToken(): Promise<string | null> {
     console.error("Zoom OAuth failed", await res.text());
     return null;
   }
-  const json = (await res.json()) as { access_token: string; expires_in: number };
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+    scope?: string;
+  };
   cachedToken = {
     accessToken: json.access_token,
     expiresAt: Date.now() + json.expires_in * 1000,
+    scopes: parseZoomScopes(json.scope),
   };
   return json.access_token;
 }
@@ -221,6 +255,7 @@ async function createZoomApiMeeting(
     start_url: string;
     password?: string;
     host_email?: string;
+    host_id?: string;
   };
 
   return {
@@ -235,7 +270,7 @@ async function createZoomApiMeeting(
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
     providerMode: "zoom",
-    hostId: null,
+    hostId: json.host_id ?? null,
     timezone: liveClass.timezone,
     durationMinutes: liveClass.durationMinutes,
     startTime: liveClass.startsAt,
@@ -467,6 +502,29 @@ export function getZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord 
   };
 }
 
+export function getZoomMeetingByNumber(
+  meetingNumber: string | null | undefined,
+): ZoomMeetingRecord | null {
+  const id = String(meetingNumber ?? "").replace(/\D/g, "");
+  if (!id) return null;
+  return readClassesDb().zoomMeetings.find((z) => z.zoomMeetingId === id) ?? null;
+}
+
+function persistZoomMeetingHost(
+  meetingNumber: string,
+  host: { hostId?: string | null; hostEmail?: string | null },
+): void {
+  const id = String(meetingNumber).replace(/\D/g, "");
+  if (!id) return;
+  writeClassesDb((db) => {
+    const meeting = db.zoomMeetings.find((z) => z.zoomMeetingId === id);
+    if (!meeting) return;
+    if (host.hostId) meeting.hostId = host.hostId;
+    if (host.hostEmail) meeting.hostEmail = host.hostEmail;
+    meeting.updatedAt = new Date().toISOString();
+  });
+}
+
 /** Safe public join info — never includes start_url for non-hosts */
 export function getPublicJoinInfo(liveClassId: string, isHost: boolean) {
   return sanitizeJoinInfoForViewer(getZoomMeetingByClassId(liveClassId), isHost);
@@ -594,45 +652,253 @@ export async function provisionStandaloneZoomMeeting(input: {
   };
 }
 
-export async function fetchZoomHostZak(
-  accountEmail?: string | null,
-  instructorUserId?: string | null,
-): Promise<string | null> {
-  if (instructorUserId) {
+export type FetchZoomHostZakInput = {
+  accountEmail?: string | null;
+  instructorUserId?: string | null;
+  meetingNumber?: string | null;
+};
+
+export type ZoomHostZakProbe = {
+  ready: boolean;
+  hostUser: string | null;
+  error: string | null;
+  scopes: string[];
+  hasZakScope: boolean;
+  usedInstructorOAuth: boolean;
+};
+
+type ZoomUserRef = { id?: string | null; email?: string | null };
+
+function uniqueHostCandidates(values: Array<string | null | undefined>): string[] {
+  const out: string[] = [];
+  for (const raw of values) {
+    const value = raw?.trim();
+    if (!value) continue;
+    if (out.includes(value)) continue;
+    out.push(value);
+  }
+  return out;
+}
+
+function zoomErrorDetail(status: number, body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { code?: number | string; message?: string };
+    const code = parsed.code != null ? String(parsed.code) : String(status);
+    const message = parsed.message?.trim() || body.slice(0, 180);
+    return `${code}: ${message}`;
+  } catch {
+    return `${status}: ${body.slice(0, 180)}`;
+  }
+}
+
+async function readZoomJson<T>(res: Response): Promise<T | null> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchZakForZoomUser(
+  accessToken: string,
+  user: string,
+): Promise<{ zak: string | null; error: string | null }> {
+  const encoded = encodeURIComponent(user);
+  const urls = [
+    `https://api.zoom.us/v2/users/${encoded}/token?type=zak`,
+    `https://api.zoom.us/v2/users/${encoded}/zak`,
+  ];
+  let lastError: string | null = null;
+  for (const url of urls) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const raw = await res.text();
+    if (!res.ok) {
+      lastError = zoomErrorDetail(res.status, raw);
+      console.warn("Zoom ZAK request failed", {
+        user: user.includes("@") ? user : "id",
+        error: lastError,
+      });
+      continue;
+    }
     try {
-      const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
-      const instructorToken = await getValidInstructorAccessToken(instructorUserId);
-      if (instructorToken) {
-        const res = await fetch("https://api.zoom.us/v2/users/me/token?type=zak", {
-          headers: { Authorization: `Bearer ${instructorToken}` },
-        });
-        if (res.ok) {
-          const json = (await res.json()) as { token?: string };
-          const zak = json.token?.trim();
-          if (zak) return zak;
-        }
-      }
-    } catch (error) {
-      console.error("Instructor Zoom ZAK failed", error);
+      const json = JSON.parse(raw) as { token?: string; zak?: string };
+      const zak = json.token?.trim() || json.zak?.trim() || "";
+      if (zak) return { zak, error: null };
+    } catch {
+      lastError = `${res.status}: invalid ZAK JSON`;
+    }
+  }
+  return { zak: null, error: lastError };
+}
+
+async function fetchZoomUserProfile(
+  accessToken: string,
+  user: string,
+): Promise<ZoomUserRef | null> {
+  const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const json = await readZoomJson<{ id?: string; email?: string }>(res);
+  if (!json?.id && !json?.email) return null;
+  return { id: json.id ?? null, email: json.email ?? null };
+}
+
+async function fetchZoomMeetingHost(
+  accessToken: string,
+  meetingNumber: string,
+): Promise<ZoomUserRef | null> {
+  const id = meetingNumber.replace(/\D/g, "");
+  if (!id) return null;
+  const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    console.warn("Zoom meeting host lookup failed", zoomErrorDetail(res.status, await res.text()));
+    return null;
+  }
+  const json = await readZoomJson<{ host_id?: string; host_email?: string }>(res);
+  if (!json?.host_id && !json?.host_email) return null;
+  return { id: json.host_id ?? null, email: json.host_email ?? null };
+}
+
+async function fetchInstructorOwnedZak(instructorUserId: string): Promise<string | null> {
+  try {
+    const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+    const instructorToken = await getValidInstructorAccessToken(instructorUserId);
+    if (!instructorToken) return null;
+    const result = await fetchZakForZoomUser(instructorToken, "me");
+    return result.zak;
+  } catch (error) {
+    console.error("Instructor Zoom ZAK failed", error);
+    return null;
+  }
+}
+
+/**
+ * Live host ZAK for Meeting SDK role 1.
+ * Uses the Zoom meeting host (host_id / host_email), not the AviatorPass login.
+ * Server-to-Server apps must call /users/{userId|email}/token — not /users/me/token.
+ */
+export async function resolveZoomHostZak(
+  input: FetchZoomHostZakInput = {},
+): Promise<{ zak: string | null } & ZoomHostZakProbe> {
+  const meeting = getZoomMeetingByNumber(input.meetingNumber);
+  const settingsEmail = getPlatformSettings().zoom.accountEmail;
+  const usedInstructorOAuth = Boolean(
+    input.instructorUserId &&
+    meeting?.oauthUserId &&
+    meeting.oauthUserId === input.instructorUserId,
+  );
+  if (usedInstructorOAuth && input.instructorUserId) {
+    const zak = await fetchInstructorOwnedZak(input.instructorUserId);
+    if (zak) {
+      return {
+        zak,
+        ready: true,
+        hostUser: "instructor-oauth",
+        error: null,
+        scopes: getZoomS2STokenScopes(),
+        hasZakScope: zoomS2SHasZakScope(),
+        usedInstructorOAuth: true,
+      };
     }
   }
 
   const token = await getZoomAccessToken();
-  if (!token) return null;
-  const users = [resolveZoomS2SUser(accountEmail), "me"].filter(
-    (value, index, all) => all.indexOf(value) === index,
-  );
-  for (const user of users) {
-    const res = await fetch(
-      `https://api.zoom.us/v2/users/${encodeURIComponent(user)}/token?type=zak`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (!res.ok) continue;
-    const json = (await res.json()) as { token?: string };
-    const zak = json.token?.trim();
-    if (zak) return zak;
+  const scopes = getZoomS2STokenScopes();
+  if (!token) {
+    return {
+      zak: null,
+      ready: false,
+      hostUser: null,
+      error: "Server-to-Server OAuth token unavailable",
+      scopes,
+      hasZakScope: false,
+      usedInstructorOAuth,
+    };
   }
-  return null;
+
+  let remoteHost: ZoomUserRef | null = null;
+  if (input.meetingNumber) {
+    remoteHost = await fetchZoomMeetingHost(token, input.meetingNumber);
+    if (remoteHost && (remoteHost.id || remoteHost.email)) {
+      persistZoomMeetingHost(input.meetingNumber, {
+        hostId: remoteHost.id,
+        hostEmail: remoteHost.email,
+      });
+    }
+  }
+
+  const owner = await fetchZoomUserProfile(token, "me");
+  const candidates = uniqueHostCandidates([
+    meeting?.hostId,
+    remoteHost?.id,
+    owner?.id,
+    meeting?.hostEmail,
+    remoteHost?.email,
+    owner?.email,
+    resolveZoomS2SUser(input.accountEmail ?? settingsEmail),
+    settingsEmail,
+    "me",
+  ]);
+
+  let lastError: string | null = null;
+  for (const user of candidates) {
+    const result = await fetchZakForZoomUser(token, user);
+    if (result.zak) {
+      return {
+        zak: result.zak,
+        ready: true,
+        hostUser: user === "me" ? owner?.email || owner?.id || "me" : user,
+        error: null,
+        scopes,
+        hasZakScope: zoomS2SHasZakScope(scopes),
+        usedInstructorOAuth: false,
+      };
+    }
+    lastError = result.error;
+  }
+
+  if (!lastError && !zoomS2SHasZakScope(scopes) && scopes.length) {
+    lastError = `S2S token missing ZAK scopes (have: ${scopes.join(" ")}; need user:read:admin or user:read:token:admin)`;
+  }
+
+  return {
+    zak: null,
+    ready: false,
+    hostUser: candidates[0] ?? null,
+    error: lastError || "Zoom did not return a host ZAK",
+    scopes,
+    hasZakScope: zoomS2SHasZakScope(scopes),
+    usedInstructorOAuth: false,
+  };
+}
+
+export async function fetchZoomHostZak(
+  accountEmail?: string | null | FetchZoomHostZakInput,
+  instructorUserId?: string | null,
+): Promise<string | null> {
+  const input: FetchZoomHostZakInput =
+    accountEmail && typeof accountEmail === "object"
+      ? accountEmail
+      : { accountEmail: accountEmail ?? null, instructorUserId };
+  const resolved = await resolveZoomHostZak(input);
+  return resolved.zak;
+}
+
+export async function probeZoomHostZak(
+  input: FetchZoomHostZakInput = {},
+): Promise<ZoomHostZakProbe> {
+  const resolved = await resolveZoomHostZak(input);
+  return {
+    ready: resolved.ready,
+    hostUser: resolved.hostUser,
+    error: resolved.error,
+    scopes: resolved.scopes,
+    hasZakScope: resolved.hasZakScope,
+    usedInstructorOAuth: resolved.usedInstructorOAuth,
+  };
 }
 
 /** Attach a meeting that already exists in Zoom — no S2S create call. */

@@ -5,6 +5,7 @@ import { requirePermission } from "@/services/auth/guards";
 import {
   getZoomCredentialInventory,
   isZoomConfigured,
+  probeZoomHostZak,
   refreshZoomCredentialsFlag,
 } from "@/services/classes/zoom-service";
 import { getPlatformSettings } from "@/services/settings/settings-service";
@@ -17,6 +18,9 @@ export async function GET() {
     const configured = refreshZoomCredentialsFlag();
     const settings = getPlatformSettings();
     const inventory = getZoomCredentialInventory();
+    const hostZak = configured
+      ? await probeZoomHostZak({ accountEmail: settings.zoom.accountEmail })
+      : null;
     return NextResponse.json({
       success: true,
       data: {
@@ -28,6 +32,15 @@ export async function GET() {
         defaultPasscode: settings.zoom.defaultPasscode,
         defaultMeetingType: settings.zoom.defaultMeetingType,
         mode: inventory.meetingSdk ? "sdk" : configured ? "zoom" : "mock",
+        hostZak: hostZak
+          ? {
+              ready: hostZak.ready,
+              hostUser: hostZak.hostUser,
+              error: hostZak.error,
+              hasZakScope: hostZak.hasZakScope,
+              scopes: hostZak.scopes,
+            }
+          : null,
       },
       error: null,
     });
