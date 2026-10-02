@@ -122,6 +122,51 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(calls.some((url) => url.includes("/users/owner-id/token?type=zak"))).toBe(true);
   });
 
+  it("uses a fresh meeting start_url ZAK when the token API lacks ZAK scopes", async () => {
+    s2sEnv();
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "s2s-token",
+            expires_in: 3600,
+            scope: "meeting:write:meeting:admin",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/meetings/82122854800")) {
+        return new Response(
+          JSON.stringify({
+            host_id: "zoom-host-99",
+            host_email: "ceo@aviatorpass.com",
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=fresh-start-zak",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/users/me") && !url.includes("/token") && !url.includes("/zak")) {
+        return new Response(JSON.stringify({ id: "owner-id", email: "ceo@aviatorpass.com" }), {
+          status: 200,
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          code: 4711,
+          message:
+            "Invalid access token, does not contain scopes:[user:read:zak, user:read:zak:admin].",
+        }),
+        { status: 400 },
+      );
+    }) as typeof fetch;
+
+    const resolved = await resolveZoomHostZak({ meetingNumber: "82122854800" });
+    expect(resolved.zak).toBe("fresh-start-zak");
+    expect(resolved.ready).toBe(true);
+    expect(resolved.hostUser).toBe("zoom-host-99");
+  });
+
   it("returns null when Zoom is not configured", async () => {
     delete process.env.ZOOM_ACCOUNT_ID;
     delete process.env.ZOOM_S2S_CLIENT_ID;
