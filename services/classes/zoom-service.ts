@@ -706,10 +706,7 @@ async function fetchZakForZoomUser(
   user: string,
 ): Promise<{ zak: string | null; error: string | null }> {
   const encoded = encodeURIComponent(user);
-  const urls = [
-    `https://api.zoom.us/v2/users/${encoded}/token?type=zak`,
-    `https://api.zoom.us/v2/users/${encoded}/zak`,
-  ];
+  const urls = [`https://api.zoom.us/v2/users/${encoded}/token?type=zak`];
   let lastError: string | null = null;
   for (const url of urls) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -868,12 +865,17 @@ export async function resolveZoomHostZak(
     lastError = result.error;
   }
 
-  const freshStartZak = zakFromStartUrl(remoteHost?.startUrl);
+  const freshStartZak = zakFromStartUrl(remoteHost?.startUrl) || zakFromStartUrl(meeting?.startUrl);
   if (freshStartZak) {
     return {
       zak: freshStartZak,
       ready: true,
-      hostUser: remoteHost?.id || remoteHost?.email || candidates[0] || "meeting-start-url",
+      hostUser:
+        remoteHost?.id ||
+        remoteHost?.email ||
+        meeting?.hostEmail ||
+        candidates[0] ||
+        "meeting-start-url",
       error: null,
       scopes,
       hasZakScope: zoomS2SHasZakScope(scopes),

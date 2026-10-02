@@ -35,7 +35,7 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
         zoomMeetingId: "82122854800",
         zoomUuid: "uuid-1",
         joinUrl: "https://us02web.zoom.us/j/82122854800",
-        startUrl: "",
+        startUrl: "https://us02web.zoom.us/s/82122854800?zak=stored-create-zak",
         password: "123456",
         hostEmail: null,
         waitingRoom: false,
@@ -165,6 +165,55 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.zak).toBe("fresh-start-zak");
     expect(resolved.ready).toBe(true);
     expect(resolved.hostUser).toBe("zoom-host-99");
+  });
+
+  it("uses the stored create start_url ZAK when GET /meetings is out of scope", async () => {
+    s2sEnv();
+    writeClassesDb((db) => {
+      db.zoomMeetings.push({
+        id: "zm-host-2",
+        liveClassId: "cls-host-2",
+        zoomMeetingId: "82122854800",
+        zoomUuid: "uuid-2",
+        joinUrl: "https://us02web.zoom.us/j/82122854800",
+        startUrl: "https://us02web.zoom.us/s/82122854800?zak=stored-create-zak",
+        password: "123456",
+        hostEmail: "ceo@aviatorpass.com",
+        waitingRoom: false,
+        passcodeEnabled: true,
+        coHostEmails: [],
+        providerMode: "zoom",
+        hostId: null,
+        oauthUserId: null,
+        raw: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    });
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "s2s-token",
+            expires_in: 3600,
+            scope: "meeting:write:meeting:admin",
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          code: 4711,
+          message: "Invalid access token, does not contain scopes:[meeting:read:meeting:admin].",
+        }),
+        { status: 400 },
+      );
+    }) as typeof fetch;
+
+    const resolved = await resolveZoomHostZak({ meetingNumber: "82122854800" });
+    expect(resolved.zak).toBe("stored-create-zak");
+    expect(resolved.ready).toBe(true);
   });
 
   it("returns null when Zoom is not configured", async () => {
