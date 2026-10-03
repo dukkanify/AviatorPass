@@ -1,5 +1,7 @@
 /**
- * Seed demo live classes linked to LMS courses + Zoom mock meetings.
+ * Seed demo live classes linked to LMS courses.
+ * When live Zoom is configured, classes stay without placeholder meetings
+ * so join/provision creates a real Zoom meeting.
  */
 
 import { generateId } from "@/lib/security/crypto";
@@ -12,8 +14,25 @@ import { ROLES } from "@/constants/roles";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { isLiveZoomConfigured, isPlaceholderZoomMeeting } from "@/services/classes/zoom-service";
 import type { LiveClass, MeetingParticipant, ZoomMeetingRecord } from "@/types/classes";
 import { addHours, addDays } from "date-fns";
+
+function stripPlaceholderMeetingsWhenLive(): void {
+  if (!isLiveZoomConfigured()) return;
+  const db = readClassesDb();
+  const placeholders = db.zoomMeetings.filter((meeting) => isPlaceholderZoomMeeting(meeting));
+  if (placeholders.length === 0) return;
+  const placeholderClassIds = new Set(placeholders.map((meeting) => meeting.liveClassId));
+  writeClassesDb((draft) => {
+    draft.zoomMeetings = draft.zoomMeetings.filter((meeting) => !isPlaceholderZoomMeeting(meeting));
+    for (const liveClass of draft.classes) {
+      if (placeholderClassIds.has(liveClass.id)) {
+        liveClass.zoomMeetingId = null;
+      }
+    }
+  });
+}
 
 function remapLegacyHostEmails(): void {
   const db = readClassesDb();
@@ -36,6 +55,7 @@ export function ensureClassesSeeded(): void {
   ensureDemoUsersSeeded();
   ensureCoursesSeeded();
   remapLegacyHostEmails();
+  stripPlaceholderMeetingsWhenLive();
   const db = readClassesDb();
   if (db.seeded && db.classes.length > 0) return;
 
@@ -90,13 +110,16 @@ export function ensureClassesSeeded(): void {
   const classes: LiveClass[] = [];
   const zoomMeetings: ZoomMeetingRecord[] = [];
   const participants: MeetingParticipant[] = [];
+  const liveZoom = isLiveZoomConfigured();
 
   for (const def of defs) {
     const starts = addHours(now, def.offsetHours);
     const ends = addHours(starts, def.duration / 60);
     const classId = generateId();
-    const zoomId = generateId();
-    const zoomMeetingId = String(Math.floor(100_000_000 + Math.random() * 899_999_999));
+    const zoomId = liveZoom ? null : generateId();
+    const zoomMeetingId = liveZoom
+      ? ""
+      : String(Math.floor(100_000_000 + Math.random() * 899_999_999));
 
     classes.push({
       id: classId,
@@ -126,23 +149,25 @@ export function ensureClassesSeeded(): void {
       deletedAt: null,
     });
 
-    zoomMeetings.push({
-      id: zoomId,
-      liveClassId: classId,
-      zoomMeetingId,
-      zoomUuid: generateId(),
-      joinUrl: appJoinUrl(classId, zoomMeetingId),
-      startUrl: appJoinUrl(classId, zoomMeetingId, true),
-      password: "AtplLive1",
-      hostEmail: siteStatic.supportEmail,
-      waitingRoom: true,
-      passcodeEnabled: true,
-      coHostEmails: [],
-      providerMode: "mock",
-      raw: { seeded: true },
-      createdAt: ts,
-      updatedAt: ts,
-    });
+    if (zoomId) {
+      zoomMeetings.push({
+        id: zoomId,
+        liveClassId: classId,
+        zoomMeetingId,
+        zoomUuid: generateId(),
+        joinUrl: appJoinUrl(classId, zoomMeetingId),
+        startUrl: appJoinUrl(classId, zoomMeetingId, true),
+        password: "AtplLive1",
+        hostEmail: siteStatic.supportEmail,
+        waitingRoom: true,
+        passcodeEnabled: true,
+        coHostEmails: [],
+        providerMode: "mock",
+        raw: { seeded: true },
+        createdAt: ts,
+        updatedAt: ts,
+      });
+    }
 
     participants.push({
       id: generateId(),

@@ -6,6 +6,7 @@ import { requireAuth } from "@/services/auth/guards";
 import { assertPermission } from "@/services/auth/permissions";
 import { getJoinInfoForUser } from "@/services/classes/class-service";
 import { markJoin } from "@/services/classes/attendance-service";
+import { ensureLiveMeetingForClass } from "@/services/classes/zoom-service";
 import { classErrorResponse } from "@/app/api/classes/_utils";
 
 type Params = { params: Promise<{ id: string }> };
@@ -18,6 +19,7 @@ export async function GET(_request: Request, { params }: Params) {
     else if (user.role === ROLES.INSTRUCTOR) assertPermission(user, PERMISSIONS.ZOOM_SESSIONS);
     else assertPermission(user, PERMISSIONS.CLASSES_MANAGE);
 
+    await ensureLiveMeetingForClass(id, user.id);
     const info = getJoinInfoForUser(id, user.id);
     return NextResponse.json({ success: true, data: info, error: null });
   } catch (error) {
@@ -33,6 +35,7 @@ export async function POST(_request: Request, { params }: Params) {
     else if (user.role === ROLES.INSTRUCTOR) assertPermission(user, PERMISSIONS.ZOOM_SESSIONS);
     else assertPermission(user, PERMISSIONS.CLASSES_MANAGE);
 
+    await ensureLiveMeetingForClass(id, user.id);
     const info = getJoinInfoForUser(id, user.id);
     if (user.role === ROLES.STUDENT) {
       try {

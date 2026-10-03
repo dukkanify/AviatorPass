@@ -44,11 +44,33 @@ export function getZoomCredentialInventory() {
 }
 
 export function isMockZoomAllowed(): boolean {
+  if (zoomCredsPresent()) return false;
   if (process.env.ALLOW_ZOOM_MOCK === "true") return true;
   if (process.env.FORBID_ZOOM_MOCK === "true") return false;
   return (
     process.env.NEXT_PUBLIC_APP_ENV !== "production" && process.env.VERCEL_ENV !== "production"
   );
+}
+
+export function isLiveZoomConfigured(): boolean {
+  return zoomCredsPresent();
+}
+
+export function isPlaceholderZoomMeeting(
+  meeting:
+    | {
+        providerMode?: string | null;
+        startUrl?: string | null;
+        joinUrl?: string | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!meeting) return true;
+  if ((meeting.providerMode ?? "").toLowerCase() === "mock") return true;
+  const start = meeting.startUrl ?? "";
+  const join = meeting.joinUrl ?? "";
+  return /zak=mock/i.test(start) || /zak=mock/i.test(join);
 }
 
 function zoomCredsPresent(): boolean {
@@ -293,10 +315,9 @@ export async function createMeetingForClass(input: {
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
 
-  let payload =
-    settings.zoom.enabled && zoomCredsPresent()
-      ? await createZoomApiMeeting(input.liveClass, { waitingRoom, passcode, meetingType })
-      : null;
+  let payload = zoomCredsPresent()
+    ? await createZoomApiMeeting(input.liveClass, { waitingRoom, passcode, meetingType })
+    : null;
 
   if (!payload) {
     if (!isMockZoomAllowed()) {
@@ -344,6 +365,23 @@ export async function createMeetingForClass(input: {
   });
 
   return record;
+}
+
+export async function ensureLiveMeetingForClass(
+  liveClassId: string,
+  actorId?: string | null,
+): Promise<ZoomMeetingRecord | null> {
+  const liveClass = readClassesDb().classes.find(
+    (item) => item.id === liveClassId && !item.deletedAt,
+  );
+  if (!liveClass || liveClass.status === "cancelled") {
+    return readClassesDb().zoomMeetings.find((item) => item.liveClassId === liveClassId) ?? null;
+  }
+  const existing =
+    readClassesDb().zoomMeetings.find((item) => item.liveClassId === liveClassId) ?? null;
+  if (existing && !isPlaceholderZoomMeeting(existing)) return existing;
+  if (!zoomCredsPresent() && existing) return existing;
+  return createMeetingForClass({ liveClass, actorId });
 }
 
 export async function updateMeetingForClass(input: {
@@ -565,14 +603,13 @@ export async function provisionStandaloneZoomMeeting(input: {
     deletedAt: null,
   };
 
-  let payload =
-    settings.zoom.enabled && zoomCredsPresent()
-      ? await createZoomApiMeeting(synthetic, {
-          waitingRoom,
-          passcode,
-          meetingType: "meeting",
-        })
-      : null;
+  let payload = zoomCredsPresent()
+    ? await createZoomApiMeeting(synthetic, {
+        waitingRoom,
+        passcode,
+        meetingType: "meeting",
+      })
+    : null;
 
   if (!payload) {
     if (!isMockZoomAllowed()) {

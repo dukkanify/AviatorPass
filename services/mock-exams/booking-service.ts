@@ -6,7 +6,11 @@ import { generateId, generateToken } from "@/lib/security/crypto";
 import { formatMockExamMeetingTopic, formatZonedDateTime } from "@/lib/datetime/zoned";
 import { ROLES } from "@/constants/roles";
 import { findUserById } from "@/services/auth/store";
-import { provisionStandaloneZoomMeeting } from "@/services/classes/zoom-service";
+import {
+  isLiveZoomConfigured,
+  isPlaceholderZoomMeeting,
+  provisionStandaloneZoomMeeting,
+} from "@/services/classes/zoom-service";
 import { createNotification } from "@/services/notifications/notification-service";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { sendEmail } from "@/services/email/mailer";
@@ -114,6 +118,17 @@ export function listMockExamSessions(filters?: {
 export function getMockExamSession(id: string): MockExamSessionWithNames | null {
   const row = readMockExamsDb().sessions.find((s) => s.id === id);
   return row ? withNames(row) : null;
+}
+
+export async function ensureLiveMockExamZoom(
+  sessionId: string,
+): Promise<MockExamSessionWithNames | null> {
+  const row = readMockExamsDb().sessions.find((s) => s.id === sessionId);
+  if (!row) return null;
+  if (!["confirmed", "in_progress"].includes(row.status)) return withNames(row);
+  if (row.zoom && !isPlaceholderZoomMeeting(row.zoom)) return withNames(row);
+  const next = await provisionZoom(row);
+  return withNames(getMockExamSession(next.id)!);
 }
 
 async function notifyBookingConfirmed(session: MockExamSession) {
@@ -226,7 +241,8 @@ async function notifyBookingConfirmed(session: MockExamSession) {
 
 async function provisionZoom(session: MockExamSession): Promise<MockExamSession> {
   const settings = getMockExamSettings();
-  if (!settings.autoCreateZoom) return session;
+  if (!settings.autoCreateZoom && !isLiveZoomConfigured()) return session;
+  if (session.zoom && !isPlaceholderZoomMeeting(session.zoom)) return session;
   const student = findUserById(session.studentId);
   const topic = formatMockExamMeetingTopic({
     lastName: student?.lastName || student?.firstName || "Student",

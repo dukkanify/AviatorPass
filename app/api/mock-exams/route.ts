@@ -11,6 +11,7 @@ import {
   confirmMockExamPayment,
   getMockExamAdminOverview,
   getMockExamCatalog,
+  ensureLiveMockExamZoom,
   getMockExamSession,
   listMockExamSessions,
   updateMockExamSettings,
@@ -132,7 +133,7 @@ export async function GET(request: Request) {
           { status: 400 },
         );
       }
-      const session = getMockExamSession(id);
+      const session = (await ensureLiveMockExamZoom(id)) ?? getMockExamSession(id);
       if (!session) {
         return NextResponse.json(
           { success: false, data: null, error: "Not found" },
@@ -152,28 +153,35 @@ export async function GET(request: Request) {
     // Default sessions list
     if (user.role === ROLES.STUDENT) {
       assertPermission(user, PERMISSIONS.MOCK_EXAMS_OWN);
+      const sessions = listMockExamSessions({ studentId: user.id });
       return NextResponse.json({
         success: true,
-        data: listMockExamSessions({ studentId: user.id }),
+        data: await Promise.all(
+          sessions.map(async (s) => (await ensureLiveMockExamZoom(s.id)) ?? s),
+        ),
         error: null,
       });
     }
     if (user.role === ROLES.INSTRUCTOR) {
       assertPermission(user, PERMISSIONS.MOCK_EXAMS_MANAGE);
+      const sessions = listMockExamSessions({ examinerId: user.id });
       return NextResponse.json({
         success: true,
-        data: listMockExamSessions({ examinerId: user.id }),
+        data: await Promise.all(
+          sessions.map(async (s) => (await ensureLiveMockExamZoom(s.id)) ?? s),
+        ),
         error: null,
       });
     }
     assertPermission(user, PERMISSIONS.MOCK_EXAMS_MANAGE);
+    const sessions = listMockExamSessions({
+      studentId: searchParams.get("studentId") ?? undefined,
+      examinerId: searchParams.get("examinerId") ?? undefined,
+      status: searchParams.get("status") ?? undefined,
+    });
     return NextResponse.json({
       success: true,
-      data: listMockExamSessions({
-        studentId: searchParams.get("studentId") ?? undefined,
-        examinerId: searchParams.get("examinerId") ?? undefined,
-        status: searchParams.get("status") ?? undefined,
-      }),
+      data: await Promise.all(sessions.map(async (s) => (await ensureLiveMockExamZoom(s.id)) ?? s)),
       error: null,
     });
   } catch (error) {
