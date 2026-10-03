@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { ZOOM_EMBEDDED_SDK_SCRIPTS } from "@/features/zoom/lib/load-embedded-sdk";
+import {
+  ZOOM_EMBEDDED_SDK_LOAD_GROUPS,
+  ZOOM_EMBEDDED_SDK_SCRIPTS,
+} from "@/features/zoom/lib/load-embedded-sdk";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { linkExistingZoomMeeting } from "@/services/classes/zoom-service";
@@ -124,6 +127,8 @@ describe("Zoom stays inside AviatorPass", () => {
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
     expect(ZOOM_EMBEDDED_SDK_SCRIPTS[0]).toMatch(/\/lib\/vendor\/react\.min\.js$/);
     expect(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1)).toMatch(/zoom-meeting-embedded-6\.2\.0\.min\.js$/);
+    expect(ZOOM_EMBEDDED_SDK_LOAD_GROUPS[0]).toContain(ZOOM_EMBEDDED_SDK_SCRIPTS[0]);
+    expect(ZOOM_EMBEDDED_SDK_LOAD_GROUPS.at(-1)?.[0]).toBe(ZOOM_EMBEDDED_SDK_SCRIPTS.at(-1));
     const joinRoute = readFileSync(
       resolve(process.cwd(), "app/api/classes/[id]/join/route.ts"),
       "utf8",
