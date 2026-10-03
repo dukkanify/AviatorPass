@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff, Radio, Shield, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import {
   loadZoomEmbeddedClient,
+  prefetchZoomEmbeddedSdk,
   type ZoomEmbeddedClient,
 } from "@/features/zoom/lib/load-embedded-sdk";
 import { cn } from "@/lib/utils";
@@ -69,8 +69,18 @@ function InAppZoomRoom({
       setNotice("This browser cannot open camera or microphone inside AviatorPass.");
       return;
     }
+    if (streamRef.current) {
+      if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true,
+      });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -80,6 +90,15 @@ function InAppZoomRoom({
       setNotice("Allow camera and microphone in the browser to appear in this classroom.");
     }
   }, []);
+
+  React.useEffect(() => {
+    void startLocalMedia();
+    return () => stopLocalMedia();
+  }, [startLocalMedia, stopLocalMedia]);
+
+  React.useEffect(() => {
+    if (providerMode === "zoom") prefetchZoomEmbeddedSdk();
+  }, [providerMode]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -110,6 +129,7 @@ function InAppZoomRoom({
         });
         return;
       }
+      if (result.data.mode === "sdk") prefetchZoomEmbeddedSdk();
       setSession(result.data);
     }
     void boot();
@@ -224,36 +244,25 @@ function InAppZoomRoom({
 
   const shownMeeting = session?.meetingNumber || meetingNumber || "";
   const shownPassword = session?.password || password || "";
+  const liveLabel =
+    phase === "sdk" ? "Live Zoom · inside AviatorPass" : "Live classroom · inside AviatorPass";
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-2xl border border-border bg-[#143048] text-white",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+    <div className={cn("classroom-stage text-white", className)}>
+      <div className="absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-b from-black/80 via-black/35 to-transparent px-4 py-4 sm:px-5">
         <div>
-          <p className="font-display text-lg">{title}</p>
-          <p className="flex items-center gap-1 text-xs text-white/70">
+          <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
             <Radio className="size-3 text-[#CCA04C]" />
-            {phase === "sdk"
-              ? "Live Zoom · inside AviatorPass"
-              : "Live classroom · inside AviatorPass"}
+            {liveLabel}
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-          onClick={() => void leaveClassroom()}
-        >
-          Leave classroom
-        </Button>
+        <span className="classroom-chip text-[11px] uppercase tracking-[0.16em] text-white/70">
+          {isHost ? "Host" : "Student"}
+        </span>
       </div>
 
-      <div className="relative min-h-[min(70vh,640px)] bg-black">
+      <div className="relative min-h-[min(72vh,760px)] bg-black">
         <div ref={stageRef} className="absolute inset-0" />
         {phase !== "sdk" ? (
           <div className="absolute inset-0 flex flex-col">
@@ -264,13 +273,12 @@ function InAppZoomRoom({
               autoPlay
               className="h-full w-full object-cover"
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#143048] via-transparent to-[#143048]/40" />
-            <div className="absolute inset-x-0 bottom-20 flex flex-col items-center gap-2 px-6 text-center">
-              <Shield className="size-7 text-[#CCA04C]" />
-              <p className="font-display text-2xl">{title}</p>
-              <p className="max-w-lg text-sm text-white/75">{notice}</p>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#071018] via-transparent to-black/35" />
+            <div className="absolute inset-x-0 bottom-24 flex flex-col items-center gap-2 px-6 text-center">
+              <Shield className="size-6 text-[#CCA04C]" />
+              <p className="max-w-lg text-sm text-white/80">{notice}</p>
               {shownMeeting ? (
-                <p className="font-mono text-xs text-white/60">
+                <p className="font-mono text-[11px] text-white/50">
                   Meeting ID {shownMeeting}
                   {shownPassword ? ` · Passcode ${shownPassword}` : ""}
                 </p>
@@ -281,27 +289,36 @@ function InAppZoomRoom({
       </div>
 
       {phase !== "sdk" ? (
-        <div className="flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-4 py-3">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-            onClick={toggleMic}
-          >
-            {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
-            {micOn ? "Mute" : "Unmute"}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-            onClick={toggleCamera}
-          >
-            {camOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
-            {camOn ? "Camera off" : "Camera on"}
-          </Button>
+        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-[#071018] via-[#071018]/70 to-transparent px-4 pb-5 pt-16">
+          <div className="classroom-dock">
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!micOn || undefined}
+              aria-label={micOn ? "Mute" : "Unmute"}
+              onClick={toggleMic}
+            >
+              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!camOn || undefined}
+              aria-label={camOn ? "Camera off" : "Camera on"}
+              onClick={toggleCamera}
+            >
+              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-leave="true"
+              onClick={() => void leaveClassroom()}
+            >
+              <PhoneOff className="size-4" />
+              Leave classroom
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

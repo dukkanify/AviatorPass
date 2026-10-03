@@ -24,14 +24,19 @@ interface ZoomEmbeddedFactory {
 export const ZOOM_EMBEDDED_SDK_VERSION = "6.2.0";
 const ZOOM_SDK_VERSION = ZOOM_EMBEDDED_SDK_VERSION;
 const ZOOM_CDN = `https://source.zoom.us/${ZOOM_SDK_VERSION}`;
-export const ZOOM_EMBEDDED_SDK_SCRIPTS = [
-  `${ZOOM_CDN}/lib/vendor/react.min.js`,
-  `${ZOOM_CDN}/lib/vendor/react-dom.min.js`,
-  `${ZOOM_CDN}/lib/vendor/redux.min.js`,
-  `${ZOOM_CDN}/lib/vendor/redux-thunk.min.js`,
-  `${ZOOM_CDN}/lib/vendor/lodash.min.js`,
-  `${ZOOM_CDN}/zoom-meeting-embedded-${ZOOM_SDK_VERSION}.min.js`,
+
+/** Independent vendor scripts load together, then dependents, then the Meeting SDK. */
+export const ZOOM_EMBEDDED_SDK_LOAD_GROUPS = [
+  [
+    `${ZOOM_CDN}/lib/vendor/react.min.js`,
+    `${ZOOM_CDN}/lib/vendor/redux.min.js`,
+    `${ZOOM_CDN}/lib/vendor/lodash.min.js`,
+  ],
+  [`${ZOOM_CDN}/lib/vendor/react-dom.min.js`, `${ZOOM_CDN}/lib/vendor/redux-thunk.min.js`],
+  [`${ZOOM_CDN}/zoom-meeting-embedded-${ZOOM_SDK_VERSION}.min.js`],
 ] as const;
+
+export const ZOOM_EMBEDDED_SDK_SCRIPTS = ZOOM_EMBEDDED_SDK_LOAD_GROUPS.flat();
 
 declare global {
   interface Window {
@@ -55,7 +60,7 @@ function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = src;
-    script.async = false;
+    script.async = true;
     script.onload = () => {
       script.dataset.loaded = "1";
       resolve();
@@ -65,13 +70,33 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+export function prefetchZoomEmbeddedSdk(): void {
+  if (typeof document === "undefined") return;
+  if (!document.querySelector('link[rel="preconnect"][href="https://source.zoom.us"]')) {
+    const preconnect = document.createElement("link");
+    preconnect.rel = "preconnect";
+    preconnect.href = "https://source.zoom.us";
+    preconnect.crossOrigin = "anonymous";
+    document.head.appendChild(preconnect);
+  }
+  for (const src of ZOOM_EMBEDDED_SDK_SCRIPTS) {
+    if (document.querySelector(`link[rel="preload"][href="${src}"]`)) continue;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "script";
+    link.href = src;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  }
+}
+
 export async function loadZoomEmbeddedClient(): Promise<ZoomEmbeddedClient> {
   if (typeof window === "undefined") {
     throw new Error("Zoom Meeting SDK is browser-only");
   }
   if (!window.ZoomMtgEmbedded) {
-    for (const src of ZOOM_EMBEDDED_SDK_SCRIPTS) {
-      await loadScript(src);
+    for (const group of ZOOM_EMBEDDED_SDK_LOAD_GROUPS) {
+      await Promise.all(group.map((src) => loadScript(src)));
     }
   }
   const factory = window.ZoomMtgEmbedded;
