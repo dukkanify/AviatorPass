@@ -134,7 +134,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#CCA04C]">
               Live classroom
             </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {cls.title}
             </h1>
             <p className="mt-2 text-sm text-white/60">

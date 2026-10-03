@@ -249,7 +249,7 @@ function InAppZoomRoom({
 
   return (
     <div className={cn("classroom-stage text-white", className)}>
-      <div className="absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-4 py-4 sm:px-5">
+      <div className="absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-b from-black/80 via-black/35 to-transparent px-4 py-4 sm:px-5">
         <div>
           <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
