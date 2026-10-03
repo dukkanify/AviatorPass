@@ -2,7 +2,8 @@ import { getServerEnv } from "@/config/env";
 
 /**
  * Server-to-Server OAuth credentials for Zoom REST only
- * (create / update / delete / host ZAK).
+ * (create / update / delete). Host ZAK comes from the meeting start_url
+ * returned by those calls — this account does not expose user:read:zak.
  *
  * Never used to sign a Meeting SDK JWT. General App Client ID/Secret
  * (`ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`) stay on the JWT path.

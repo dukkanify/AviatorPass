@@ -166,6 +166,16 @@ export async function updateInstructorZoomMeeting(input: {
     throw error;
   }
 
+  let startUrl = input.existing.startUrl;
+  let remoteRaw: Record<string, unknown> = {};
+  try {
+    const remote = await getZoomUserMeeting(token, input.existing.zoomMeetingId, ownerId);
+    if (remote.start_url?.trim()) startUrl = remote.start_url;
+    remoteRaw = remote as unknown as Record<string, unknown>;
+  } catch {
+    // Keep the create start_url when Zoom does not return a refreshed one.
+  }
+
   const now = new Date().toISOString();
   writeClassesDb((d) => {
     const idx = d.zoomMeetings.findIndex((z) => z.id === input.existing.id);
@@ -173,12 +183,14 @@ export async function updateInstructorZoomMeeting(input: {
     const current = d.zoomMeetings[idx]!;
     d.zoomMeetings[idx] = {
       ...current,
+      startUrl,
       timezone,
       durationMinutes: input.liveClass.durationMinutes,
       startTime: input.liveClass.startsAt,
       updatedAt: now,
       raw: {
         ...current.raw,
+        ...remoteRaw,
         topic,
         agenda,
         start_time: input.liveClass.startsAt,

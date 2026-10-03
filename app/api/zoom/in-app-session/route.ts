@@ -41,8 +41,8 @@ export async function POST(request: Request) {
         accountEmail: getPlatformSettings().zoom.accountEmail,
       });
     }
-    // Role 1 starts the meeting and requires a live ZAK. Without one, join as
-    // a participant with the General App JWT (official Meeting SDK auth).
+    // Role 1 starts the meeting and needs the create/update start_url ZAK.
+    // Without one, join as a participant with the General App JWT.
     const role: 0 | 1 = body.isHost && zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
