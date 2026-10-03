@@ -27,6 +27,8 @@ import type {
 import type { UserProfile } from "@/types";
 import {
   cancelStandaloneZoomMeeting,
+  isLiveZoomConfigured,
+  isPlaceholderZoomMeeting,
   provisionStandaloneZoomMeeting,
 } from "@/services/classes/zoom-service";
 
@@ -129,7 +131,7 @@ async function finalizeConfirmedBooking(
   const settings = getBookingSettings();
   let next = booking;
 
-  if (settings.autoCreateZoom && !next.zoom) {
+  if ((settings.autoCreateZoom || isLiveZoomConfigured()) && isPlaceholderZoomMeeting(next.zoom)) {
     const zoom = await provisionZoomForBooking(next, actorId);
     writeBookingsDb((db) => {
       const idx = db.bookings.findIndex((b) => b.id === next.id);
@@ -184,13 +186,15 @@ export async function ensureBookingZoom(
 ): Promise<AppointmentBooking> {
   const existing = readBookingsDb().bookings.find((b) => b.id === bookingId);
   if (!existing) throw new BookingAccessError("Booking not found", 404);
-  if (existing.zoom) return normalizeBooking(existing);
+  if (existing.zoom && !isPlaceholderZoomMeeting(existing.zoom)) {
+    return normalizeBooking(existing);
+  }
   if (existing.status !== "confirmed" && existing.status !== "pending") {
     throw new BookingAccessError("Zoom is only available for active bookings", 400);
   }
 
   const settings = getBookingSettings();
-  if (!settings.autoCreateZoom && existing.status !== "confirmed") {
+  if (!settings.autoCreateZoom && !isLiveZoomConfigured() && existing.status !== "confirmed") {
     throw new BookingAccessError("Zoom not provisioned yet", 400);
   }
 
@@ -633,7 +637,11 @@ export async function updateBookingStatus(input: {
     d.bookings[idx] = next;
   });
 
-  if (input.status === "confirmed" && settings.autoCreateZoom && !next.zoom) {
+  if (
+    input.status === "confirmed" &&
+    (settings.autoCreateZoom || isLiveZoomConfigured()) &&
+    isPlaceholderZoomMeeting(next.zoom)
+  ) {
     next = await finalizeConfirmedBooking(next, input.user.id);
   } else if (input.status === "confirmed") {
     void sendPrivateSessionConfirmationEmails(next).catch(() => undefined);
@@ -684,7 +692,7 @@ export async function getBookingJoinInfo(input: {
     throw new BookingAccessError("Booking awaits admin confirmation before Zoom opens", 403);
   }
 
-  if (!booking.zoom) {
+  if (!booking.zoom || isPlaceholderZoomMeeting(booking.zoom)) {
     booking = await ensureBookingZoom(booking.id, input.user.id);
   }
 

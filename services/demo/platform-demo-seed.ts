@@ -26,6 +26,7 @@ import { ensureLearningSeeded } from "@/services/learning/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { ensureWrittenExamsSeeded } from "@/services/mock-exams/written-exam-service";
 import { writeBookingsDb, readBookingsDb } from "@/services/bookings/store";
+import { isLiveZoomConfigured, isPlaceholderZoomMeeting } from "@/services/classes/zoom-service";
 import { writePerformanceDb, readPerformanceDb } from "@/services/performance/store";
 import type { AppointmentBooking } from "@/types/bookings";
 import type { NotificationRecord } from "@/types/index";
@@ -222,10 +223,22 @@ function seedDemoNotifications(): void {
   });
 }
 
+function stripPlaceholderDemoZoom(): void {
+  if (!isLiveZoomConfigured()) return;
+  writeBookingsDb((draft) => {
+    draft.bookings = draft.bookings.map((booking) => {
+      if (!isPlaceholderZoomMeeting(booking.zoom)) return booking;
+      return { ...booking, zoom: null };
+    });
+  });
+}
+
 function seedDemoBookings(): void {
   const student = primaryStudent();
   const instructor = primaryInstructor();
   if (!student || !instructor) return;
+
+  stripPlaceholderDemoZoom();
 
   const db = readBookingsDb();
   const hasDemo = db.bookings.some(
@@ -258,15 +271,17 @@ function seedDemoBookings(): void {
       startsAt: upcomingStart.toISOString(),
       endsAt: upcomingEnd.toISOString(),
       status: "confirmed",
-      zoom: {
-        meetingNumber: "900100200",
-        joinUrl: "https://zoom.us/j/900100200",
-        startUrl: "https://zoom.us/s/900100200",
-        password: "demo",
-        waitingRoom: true,
-        providerMode: "mock",
-        provisionedAt: stamp,
-      },
+      zoom: isLiveZoomConfigured()
+        ? null
+        : {
+            meetingNumber: "900100200",
+            joinUrl: "https://zoom.us/j/900100200",
+            startUrl: "https://zoom.us/s/900100200",
+            password: "demo",
+            waitingRoom: true,
+            providerMode: "mock",
+            provisionedAt: stamp,
+          },
       guestEmail: null,
       guestFirstName: null,
       guestLastName: null,

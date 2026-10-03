@@ -114,6 +114,7 @@ export function MockExamExaminerView() {
                     startUrl={s.zoom.startUrl}
                     meetingNumber={s.zoom.meetingNumber}
                     password={s.zoom.password}
+                    providerMode={s.zoom.providerMode}
                     isHost
                     title={s.examTypeName}
                     leaveHref="/instructor/mock-exams"
