@@ -15,11 +15,15 @@ import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
+import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
 import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { readMockExamsDb, writeMockExamsDb } from "@/services/mock-exams/store";
 import { sanitizeJoinInfoForViewer } from "@/services/zoom/policy";
 import { getIntegrationByUserId } from "@/services/zoom/store";
 import { ClassValidationError } from "@/services/classes/validation";
 import type { LiveClass, MeetingType, ZoomMeetingRecord } from "@/types/classes";
+
+const START_URL_REFRESH_MS = 90 * 60_000;
 
 export function isZoomConfigured(): boolean {
   return zoomCredsPresent();
@@ -540,6 +544,103 @@ export function getZoomMeetingByNumber(
   return readClassesDb().zoomMeetings.find((z) => z.zoomMeetingId === id) ?? null;
 }
 
+export type StoredZoomSession = {
+  meetingNumber: string;
+  startUrl: string | null;
+  hostEmail?: string | null;
+  hostId?: string | null;
+  oauthUserId?: string | null;
+  updatedAt?: string | null;
+  liveClassId?: string | null;
+};
+
+function meetingNumberDigits(value: string | null | undefined): string {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+export function findStoredZoomSession(
+  meetingNumber: string | null | undefined,
+): StoredZoomSession | null {
+  const id = meetingNumberDigits(meetingNumber);
+  if (!id) return null;
+
+  const classMeeting = getZoomMeetingByNumber(id);
+  if (classMeeting) {
+    return {
+      meetingNumber: classMeeting.zoomMeetingId,
+      startUrl: classMeeting.startUrl,
+      hostEmail: classMeeting.hostEmail,
+      hostId: classMeeting.hostId,
+      oauthUserId: classMeeting.oauthUserId,
+      updatedAt: classMeeting.updatedAt,
+      liveClassId: classMeeting.liveClassId,
+    };
+  }
+
+  const booking = readBookingsDb().bookings.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (booking?.zoom) {
+    return {
+      meetingNumber: booking.zoom.meetingNumber,
+      startUrl: booking.zoom.startUrl,
+      updatedAt: booking.zoom.provisionedAt || booking.updatedAt,
+    };
+  }
+
+  const session = readMockExamsDb().sessions.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (session?.zoom) {
+    return {
+      meetingNumber: session.zoom.meetingNumber,
+      startUrl: session.zoom.startUrl,
+      updatedAt: session.zoom.provisionedAt || session.updatedAt,
+    };
+  }
+
+  return null;
+}
+
+function persistRefreshedStartUrl(meetingNumber: string, startUrl: string): void {
+  const id = meetingNumberDigits(meetingNumber);
+  if (!id || !startUrl.trim()) return;
+  const now = new Date().toISOString();
+
+  writeClassesDb((db) => {
+    const meeting = db.zoomMeetings.find((item) => item.zoomMeetingId === id);
+    if (!meeting) return;
+    meeting.startUrl = startUrl;
+    meeting.updatedAt = now;
+  });
+
+  writeBookingsDb((db) => {
+    const booking = db.bookings.find(
+      (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+    );
+    if (!booking?.zoom) return;
+    booking.zoom = { ...booking.zoom, startUrl, provisionedAt: now };
+    booking.updatedAt = now;
+  });
+
+  writeMockExamsDb((db) => {
+    const row = db.sessions.find((item) => meetingNumberDigits(item.zoom?.meetingNumber) === id);
+    if (!row?.zoom) return;
+    row.zoom = { ...row.zoom, startUrl, provisionedAt: now };
+    row.updatedAt = now;
+  });
+}
+
+export function startUrlNeedsRefresh(
+  session: { startUrl?: string | null; updatedAt?: string | null } | null | undefined,
+): boolean {
+  if (!session) return true;
+  if (!zakFromStartUrl(session.startUrl)) return true;
+  const issued = Date.parse(session.updatedAt ?? "");
+  if (!Number.isFinite(issued)) return false;
+  return Date.now() - issued > START_URL_REFRESH_MS;
+}
+
 /** Safe public join info — never includes start_url for non-hosts */
 export function getPublicJoinInfo(liveClassId: string, isHost: boolean) {
   return sanitizeJoinInfoForViewer(getZoomMeetingByClassId(liveClassId), isHost);
@@ -670,6 +771,8 @@ export type FetchZoomHostZakInput = {
   accountEmail?: string | null;
   instructorUserId?: string | null;
   meetingNumber?: string | null;
+  /** Host start_url already issued to this instructor (bookings / mock exams). */
+  startUrl?: string | null;
 };
 
 export type ZoomHostZakSource = "meeting-start-url";
@@ -684,7 +787,7 @@ export type ZoomHostZakProbe = {
   usedInstructorOAuth: boolean;
 };
 
-/** Refresh start_url after create/update only — never on join. */
+/** GET start_url after create/update, or on host join when the stored ZAK is missing/stale. */
 async function fetchZoomMeetingStartUrl(
   accessToken: string,
   meetingId: string,
@@ -703,43 +806,76 @@ async function fetchZoomMeetingStartUrl(
   }
 }
 
-function hostZakFromStoredStartUrl(
-  meeting: ZoomMeetingRecord | null,
-  instructorUserId?: string | null,
-): { zak: string | null } & ZoomHostZakProbe {
-  const zak = zakFromStartUrl(meeting?.startUrl);
-  const usedInstructorOAuth = Boolean(
-    instructorUserId && meeting?.oauthUserId && meeting.oauthUserId === instructorUserId,
-  );
-  return {
-    zak,
-    ready: Boolean(zak),
-    hostUser: meeting?.hostEmail || meeting?.hostId || (zak ? "meeting-start-url" : null),
-    error: zak
-      ? null
-      : meeting
-        ? "Stored Zoom start_url has no host ZAK"
-        : "No stored Zoom meeting start_url",
-    source: "meeting-start-url",
-    scopes: getZoomS2STokenScopes(),
-    hasZakScope: false,
-    usedInstructorOAuth,
-  };
+export async function refreshStoredZoomStartUrl(
+  meetingNumber: string,
+): Promise<StoredZoomSession | null> {
+  const session = findStoredZoomSession(meetingNumber);
+  if (!session || !zoomCredsPresent()) return session;
+  const token = await getZoomAccessToken();
+  if (!token) return session;
+
+  await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(session.meetingNumber)}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  }).catch((error) => console.error("Zoom start_url touch failed", error));
+
+  const refreshed = await fetchZoomMeetingStartUrl(token, session.meetingNumber);
+  if (refreshed && zakFromStartUrl(refreshed)) {
+    persistRefreshedStartUrl(session.meetingNumber, refreshed);
+    return findStoredZoomSession(session.meetingNumber);
+  }
+  return session;
 }
 
 /**
  * Host ZAK for Meeting SDK role 1.
  * Uses the start_url returned when the meeting was created or updated.
  * This Zoom account does not grant user:read:zak, so join never calls the token API.
+ * If that start_url has no ZAK or is older than 90 minutes, refresh it on host join.
  */
 export async function resolveZoomHostZak(
   input: FetchZoomHostZakInput = {},
 ): Promise<{ zak: string | null } & ZoomHostZakProbe> {
   if (input.meetingNumber) {
-    return hostZakFromStoredStartUrl(
-      getZoomMeetingByNumber(input.meetingNumber),
-      input.instructorUserId,
+    let session = findStoredZoomSession(input.meetingNumber);
+    if (!session && input.startUrl) {
+      session = {
+        meetingNumber: meetingNumberDigits(input.meetingNumber),
+        startUrl: input.startUrl,
+      };
+    }
+    if (session && startUrlNeedsRefresh(session) && zoomCredsPresent()) {
+      session = (await refreshStoredZoomStartUrl(session.meetingNumber)) ?? session;
+    }
+    const classMeeting = getZoomMeetingByNumber(input.meetingNumber);
+    const zak = zakFromStartUrl(session?.startUrl ?? input.startUrl);
+    const usedInstructorOAuth = Boolean(
+      input.instructorUserId &&
+      classMeeting?.oauthUserId &&
+      classMeeting.oauthUserId === input.instructorUserId,
     );
+    return {
+      zak,
+      ready: Boolean(zak),
+      hostUser:
+        session?.hostEmail ||
+        session?.hostId ||
+        classMeeting?.hostEmail ||
+        (zak ? "meeting-start-url" : null),
+      error: zak
+        ? null
+        : session || input.startUrl
+          ? "Stored Zoom start_url has no host ZAK"
+          : "No stored Zoom meeting start_url",
+      source: "meeting-start-url",
+      scopes: getZoomS2STokenScopes(),
+      hasZakScope: false,
+      usedInstructorOAuth,
+    };
   }
 
   const settingsEmail = input.accountEmail ?? getPlatformSettings().zoom.accountEmail;

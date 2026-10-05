@@ -19,8 +19,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
   const result = await processEmailQueue(15);
-  logEmailEvent("webhook_trigger", { source: "cron.email-queue", ...result });
-  return NextResponse.json({ success: true, data: result, error: null });
+  const { upgradeUpcomingPlaceholderMeetings } = await import("@/services/zoom/live-upgrade");
+  const zoom = await upgradeUpcomingPlaceholderMeetings().catch((error) => {
+    console.error("[cron] upcoming Zoom upgrade failed", error);
+    return { upgraded: 0, failed: 1 };
+  });
+  logEmailEvent("webhook_trigger", { source: "cron.email-queue", ...result, zoom });
+  return NextResponse.json({ success: true, data: { ...result, zoom }, error: null });
 }
 
 export async function POST(request: Request) {

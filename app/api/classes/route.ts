@@ -42,12 +42,19 @@ export async function GET(request: Request) {
       );
       const all = listLiveClasses({ ...filters, pageSize: 200 });
       const data = all.data.filter((c) => ids.has(c.id));
+      void import("@/services/zoom/live-upgrade")
+        .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
+        .catch((error) => console.error("[classes] upcoming Zoom upgrade failed", error));
       return NextResponse.json({
         success: true,
         data: { ...all, data, total: data.length },
         error: null,
       });
     }
+
+    void import("@/services/zoom/live-upgrade")
+      .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
+      .catch((error) => console.error("[classes] upcoming Zoom upgrade failed", error));
 
     return NextResponse.json({
       success: true,

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
         meetingNumber,
         instructorUserId: user.id,
         accountEmail: getPlatformSettings().zoom.accountEmail,
+        startUrl: body.startUrl,
       });
     }
     // Role 1 starts the meeting and needs the create/update start_url ZAK.

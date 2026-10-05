@@ -291,4 +291,106 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
       "stored-create-zak",
     );
   });
+
+  it("uses a booking start_url when the class store has no meeting", async () => {
+    const { writeBookingsDb } = await import("@/services/bookings/store");
+    const snapshot = structuredClone((await import("@/services/bookings/store")).readBookingsDb());
+    try {
+      writeBookingsDb((db) => {
+        db.bookings = [
+          {
+            id: "bk-host-1",
+            studentId: "student-1",
+            instructorId: "instructor-app-user",
+            sessionTypeId: "st_coaching",
+            sessionTypeName: "Private Coaching",
+            title: "Private Session",
+            notes: "",
+            startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+            endsAt: new Date(Date.now() + 120 * 60_000).toISOString(),
+            status: "confirmed",
+            zoom: {
+              meetingNumber: "82122854800",
+              joinUrl: "https://us02web.zoom.us/j/82122854800",
+              startUrl: "https://us02web.zoom.us/s/82122854800?zak=booking-start-zak",
+              password: "pass",
+              waitingRoom: true,
+              providerMode: "zoom",
+              provisionedAt: new Date().toISOString(),
+            },
+            guestEmail: null,
+            guestFirstName: null,
+            guestLastName: null,
+            guestVerified: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            cancelledAt: null,
+            cancelledBy: null,
+            cancelReason: null,
+            priceAmountMinor: 0,
+            currency: "KWD",
+            paymentRequired: false,
+            paymentOrderId: null,
+            paidAt: null,
+          },
+        ];
+      });
+      const resolved = await resolveZoomHostZak({ meetingNumber: "82122854800" });
+      expect(resolved.zak).toBe("booking-start-zak");
+      expect(resolved.ready).toBe(true);
+    } finally {
+      writeBookingsDb((db) => {
+        Object.assign(db, snapshot);
+      });
+    }
+  });
+
+  it("uses the instructor start_url passed from the join room", async () => {
+    const resolved = await resolveZoomHostZak({
+      meetingNumber: "82122854800",
+      startUrl: "https://us02web.zoom.us/s/82122854800?zak=client-start-zak",
+    });
+    expect(resolved.zak).toBe("client-start-zak");
+    expect(resolved.ready).toBe(true);
+  });
+
+  it("refreshes a missing start_url ZAK on host join without calling the token API", async () => {
+    s2sEnv();
+    storedMeeting("https://us02web.zoom.us/s/82122854800");
+    writeClassesDb((db) => {
+      const meeting = db.zoomMeetings.find((item) => item.zoomMeetingId === "82122854800");
+      if (meeting) meeting.updatedAt = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
+    });
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      calls.push(`${method} ${url}`);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "s2s-token",
+            expires_in: 3600,
+            scope: "meeting:write:meeting:admin",
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "PATCH") return new Response(null, { status: 204 });
+      if (url.includes("/meetings/82122854800")) {
+        return new Response(
+          JSON.stringify({
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=refreshed-join-zak",
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const resolved = await resolveZoomHostZak({ meetingNumber: "82122854800" });
+    expect(resolved.zak).toBe("refreshed-join-zak");
+    expect(calls.some((url) => url.includes("/users/") && url.includes("/token"))).toBe(false);
+    expect(calls.some((url) => url.startsWith("PATCH "))).toBe(true);
+  });
 });

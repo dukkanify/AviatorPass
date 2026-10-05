@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           ready: !failed,
-          status: snapshot.status,
+          status: failed ? "degraded" : "ok",
           timestamp: snapshot.timestamp,
         },
         { status: failed ? 503 : 200 },

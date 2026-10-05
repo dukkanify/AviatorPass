@@ -16,12 +16,19 @@ export async function GET() {
     const user = await requirePermission(PERMISSIONS.BOOKINGS_OWN);
     if (user.role === ROLES.ADMIN || user.role === ROLES.SUPER_ADMIN) {
       await requirePermission(PERMISSIONS.BOOKINGS_MANAGE);
+      void import("@/services/zoom/live-upgrade")
+        .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
+        .catch((error) => console.error("[bookings] upcoming Zoom upgrade failed", error));
       return NextResponse.json({
         success: true,
         data: listAllBookings(),
         error: null,
       });
     }
+    void import("@/services/zoom/live-upgrade")
+      .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
+      .catch((error) => console.error("[bookings] upcoming Zoom upgrade failed", error));
+
     return NextResponse.json({
       success: true,
       data: listMyBookings(user),
