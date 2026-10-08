@@ -143,7 +143,14 @@ export function listAtplCourses() {
 
 function officialPackageCourses() {
   const wanted = new Set<string>(ATPL_PACKAGE_LMS_COURSE_CODES);
-  return listAtplCourses().filter((course) => wanted.has(course.code));
+  const wantedEasa = new Set(ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject) => subject.code));
+  const courses = listAtplCourses();
+  const byCode = courses.filter((course) => wanted.has(course.code));
+  if (byCode.length) return byCode;
+  return courses.filter((course) => {
+    const easa = easaFromAtplCourse(course);
+    return Boolean(easa && wantedEasa.has(easa));
+  });
 }
 
 function studentHasAtplEnrollment(studentId: string): boolean {
@@ -799,6 +806,35 @@ function isPaidAtplPackageOrder(order: {
   return purchaseFirst || atplNamed || order.metadata?.sku === "ATPL-PACKAGE";
 }
 
+function orderEmail(order: { studentEmail?: string | null; billingEmail?: string | null }) {
+  return (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
+}
+
+function bindPaidOrderToStudent(
+  orderId: string,
+  live: { studentId: string; email: string; name?: string },
+  fromStudentId?: string | null,
+) {
+  const from = fromStudentId || "guest";
+  if (!live.studentId || from === live.studentId) return;
+  writePaymentsDb((db) => {
+    const order = db.orders.find((item) => item.id === orderId);
+    if (!order || order.studentId === live.studentId) return;
+    order.studentId = live.studentId;
+    order.studentEmail = live.email || order.studentEmail;
+    if (live.name) order.studentName = live.name;
+    order.metadata = { ...order.metadata, reboundFromStudentId: from };
+    order.updatedAt = nowIso();
+  });
+  if (from && from !== "guest") {
+    writeCoursesDb((db) => {
+      for (const enrollment of db.enrollments) {
+        if (enrollment.studentId === from) enrollment.studentId = live.studentId;
+      }
+    });
+  }
+}
+
 /** Rebind paid ATPL orders/enrollments onto the live account for the billing email. */
 export function rebindPaidPackageOrdersToLiveUsers(): number {
   const usersByEmail = new Map(
@@ -807,14 +843,12 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   const pending: Array<{ id: string; from: string; to: string; email: string; name: string }> = [];
   for (const order of readPaymentsDb().orders) {
     if (!isPaidAtplPackageOrder(order)) continue;
-    const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
+    const email = orderEmail(order);
     const user = email ? usersByEmail.get(email) : undefined;
-    if (!user || !order.studentId || order.studentId === user.id || order.studentId === "guest") {
-      continue;
-    }
+    if (!user || order.studentId === user.id) continue;
     pending.push({
       id: order.id,
-      from: order.studentId,
+      from: order.studentId || "guest",
       to: user.id,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`.trim() || user.email,
@@ -1040,18 +1074,29 @@ export async function hydratePaidAtplStudentAccess(
   const pinned = orderId
     ? (readPaymentsDb().orders.find((order) => order.id === orderId) ?? null)
     : null;
-  const order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
-  if (
-    order &&
-    order.studentId === live.studentId &&
-    studentHasOfficialPackageCoverage(live.studentId)
-  ) {
+  let order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
+  if (order && order.studentId !== live.studentId) {
+    const liveUser = findUserById(live.studentId);
+    bindPaidOrderToStudent(
+      order.id,
+      {
+        studentId: live.studentId,
+        email: live.email,
+        name: liveUser
+          ? `${liveUser.firstName} ${liveUser.lastName}`.trim() || liveUser.email
+          : undefined,
+      },
+      order.studentId,
+    );
+    order = readPaymentsDb().orders.find((row) => row.id === order!.id) ?? order;
+  }
+  if (order && studentHasOfficialPackageCoverage(live.studentId)) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
     await notifyInstructorAssignmentPendingOps(order);
     return;
   }
   ensureCoursesSeeded();
-  await ensureAtplPackageSubjectCoverage(live.studentId, live.email, pinned);
+  await ensureAtplPackageSubjectCoverage(live.studentId, live.email, order);
   if (order) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
     await notifyInstructorAssignmentPendingOps(order);

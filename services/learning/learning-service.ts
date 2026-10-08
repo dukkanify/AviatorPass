@@ -3,8 +3,11 @@
  */
 
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
-import { getCourseById, getCourseDetail, listCourses } from "@/services/courses/course-service";
+import { getCourseById, getCourseDetail } from "@/services/courses/course-service";
+import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
+import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
+import { readCoursesDb } from "@/services/courses/store";
 import { listLiveClasses } from "@/services/classes/class-service";
 import { readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
@@ -36,6 +39,82 @@ import type { CourseListItem } from "@/types/courses";
 
 export type { LearningCalendarItem };
 
+function emptyCourseCounts(): CourseListItem["counts"] {
+  return { modules: 0, lessons: 0, resources: 0, enrollments: 0, activeEnrollments: 0 };
+}
+
+function asEnrolledListItem(course: {
+  id: string;
+  title: string;
+  shortDescription?: string | null;
+  fullDescription?: string | null;
+  code: string;
+  categoryId?: string | null;
+  thumbnailUrl?: string | null;
+  coverImageUrl?: string | null;
+  previewVideoUrl?: string | null;
+  difficulty?: CourseListItem["difficulty"];
+  language?: string;
+  estimatedDurationMinutes?: number;
+  enrollmentMode?: CourseListItem["enrollmentMode"];
+  deliveryType?: CourseListItem["deliveryType"];
+  enrollmentOpen?: boolean;
+  hidden?: boolean;
+  featured?: boolean;
+  displayOrder?: number;
+  status?: CourseListItem["status"];
+  scheduledPublishAt?: string | null;
+  primaryInstructorId?: string | null;
+  priceAmount?: number | null;
+  currency?: string | null;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  createdById?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  publishedAt?: string | null;
+  archivedAt?: string | null;
+}): CourseListItem {
+  const stamp = course.createdAt ?? course.updatedAt ?? new Date().toISOString();
+  return {
+    id: course.id,
+    title: officialCourseDisplayTitle(course),
+    shortDescription: course.shortDescription ?? "",
+    fullDescription: course.fullDescription ?? course.shortDescription ?? "",
+    code: course.code,
+    categoryId: course.categoryId ?? null,
+    thumbnailUrl: course.thumbnailUrl ?? "/images/hero-aviation.svg",
+    coverImageUrl: course.coverImageUrl ?? "/images/hero-aviation.svg",
+    previewVideoUrl: course.previewVideoUrl ?? null,
+    difficulty: course.difficulty ?? "advanced",
+    language: course.language ?? "en",
+    estimatedDurationMinutes: course.estimatedDurationMinutes ?? 0,
+    enrollmentMode: course.enrollmentMode ?? "open",
+    deliveryType: course.deliveryType ?? "recorded",
+    enrollmentOpen: course.enrollmentOpen ?? true,
+    hidden: course.hidden ?? false,
+    featured: course.featured ?? false,
+    displayOrder: course.displayOrder ?? 0,
+    status: course.status ?? "published",
+    scheduledPublishAt: course.scheduledPublishAt ?? null,
+    primaryInstructorId: course.primaryInstructorId ?? null,
+    priceAmount: course.priceAmount ?? null,
+    currency: course.currency ?? null,
+    tags: course.tags ?? ["atpl"],
+    metadata: course.metadata ?? {},
+    createdById: course.createdById ?? null,
+    createdAt: stamp,
+    updatedAt: course.updatedAt ?? stamp,
+    deletedAt: course.deletedAt ?? null,
+    publishedAt: course.publishedAt ?? stamp,
+    archivedAt: course.archivedAt ?? null,
+    categoryName: null,
+    primaryInstructorName: null,
+    counts: emptyCourseCounts(),
+  };
+}
+
 export function listMyCourses(
   studentId: string,
   options?: {
@@ -49,12 +128,10 @@ export function listMyCourses(
   const enrollments = listStudentEnrollments(studentId).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
-  const all = listCourses({ pageSize: 500 }).data;
-  const byId = new Map(all.map((c) => [c.id, c]));
   let rows: Array<CourseListItem & { learning: CourseLearningState | null }> = [];
 
   for (const e of enrollments) {
-    const course = byId.get(e.courseId);
+    const course = getCourseById(e.courseId, true);
     if (!course) continue;
     let learning: CourseLearningState | null = null;
     try {
@@ -62,7 +139,28 @@ export function listMyCourses(
     } catch {
       learning = null;
     }
-    rows.push({ ...course, learning });
+    rows.push({ ...asEnrolledListItem(course), learning });
+  }
+
+  if (rows.length === 0) {
+    const packageOwned = enrollments.some((row) => /ATPL|package/i.test(String(row.notes ?? "")));
+    if (packageOwned) {
+      const wanted = new Set<string>(ATPL_PACKAGE_LMS_COURSE_CODES);
+      const packageCourses = readCoursesDb().courses.filter(
+        (course) => !course.deletedAt && wanted.has(course.code),
+      );
+      for (const course of packageCourses) {
+        const detail = getCourseById(course.id, true);
+        if (!detail) continue;
+        let learning: CourseLearningState | null = null;
+        try {
+          learning = getCourseLearningState(studentId, course.id);
+        } catch {
+          learning = null;
+        }
+        rows.push({ ...asEnrolledListItem(detail), learning });
+      }
+    }
   }
 
   if (options?.favoritedOnly) {

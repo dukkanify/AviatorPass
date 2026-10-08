@@ -9,7 +9,11 @@ import { learningErrorResponse } from "@/app/api/learning/_utils";
 export async function GET(request: Request) {
   try {
     const user = await requirePermission(PERMISSIONS.COURSES_ENROLLED);
-    await hydratePaidAtplStudentAccess(user.id, user.email);
+    try {
+      await hydratePaidAtplStudentAccess(user.id, user.email);
+    } catch (error) {
+      console.error("[learning] hydratePaidAtplStudentAccess failed", error);
+    }
     const { searchParams } = new URL(request.url);
     const data = listMyCourses(user.id, {
       q: searchParams.get("q") ?? undefined,
