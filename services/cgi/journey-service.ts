@@ -817,14 +817,15 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
 }
 
 function latestPaidPackageOrder(studentId: string, email: string) {
+  ensurePaymentsSeeded();
   const needle = email.trim().toLowerCase();
   return (
     readPaymentsDb()
       .orders.filter((order) => {
         const identity =
           order.studentId === studentId ||
-          order.studentEmail?.toLowerCase() === needle ||
-          order.billingEmail?.toLowerCase() === needle;
+          order.studentEmail?.trim().toLowerCase() === needle ||
+          order.billingEmail?.trim().toLowerCase() === needle;
         if (!identity) return false;
         if (!isPaidAtplPackageOrder(order)) return false;
       })
@@ -985,8 +986,15 @@ function latestPaidPackageSchedule(studentId: string, email: string): AtplPackag
 }
 
 export function getStudentAtplPackageSchedule(studentId: string, email: string) {
+  ensurePaymentsSeeded();
   rebindPaidPackageOrdersToLiveUsers();
   return latestPaidPackageSchedule(studentId, email);
+}
+
+export async function hydratePaidAtplStudentAccess(studentId: string, email: string) {
+  ensurePaymentsSeeded();
+  rebindPaidPackageOrdersToLiveUsers();
+  await ensureAtplPackageSubjectCoverage(studentId, email);
 }
 
 async function ensureAtplPackageSubjectCoverage(studentId: string, email: string): Promise<void> {
