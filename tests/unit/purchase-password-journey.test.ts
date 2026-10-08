@@ -278,5 +278,13 @@ describe("purchase password and package confirmation journey", () => {
     );
     expect(admin).toContain("user-password");
     expect(admin).toContain("Leave blank to keep current");
+
+    const login = readFileSync(
+      path.join(process.cwd(), "features/auth/components/login-form.tsx"),
+      "utf8",
+    );
+    expect(login).toContain("Show password");
+    expect(login).toContain("Hide password");
+    expect(login).toContain('showPassword ? "text" : "password"');
   });
 });
