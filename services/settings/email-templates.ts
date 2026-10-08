@@ -15,6 +15,15 @@ export interface EmailTemplatePayload {
   bodyHtml: string;
 }
 
+/** Absolute HTTPS URL for brand files used inside outbound HTML email. */
+export function emailBrandAssetUrl(pathOrUrl: string, site: string): string {
+  const origin = (site || "https://www.aviatorpass.com").replace(/\/$/, "");
+  const rewritten = rewriteLegacyPublicHost((pathOrUrl || "").trim());
+  if (/^https?:\/\//i.test(rewritten)) return rewritten;
+  const path = rewritten.startsWith("/") ? rewritten : `/${rewritten}`;
+  return `${origin}${path}`;
+}
+
 export function renderBrandedEmail(payload: EmailTemplatePayload): {
   subject: string;
   html: string;
@@ -25,9 +34,9 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
   const general = s.general;
   const primary = brand.primaryColor;
   const accent = brand.accentColor;
-  const logo = brand.logoUrl.startsWith("http")
-    ? brand.logoUrl
-    : `${general.websiteUrl.replace(/\/$/, "")}${brand.logoUrl}`;
+  const site =
+    rewriteLegacyPublicHost(general.websiteUrl).replace(/\/$/, "") || "https://www.aviatorpass.com";
+  const logo = emailBrandAssetUrl(brand.darkLogoUrl || brand.logoUrl, site);
 
   const social = [
     general.socialLinks.instagram
@@ -51,8 +60,6 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
 
   const locations = general.primaryLocations.join(" · ");
 
-  const site =
-    rewriteLegacyPublicHost(general.websiteUrl).replace(/\/$/, "") || "https://www.aviatorpass.com";
   const contactEmail = remapAtplpassMailbox(general.contactEmail);
   const supportEmail = remapAtplpassMailbox(general.supportEmail);
   const html = `<!DOCTYPE html>
@@ -85,7 +92,7 @@ export function renderBrandedEmail(payload: EmailTemplatePayload): {
           <tr>
             <td class="ap-pad" style="background:${primary};padding:24px 32px;">
               <a href="${site}" style="text-decoration:none;">
-                <img src="${logo}" alt="${general.platformName}" height="40" style="display:block;height:40px;width:auto;border:0;" />
+                <img src="${logo}" alt="${general.platformName}" width="220" height="40" style="display:block;height:40px;width:220px;border:0;outline:none;text-decoration:none;" />
               </a>
             </td>
           </tr>
