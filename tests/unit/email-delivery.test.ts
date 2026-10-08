@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ROLES } from "@/constants/roles";
@@ -19,6 +21,7 @@ import { resetAutomationStoreForTests } from "@/services/email/automation-store"
 import { notificationTypeToEmailEvent } from "@/services/notifications/notification-service";
 import {
   certificateIssuedEmailTemplate,
+  emailBrandAssetUrl,
   enrollmentEmailTemplate,
   otpEmailTemplate,
   purchaseConfirmationEmailTemplate,
@@ -59,7 +62,8 @@ describe("email delivery", () => {
   it("renders branded templates with production URL and logo", () => {
     const welcome = welcomeEmailTemplate({ firstName: "Lina" });
     expect(welcome.html).toContain("Welcome to AviatorPass");
-    expect(welcome.html).toContain("/brand/logo.png");
+    expect(welcome.html).toContain("https://www.aviatorpass.com/brand/logo-dark.png");
+    expect(welcome.html).not.toMatch(/src="\/brand\//);
     expect(welcome.html).toContain("https://www.aviatorpass.com");
     expect(welcome.html).toContain("/legal/terms");
     expect(welcome.html).toContain("/legal/privacy");
@@ -70,6 +74,19 @@ describe("email delivery", () => {
     expect(certificateIssuedEmailTemplate({ title: "ATPL" }).html).toContain("Certificate issued");
     const branded = renderBrandedEmail({ title: "Test", bodyHtml: "<p>Hi</p>" });
     expect(branded.html).toContain("prefers-color-scheme");
+  });
+
+  it("builds an absolute email logo URL and lets mail clients load /brand assets", () => {
+    expect(emailBrandAssetUrl("/brand/logo-dark.png?v=1", "https://www.aviatorpass.com")).toBe(
+      "https://www.aviatorpass.com/brand/logo-dark.png?v=1",
+    );
+    expect(
+      emailBrandAssetUrl("https://cdn.example.com/logo.png", "https://www.aviatorpass.com"),
+    ).toBe("https://cdn.example.com/logo.png");
+    const config = readFileSync(path.join(process.cwd(), "next.config.ts"), "utf8");
+    const brandBlock = config.slice(config.indexOf('source: "/brand/:path*"'));
+    expect(brandBlock).toContain('Cross-Origin-Resource-Policy", value: "cross-origin"');
+    expect(brandBlock).toContain('Access-Control-Allow-Origin", value: "*"');
   });
 
   it("stores failed Resend-like errors on the retry queue", async () => {
