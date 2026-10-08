@@ -204,7 +204,7 @@ function buildHealthSnapshot(opts?: {
   });
 
   const emailConfigured = isEmailDeliveryConfigured();
-  const lastFailed = listOutboundEmails(20).find((m) => m.mode === "failed");
+  const lastFailed = deep ? listOutboundEmails(20).find((m) => m.mode === "failed") : undefined;
   checks.push(
     evaluateEmailQueueHealth({
       emailConfigured,
@@ -415,9 +415,12 @@ async function inspectResendForHealth(senderEmail: string): Promise<ResendHealth
 }
 
 export async function getHealthSnapshotAsync(opts?: { deep?: boolean }): Promise<HealthSnapshot> {
+  if (!opts?.deep) {
+    return getHealthSnapshot({ deep: false });
+  }
   const settings = getPlatformSettings();
   const resend = await inspectResendForHealth(settings.email.senderEmail);
-  return getHealthSnapshot({ ...opts, resend });
+  return getHealthSnapshot({ deep: true, resend });
 }
 
 export function getProductionChecklist(): Array<{

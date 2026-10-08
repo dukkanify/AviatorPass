@@ -218,7 +218,6 @@ export function getClassStats(
     );
     rows = rows.filter((c) => classIds.has(c.id));
   }
-  const items = rows.map(toListItem);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
@@ -229,19 +228,38 @@ export function getClassStats(
   const marked = attendance.filter((a) => a.status !== "unknown");
   const presentish = attendance.filter((a) => ["present", "late"].includes(a.status)).length;
   const attendanceRate = marked.length === 0 ? 0 : Math.round((presentish / marked.length) * 100);
+  let today = 0;
+  let upcoming = 0;
+  let liveNow = 0;
+  let completed = 0;
+  let cancelled = 0;
+  for (const cls of rows) {
+    const runtime = computeRuntimeStatus(cls);
+    if (cls.status === "cancelled") cancelled += 1;
+    if (cls.status === "completed" || runtime === "completed") completed += 1;
+    if (runtime === "upcoming") upcoming += 1;
+    if (runtime === "live_now") liveNow += 1;
+    const start = Date.parse(cls.startsAt);
+    if (
+      start >= todayStart.getTime() &&
+      start <= todayEnd.getTime() &&
+      cls.status !== "cancelled"
+    ) {
+      today += 1;
+    }
+  }
 
   return {
-    today: items.filter((c) => {
-      const t = Date.parse(c.startsAt);
-      return t >= todayStart.getTime() && t <= todayEnd.getTime() && c.status !== "cancelled";
-    }).length,
-    upcoming: items.filter((c) => c.computedStatus === "upcoming").length,
-    liveNow: items.filter((c) => c.computedStatus === "live_now").length,
-    completed: items.filter((c) => c.status === "completed" || c.computedStatus === "completed")
-      .length,
-    cancelled: items.filter((c) => c.status === "cancelled").length,
+    today,
+    upcoming,
+    liveNow,
+    completed,
+    cancelled,
     attendanceRate,
-    recentlyUpdated: [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5),
+    recentlyUpdated: [...rows]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 5)
+      .map(toListItem),
   };
 }
 

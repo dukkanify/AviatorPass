@@ -9,11 +9,8 @@ import { paymentErrorResponse } from "@/app/api/payments/_utils";
 
 export async function GET() {
   try {
-    ensurePaymentsSeeded();
     const user = await requireAuth();
-    const rows = canManageFinance(user)
-      ? listRefunds()
-      : listRefunds({ studentId: user.id });
+    const rows = canManageFinance(user) ? listRefunds() : listRefunds({ studentId: user.id });
     return NextResponse.json({ success: true, data: rows, error: null });
   } catch (error) {
     return paymentErrorResponse(error);

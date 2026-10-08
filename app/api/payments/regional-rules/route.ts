@@ -16,7 +16,6 @@ import type { BnplProvider } from "@/types/payments";
 
 export async function GET(request: Request) {
   try {
-    ensurePaymentsSeeded();
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const country = searchParams.get("country") ?? user.countryCode ?? "XX";

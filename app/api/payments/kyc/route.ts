@@ -13,7 +13,6 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 
 export async function GET() {
   try {
-    ensurePaymentsSeeded();
     const user = await requireAuth();
     const docs = canManageFinance(user) ? listKycDocuments() : listKycDocuments(user.id);
     return NextResponse.json({ success: true, data: docs, error: null });
