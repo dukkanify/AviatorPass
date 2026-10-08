@@ -287,15 +287,22 @@ export const adminCreateUserSchema = z.object({
   role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]),
 });
 
-export const adminUpdateUserSchema = z.object({
-  firstName: nameSchema.optional(),
-  lastName: nameSchema.optional(),
-  phone: phoneSchema,
-  countryCode: z.string().length(2).optional().or(z.literal("")),
-  nationality: z.string().trim().max(80).optional().or(z.literal("")),
-  status: z.enum(["pending", "active", "inactive", "suspended"]).optional(),
-  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]).optional(),
-});
+export const adminUpdateUserSchema = z
+  .object({
+    firstName: nameSchema.optional(),
+    lastName: nameSchema.optional(),
+    phone: phoneSchema,
+    countryCode: z.string().length(2).optional().or(z.literal("")),
+    nationality: z.string().trim().max(80).optional().or(z.literal("")),
+    status: z.enum(["pending", "active", "inactive", "suspended"]).optional(),
+    role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]).optional(),
+    password: passwordSchema.optional().or(z.literal("")),
+    confirmPassword: z.string().optional().or(z.literal("")),
+  })
+  .refine((data) => !data.password || data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;

@@ -10,6 +10,11 @@ export const ATPL_PACKAGE_MIN_NOTICE_MS = ATPL_PACKAGE_MIN_NOTICE_HOURS * 60 * 6
 
 export const ATPL_PENDING_INSTRUCTOR_ASSIGNMENT = "Pending Instructor Assignment";
 
+export const ATPL_INSTRUCTOR_CONFIRM_NOTICE =
+  "We will confirm your instructor as soon as possible.";
+
+export const ATPL_PACKAGE_CONFIRMED_HEADING = "Package confirmed";
+
 export const ATPL_PACKAGE_TKI_NOTICE =
   "The requested date and time are provisional and subject to final coordination with the Chief Theoretical Knowledge Instructor (TKI 1).";
 

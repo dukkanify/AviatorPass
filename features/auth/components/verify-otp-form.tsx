@@ -24,7 +24,6 @@ import type { UserProfile } from "@/types";
 import { siteStatic } from "@/config/site-static";
 
 const RESEND_DEFAULT_SECONDS = 60;
-const EXPIRY_DEFAULT_SECONDS = 10 * 60;
 
 type OtpPurpose =
   | "login"
@@ -45,10 +44,9 @@ function VerifyOtpForm() {
   const [token, setToken] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [resending, setResending] = React.useState(false);
-  const [resendIn, setResendIn] = React.useState(
-    searchParams.get("emailFailed") === "1" ? 0 : RESEND_DEFAULT_SECONDS,
-  );
-  const [expiresIn, setExpiresIn] = React.useState(EXPIRY_DEFAULT_SECONDS);
+  const [resendIn, setResendIn] = React.useState(0);
+  const [expiresIn, setExpiresIn] = React.useState(0);
+  const [codeIssued, setCodeIssued] = React.useState(false);
   const [shake, setShake] = React.useState(false);
   const [successFlash, setSuccessFlash] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
@@ -118,6 +116,11 @@ function VerifyOtpForm() {
 
       if (!result.success || !result.data) {
         setToken("");
+        if ((result.error ?? "").toLowerCase().includes("no active verification")) {
+          setCodeIssued(false);
+          setResendIn(0);
+          setExpiresIn(0);
+        }
         triggerError(result.error ?? "Verification failed");
         return;
       }
@@ -158,10 +161,12 @@ function VerifyOtpForm() {
         body: JSON.stringify({ email, purpose }),
       });
       if (!result.success) {
+        setCodeIssued(false);
         triggerError(result.error ?? "Unable to resend code");
         return;
       }
       setToken("");
+      setCodeIssued(true);
       setResendIn(result.data?.resendAvailableInSeconds ?? RESEND_DEFAULT_SECONDS);
       setExpiresIn((result.data?.expiresInMinutes ?? 10) * 60);
       if (
@@ -192,7 +197,11 @@ function VerifyOtpForm() {
 
   const expiryLabel = `${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, "0")}`;
 
-  const resendLabel = isRegistration ? "Resend Verification Email" : "Resend verification code";
+  const resendLabel = isRegistration
+    ? "Resend Verification Email"
+    : codeIssued
+      ? "Resend verification code"
+      : "Send verification code";
 
   return (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
@@ -237,15 +246,21 @@ function VerifyOtpForm() {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="token">One-time code</Label>
-          <span
-            className={cn(
-              "text-xs font-medium tabular-nums",
-              expiresIn <= 60 ? "text-destructive" : "text-muted-foreground",
-            )}
-            aria-live="polite"
-          >
-            Expires in {expiryLabel}
-          </span>
+          {codeIssued && expiresIn > 0 ? (
+            <span
+              className={cn(
+                "text-xs font-medium tabular-nums",
+                expiresIn <= 60 ? "text-destructive" : "text-muted-foreground",
+              )}
+              aria-live="polite"
+            >
+              Expires in {expiryLabel}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {codeIssued ? "Code expired — send a new one." : "No active code yet."}
+            </span>
+          )}
         </div>
         <div
           className={cn(
@@ -267,7 +282,7 @@ function VerifyOtpForm() {
               setToken(v);
               setErrorMsg(null);
             }}
-            disabled={pending || !email || expiresIn <= 0}
+            disabled={pending || !email || (codeIssued && expiresIn <= 0)}
             aria-label="One-time verification code"
             className={cn(errorMsg && "ring-2 ring-destructive/40 rounded-xl p-1")}
           />
@@ -280,7 +295,9 @@ function VerifyOtpForm() {
         ) : (
           <>
             <p className="text-xs text-muted-foreground">
-              Enter the 6-digit code sent to your email. Codes are single-use.
+              {codeIssued
+                ? "Enter the 6-digit code sent to your email. Codes are single-use."
+                : "Request a verification code first. If email does not arrive, sign in with your password instead."}
               {purpose === "register"
                 ? " Check spam if it is not in your inbox. The message may come from Aviator Pass or our mail provider."
                 : ""}
@@ -303,7 +320,7 @@ function VerifyOtpForm() {
       <Button
         type="submit"
         className="hero-cta-primary w-full"
-        disabled={pending || token.length !== 6 || !email || expiresIn <= 0}
+        disabled={pending || token.length !== 6 || !email || (codeIssued && expiresIn <= 0)}
       >
         {pending ? (
           <span className="inline-flex items-center gap-2">
@@ -330,6 +347,18 @@ function VerifyOtpForm() {
             {resending ? "Sending…" : resendLabel}
           </button>
         )}
+        {purpose !== "register" ? (
+          <p className="mt-3">
+            Can&apos;t get the email?{" "}
+            <Link
+              href={`${routes.login}${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Sign in with a password
+            </Link>
+            .
+          </p>
+        ) : null}
       </div>
     </form>
   );

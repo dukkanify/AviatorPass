@@ -17,6 +17,7 @@ import { logActivity, logAudit } from "@/services/auth/activity-log";
 import {
   findUserByEmail,
   findUserById,
+  readAuthDb,
   writeAuthDb,
   type PasswordSetupToken,
 } from "@/services/auth/store";
@@ -42,6 +43,27 @@ function hashSetupToken(token: string): string {
 export function passwordSetupUrl(email: string, token: string): string {
   const params = new URLSearchParams({ email, token });
   return `${appOrigin()}${routes.setupPassword}?${params.toString()}`;
+}
+
+export function parsePasswordSetupTokenFromUrl(url: string): string | null {
+  try {
+    const parsed = url.startsWith("http")
+      ? new URL(url)
+      : new URL(url, "https://www.aviatorpass.com");
+    const token = parsed.searchParams.get("token");
+    return token && token.length >= 10 ? token : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasActivePasswordSetupToken(userId: string): boolean {
+  return readAuthDb().passwordSetupTokens.some(
+    (token) =>
+      token.userId === userId &&
+      !token.consumedAt &&
+      new Date(token.expiresAt).getTime() > Date.now(),
+  );
 }
 
 export function issuePasswordSetupToken(userId: string): {

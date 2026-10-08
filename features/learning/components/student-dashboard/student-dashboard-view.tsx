@@ -21,7 +21,9 @@ import Link from "@/components/ui/app-link";
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
 import {
   ATPL_COMPLETE_PACKAGE_NAME,
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
 import { learningFetch } from "@/features/learning/lib/api";
@@ -615,11 +617,14 @@ function LearningDashboardView() {
               </div>
               <p className="sl-muted">
                 {atplSchedule.instructorAssignmentStatus === "pending"
-                  ? atplSchedule.instructorAssignmentLabel || "Pending Instructor Assignment"
+                  ? atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
                   : atplSchedule.scheduleProvisional
                     ? "Provisional — waiting for TKI 1"
                     : "Confirmed by TKI 1"}
               </p>
+              {atplSchedule.instructorAssignmentStatus === "pending" ? (
+                <p className="sl-muted">{ATPL_INSTRUCTOR_CONFIRM_NOTICE}</p>
+              ) : null}
               <p>
                 <strong>
                   {atplSchedule.scheduleProvisional
