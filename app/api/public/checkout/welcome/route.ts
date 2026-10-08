@@ -4,7 +4,6 @@ import { ensureCsrfToken } from "@/lib/security/cookies";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
 import { hydratePaidAtplStudentAccess } from "@/services/cgi/journey-service";
 import { getOrder } from "@/services/payments/checkout-service";
-import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import {
   getWelcomeByOrderId,
   getWelcomeBySessionId,
@@ -15,7 +14,6 @@ import { fulfillStripeCheckoutSession } from "@/services/payments/stripe-webhook
 export async function GET(request: Request) {
   try {
     await ensureCsrfToken();
-    ensurePaymentsSeeded();
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id") ?? searchParams.get("sessionId");
     const orderId = searchParams.get("orderId");

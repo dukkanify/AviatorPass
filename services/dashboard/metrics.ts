@@ -24,9 +24,7 @@ import { ensureLearningSeeded } from "@/services/learning/seed";
 import { getLearningDashboard } from "@/services/learning/learning-service";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { listCertificates } from "@/services/certificates/certificate-service";
-import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getFinanceDashboard } from "@/services/payments/report-service";
-import { ensureAnalyticsSeeded } from "@/services/analytics/seed";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
 import type { UserProfile } from "@/types";
 
@@ -52,11 +50,6 @@ function communicationOpsCounts() {
 }
 
 export function getPlatformOverview() {
-  ensureDemoUsersSeeded();
-  ensureCoursesSeeded();
-  ensureClassesSeeded();
-  ensurePaymentsSeeded();
-  ensureAnalyticsSeeded();
   const db = readAuthDb();
   const students = countByRole(db.users, ROLES.STUDENT);
   const instructors = countByRole(db.users, ROLES.INSTRUCTOR);
@@ -117,7 +110,6 @@ export function getGrowthSeries(): SeriesPoint[] {
 }
 
 export function getRevenueSeries(): SeriesPoint[] {
-  ensurePaymentsSeeded();
   const finance = getFinanceDashboard();
   return finance.monthlyGrowth.length
     ? finance.monthlyGrowth
@@ -187,7 +179,6 @@ export function getAttendanceSeries(instructorId?: string, studentId?: string): 
 }
 
 export function getEarningsSeries(): SeriesPoint[] {
-  ensurePaymentsSeeded();
   const finance = getFinanceDashboard();
   return finance.monthlyGrowth.map((p) => ({
     name: p.name,

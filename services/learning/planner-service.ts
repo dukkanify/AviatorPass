@@ -63,7 +63,9 @@ export async function createStudySession(input: {
 export async function updateStudySession(input: {
   user: UserProfile;
   id: string;
-  patch: Partial<Pick<StudySession, "title" | "completed" | "notes" | "scheduledStart" | "scheduledEnd">>;
+  patch: Partial<
+    Pick<StudySession, "title" | "completed" | "notes" | "scheduledStart" | "scheduledEnd">
+  >;
 }): Promise<StudySession> {
   const existing = readLearningDb().studySessions.find(
     (s) => s.id === input.id && s.studentId === input.user.id,
@@ -107,13 +109,9 @@ export async function createGoal(input: {
   }
   const now = new Date();
   const startsAt =
-    input.period === "weekly"
-      ? startOfWeek(now).toISOString()
-      : startOfMonth(now).toISOString();
+    input.period === "weekly" ? startOfWeek(now).toISOString() : startOfMonth(now).toISOString();
   const endsAt =
-    input.period === "weekly"
-      ? endOfWeek(now).toISOString()
-      : endOfMonth(now).toISOString();
+    input.period === "weekly" ? endOfWeek(now).toISOString() : endOfMonth(now).toISOString();
 
   const goal: StudyGoal = {
     id: generateId(),
@@ -183,8 +181,8 @@ export function syncGoalHoursFromProgress(studentId: string): void {
   const goals = listGoals(studentId).filter((g) => g.status === "active");
   if (!goals.length) return;
   const progress = readLearningDb().progress.filter((p) => p.studentId === studentId);
-  writeLearningDb((d) => {
-    for (const goal of goals) {
+  const updates = goals
+    .map((goal) => {
       const start = Date.parse(goal.startsAt);
       const end = Date.parse(goal.endsAt);
       const seconds = progress
@@ -194,16 +192,26 @@ export function syncGoalHoursFromProgress(studentId: string): void {
         })
         .reduce((s, p) => s + p.timeSpentSeconds, 0);
       const hours = Math.round((seconds / 3600) * 10) / 10;
-      const idx = d.goals.findIndex((g) => g.id === goal.id);
-      if (idx >= 0) {
-        const current = d.goals[idx]!;
-        d.goals[idx] = {
-          ...current,
-          completedHours: hours,
-          status: hours >= current.targetHours ? "completed" : current.status,
-          updatedAt: new Date().toISOString(),
-        };
-      }
+      const status = hours >= goal.targetHours ? "completed" : goal.status;
+      if (goal.completedHours === hours && goal.status === status) return null;
+      return { id: goal.id, hours, status };
+    })
+    .filter((row): row is { id: string; hours: number; status: (typeof goals)[number]["status"] } =>
+      Boolean(row),
+    );
+  if (!updates.length) return;
+  writeLearningDb((d) => {
+    const stamp = new Date().toISOString();
+    for (const update of updates) {
+      const idx = d.goals.findIndex((g) => g.id === update.id);
+      if (idx < 0) continue;
+      const current = d.goals[idx]!;
+      d.goals[idx] = {
+        ...current,
+        completedHours: update.hours,
+        status: update.status,
+        updatedAt: stamp,
+      };
     }
   });
 }
@@ -211,8 +219,8 @@ export function syncGoalHoursFromProgress(studentId: string): void {
 export function suggestAiGoalPlaceholder(studentId: string): StudyGoal | null {
   const now = new Date();
   const hours =
-    readLearningDb().progress
-      .filter((p) => p.studentId === studentId)
+    readLearningDb()
+      .progress.filter((p) => p.studentId === studentId)
       .reduce((s, p) => s + (p.timeSpentSeconds ?? 0), 0) / 3600;
   const target = Math.max(4, Math.min(12, Math.round(hours + 3) || 5));
   return {

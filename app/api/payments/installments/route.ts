@@ -16,7 +16,6 @@ import { processInstallmentReminders } from "@/services/payments/installment-rem
 
 export async function GET(request: Request) {
   try {
-    ensurePaymentsSeeded();
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const planId = searchParams.get("planId");

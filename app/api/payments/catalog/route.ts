@@ -20,7 +20,6 @@ import type { CouponType, PricingModel } from "@/types/payments";
 
 export async function GET(request: Request) {
   try {
-    ensurePaymentsSeeded();
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "products";
     if (view === "settings") {

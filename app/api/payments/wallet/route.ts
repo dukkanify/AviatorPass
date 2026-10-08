@@ -14,7 +14,6 @@ import { paymentErrorResponse } from "@/app/api/payments/_utils";
 
 export async function GET(request: Request) {
   try {
-    ensurePaymentsSeeded();
     const user = await requirePermission(PERMISSIONS.WALLET_OWN);
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "mine";
@@ -24,7 +23,7 @@ export async function GET(request: Request) {
     }
     if (view === "payouts") {
       const instructorId = canManageFinance(user)
-        ? searchParams.get("instructorId") ?? undefined
+        ? (searchParams.get("instructorId") ?? undefined)
         : user.id;
       return NextResponse.json({
         success: true,
@@ -34,7 +33,7 @@ export async function GET(request: Request) {
     }
     if (view === "transactions") {
       const instructorId = canManageFinance(user)
-        ? searchParams.get("instructorId") ?? user.id
+        ? (searchParams.get("instructorId") ?? user.id)
         : user.id;
       return NextResponse.json({
         success: true,

@@ -21,7 +21,6 @@ import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
 
 export async function GET(request: Request) {
   try {
-    ensurePaymentsSeeded();
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "orders";
