@@ -81,6 +81,7 @@ export const routes = {
     notificationPreferences: "/api/notifications/preferences",
     notificationUnreadCount: "/api/notifications/unread-count",
     activityLogs: "/api/admin/activity-logs",
+    users: "/api/users",
   },
 } as const;
 

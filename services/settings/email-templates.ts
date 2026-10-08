@@ -163,6 +163,23 @@ export function verificationSuccessEmailTemplate(input: { firstName: string; rol
   });
 }
 
+export function staffAccountInviteEmailTemplate(input: {
+  firstName: string;
+  roleLabel: string;
+  setupUrl: string;
+}) {
+  const name = input.firstName || "Aviator";
+  const role = input.roleLabel || "account";
+  return renderBrandedEmail({
+    title: "Your AviatorPass account is ready",
+    preheader: `Set your password to open your ${role} workspace`,
+    bodyHtml: `<p>Hi ${name},</p>
+      <p>An AviatorPass <strong>${role}</strong> account was created for you.</p>
+      <p><a href="${input.setupUrl}">Set your password</a> to sign in. This link expires in 48 hours.</p>
+      <p>If you did not expect this email, contact your academy administrator.</p>`,
+  });
+}
+
 export function accountCreatedEmailTemplate(input: { firstName: string }) {
   const name = input.firstName || "Aviator";
   return renderBrandedEmail({

@@ -125,13 +125,19 @@ function SuperAdminDashboardView({
           actions={[
             {
               label: "Create admin",
-              href: "/super-admin/admins",
+              href: "/super-admin/admins?create=1",
               icon: UserPlus,
               description: "Invite an administrator",
             },
             {
+              label: "Add student",
+              href: "/super-admin/students?create=1",
+              icon: Users,
+              description: "Create a learner account",
+            },
+            {
               label: "Add instructor",
-              href: "/super-admin/instructors",
+              href: "/super-admin/instructors?create=1",
               icon: GraduationCap,
               description: "Onboard teaching staff",
             },

@@ -95,8 +95,8 @@ function AdminDashboardView({
       <div className="grid gap-4 lg:grid-cols-2">
         <QuickActions
           actions={[
-            { label: "Add student", href: "/admin/students", icon: UserPlus },
-            { label: "Add instructor", href: "/admin/instructors", icon: GraduationCap },
+            { label: "Add student", href: "/admin/students?create=1", icon: UserPlus },
+            { label: "Add instructor", href: "/admin/instructors?create=1", icon: GraduationCap },
             { label: "Schedule class", href: "/admin/classes", icon: Layers },
             { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
           ]}
