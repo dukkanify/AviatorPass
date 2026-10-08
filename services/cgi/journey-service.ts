@@ -46,6 +46,7 @@ import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { instructorAssignmentFromOrder } from "@/services/cgi/instructor-assignment-status";
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { notifyInstructorAssignmentPendingOps } from "@/services/email/instructor-assignment-ops-email";
 import { sendEmail } from "@/services/email/mailer";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
@@ -1034,6 +1035,7 @@ export async function hydratePaidAtplStudentAccess(
   const order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
   if (order) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
+    await notifyInstructorAssignmentPendingOps(order);
   }
 }
 

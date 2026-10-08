@@ -24,6 +24,14 @@ import { consumePasswordSetupToken } from "@/services/auth/password-setup-servic
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { findUserByEmail, toUserProfile } from "@/services/auth/store";
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
+import {
+  AVIATORPASS_CEO_EMAIL,
+  INSTRUCTOR_ASSIGNMENT_OPS_RECIPIENTS,
+  instructorAssignmentOpsSubject,
+  renderInstructorAssignmentPendingOpsEmail,
+} from "@/services/email/instructor-assignment-ops-email";
+import { listOutboundEmails } from "@/services/email/outbox";
+import { PROJECT_SUPPORT_EMAIL } from "@/lib/branding/legacy-client-identity";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
@@ -82,6 +90,43 @@ describe("purchase password and package confirmation journey", () => {
     const signedIn = await passwordLogin({ email, password });
     expect(signedIn.success).toBe(true);
     expect(signedIn.data?.mustChangePassword).toBeFalsy();
+
+    const ops = listOutboundEmails(80).filter(
+      (row) =>
+        row.meta?.kind === "instructor_assignment_ops" && row.meta?.orderId === result.order.id,
+    );
+    expect(ops.map((row) => row.to).sort()).toEqual(
+      [...INSTRUCTOR_ASSIGNMENT_OPS_RECIPIENTS].sort(),
+    );
+    expect(ops[0]?.subject).toBe(instructorAssignmentOpsSubject("Aziz Buyer"));
+    expect(ops[0]?.html).toContain(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
+    expect(ops[0]?.html).toContain("Action Required");
+  });
+
+  it("renders the Support and CEO instructor-assignment notice in the requested format", () => {
+    const rendered = renderInstructorAssignmentPendingOpsEmail({
+      studentName: "ABDULAZIZ ALSHOAIL",
+      studentEmail: "redarrow_@yahoo.com",
+      phone: "+96595555030",
+      country: "Kuwait",
+      registrationDate: "8 Oct 2026",
+      packageName: "ATPL Complete Package",
+      preferredStartDate: "18 Oct 2026",
+      preferredTrainingTime: "18:00",
+      paymentMethod: "Credit Card",
+      amountLabel: "KWD 1.000",
+      adminDashboardUrl: "https://www.aviatorpass.com/cgi/dashboard",
+    });
+    expect(rendered.subject).toBe(
+      "Action Required | New Student Registration – Instructor Assignment Pending | ABDULAZIZ ALSHOAIL",
+    );
+    expect(rendered.html).toContain("This email is for Support and CEO");
+    expect(rendered.html).toContain("redarrow_@yahoo.com");
+    expect(rendered.html).toContain("+96595555030");
+    expect(rendered.html).toContain("Pending Instructor Assignment");
+    expect(rendered.html).toContain("https://www.aviatorpass.com/cgi/dashboard");
+    expect(rendered.html).toContain(PROJECT_SUPPORT_EMAIL);
+    expect(AVIATORPASS_CEO_EMAIL).toBe("ceo@aviatorpass.com");
   });
 
   it("renders package confirmed and pending instructor copy in purchase emails", () => {

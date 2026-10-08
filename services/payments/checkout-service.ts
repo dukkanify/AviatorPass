@@ -14,6 +14,7 @@ import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { readAuthDb } from "@/services/auth/store";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
+import { notifyInstructorAssignmentPendingOps } from "@/services/email/instructor-assignment-ops-email";
 import { assertCanCheckout, assertOwnOrder, PaymentError } from "@/services/payments/access";
 import { getProduct, validateCoupon } from "@/services/payments/catalog-service";
 import { resolveCountryPrice } from "@/services/payments/country-pricing";
@@ -758,6 +759,9 @@ export async function completePaidOrder(order: Order, payment: PaymentRecord, ac
     userIds: superAdmins,
     system: true,
   });
+  if (atplPurchase) {
+    await notifyInstructorAssignmentPendingOps(getOrder(order.id) ?? order);
+  }
 
   await logActivity({
     actorId,
