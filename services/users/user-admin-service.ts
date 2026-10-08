@@ -245,6 +245,12 @@ export async function updateManagedUser(
       db.sessions.forEach((session) => {
         if (session.userId === user.id && !session.revokedAt) session.revokedAt = nowIso();
       });
+      const security = db.securitySettings.find((row) => row.userId === user.id);
+      if (security) {
+        security.failedLoginCount = 0;
+        security.lockedUntil = null;
+        security.updatedAt = nowIso();
+      }
     }
     user.profileComplete = isStudentProfileComplete(user);
     user.updatedAt = nowIso();

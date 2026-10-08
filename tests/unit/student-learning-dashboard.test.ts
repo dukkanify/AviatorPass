@@ -127,10 +127,13 @@ describe("student dashboard isolation", () => {
     expect(view).not.toContain('todayItems.find((item) => item.type === "live_class") ?? liveItem');
     expect(view).toContain("ACTION_LABELS.viewTimetable");
     expect(view).toContain("/api/learning/atpl-schedule");
+    expect(view.indexOf("setLoading(false)")).toBeLessThan(
+      view.lastIndexOf("/api/learning/atpl-schedule"),
+    );
     expect(view).toContain("First lecture");
     expect(view).toContain("firstLectureLiveClassId");
     expect(view).toContain("confirmedFirstLectureAt");
-    expect(view).toContain("Pending Instructor Assignment");
+    expect(view).toContain("ATPL_PENDING_INSTRUCTOR_ASSIGNMENT");
     expect(view).toContain("instructorAssignmentStatus");
     expect(view).toContain("firstLectureSubjectTitle");
     expect(view).toContain("ATPL_COMPLETE_PACKAGE_NAME");
@@ -139,6 +142,14 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
     expect(view).toContain("Waiting for TKI 1 to confirm your first lecture.");
     expect(view).toContain("Waiting for TKI 1 to open the next subject.");
+  });
+
+  it("does not block the overview API on first-lecture hydrate", () => {
+    const route = readFileSync(resolve(root, "app/api/learning/dashboard/route.ts"), "utf8");
+    const schedule = readFileSync(resolve(root, "app/api/learning/atpl-schedule/route.ts"), "utf8");
+    expect(route).not.toContain("ensureConfirmedFirstLectureOnTimetable");
+    expect(route).toContain("getLearningDashboard");
+    expect(schedule).toContain("ensureConfirmedFirstLectureOnTimetable");
   });
 
   it("gives the student shell a collapsible sidebar and profile menu", () => {

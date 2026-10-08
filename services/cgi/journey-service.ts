@@ -153,6 +153,16 @@ function studentHasAtplEnrollment(studentId: string): boolean {
   );
 }
 
+function studentHasOfficialPackageCoverage(studentId: string): boolean {
+  const enrolled = new Set(
+    listStudentEnrollments(studentId)
+      .filter((row) => !["dropped", "rejected"].includes(row.status))
+      .map((row) => row.courseId),
+  );
+  const required = officialPackageCourses();
+  return required.length > 0 && required.every((course) => enrolled.has(course.id));
+}
+
 function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
   const plan = studentId ? listStudentSubjectPlan(studentId) : [];
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
@@ -1025,14 +1035,23 @@ export async function hydratePaidAtplStudentAccess(
   email: string,
   orderId?: string,
 ) {
-  ensureCoursesSeeded();
   ensurePaymentsSeeded();
   const live = resolveLivePaidStudent(studentId, email);
   const pinned = orderId
     ? (readPaymentsDb().orders.find((order) => order.id === orderId) ?? null)
     : null;
-  await ensureAtplPackageSubjectCoverage(live.studentId, live.email, pinned);
   const order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
+  if (
+    order &&
+    order.studentId === live.studentId &&
+    studentHasOfficialPackageCoverage(live.studentId)
+  ) {
+    await maybeSendPackageConfirmationFollowup(order, live.studentId);
+    await notifyInstructorAssignmentPendingOps(order);
+    return;
+  }
+  ensureCoursesSeeded();
+  await ensureAtplPackageSubjectCoverage(live.studentId, live.email, pinned);
   if (order) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
     await notifyInstructorAssignmentPendingOps(order);

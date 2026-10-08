@@ -54,6 +54,8 @@ describe("json file store keys", () => {
     expect(src).toMatch(/attempt < 3/);
     expect(src).toMatch(/SELECT updated_at FROM aep_json_store/);
     expect(src).toMatch(/cacheUpdatedAt/);
+    expect(src).toMatch(/Chunked store \$\{key\} is incomplete/);
+    expect(src).toMatch(/if \(requireDurableWrites\(\)\) throw error;/);
   });
 });
 

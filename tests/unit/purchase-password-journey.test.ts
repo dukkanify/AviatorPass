@@ -223,7 +223,11 @@ describe("purchase password and package confirmation journey", () => {
 
     expect(getOrder(result.order.id)?.studentId).toBe(liveId);
     expect(getOrder(result.order.id)?.metadata.packageConfirmationFollowupAt).toBeTruthy();
-    expect(listStudentEnrollments(liveId).length).toBeGreaterThan(0);
+    const enrolled = listStudentEnrollments(liveId).length;
+    expect(enrolled).toBeGreaterThan(0);
+
+    await hydratePaidAtplStudentAccess(liveId, email, result.order.id);
+    expect(listStudentEnrollments(liveId)).toHaveLength(enrolled);
 
     const schedule = getStudentAtplPackageSchedule(liveId, email);
     expect(schedule.packageOwned).toBe(true);
@@ -278,5 +282,17 @@ describe("purchase password and package confirmation journey", () => {
     );
     expect(admin).toContain("user-password");
     expect(admin).toContain("Leave blank to keep current");
+
+    const login = readFileSync(
+      path.join(process.cwd(), "features/auth/components/login-form.tsx"),
+      "utf8",
+    );
+    expect(login).toContain("Show password");
+    expect(login).toContain("Hide password");
+    expect(login).toContain('showPassword ? "text" : "password"');
+    expect(login).toContain("loginNavigationLocked");
+    expect(login).toContain(
+      "if (loginNavigationLocked || completingRef.current || pending) return;",
+    );
   });
 });
