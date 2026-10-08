@@ -128,14 +128,7 @@ function LearningDashboardView() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const [dash, courseRes, calRes, sessionRes, certRes, scheduleRes] = await Promise.all([
-        learningFetch<LearningDashboardOverview>("/api/learning/dashboard"),
-        learningFetch<CourseRow[]>("/api/learning/courses?sort=recent"),
-        learningFetch<LearningCalendarItem[]>("/api/learning/calendar"),
-        learningFetch<StudySession[]>("/api/learning/planner/sessions"),
-        learningFetch<Certificate[]>("/api/certificates"),
-        learningFetch<AtplPackageScheduleSnapshot>("/api/learning/atpl-schedule"),
-      ]);
+      const dash = await learningFetch<LearningDashboardOverview>("/api/learning/dashboard");
       if (cancelled) return;
       if (!dash.success || !dash.data) {
         setError(dash.error ?? "Unable to load dashboard");
@@ -144,12 +137,21 @@ function LearningDashboardView() {
         setOverview(dash.data);
         setError(null);
       }
+      setLoading(false);
+
+      const [courseRes, calRes, sessionRes, certRes, scheduleRes] = await Promise.all([
+        learningFetch<CourseRow[]>("/api/learning/courses?sort=recent"),
+        learningFetch<LearningCalendarItem[]>("/api/learning/calendar"),
+        learningFetch<StudySession[]>("/api/learning/planner/sessions"),
+        learningFetch<Certificate[]>("/api/certificates"),
+        learningFetch<AtplPackageScheduleSnapshot>("/api/learning/atpl-schedule"),
+      ]);
+      if (cancelled) return;
       setCourses(courseRes.data ?? []);
       setCalendar(calRes.data ?? []);
       setSessions(sessionRes.data ?? []);
       setCertificates(certRes.data ?? []);
       setAtplSchedule(scheduleRes.data ?? null);
-      setLoading(false);
     }
     void load();
     return () => {
