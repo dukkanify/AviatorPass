@@ -90,7 +90,9 @@ export function getJsonStoreStatus(): {
 }
 
 const CHUNK_CHARS = 12_000;
-const CHUNK_READ_PAGE = 24;
+// Keep this small. Neon HTTP /sql truncates ~150KB payloads; paging 24 chunks
+// broke production hydrate for aep-email-outbox.json and aep-classes.json.
+const CHUNK_READ_PAGE = 4;
 
 function ensureTable(): void {
   if (tableReady) return;
