@@ -31,7 +31,7 @@ import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb } from "@/services/courses/store";
+import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -768,6 +768,54 @@ export async function rescheduleAtplClass(input: {
   return result;
 }
 
+function isPaidAtplPackageOrder(order: {
+  status: string;
+  items: Array<{ productName?: string }>;
+  metadata?: Record<string, unknown>;
+}): boolean {
+  const unlocked = order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
+  if (!unlocked) return false;
+  const purchaseFirst =
+    Boolean(order.metadata?.purchaseFirst) && typeof order.metadata?.studyStartDate === "string";
+  const atplNamed = /ATPL/i.test(order.items[0]?.productName ?? "");
+  return purchaseFirst || atplNamed || order.metadata?.sku === "ATPL-PACKAGE";
+}
+
+/** Rebind paid ATPL orders/enrollments onto the live account for the billing email. */
+export function rebindPaidPackageOrdersToLiveUsers(): number {
+  const usersByEmail = new Map(
+    readAuthDb().users.map((user) => [user.email.trim().toLowerCase(), user] as const),
+  );
+  const rebound: Array<{ from: string; to: string }> = [];
+  writePaymentsDb((db) => {
+    for (const order of db.orders) {
+      if (!isPaidAtplPackageOrder(order)) continue;
+      const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
+      const user = email ? usersByEmail.get(email) : undefined;
+      if (!user || !order.studentId || order.studentId === user.id || order.studentId === "guest") {
+        continue;
+      }
+      const from = order.studentId;
+      order.studentId = user.id;
+      order.studentEmail = user.email;
+      order.studentName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+      order.metadata = { ...order.metadata, reboundFromStudentId: from };
+      order.updatedAt = nowIso();
+      rebound.push({ from, to: user.id });
+    }
+  });
+  if (rebound.length) {
+    writeCoursesDb((db) => {
+      for (const { from, to } of rebound) {
+        for (const enrollment of db.enrollments) {
+          if (enrollment.studentId === from) enrollment.studentId = to;
+        }
+      }
+    });
+  }
+  return rebound.length;
+}
+
 function latestPaidPackageOrder(studentId: string, email: string) {
   const needle = email.trim().toLowerCase();
   return (
@@ -778,13 +826,7 @@ function latestPaidPackageOrder(studentId: string, email: string) {
           order.studentEmail?.toLowerCase() === needle ||
           order.billingEmail?.toLowerCase() === needle;
         if (!identity) return false;
-        const unlocked = order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
-        if (!unlocked) return false;
-        const purchaseFirst =
-          Boolean(order.metadata?.purchaseFirst) &&
-          typeof order.metadata?.studyStartDate === "string";
-        const atplNamed = /ATPL/i.test(order.items[0]?.productName ?? "");
-        return purchaseFirst || atplNamed || order.metadata?.sku === "ATPL-PACKAGE";
+        if (!isPaidAtplPackageOrder(order)) return false;
       })
       .sort((a, b) => (b.paidAt ?? b.updatedAt).localeCompare(a.paidAt ?? a.updatedAt))[0] ?? null
   );
@@ -943,6 +985,7 @@ function latestPaidPackageSchedule(studentId: string, email: string): AtplPackag
 }
 
 export function getStudentAtplPackageSchedule(studentId: string, email: string) {
+  rebindPaidPackageOrdersToLiveUsers();
   return latestPaidPackageSchedule(studentId, email);
 }
 
@@ -1521,6 +1564,7 @@ export async function completeAtplPackageSubject(input: { studentId: string; act
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
+  rebindPaidPackageOrdersToLiveUsers();
   const packageProduct = getAtplPackageProduct();
   const courseIds = new Set(
     (Array.isArray(packageProduct?.metadata?.courseIds)
@@ -1537,6 +1581,16 @@ export function listAtplStudents() {
     const list = byStudent.get(e.studentId) ?? [];
     list.push(e);
     byStudent.set(e.studentId, list);
+  }
+  for (const order of readPaymentsDb().orders) {
+    if (!isPaidAtplPackageOrder(order)) continue;
+    const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
+    const user = email
+      ? auth.find((row) => row.email.trim().toLowerCase() === email)
+      : auth.find((row) => row.id === order.studentId);
+    const studentId = user?.id || order.studentId;
+    if (!studentId || studentId === "guest" || byStudent.has(studentId)) continue;
+    byStudent.set(studentId, []);
   }
 
   return [...byStudent.entries()]

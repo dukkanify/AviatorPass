@@ -43,6 +43,7 @@ import {
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
 import { emitNotification } from "@/services/notifications/notification-service";
+import { rebindPaidPackageOrdersToLiveUsers } from "@/services/cgi/journey-service";
 import { PaymentError } from "@/services/payments/access";
 import { getProduct, listProducts } from "@/services/payments/catalog-service";
 import { completePaidOrder, getOrder, getPayment } from "@/services/payments/checkout-service";
@@ -1312,11 +1313,13 @@ function welcomePasswordSetup(order: Order): {
 }
 
 function welcomeSnapshot(order: Order, payment: PaymentRecord | null, sessionId: string) {
-  const invoiceId = order.invoiceId;
-  const passwordSetup = welcomePasswordSetup(order);
+  rebindPaidPackageOrdersToLiveUsers();
+  const fresh = getOrder(order.id) ?? order;
+  const invoiceId = fresh.invoiceId;
+  const passwordSetup = welcomePasswordSetup(fresh);
   return {
-    ...publicOrderSnapshot(order),
-    paymentStatus: payment?.status ?? order.status,
+    ...publicOrderSnapshot(fresh),
+    paymentStatus: payment?.status ?? fresh.status,
     receiptUrl: payment?.receiptUrl ?? null,
     currency: payment?.currency ?? order.currency,
     amountPaid: payment?.amount ?? order.totalAmount,

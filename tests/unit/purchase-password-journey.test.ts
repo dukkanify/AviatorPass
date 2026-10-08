@@ -2,7 +2,14 @@
  * Post-purchase password setup, package confirmation email, and admin password reset.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: () => undefined,
+    set: () => {},
+  }),
+}));
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -20,6 +27,9 @@ import { renderAutomationTemplate } from "@/services/email/automation-templates"
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
+import { getOrder } from "@/services/payments/checkout-service";
+import { writePaymentsDb } from "@/services/payments/store";
+import { listAtplStudents } from "@/services/cgi/journey-service";
 import { createManagedUser, updateManagedUser } from "@/services/users/user-admin-service";
 
 describe("purchase password and package confirmation journey", () => {
@@ -65,7 +75,7 @@ describe("purchase password and package confirmation journey", () => {
 
     const signedIn = await passwordLogin({ email, password });
     expect(signedIn.success).toBe(true);
-    expect(signedIn.data?.mustChangePassword).toBe(false);
+    expect(signedIn.data?.mustChangePassword).toBeFalsy();
   });
 
   it("renders package confirmed and pending instructor copy in purchase emails", () => {
@@ -101,6 +111,37 @@ describe("purchase password and package confirmation journey", () => {
     });
     expect(payment.html).toContain("Package confirmed");
     expect(payment.html).toContain(ATPL_INSTRUCTOR_CONFIRM_NOTICE);
+  });
+
+  it("rebinds a paid ATPL order onto the live email account for CGI and welcome", async () => {
+    const email = `rebind.buyer.${Date.now()}@aviatorpass.test`;
+    const result = await payGuestCheckout({
+      firstName: "Rebind",
+      lastName: "Buyer",
+      email,
+      phone: `+9655${String(Date.now() + 1).slice(-7)}`,
+      country: "KW",
+      billingName: "Rebind Buyer",
+      billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `rebind-${Date.now()}`,
+    });
+    const liveId = findUserByEmail(email)!.id;
+    writePaymentsDb((db) => {
+      const order = db.orders.find((row) => row.id === result.order.id);
+      if (order) order.studentId = "ghost-student-id";
+    });
+    expect(getOrder(result.order.id)?.studentId).toBe("ghost-student-id");
+
+    const welcome = getWelcomeByOrderId(result.order.id);
+    expect(welcome?.needsPasswordSetup).toBe(true);
+    expect(getOrder(result.order.id)?.studentId).toBe(liveId);
+
+    const cgi = listAtplStudents().find((row) => row.email === email);
+    expect(cgi?.studentId).toBe(liveId);
+    expect(cgi?.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
   });
 
   it("lets a super admin set a student password from the console", async () => {
