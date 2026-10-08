@@ -215,6 +215,13 @@ function hydrateKeyFromPostgres(filePath: string): void {
     }
   } catch (error) {
     console.error("[data] chunked hydrate failed", key, error);
+    if (requireDurableWrites()) {
+      throw error instanceof PostgresStoreError
+        ? error
+        : new PostgresStoreError(
+            error instanceof Error ? error.message : `Failed to hydrate ${key}`,
+          );
+    }
   }
 
   try {
@@ -223,6 +230,9 @@ function hydrateKeyFromPostgres(filePath: string): void {
     ]);
     const value = rows[0]?.value;
     if (value && typeof value === "object" && value !== null && "chunked" in value) {
+      if (requireDurableWrites()) {
+        throw new PostgresStoreError(`Chunked store ${key} is incomplete`);
+      }
       rememberCacheStamp(key, stamp);
       return;
     }
@@ -233,6 +243,13 @@ function hydrateKeyFromPostgres(filePath: string): void {
   } catch (error) {
     // Oversized legacy JSONB rows can truncate over Neon HTTP — treat as missing.
     console.error("[data] jsonb hydrate skipped", key, error);
+    if (requireDurableWrites()) {
+      throw error instanceof PostgresStoreError
+        ? error
+        : new PostgresStoreError(
+            error instanceof Error ? error.message : `Failed to hydrate ${key}`,
+          );
+    }
   }
   rememberCacheStamp(key, stamp);
 }
@@ -286,6 +303,7 @@ export function readJsonFile<T>(filePath: string, fallback: () => T): T {
       hydrateKeyFromPostgres(filePath);
     } catch (error) {
       console.error("[data] postgres hydrate failed; using local fallback", error);
+      if (requireDurableWrites()) throw error;
     }
   }
 
