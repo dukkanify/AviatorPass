@@ -20,7 +20,9 @@ import {
 import type { ScheduleOverview, ScheduleSession, TimelineEvent } from "@/types/schedule";
 import {
   ATPL_COMPLETE_PACKAGE_NAME,
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
 
@@ -174,7 +176,7 @@ export function ScheduleHubView({
             <>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
                 {atplSchedule.instructorAssignmentStatus === "pending"
-                  ? atplSchedule.instructorAssignmentLabel || "Pending Instructor Assignment"
+                  ? atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
                   : atplSchedule.scheduleProvisional
                     ? "Provisional first lecture"
                     : "Confirmed first lecture"}
@@ -187,6 +189,11 @@ export function ScheduleHubView({
                   ? ` · ${atplSchedule.firstLectureSubjectTitle}`
                   : ""}
               </p>
+              {atplSchedule.instructorAssignmentStatus === "pending" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {ATPL_INSTRUCTOR_CONFIRM_NOTICE}
+                </p>
+              ) : null}
               <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
               {atplSchedule.nextSubjectTitle ? (
                 <p className="mt-2 text-sm">

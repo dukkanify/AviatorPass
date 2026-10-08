@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "@/components/ui/app-link";
 
@@ -19,7 +19,8 @@ import type { UserProfile } from "@/types";
 function LoginForm() {
   const router = useRouter();
   const { user, isLoading, signOut, setUser } = useAuth();
-  const [email, setEmail] = React.useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = React.useState(searchParams.get("email") ?? "");
   const [password, setPassword] = React.useState("");
   const [rememberMe, setRememberMe] = React.useState(false);
   const [pending, setPending] = React.useState(false);

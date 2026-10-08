@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { ensureCsrfToken } from "@/lib/security/cookies";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
+import { hydratePaidAtplStudentAccess } from "@/services/cgi/journey-service";
+import { getOrder } from "@/services/payments/checkout-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import {
   getWelcomeByOrderId,
@@ -46,6 +48,14 @@ export async function GET(request: Request) {
           error: "We could not find this checkout session yet. Refresh in a moment.",
         },
         { status: 404 },
+      );
+    }
+    const paidOrder = getOrder(snapshot.id);
+    if (paidOrder?.studentId && paidOrder.studentId !== "guest") {
+      await hydratePaidAtplStudentAccess(
+        paidOrder.studentId,
+        paidOrder.studentEmail || paidOrder.billingEmail || snapshot.billingEmail,
+        paidOrder.id,
       );
     }
     return NextResponse.json({ success: true, data: snapshot, error: null });

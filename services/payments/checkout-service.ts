@@ -2,6 +2,11 @@
  * Checkout, orders, payments, subscriptions — core payment flow.
  */
 
+import {
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
+  ATPL_PACKAGE_TKI_NOTICE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+} from "@/constants/atpl-complete-package";
 import { generateId, generateToken } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ORDER_EXPIRY_MINUTES } from "@/constants/payments";
@@ -713,14 +718,29 @@ export async function completePaidOrder(order: Order, payment: PaymentRecord, ac
   });
 
   const productNames = order.items.map((i) => i.productName).join(", ");
+  const atplPurchase =
+    /ATPL/i.test(productNames) ||
+    order.metadata.sku === "ATPL-PACKAGE" ||
+    Boolean(order.metadata.purchaseFirst);
   await dispatchEmailEvent({
     event: "payment",
     userIds: [order.studentId],
     data: {
-      title: "Your course is now available",
-      detail: `${productNames || "Your purchase"} is unlocked in My Courses. Open AviatorPass to start learning.`,
+      title: atplPurchase ? "Package confirmed" : "Your course is now available",
+      detail: atplPurchase
+        ? `${productNames || "Your purchase"} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`
+        : `${productNames || "Your purchase"} is unlocked in My Courses. Open AviatorPass to start learning.`,
       amount: formatMinor(order.totalAmount, order.currency),
+      amountLabel: formatMinor(order.totalAmount, order.currency),
       reference: order.orderNumber,
+      packageName: productNames,
+      instructorAssignmentLabel: atplPurchase ? ATPL_PENDING_INSTRUCTOR_ASSIGNMENT : "",
+      instructorConfirmNotice: atplPurchase ? ATPL_INSTRUCTOR_CONFIRM_NOTICE : "",
+      scheduleNotice: atplPurchase
+        ? typeof order.metadata.scheduleNotice === "string"
+          ? order.metadata.scheduleNotice
+          : ATPL_PACKAGE_TKI_NOTICE
+        : "",
     },
     actorId,
     system: true,

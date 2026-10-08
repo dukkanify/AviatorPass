@@ -220,6 +220,9 @@ export async function updateManagedUser(
     }
   }
 
+  const nextPassword = input.password?.trim() || "";
+  const passwordHash = nextPassword ? hashPassword(nextPassword) : null;
+
   writeAuthDb((db) => {
     const user = db.users.find((row) => row.id === userId);
     if (!user) return;
@@ -234,6 +237,15 @@ export async function updateManagedUser(
     }
     if (input.status) user.status = input.status as AccountStatus;
     if (input.role) user.role = input.role;
+    if (passwordHash) {
+      user.passwordHash = passwordHash.hash;
+      user.passwordSalt = passwordHash.salt;
+      user.mustChangePassword = false;
+      user.emailVerified = true;
+      db.sessions.forEach((session) => {
+        if (session.userId === user.id && !session.revokedAt) session.revokedAt = nowIso();
+      });
+    }
     user.profileComplete = isStudentProfileComplete(user);
     user.updatedAt = nowIso();
   });
@@ -265,6 +277,15 @@ export async function updateManagedUser(
     await logActivity({
       actorId: actor.id,
       action: ACTIVITY_ACTIONS.PROFILE_UPDATE,
+      entityType: "user",
+      entityId: fresh.id,
+      metadata: { via: "admin_console" },
+    });
+  }
+  if (passwordHash) {
+    await logActivity({
+      actorId: actor.id,
+      action: ACTIVITY_ACTIONS.PASSWORD_RESET,
       entityType: "user",
       entityId: fresh.id,
       metadata: { via: "admin_console" },

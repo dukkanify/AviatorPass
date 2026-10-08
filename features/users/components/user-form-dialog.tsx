@@ -67,6 +67,8 @@ function UserFormDialog({
   const [status, setStatus] = React.useState<AccountStatus>(ACCOUNT_STATUS.ACTIVE);
   const [setupUrl, setSetupUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
 
   React.useEffect(() => {
     if (!open) return;
@@ -81,6 +83,8 @@ function UserFormDialog({
     setStatus(user?.status ?? ACCOUNT_STATUS.ACTIVE);
     setSetupUrl(null);
     setCopied(false);
+    setPassword("");
+    setConfirmPassword("");
     setSaving(false);
   }, [open, user, defaultRole, allowedRoles]);
 
@@ -137,6 +141,7 @@ function UserFormDialog({
         countryCode: countryCode === "none" ? "" : countryCode,
         status,
         role,
+        ...(password.trim() ? { password, confirmPassword } : {}),
       }),
     });
     setSaving(false);
@@ -159,7 +164,7 @@ function UserFormDialog({
               ? "Send the password setup link if the invitation email does not arrive."
               : mode === "create"
                 ? "The person receives an email with a link to set their password."
-                : "Update name, contact details, or account status."}
+                : "Update name, contact details, account status, or set a new password."}
           </DialogDescription>
         </DialogHeader>
 
@@ -267,7 +272,7 @@ function UserFormDialog({
               </div>
               {mode === "edit" ? (
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label htmlFor="user-status">Status</Label>
                   <Select
                     value={status}
                     onValueChange={(value) => setStatus(value as AccountStatus)}
@@ -286,6 +291,31 @@ function UserFormDialog({
                 </div>
               ) : null}
             </div>
+            {mode === "edit" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="user-password">New password</Label>
+                  <Input
+                    id="user-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Leave blank to keep current"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="user-confirm-password">Confirm password</Label>
+                  <Input
+                    id="user-confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                </div>
+              </div>
+            ) : null}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

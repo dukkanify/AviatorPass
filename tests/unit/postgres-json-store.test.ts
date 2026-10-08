@@ -52,6 +52,8 @@ describe("json file store keys", () => {
     expect(src).toMatch(/ON CONFLICT \(key, chunk_index\) DO UPDATE SET data = EXCLUDED\.data/);
     expect(src).toMatch(/chunk_index >= \$2/);
     expect(src).toMatch(/attempt < 3/);
+    expect(src).toMatch(/SELECT updated_at FROM aep_json_store/);
+    expect(src).toMatch(/cacheUpdatedAt/);
   });
 });
 

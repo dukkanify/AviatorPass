@@ -14,12 +14,20 @@ import {
 import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { siteStatic } from "@/config/site-static";
 import {
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_TKI_NOTICE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
   formatAtplPackageScheduleLabel,
 } from "@/constants/atpl-complete-package";
 import { routes } from "@/constants/routes";
+import { authFetch } from "@/features/auth/services/auth-api";
+import { setupPasswordSchema } from "@/utils/validation";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type WelcomeSnapshot = {
   orderNumber: string;
@@ -38,6 +46,9 @@ type WelcomeSnapshot = {
   courseAccessUrl: string;
   dashboardUrl: string;
   setupPasswordPath: string;
+  needsPasswordSetup?: boolean;
+  setupPasswordToken?: string | null;
+  setupPasswordUrl?: string | null;
   supportEmail: string;
   studyStartDate: string | null;
   firstLectureTime: string | null;
@@ -46,6 +57,85 @@ type WelcomeSnapshot = {
   instructorAssignmentStatus?: "pending" | "assigned";
   instructorAssignmentLabel?: string | null;
 };
+
+function WelcomePasswordForm({ email, token }: { email: string; token: string }) {
+  const router = useRouter();
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [pending, setPending] = React.useState(false);
+
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsed = setupPasswordSchema.safeParse({
+      email,
+      token,
+      password,
+      confirmPassword,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Invalid password");
+      return;
+    }
+    setPending(true);
+    try {
+      const result = await authFetch<{ email: string }>(routes.api.auth.setupPassword, {
+        method: "POST",
+        body: JSON.stringify(parsed.data),
+      });
+      if (!result.success) {
+        toast.error(result.error ?? "Unable to set password");
+        return;
+      }
+      toast.success("Password saved. Sign in to open your dashboard.");
+      router.replace(`${routes.login}?email=${encodeURIComponent(email)}`);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={(event) => void onSubmit(event)}
+      className="mt-8 space-y-4 rounded-2xl border border-border bg-card p-5 text-left"
+    >
+      <div>
+        <p className="text-sm font-semibold text-foreground">Set your password</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create a password here so you can sign in even if the confirmation email does not arrive.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="welcome-email">Email</Label>
+        <Input id="welcome-email" type="email" value={email} readOnly className="bg-muted/40" />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="welcome-password">New password</Label>
+        <Input
+          id="welcome-password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="welcome-confirm-password">Confirm password</Label>
+        <Input
+          id="welcome-confirm-password"
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          required
+        />
+      </div>
+      <Button type="submit" variant="accent" className="w-full" disabled={pending}>
+        {pending ? "Saving…" : "Set password and continue"}
+      </Button>
+    </form>
+  );
+}
 
 function WelcomeView() {
   const search = useSearchParams();
@@ -153,12 +243,16 @@ function WelcomeView() {
         {data?.instructorAssignmentStatus === "pending" ||
         (!data?.instructorAssignmentStatus && data?.studyStartDate) ? (
           <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-            {data.instructorAssignmentLabel || "Pending Instructor Assignment"}
+            {data.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}
           </p>
         ) : data?.instructorAssignmentLabel ? (
           <p className="mt-3 text-sm font-medium text-foreground">
             {data.instructorAssignmentLabel}
           </p>
+        ) : null}
+        {data?.instructorAssignmentStatus === "pending" ||
+        (!data?.instructorAssignmentStatus && data?.studyStartDate) ? (
+          <p className="mt-2 text-sm text-muted-foreground">{ATPL_INSTRUCTOR_CONFIRM_NOTICE}</p>
         ) : null}
         <p className="mt-3 text-muted-foreground">
           {data?.scheduleNotice || ATPL_PACKAGE_TKI_NOTICE}
@@ -234,10 +328,19 @@ function WelcomeView() {
         </Button>
       </div>
 
+      {data?.needsPasswordSetup && data.setupPasswordToken && data.billingEmail ? (
+        <WelcomePasswordForm email={data.billingEmail} token={data.setupPasswordToken} />
+      ) : null}
+
       <p className="mt-8 text-center text-sm text-muted-foreground">
         <Mail className="mr-1 inline size-4" />
-        Prefer to set a password from email? Open the setup link we sent, or{" "}
-        <Link href={routes.login} className="text-primary hover:underline">
+        {data?.needsPasswordSetup
+          ? "Prefer the email setup link instead? Open it from your inbox, or "
+          : "Prefer to set a password from email? Open the setup link we sent, or "}
+        <Link
+          href={`${routes.login}${data?.billingEmail ? `?email=${encodeURIComponent(data.billingEmail)}` : ""}`}
+          className="text-primary hover:underline"
+        >
           sign in
         </Link>
         .

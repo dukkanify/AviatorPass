@@ -254,6 +254,8 @@ describe("purchase-first ATPL enrollment", () => {
     expect(welcome?.firstLectureTime).toBe(schedule.firstLectureTime);
     expect(welcome?.scheduleProvisional).toBe(true);
     expect(welcome?.scheduleNotice).toMatch(/TKI 1/);
+    expect(welcome?.needsPasswordSetup).toBe(true);
+    expect(welcome?.setupPasswordToken).toBeTruthy();
   });
 
   it("refuses Stripe hosted checkout when the secret key is not configured", async () => {

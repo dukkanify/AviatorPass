@@ -19,6 +19,20 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function packageConfirmationHtml(data: Record<string, unknown>): string {
+  const packageName = str(data, "packageName") || str(data, "productName");
+  const instructorLabel = str(data, "instructorAssignmentLabel");
+  const instructorConfirm = str(data, "instructorConfirmNotice");
+  const scheduleNotice = str(data, "scheduleNotice");
+  if (!packageName && !instructorLabel && !instructorConfirm) return "";
+  return `
+          <p><strong>Package confirmed</strong></p>
+          ${packageName ? `<p>Your package <strong>${escapeHtml(packageName)}</strong> is confirmed.</p>` : ""}
+          ${instructorLabel ? `<p><strong>${escapeHtml(instructorLabel)}</strong></p>` : ""}
+          ${instructorConfirm ? `<p>${escapeHtml(instructorConfirm)}</p>` : ""}
+          ${scheduleNotice ? `<p>${escapeHtml(scheduleNotice)}</p>` : ""}`;
+}
+
 export function renderAutomationTemplate(
   event: EmailAutomationEvent,
   data: Record<string, unknown>,
@@ -59,6 +73,7 @@ export function renderAutomationTemplate(
           <p>You will be asked to choose a new password on first login. This password is only sent once — do not share it.</p>`
                 : ""
           }
+          ${packageConfirmationHtml(data)}
           ${str(data, "loginUrl") ? `<p><a href="${escapeHtml(str(data, "loginUrl"))}">Sign in to AviatorPass</a></p>` : ""}
           ${str(data, "courseUrl") ? `<p><a href="${escapeHtml(str(data, "courseUrl"))}">Open your ATPL course</a></p>` : ""}
           ${str(data, "supportEmail") ? `<p>Need help? Contact ${escapeHtml(str(data, "supportEmail"))}.</p>` : ""}
@@ -72,6 +87,7 @@ export function renderAutomationTemplate(
         bodyHtml: `<p>Hello ${name},</p>
           <p><strong>${escapeHtml(str(data, "title", "Payment update"))}</strong></p>
           <p>${detail}</p>
+          ${packageConfirmationHtml(data)}
           ${amount ? `<p>Amount: <strong>${amount}</strong></p>` : ""}
           ${reference ? `<p>Reference: ${reference}</p>` : ""}
           <p>Review billing in AviatorPass anytime.</p>`,
