@@ -290,5 +290,9 @@ describe("purchase password and package confirmation journey", () => {
     expect(login).toContain("Show password");
     expect(login).toContain("Hide password");
     expect(login).toContain('showPassword ? "text" : "password"');
+    expect(login).toContain("loginNavigationLocked");
+    expect(login).toContain(
+      "if (loginNavigationLocked || completingRef.current || pending) return;",
+    );
   });
 });

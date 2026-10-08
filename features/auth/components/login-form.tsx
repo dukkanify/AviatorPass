@@ -18,6 +18,8 @@ import { routes } from "@/constants/routes";
 import { useAuth } from "@/providers/auth-provider";
 import type { UserProfile } from "@/types";
 
+let loginNavigationLocked = false;
+
 function LoginForm() {
   const router = useRouter();
   const { user, isLoading, signOut, setUser } = useAuth();
@@ -28,14 +30,14 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [clearedPriorSession, setClearedPriorSession] = React.useState(false);
-  const completingRef = React.useRef(false);
+  const completingRef = React.useRef(loginNavigationLocked);
 
   React.useEffect(() => {
-    if (completingRef.current) return;
+    if (loginNavigationLocked || completingRef.current || pending) return;
     if (isLoading || !user) return;
     setClearedPriorSession(true);
     void signOut();
-  }, [isLoading, user, signOut]);
+  }, [isLoading, user, signOut, pending]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +74,7 @@ function LoginForm() {
           toast.error(result.error ?? "Unable to sign in");
           return;
         }
+        loginNavigationLocked = true;
         completingRef.current = true;
         setUser(result.data.user);
         toast.success(
