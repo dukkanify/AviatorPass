@@ -144,6 +144,14 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("Waiting for TKI 1 to open the next subject.");
   });
 
+  it("does not block the overview API on first-lecture hydrate", () => {
+    const route = readFileSync(resolve(root, "app/api/learning/dashboard/route.ts"), "utf8");
+    const schedule = readFileSync(resolve(root, "app/api/learning/atpl-schedule/route.ts"), "utf8");
+    expect(route).not.toContain("ensureConfirmedFirstLectureOnTimetable");
+    expect(route).toContain("getLearningDashboard");
+    expect(schedule).toContain("ensureConfirmedFirstLectureOnTimetable");
+  });
+
   it("gives the student shell a collapsible sidebar and profile menu", () => {
     const shell = readFileSync(
       resolve(root, "components/layout/student-learning-shell.tsx"),
