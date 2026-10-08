@@ -584,7 +584,9 @@ describe("ATPL Complete Package journey", () => {
     expect(cgiView).toContain("Confirmed first lectures");
     expect(cgiView).toContain("Instrumentation");
     expect(cgiView).toContain("always opens with Instrumentation");
-    expect(dash).toContain("Pending Instructor Assignment");
+    expect(dash).toContain("ATPL_PENDING_INSTRUCTOR_ASSIGNMENT");
+    expect(dash).toContain("ACTION_LABELS.instructorAssignmentStep");
+    expect(dash).toContain("ACTION_LABELS.stepIncomplete");
     expect(dash).toContain("instructorAssignmentStatus");
     expect(dash).toContain("firstLectureSubjectTitle");
     expect(dash).toContain("atplSchedule.subjects");

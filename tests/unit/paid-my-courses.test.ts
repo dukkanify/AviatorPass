@@ -4,7 +4,9 @@ import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { writeAuthDb } from "@/services/auth/store";
+import { ATPL_PENDING_INSTRUCTOR_ASSIGNMENT } from "@/constants/atpl-complete-package";
 import {
+  getStudentAtplPackageSchedule,
   hydratePaidAtplStudentAccess,
   rebindPaidPackageOrdersToLiveUsers,
 } from "@/services/cgi/journey-service";
@@ -135,6 +137,11 @@ describe("paid ATPL my courses", () => {
     );
     expect(courses.some((course) => course.title === "Instrumentation")).toBe(true);
     expect(courses.some((course) => course.title === "Air Law")).toBe(true);
+
+    const schedule = getStudentAtplPackageSchedule(studentId, email);
+    expect(schedule.packageOwned).toBe(true);
+    expect(schedule.instructorAssignmentStatus).toBe("pending");
+    expect(schedule.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
   });
 
   it("lists enrolled ATPL subjects by course id instead of a catalog page", async () => {

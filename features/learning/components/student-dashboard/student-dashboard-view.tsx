@@ -619,13 +619,16 @@ function LearningDashboardView() {
               </div>
               <p className="sl-muted">
                 {atplSchedule.instructorAssignmentStatus === "pending"
-                  ? atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
+                  ? `${ACTION_LABELS.instructorAssignmentStep} — ${ACTION_LABELS.stepIncomplete}`
                   : atplSchedule.scheduleProvisional
                     ? "Provisional — waiting for TKI 1"
                     : "Confirmed by TKI 1"}
               </p>
               {atplSchedule.instructorAssignmentStatus === "pending" ? (
-                <p className="sl-muted">{ATPL_INSTRUCTOR_CONFIRM_NOTICE}</p>
+                <p className="sl-muted">
+                  {atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}.{" "}
+                  {ATPL_INSTRUCTOR_CONFIRM_NOTICE}
+                </p>
               ) : null}
               <p>
                 <strong>

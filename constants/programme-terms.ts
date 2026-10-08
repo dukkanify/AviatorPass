@@ -48,4 +48,7 @@ export const ACTION_LABELS = {
   openNextSubject: "Open next subject",
   completeCurrentSubject: "Mark subject complete",
   viewTimetable: "View timetable",
+  instructorAssignmentStep: "Instructor assignment",
+  stepIncomplete: "Incomplete",
+  stepComplete: "Complete",
 } as const;
