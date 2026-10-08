@@ -12,7 +12,7 @@ import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { majorToMinor } from "@/services/payments/money";
-import { writePaymentsDb } from "@/services/payments/store";
+import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import {
   stripLegacyClientName,
   LEGACY_CLIENT_NAME_RE,
@@ -425,6 +425,19 @@ export function ensureCustomerJourneyProducts(): void {
   const courses = readCoursesDb().courses.filter((c) => !c.deletedAt && c.status === "published");
   const instructorId = primaryInstructorId();
   if (!instructorId) return;
+
+  const snapshot = readPaymentsDb();
+  const missingJourney = JOURNEY_COURSES.some((def) => {
+    const course = courses.find((row) => row.code === def.code);
+    return (
+      Boolean(course) && !snapshot.products.some((product) => product.metadata?.sku === def.sku)
+    );
+  });
+  const missingElp = !snapshot.products.some((product) => product.metadata?.sku === "ELP-MOCK");
+  if (!missingJourney && !missingElp) {
+    return;
+  }
+
   const ts = nowIso();
 
   writePaymentsDb((d) => {

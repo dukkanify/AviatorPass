@@ -7,7 +7,7 @@ import { routes } from "@/constants/routes";
 import { APP_METADATA } from "@/constants/navigation";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: {

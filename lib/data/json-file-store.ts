@@ -90,7 +90,7 @@ export function getJsonStoreStatus(): {
 }
 
 const CHUNK_CHARS = 12_000;
-const CHUNK_READ_PAGE = 4;
+const CHUNK_READ_PAGE = 24;
 
 function ensureTable(): void {
   if (tableReady) return;

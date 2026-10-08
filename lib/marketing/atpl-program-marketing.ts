@@ -3,7 +3,6 @@
  */
 
 import { routes } from "@/constants/routes";
-import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { listProducts } from "@/services/payments/catalog-service";
 import { resolveCountryPrice } from "@/services/payments/country-pricing";
 import {
@@ -22,7 +21,6 @@ export type AtplProgramMarketing = {
 export function getAtplProgramMarketing(country?: string | null): AtplProgramMarketing {
   const resolved = country?.trim() ? country : PLATFORM_CHECKOUT_COUNTRY;
   try {
-    ensurePaymentsSeeded();
     const product =
       listProducts({ activeOnly: true }).find((p) => p.metadata?.sku === "ATPL-PACKAGE") ?? null;
     if (product) {
