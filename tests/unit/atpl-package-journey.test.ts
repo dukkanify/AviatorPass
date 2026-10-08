@@ -212,6 +212,7 @@ describe("ATPL Complete Package journey", () => {
     );
     expect(checkoutView).toContain("studyStartDate");
     expect(checkoutView).toContain("firstLectureTime");
+    expect(checkoutView).toContain("Time for the first lecture (UTC)");
     expect(checkoutView).toContain("ATPL_PACKAGE_TKI_NOTICE");
     expect(checkoutView).toContain("countryOptionLabel");
     expect(checkoutView).toContain("applyCountryDialCode");
