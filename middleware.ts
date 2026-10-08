@@ -175,11 +175,15 @@ export async function middleware(request: NextRequest) {
 
   const claims = await readClaims(request);
 
-  // Settings- or env-driven maintenance — Super Admins may still access the console.
+  // Settings-driven maintenance is checked on authenticated shells only.
+  // Public marketing pages skip the same-origin /api/public/maintenance fetch
+  // (that round-trip added ~1s to every HTML request). Env flag still applies.
+  const isProtected = matchesPrefix(pathname, protectedRoutePrefixes);
   if (
     pathname !== routes.maintenance &&
     !pathname.startsWith("/api/") &&
-    claims?.role !== "super_admin"
+    claims?.role !== "super_admin" &&
+    (isProtected || publicEnv.NEXT_PUBLIC_MAINTENANCE_MODE)
   ) {
     const maintenanceOn = await isMaintenanceEnabled(request);
     if (maintenanceOn) {
@@ -188,7 +192,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
   }
-  const isProtected = matchesPrefix(pathname, protectedRoutePrefixes);
   const isAuthRoute = matchesPrefix(pathname, authRoutes);
 
   if (isProtected && !claims) {

@@ -22,8 +22,8 @@ import { ensureWallet } from "@/services/payments/wallet-service";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { CatalogProduct, Coupon, Invoice, Order, PaymentRecord } from "@/types/payments";
 
-function atplPackageCourseIds(): string[] {
-  ensureCoursesSeeded();
+function atplPackageCourseIds(seedMissing = true): string[] {
+  if (seedMissing) ensureCoursesSeeded();
   const byCode = new Map(
     readCoursesDb()
       .courses.filter((course) => !course.deletedAt)
@@ -396,7 +396,29 @@ export function ensurePaymentsSeeded(): void {
 
 /** Backfill ATPL package + regional BNPL rules on already-seeded payment DBs. */
 function ensureAtplPackageAndRegionalRules(): void {
+  const current = readPaymentsDb();
+  const existing = current.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
+  const missingPrices = existing
+    ? Object.keys(ATPL_PACKAGE_PRICES).some(
+        (code) => typeof existing.pricesByCurrency?.[code] !== "number",
+      )
+    : false;
+  const packageCourseIds = existing ? atplPackageCourseIds(false) : [];
+  const currentIds = Array.isArray(existing?.metadata.courseIds)
+    ? existing.metadata.courseIds.map(String)
+    : [];
+  const courseIdsStale =
+    Boolean(existing) &&
+    packageCourseIds.length > 0 &&
+    (currentIds.length !== packageCourseIds.length ||
+      packageCourseIds.some((id) => !currentIds.includes(id)));
+  const needsRules = current.regionalRules.length === 0;
+  if (existing && !missingPrices && !courseIdsStale && !needsRules) {
+    return;
+  }
+
   ensureCoursesSeeded();
+
   const courses = listCourses({ pageSize: 50, status: "published" }).data;
   const users = readAuthDb().users;
   const instructor = users.find((u) => u.role === ROLES.INSTRUCTOR);
@@ -405,32 +427,30 @@ function ensureAtplPackageAndRegionalRules(): void {
       d.regionalRules = defaultRegionalPaymentRules(d.settings.currency);
     }
     const stamp = new Date().toISOString();
-    const existing = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
-    if (existing) {
-      const next = { ...ATPL_PACKAGE_PRICES, ...existing.pricesByCurrency };
-      const missing = Object.keys(ATPL_PACKAGE_PRICES).some(
-        (code) => typeof existing.pricesByCurrency?.[code] !== "number",
-      );
-      if (missing) {
-        existing.pricesByCurrency = next;
-        existing.updatedAt = stamp;
+    const row = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
+    if (row) {
+      const next = { ...ATPL_PACKAGE_PRICES, ...row.pricesByCurrency };
+      if (
+        Object.keys(ATPL_PACKAGE_PRICES).some(
+          (code) => typeof row.pricesByCurrency?.[code] !== "number",
+        )
+      ) {
+        row.pricesByCurrency = next;
+        row.updatedAt = stamp;
       }
-      const packageCourseIds = atplPackageCourseIds();
-      const currentIds = Array.isArray(existing.metadata.courseIds)
-        ? existing.metadata.courseIds.map(String)
-        : [];
-      const courseIdsStale =
-        packageCourseIds.length > 0 &&
-        (currentIds.length !== packageCourseIds.length ||
-          packageCourseIds.some((id) => !currentIds.includes(id)));
-      if (courseIdsStale) {
-        existing.metadata = {
-          ...existing.metadata,
+      const nextCourseIds = atplPackageCourseIds();
+      const ids = Array.isArray(row.metadata.courseIds) ? row.metadata.courseIds.map(String) : [];
+      if (
+        nextCourseIds.length > 0 &&
+        (ids.length !== nextCourseIds.length || nextCourseIds.some((id) => !ids.includes(id)))
+      ) {
+        row.metadata = {
+          ...row.metadata,
           sku: "ATPL-PACKAGE",
-          courseIds: packageCourseIds,
-          subjectCount: packageCourseIds.length,
+          courseIds: nextCourseIds,
+          subjectCount: nextCourseIds.length,
         };
-        existing.updatedAt = stamp;
+        row.updatedAt = stamp;
       }
       return;
     }
