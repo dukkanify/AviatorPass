@@ -9,7 +9,7 @@ export default function AdminUsersPage() {
       description="Manage students and instructors. Creating admins is Super Admin only."
       roleFilter={null}
       emptyTitle="No users found"
-      emptyAction={{ label: "Add student", href: "/admin/students" }}
+      emptyAction={{ label: "Invite user" }}
     />
   );
 }

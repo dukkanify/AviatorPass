@@ -277,6 +277,26 @@ export const updateProfileSchema = z.object({
   avatarUrl: z.string().url().optional().or(z.literal("")).or(z.null()),
 });
 
+export const adminCreateUserSchema = z.object({
+  firstName: nameSchema,
+  lastName: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+  countryCode: z.string().length(2).optional().or(z.literal("")),
+  nationality: z.string().trim().max(80).optional().or(z.literal("")),
+  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]),
+});
+
+export const adminUpdateUserSchema = z.object({
+  firstName: nameSchema.optional(),
+  lastName: nameSchema.optional(),
+  phone: phoneSchema,
+  countryCode: z.string().length(2).optional().or(z.literal("")),
+  nationality: z.string().trim().max(80).optional().or(z.literal("")),
+  status: z.enum(["pending", "active", "inactive", "suspended"]).optional(),
+  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]).optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
@@ -289,3 +309,5 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>;
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
