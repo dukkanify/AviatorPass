@@ -435,7 +435,7 @@ function GuestCheckoutView() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="firstLectureTime">Time for the first lecture</Label>
+                <Label htmlFor="firstLectureTime">Time for the first lecture (UTC)</Label>
                 <Input
                   id="firstLectureTime"
                   type="time"
