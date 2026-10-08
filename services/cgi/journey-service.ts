@@ -791,34 +791,44 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   const usersByEmail = new Map(
     readAuthDb().users.map((user) => [user.email.trim().toLowerCase(), user] as const),
   );
-  const rebound: Array<{ from: string; to: string }> = [];
-  writePaymentsDb((db) => {
-    for (const order of db.orders) {
-      if (!isPaidAtplPackageOrder(order)) continue;
-      const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
-      const user = email ? usersByEmail.get(email) : undefined;
-      if (!user || !order.studentId || order.studentId === user.id || order.studentId === "guest") {
-        continue;
-      }
-      const from = order.studentId;
-      order.studentId = user.id;
-      order.studentEmail = user.email;
-      order.studentName = `${user.firstName} ${user.lastName}`.trim() || user.email;
-      order.metadata = { ...order.metadata, reboundFromStudentId: from };
-      order.updatedAt = nowIso();
-      rebound.push({ from, to: user.id });
+  const pending: Array<{ id: string; from: string; to: string; email: string; name: string }> = [];
+  for (const order of readPaymentsDb().orders) {
+    if (!isPaidAtplPackageOrder(order)) continue;
+    const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
+    const user = email ? usersByEmail.get(email) : undefined;
+    if (!user || !order.studentId || order.studentId === user.id || order.studentId === "guest") {
+      continue;
     }
-  });
-  if (rebound.length) {
-    writeCoursesDb((db) => {
-      for (const { from, to } of rebound) {
-        for (const enrollment of db.enrollments) {
-          if (enrollment.studentId === from) enrollment.studentId = to;
-        }
-      }
+    pending.push({
+      id: order.id,
+      from: order.studentId,
+      to: user.id,
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email,
     });
   }
-  return rebound.length;
+  if (!pending.length) return 0;
+
+  writePaymentsDb((db) => {
+    const stamp = nowIso();
+    for (const row of pending) {
+      const order = db.orders.find((item) => item.id === row.id);
+      if (!order) continue;
+      order.studentId = row.to;
+      order.studentEmail = row.email;
+      order.studentName = row.name;
+      order.metadata = { ...order.metadata, reboundFromStudentId: row.from };
+      order.updatedAt = stamp;
+    }
+  });
+  writeCoursesDb((db) => {
+    for (const { from, to } of pending) {
+      for (const enrollment of db.enrollments) {
+        if (enrollment.studentId === from) enrollment.studentId = to;
+      }
+    }
+  });
+  return pending.length;
 }
 
 function resolveLivePaidStudent(studentId: string, email: string) {
