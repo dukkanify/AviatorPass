@@ -44,7 +44,9 @@ import {
 import { CourseValidationError } from "@/services/courses/validation";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { instructorAssignmentFromOrder } from "@/services/cgi/instructor-assignment-status";
+import { renderAutomationTemplate } from "@/services/email/automation-templates";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
+import { sendEmail } from "@/services/email/mailer";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
@@ -1051,30 +1053,29 @@ async function maybeSendPackageConfirmationFollowup(
     current.metadata = { ...current.metadata, packageConfirmationFollowupAt: nowIso() };
     current.updatedAt = nowIso();
   });
-  void dispatchEmailEvent({
-    event: "payment",
-    userIds: [user.id],
+  const data = {
+    recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
+    title: "Package confirmed",
+    detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
+    packageName,
+    instructorAssignmentLabel:
+      typeof order.metadata.instructorAssignmentLabel === "string"
+        ? order.metadata.instructorAssignmentLabel
+        : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+    instructorConfirmNotice: ATPL_INSTRUCTOR_CONFIRM_NOTICE,
+    loginUrl: `${publicAppOrigin()}${routes.login}`,
+    courseUrl: `${publicAppOrigin()}${routes.studentDashboard}`,
+    supportEmail: brand.supportEmail,
+    reference: order.orderNumber,
+    cta: "Open your course",
+  };
+  const template = renderAutomationTemplate("payment", data, "Package confirmed");
+  void sendEmail({
     to: user.email,
-    subject: "Package confirmed",
-    data: {
-      recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
-      title: "Package confirmed",
-      detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
-      packageName,
-      instructorAssignmentLabel:
-        typeof order.metadata.instructorAssignmentLabel === "string"
-          ? order.metadata.instructorAssignmentLabel
-          : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
-      instructorConfirmNotice: ATPL_INSTRUCTOR_CONFIRM_NOTICE,
-      loginUrl: `${publicAppOrigin()}${routes.login}`,
-      courseUrl: `${publicAppOrigin()}${routes.studentDashboard}`,
-      supportEmail: brand.supportEmail,
-      reference: order.orderNumber,
-      cta: "Open your course",
-    },
-    actorId: user.id,
-    system: true,
-    meta: { kind: "package_confirmation_followup", orderId: order.id },
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    meta: { kind: "package_confirmation_followup", orderId: order.id, userId: user.id },
   }).catch(() => {
     // Delivery is best-effort; the in-app package confirmation still stands.
   });
