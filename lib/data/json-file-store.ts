@@ -22,6 +22,7 @@ import {
 
 const rawMemory = new Map<string, string>();
 const parsedMemory = new Map<string, unknown>();
+const cacheUpdatedAt = new Map<string, string>();
 
 const hydratedKeys = new Set<string>();
 let tableReady = false;
@@ -168,18 +169,48 @@ function writeChunkedValue(key: string, value: unknown): void {
   );
 }
 
+function postgresUpdatedAt(key: string): string | null {
+  const rows = neonSql<{ updated_at: string | Date | null }>(
+    "SELECT updated_at FROM aep_json_store WHERE key = $1",
+    [key],
+  );
+  const value = rows[0]?.updated_at;
+  if (value == null) return null;
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function rememberCacheStamp(key: string, stamp: string | null) {
+  hydratedKeys.add(key);
+  cacheUpdatedAt.set(key, stamp ?? "");
+}
+
 function hydrateKeyFromPostgres(filePath: string): void {
   if (!postgresStoreEnabled()) return;
   const key = storeKeyFromPath(filePath);
-  if (hydratedKeys.has(key)) return;
   ensureTable();
+
+  let stamp: string | null = null;
+  try {
+    stamp = postgresUpdatedAt(key);
+  } catch (error) {
+    console.error("[data] postgres stamp failed", key, error);
+    if (hydratedKeys.has(key)) return;
+  }
+
+  if (hydratedKeys.has(key) && cacheUpdatedAt.get(key) === (stamp ?? "")) {
+    return;
+  }
+
+  rawMemory.delete(filePath);
+  parsedMemory.delete(filePath);
+  hydratedKeys.delete(key);
 
   try {
     const chunked = readChunkedValue(key);
     if (chunked !== undefined) {
       rawMemory.set(filePath, JSON.stringify(chunked));
       parsedMemory.set(filePath, chunked);
-      hydratedKeys.add(key);
+      rememberCacheStamp(key, stamp);
       return;
     }
   } catch (error) {
@@ -192,7 +223,7 @@ function hydrateKeyFromPostgres(filePath: string): void {
     ]);
     const value = rows[0]?.value;
     if (value && typeof value === "object" && value !== null && "chunked" in value) {
-      hydratedKeys.add(key);
+      rememberCacheStamp(key, stamp);
       return;
     }
     if (value !== undefined) {
@@ -203,7 +234,7 @@ function hydrateKeyFromPostgres(filePath: string): void {
     // Oversized legacy JSONB rows can truncate over Neon HTTP — treat as missing.
     console.error("[data] jsonb hydrate skipped", key, error);
   }
-  hydratedKeys.add(key);
+  rememberCacheStamp(key, stamp);
 }
 
 function persistToPostgres(filePath: string, value: unknown): void {
@@ -213,6 +244,13 @@ function persistToPostgres(filePath: string, value: unknown): void {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       writeChunkedValue(key, value);
+      let stamp: string | null = null;
+      try {
+        stamp = postgresUpdatedAt(key);
+      } catch {
+        stamp = new Date().toISOString();
+      }
+      rememberCacheStamp(key, stamp);
       return;
     } catch (error) {
       lastError = error;
@@ -312,12 +350,14 @@ export function clearJsonFileCache(filePath?: string): void {
   if (!filePath) {
     rawMemory.clear();
     parsedMemory.clear();
+    cacheUpdatedAt.clear();
     hydratedKeys.clear();
     tableReady = false;
     return;
   }
   rawMemory.delete(filePath);
   parsedMemory.delete(filePath);
+  cacheUpdatedAt.delete(storeKeyFromPath(filePath));
   hydratedKeys.delete(storeKeyFromPath(filePath));
 }
 
