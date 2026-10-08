@@ -1035,41 +1035,38 @@ async function maybeSendPackageConfirmationFollowup(
   if (!user) return;
   const packageName = order.items[0]?.productName ?? "Aviator Pass";
   const brand = getPublicBrandConfig();
-  try {
-    await dispatchEmailEvent({
-      event: "payment",
-      userIds: [user.id],
-      to: user.email,
-      subject: "Package confirmed",
-      data: {
-        recipientName:
-          [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
-        title: "Package confirmed",
-        detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
-        packageName,
-        instructorAssignmentLabel:
-          typeof order.metadata.instructorAssignmentLabel === "string"
-            ? order.metadata.instructorAssignmentLabel
-            : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
-        instructorConfirmNotice: ATPL_INSTRUCTOR_CONFIRM_NOTICE,
-        loginUrl: `${publicAppOrigin()}${routes.login}`,
-        courseUrl: `${publicAppOrigin()}${routes.studentDashboard}`,
-        supportEmail: brand.supportEmail,
-        reference: order.orderNumber,
-        cta: "Open your course",
-      },
-      actorId: user.id,
-      system: true,
-      meta: { kind: "package_confirmation_followup", orderId: order.id },
-    });
-  } catch {
-    return;
-  }
   writePaymentsDb((db) => {
     const current = db.orders.find((row) => row.id === order.id);
     if (!current) return;
     current.metadata = { ...current.metadata, packageConfirmationFollowupAt: nowIso() };
     current.updatedAt = nowIso();
+  });
+  void dispatchEmailEvent({
+    event: "payment",
+    userIds: [user.id],
+    to: user.email,
+    subject: "Package confirmed",
+    data: {
+      recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
+      title: "Package confirmed",
+      detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
+      packageName,
+      instructorAssignmentLabel:
+        typeof order.metadata.instructorAssignmentLabel === "string"
+          ? order.metadata.instructorAssignmentLabel
+          : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+      instructorConfirmNotice: ATPL_INSTRUCTOR_CONFIRM_NOTICE,
+      loginUrl: `${publicAppOrigin()}${routes.login}`,
+      courseUrl: `${publicAppOrigin()}${routes.studentDashboard}`,
+      supportEmail: brand.supportEmail,
+      reference: order.orderNumber,
+      cta: "Open your course",
+    },
+    actorId: user.id,
+    system: true,
+    meta: { kind: "package_confirmation_followup", orderId: order.id },
+  }).catch(() => {
+    // Delivery is best-effort; the in-app package confirmation still stands.
   });
 }
 
