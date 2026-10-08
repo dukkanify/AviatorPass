@@ -29,7 +29,13 @@ import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import { getWelcomeByOrderId, payGuestCheckout } from "@/services/payments/purchase-first-service";
 import { getOrder } from "@/services/payments/checkout-service";
 import { writePaymentsDb } from "@/services/payments/store";
-import { listAtplStudents } from "@/services/cgi/journey-service";
+import { writeCoursesDb } from "@/services/courses/store";
+import { listStudentEnrollments } from "@/services/courses/enrollment-service";
+import {
+  getStudentAtplPackageSchedule,
+  hydratePaidAtplStudentAccess,
+  listAtplStudents,
+} from "@/services/cgi/journey-service";
 import { createManagedUser, updateManagedUser } from "@/services/users/user-admin-service";
 
 describe("purchase password and package confirmation journey", () => {
@@ -142,7 +148,43 @@ describe("purchase password and package confirmation journey", () => {
     const cgi = listAtplStudents().find((row) => row.email === email);
     expect(cgi?.studentId).toBe(liveId);
     expect(cgi?.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
-  });
+  }, 180_000);
+
+  it("hydrates ATPL enrollments onto the live account after a ghost student id", async () => {
+    const email = `hydrate.buyer.${Date.now()}@aviatorpass.test`;
+    const result = await payGuestCheckout({
+      firstName: "Hydrate",
+      lastName: "Buyer",
+      email,
+      phone: `+9655${String(Date.now() + 2).slice(-7)}`,
+      country: "KW",
+      billingName: "Hydrate Buyer",
+      billingAddress: "Kuwait City",
+      ...validAtplPackageSchedule(),
+      methodBrand: "card",
+      paymentToken: "tok_4242",
+      idempotencyKey: `hydrate-${Date.now()}`,
+    });
+    const liveId = findUserByEmail(email)!.id;
+    writePaymentsDb((db) => {
+      const order = db.orders.find((row) => row.id === result.order.id);
+      if (order) order.studentId = "ghost-hydrate-id";
+    });
+    writeCoursesDb((db) => {
+      db.enrollments = db.enrollments.filter((row) => row.studentId !== liveId);
+    });
+
+    await hydratePaidAtplStudentAccess("ghost-hydrate-id", email, result.order.id);
+
+    expect(getOrder(result.order.id)?.studentId).toBe(liveId);
+    expect(getOrder(result.order.id)?.metadata.packageConfirmationFollowupAt).toBeTruthy();
+    expect(listStudentEnrollments(liveId).length).toBeGreaterThan(0);
+
+    const schedule = getStudentAtplPackageSchedule(liveId, email);
+    expect(schedule.packageOwned).toBe(true);
+    expect(schedule.orderId).toBe(result.order.id);
+    expect(schedule.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
+  }, 180_000);
 
   it("lets a super admin set a student password from the console", async () => {
     const superAdmin = toUserProfile(findUserByEmail("superadmin@aviatorpass.com")!);

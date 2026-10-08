@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { requirePermission } from "@/services/auth/guards";
+import { hydratePaidAtplStudentAccess } from "@/services/cgi/journey-service";
 import { listMyCourses } from "@/services/learning/learning-service";
 import { learningErrorResponse } from "@/app/api/learning/_utils";
 
 export async function GET(request: Request) {
   try {
     const user = await requirePermission(PERMISSIONS.COURSES_ENROLLED);
+    await hydratePaidAtplStudentAccess(user.id, user.email);
     const { searchParams } = new URL(request.url);
     const data = listMyCourses(user.id, {
       q: searchParams.get("q") ?? undefined,

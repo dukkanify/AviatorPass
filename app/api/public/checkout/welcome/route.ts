@@ -55,6 +55,7 @@ export async function GET(request: Request) {
       await hydratePaidAtplStudentAccess(
         paidOrder.studentId,
         paidOrder.studentEmail || paidOrder.billingEmail || snapshot.billingEmail,
+        paidOrder.id,
       );
     }
     return NextResponse.json({ success: true, data: snapshot, error: null });

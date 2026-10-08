@@ -5,6 +5,7 @@
 import { generateId } from "@/lib/security/crypto";
 import {
   ATPL_COMPLETE_PACKAGE_SUBJECTS,
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
@@ -14,6 +15,7 @@ import {
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
   ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   ATPL_PACKAGE_TKI_NOTICE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
   atplPackageLectureLessonId,
   atplPackageSubjectOrderIndex,
@@ -29,7 +31,9 @@ import {
 } from "@/constants/atpl-complete-package";
 import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
-import { findUserById, readAuthDb } from "@/services/auth/store";
+import { routes } from "@/constants/routes";
+import { publicAppOrigin } from "@/lib/site-origin";
+import { findUserByEmail, findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import {
@@ -61,6 +65,7 @@ import type {
   AtplSubjectDistributionStatus,
   CgiOversightNote,
 } from "@/types/cgi";
+import type { Enrollment } from "@/types/courses";
 
 export class CgiError extends Error {
   status: number;
@@ -816,19 +821,30 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   return rebound.length;
 }
 
+function resolveLivePaidStudent(studentId: string, email: string) {
+  rebindPaidPackageOrdersToLiveUsers();
+  const live = findUserByEmail(email) ?? findUserById(studentId);
+  return {
+    studentId: live?.id ?? studentId,
+    email: live?.email ?? email,
+  };
+}
+
 function latestPaidPackageOrder(studentId: string, email: string) {
   ensurePaymentsSeeded();
   const needle = email.trim().toLowerCase();
+  const matches = readPaymentsDb().orders.filter((order) => {
+    const identity =
+      order.studentId === studentId ||
+      order.studentEmail?.trim().toLowerCase() === needle ||
+      order.billingEmail?.trim().toLowerCase() === needle;
+    if (!identity) return false;
+    return order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
+  });
+  const atpl = matches.filter((order) => isPaidAtplPackageOrder(order));
   return (
-    readPaymentsDb()
-      .orders.filter((order) => {
-        const identity =
-          order.studentId === studentId ||
-          order.studentEmail?.trim().toLowerCase() === needle ||
-          order.billingEmail?.trim().toLowerCase() === needle;
-        if (!identity) return false;
-        if (!isPaidAtplPackageOrder(order)) return false;
-      })
+    (atpl.length ? atpl : matches)
+      .slice()
       .sort((a, b) => (b.paidAt ?? b.updatedAt).localeCompare(a.paidAt ?? a.updatedAt))[0] ?? null
   );
 }
@@ -987,18 +1003,82 @@ function latestPaidPackageSchedule(studentId: string, email: string): AtplPackag
 
 export function getStudentAtplPackageSchedule(studentId: string, email: string) {
   ensurePaymentsSeeded();
-  rebindPaidPackageOrdersToLiveUsers();
-  return latestPaidPackageSchedule(studentId, email);
+  const live = resolveLivePaidStudent(studentId, email);
+  return latestPaidPackageSchedule(live.studentId, live.email);
 }
 
-export async function hydratePaidAtplStudentAccess(studentId: string, email: string) {
+export async function hydratePaidAtplStudentAccess(
+  studentId: string,
+  email: string,
+  orderId?: string,
+) {
+  ensureCoursesSeeded();
   ensurePaymentsSeeded();
-  rebindPaidPackageOrdersToLiveUsers();
-  await ensureAtplPackageSubjectCoverage(studentId, email);
+  const live = resolveLivePaidStudent(studentId, email);
+  const pinned = orderId
+    ? (readPaymentsDb().orders.find((order) => order.id === orderId) ?? null)
+    : null;
+  await ensureAtplPackageSubjectCoverage(live.studentId, live.email, pinned);
+  const order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
+  if (order) {
+    await maybeSendPackageConfirmationFollowup(order, live.studentId);
+  }
 }
 
-async function ensureAtplPackageSubjectCoverage(studentId: string, email: string): Promise<void> {
-  const order = latestPaidPackageOrder(studentId, email);
+async function maybeSendPackageConfirmationFollowup(
+  order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
+  studentId: string,
+) {
+  if (order.metadata.packageConfirmationFollowupAt) return;
+  if (!isPaidAtplPackageOrder(order)) return;
+  const user = findUserById(studentId);
+  if (!user) return;
+  const packageName = order.items[0]?.productName ?? "Aviator Pass";
+  const brand = getPublicBrandConfig();
+  try {
+    await dispatchEmailEvent({
+      event: "payment",
+      userIds: [user.id],
+      to: user.email,
+      subject: "Package confirmed",
+      data: {
+        recipientName:
+          [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
+        title: "Package confirmed",
+        detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
+        packageName,
+        instructorAssignmentLabel:
+          typeof order.metadata.instructorAssignmentLabel === "string"
+            ? order.metadata.instructorAssignmentLabel
+            : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+        instructorConfirmNotice: ATPL_INSTRUCTOR_CONFIRM_NOTICE,
+        loginUrl: `${publicAppOrigin()}${routes.login}`,
+        courseUrl: `${publicAppOrigin()}${routes.studentDashboard}`,
+        supportEmail: brand.supportEmail,
+        reference: order.orderNumber,
+        cta: "Open your course",
+      },
+      actorId: user.id,
+      system: true,
+      meta: { kind: "package_confirmation_followup", orderId: order.id },
+    });
+  } catch {
+    return;
+  }
+  writePaymentsDb((db) => {
+    const current = db.orders.find((row) => row.id === order.id);
+    if (!current) return;
+    current.metadata = { ...current.metadata, packageConfirmationFollowupAt: nowIso() };
+    current.updatedAt = nowIso();
+  });
+}
+
+async function ensureAtplPackageSubjectCoverage(
+  studentId: string,
+  email: string,
+  pinnedOrder?: { id: string; metadata: Record<string, unknown> } | null,
+): Promise<void> {
+  const order = pinnedOrder ?? latestPaidPackageOrder(studentId, email);
   const owned = Boolean(order) || studentHasAtplEnrollment(studentId);
   if (!owned) return;
   ensureStudentSubjectPlan(studentId, studentId);
@@ -1006,27 +1086,40 @@ async function ensureAtplPackageSubjectCoverage(studentId: string, email: string
     typeof order?.metadata.scheduleConfirmedById === "string"
       ? order.metadata.scheduleConfirmedById
       : studentId;
-  for (const course of officialPackageCourses()) {
-    const existing = listStudentEnrollments(studentId).find(
-      (row) => row.courseId === course.id && !["dropped", "rejected"].includes(row.status),
-    );
-    if (existing) continue;
-    try {
-      await enrollStudent({
+  const enrolled = new Set(
+    listStudentEnrollments(studentId)
+      .filter((row) => !["dropped", "rejected"].includes(row.status))
+      .map((row) => row.courseId),
+  );
+  const missing = officialPackageCourses().filter((course) => !enrolled.has(course.id));
+  if (!missing.length) return;
+  const now = nowIso();
+  writeCoursesDb((db) => {
+    for (const course of missing) {
+      const already = db.enrollments.some(
+        (row) =>
+          row.courseId === course.id &&
+          row.studentId === studentId &&
+          !["dropped", "rejected"].includes(row.status),
+      );
+      if (already) continue;
+      const enrollment: Enrollment = {
+        id: generateId(),
         courseId: course.id,
         studentId,
         status: "approved",
+        enrolledById: actorId,
+        enrolledAt: now,
+        approvedAt: now,
+        completedAt: null,
+        droppedAt: null,
+        suspendedAt: null,
         notes: "ATPL Complete Package",
-        actorId,
-        bypassEnrollmentGate: true,
-      });
-    } catch (error) {
-      if (error instanceof CourseValidationError && /already enrolled/i.test(error.message)) {
-        continue;
-      }
-      throw error;
+        updatedAt: now,
+      };
+      db.enrollments.push(enrollment);
     }
-  }
+  });
 }
 
 /** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */
@@ -1034,10 +1127,11 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   studentId: string,
   email: string,
 ): Promise<AtplPackageScheduleSnapshot> {
-  await ensureAtplPackageSubjectCoverage(studentId, email);
-  const order = latestPaidPackageOrder(studentId, email);
-  if (!order) return latestPaidPackageSchedule(studentId, email);
-  const schedule = packageScheduleFromOrder(order, studentId);
+  const live = resolveLivePaidStudent(studentId, email);
+  await hydratePaidAtplStudentAccess(live.studentId, live.email);
+  const order = latestPaidPackageOrder(live.studentId, live.email);
+  if (!order) return latestPaidPackageSchedule(live.studentId, live.email);
+  const schedule = packageScheduleFromOrder(order, live.studentId);
   if (schedule.scheduleProvisional || !schedule.confirmedStudyStartDate) return schedule;
   if (schedule.firstLectureOnTimetable) return schedule;
 
@@ -1048,11 +1142,11 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   const existingId = schedule.firstLectureLiveClassId;
   const existing = existingId ? getLiveClass(existingId) : null;
   if (existing && existing.status !== "cancelled") {
-    enrollStudentsInLiveClass(existing.id, [studentId]);
+    enrollStudentsInLiveClass(existing.id, [live.studentId]);
     if (existing.courseId) {
       const course = listAtplCourses().find((item) => item.id === existing.courseId);
       upsertFirstLectureAssignment({
-        studentId,
+        studentId: live.studentId,
         courseId: existing.courseId,
         instructorId: existing.instructorId,
         scheduledAt: existing.startsAt,
@@ -1060,15 +1154,15 @@ export async function ensureConfirmedFirstLectureOnTimetable(
         actorId:
           typeof order.metadata.scheduleConfirmedById === "string"
             ? order.metadata.scheduleConfirmedById
-            : studentId,
+            : live.studentId,
         notes: ATPL_PACKAGE_CONFIRMED_NOTICE,
         lessonTitle: formatAtplFirstLectureTitle(
           course ? officialTitleForAtplCourse(course) : ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
         ),
       });
     }
-    if (firstLectureIsOnTimetable(studentId, existing.id)) {
-      return packageScheduleFromOrder(order, studentId);
+    if (firstLectureIsOnTimetable(live.studentId, existing.id)) {
+      return packageScheduleFromOrder(order, live.studentId);
     }
   }
 
@@ -1076,9 +1170,9 @@ export async function ensureConfirmedFirstLectureOnTimetable(
     const actorId =
       typeof order.metadata.scheduleConfirmedById === "string"
         ? order.metadata.scheduleConfirmedById
-        : studentId;
+        : live.studentId;
     const liveClassId = await placeConfirmedFirstLecture({
-      studentId,
+      studentId: live.studentId,
       actorId,
       when: combineLocalDateAndTime(date, time),
       existingLiveClassId: existingId,
@@ -1096,7 +1190,7 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   } catch {
     // Confirmation metadata still describes the time; booking is retried on the next load.
   }
-  return latestPaidPackageSchedule(studentId, email);
+  return latestPaidPackageSchedule(live.studentId, live.email);
 }
 
 const FIRST_LECTURE_LESSON_ID = ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID;
