@@ -40,6 +40,7 @@ export const ACTION_LABELS = {
   contactAdvisor: "Contact an advisor",
   enrolNow: "Enrol now",
   viewCourse: "View course details",
+  startLesson: "Start lesson",
   continueLesson: "Continue lesson",
   enrolInACourse: "Enrol in a course",
   enrolToUnlockLive: "Enrol to unlock live sessions",

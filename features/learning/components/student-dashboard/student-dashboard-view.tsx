@@ -568,7 +568,11 @@ function LearningDashboardView() {
               </div>
               <Link className="sl-btn-navy" href={hasEnrolledCourses ? resumeHref : "/courses"}>
                 <PlayCircle className="h-4 w-4" aria-hidden />
-                {hasEnrolledCourses ? ACTION_LABELS.continueLesson : ACTION_LABELS.browseCourses}
+                {hasEnrolledCourses
+                  ? continueProgress > 0
+                    ? ACTION_LABELS.continueLesson
+                    : ACTION_LABELS.startLesson
+                  : ACTION_LABELS.browseCourses}
               </Link>
             </div>
           </section>
