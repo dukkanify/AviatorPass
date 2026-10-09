@@ -61,15 +61,20 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.15rem 0.9rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #071018;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0c1824;
 }
 
 .classroom-viewport {
   position: relative;
   isolation: isolate;
   min-height: min(56vh, 620px);
-  background: #050b11;
+  margin: 0.75rem 0.85rem;
+  overflow: hidden;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #03070c;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .classroom-sdk-root {
@@ -115,8 +120,8 @@
   flex-direction: column;
   gap: 0.9rem;
   padding: 0.95rem 1.15rem 1.1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: #071018;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0c1824;
 }
 
 .classroom-caption {
