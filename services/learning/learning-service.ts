@@ -314,7 +314,9 @@ export function getLearningDashboard(user: UserProfile): LearningDashboardOvervi
             if (!allowed.has(cls.id) || cls.deletedAt) return false;
             if (["cancelled", "draft", "completed"].includes(cls.status)) return false;
             const start = Date.parse(cls.startsAt);
-            return Number.isFinite(start) && start > now;
+            const end = Date.parse(cls.endsAt);
+            if (!Number.isFinite(start)) return false;
+            return start > now || (Number.isFinite(end) && end > now);
           })
           .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null
       );

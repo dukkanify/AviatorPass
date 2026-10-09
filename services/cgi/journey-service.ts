@@ -56,6 +56,7 @@ import {
   enrollStudentsInLiveClass,
   getLiveClass,
   rescheduleLiveClass,
+  updateLiveClass,
   canManageClass,
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
@@ -595,6 +596,251 @@ export async function changeSubjectInstructor(input: {
   return listAtplCourses().find((c) => c.id === input.courseId)!;
 }
 
+function usableLiveClass(id?: string | null) {
+  if (!id) return null;
+  const live = getLiveClass(id);
+  if (!live || live.status === "cancelled") return null;
+  return live;
+}
+
+function packageLectureStartsAt(studentId: string): string | null {
+  const student = findUserById(studentId);
+  if (!student) return null;
+  const order = latestPaidPackageOrder(studentId, student.email);
+  if (!order) return null;
+  const date = String(
+    order.metadata.studyStartDate ?? order.metadata.requestedStudyStartDate ?? "",
+  );
+  const time = String(
+    order.metadata.firstLectureTime ?? order.metadata.requestedFirstLectureTime ?? "",
+  );
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date) && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    const when = combineLocalDateAndTime(date, time);
+    if (!Number.isNaN(when.getTime()) && when.getTime() > Date.now() - 60_000) {
+      return when.toISOString();
+    }
+  }
+  if (typeof order.metadata.firstLectureAt === "string") {
+    const when = Date.parse(order.metadata.firstLectureAt);
+    if (Number.isFinite(when) && when > Date.now() - 60_000) {
+      return new Date(when).toISOString();
+    }
+  }
+  return usableLiveClass(liveClassIdFromOrder(order))?.startsAt ?? null;
+}
+
+function soonLectureStartsAt() {
+  const when = new Date(Date.now() + 20 * 60_000);
+  when.setSeconds(0, 0);
+  return when.toISOString();
+}
+
+function unconflictedLectureStartsAt() {
+  const when = new Date(Date.now() + 21 * 86_400_000);
+  when.setUTCMinutes(0, 0, 0);
+  return when.toISOString();
+}
+
+function rememberFirstLectureLiveClass(studentId: string, liveClassId: string) {
+  const student = findUserById(studentId);
+  if (!student) return;
+  const order = latestPaidPackageOrder(studentId, student.email);
+  if (!order) return;
+  const stamp = nowIso();
+  writePaymentsDb((db) => {
+    const row = db.orders.find((item) => item.id === order.id);
+    if (!row) return;
+    row.metadata = { ...row.metadata, firstLectureLiveClassId: liveClassId };
+    row.updatedAt = stamp;
+  });
+}
+
+async function bindLiveClassToAssignedSubject(input: {
+  liveClassId: string;
+  studentId: string;
+  courseId: string;
+  instructorId: string;
+  title: string;
+  lessonId: string;
+  notes: string;
+  actorId: string;
+}): Promise<string> {
+  enrollStudentsInLiveClass(input.liveClassId, [input.studentId]);
+  const live = getLiveClass(input.liveClassId);
+  if (
+    live &&
+    (live.courseId !== input.courseId ||
+      live.instructorId !== input.instructorId ||
+      live.title !== input.title ||
+      live.lessonId !== input.lessonId)
+  ) {
+    try {
+      await updateLiveClass({
+        id: input.liveClassId,
+        patch: {
+          courseId: input.courseId,
+          instructorId: input.instructorId,
+          title: input.title,
+          lessonId: input.lessonId,
+          description: input.notes,
+        },
+        actorId: input.actorId,
+      });
+    } catch {
+      // Classroom is still open for this student on the existing meeting.
+    }
+  }
+  return input.liveClassId;
+}
+
+async function ensureAssignedSubjectLiveClass(input: {
+  courseId: string;
+  lessonId: string;
+  lessonTitle: string;
+  instructorId: string;
+  studentId?: string | null;
+  scheduledAt?: string | null;
+  notes?: string | null;
+  actorId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<string | null> {
+  if (!input.studentId && !input.scheduledAt) return null;
+
+  const course = listAtplCourses().find((item) => item.id === input.courseId);
+  const subjectTitle = course
+    ? officialTitleForAtplCourse(course)
+    : input.lessonTitle.trim() || "ATPL lecture";
+  const plan = input.studentId ? listStudentSubjectPlan(input.studentId) : [];
+  const selectedFirst = Boolean(
+    input.studentId && (plan.length === 0 || plan[0]?.courseId === input.courseId),
+  );
+  const title = selectedFirst
+    ? formatAtplFirstLectureTitle(subjectTitle)
+    : formatAtplLectureTitle(subjectTitle);
+  const lessonId = selectedFirst ? ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID : input.lessonId;
+  const notes = input.notes ?? "";
+
+  if (input.studentId) {
+    const existingAssignment = listLectureAssignments({
+      studentId: input.studentId,
+      courseId: input.courseId,
+    }).find((row) => usableLiveClass(row.liveClassId));
+    if (existingAssignment?.liveClassId) {
+      const liveClassId = await bindLiveClassToAssignedSubject({
+        liveClassId: existingAssignment.liveClassId,
+        studentId: input.studentId,
+        courseId: input.courseId,
+        instructorId: input.instructorId,
+        title,
+        lessonId,
+        notes,
+        actorId: input.actorId,
+      });
+      if (selectedFirst) rememberFirstLectureLiveClass(input.studentId, liveClassId);
+      return liveClassId;
+    }
+
+    if (selectedFirst) {
+      const student = findUserById(input.studentId);
+      const order = student ? latestPaidPackageOrder(input.studentId, student.email) : null;
+      const orderClass = usableLiveClass(order ? liveClassIdFromOrder(order) : null);
+      if (orderClass) {
+        const liveClassId = await bindLiveClassToAssignedSubject({
+          liveClassId: orderClass.id,
+          studentId: input.studentId,
+          courseId: input.courseId,
+          instructorId: input.instructorId,
+          title,
+          lessonId,
+          notes,
+          actorId: input.actorId,
+        });
+        rememberFirstLectureLiveClass(input.studentId, liveClassId);
+        return liveClassId;
+      }
+    }
+  }
+
+  const startsAt =
+    (input.scheduledAt && Number.isFinite(Date.parse(input.scheduledAt))
+      ? new Date(input.scheduledAt).toISOString()
+      : null) ??
+    (selectedFirst && input.studentId ? packageLectureStartsAt(input.studentId) : null) ??
+    soonLectureStartsAt();
+
+  if (selectedFirst && input.studentId) {
+    const shared = findSharedFirstLecture(startsAt, input.courseId);
+    if (shared) {
+      const liveClassId = await bindLiveClassToAssignedSubject({
+        liveClassId: shared.id,
+        studentId: input.studentId,
+        courseId: input.courseId,
+        instructorId: shared.instructorId,
+        title,
+        lessonId,
+        notes,
+        actorId: input.actorId,
+      });
+      rememberFirstLectureLiveClass(input.studentId, liveClassId);
+      return liveClassId;
+    }
+  }
+
+  const instructorIds = [
+    input.instructorId,
+    ...firstLectureInstructorIds(input.courseId, input.instructorId).filter(
+      (id) => id !== input.instructorId,
+    ),
+  ];
+  let lastError: string | null = null;
+  const attemptTimes = [
+    startsAt,
+    soonLectureStartsAt(),
+    new Date(Date.parse(startsAt) + 60 * 60_000).toISOString(),
+    unconflictedLectureStartsAt(),
+  ].filter((value, index, list) => list.indexOf(value) === index);
+  for (const attemptStartsAt of attemptTimes) {
+    for (const instructorId of instructorIds) {
+      try {
+        const created = await createLiveClass({
+          title,
+          description: notes,
+          courseId: input.courseId,
+          lessonId,
+          instructorId,
+          startsAt: attemptStartsAt,
+          durationMinutes: DEFAULT_CLASS_DURATION_MINUTES,
+          enrollStudentIds: input.studentId ? [input.studentId] : undefined,
+          omitScheduleEmail: true,
+          actorId: input.actorId,
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent,
+        });
+        if (!created?.id) {
+          lastError = "Could not create the live class";
+          continue;
+        }
+        if (input.studentId && selectedFirst) {
+          rememberFirstLectureLiveClass(input.studentId, created.id);
+        }
+        return created.id;
+      } catch (error) {
+        if (error instanceof ClassValidationError || error instanceof CgiError) {
+          lastError = error.message;
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  if (lastError && input.scheduledAt) {
+    throw new CgiError(lastError);
+  }
+  return null;
+}
+
 export async function distributeLecture(input: {
   courseId: string;
   lessonId: string;
@@ -616,44 +862,62 @@ export async function distributeLecture(input: {
   }
 
   const stamp = nowIso();
-  let liveClassId: string | null = null;
+  const liveClassId = await ensureAssignedSubjectLiveClass(input);
+  const live = usableLiveClass(liveClassId);
+  const plan = input.studentId ? listStudentSubjectPlan(input.studentId) : [];
+  const selectedFirst = Boolean(
+    input.studentId && (plan.length === 0 || plan[0]?.courseId === input.courseId),
+  );
+  const lessonId = selectedFirst ? ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID : input.lessonId;
+  const scheduledAt = input.scheduledAt ?? live?.startsAt ?? null;
+  const status = liveClassId || scheduledAt ? "scheduled" : "assigned";
 
-  // When a schedule time is provided, create the Live Class (Zoom + reminders).
-  if (input.scheduledAt) {
-    const created = await createLiveClass({
-      title: input.lessonTitle.trim() || "ATPL Lecture",
-      description: input.notes ?? "",
-      courseId: input.courseId,
-      lessonId: input.lessonId,
-      instructorId: input.instructorId,
-      startsAt: input.scheduledAt,
-      durationMinutes: 60,
-      enrollStudentIds: input.studentId ? [input.studentId] : undefined,
-      omitScheduleEmail: true,
-      actorId: input.actorId,
-      ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
-    });
-    liveClassId = created?.id ?? null;
-  }
+  const existingFirst =
+    input.studentId && selectedFirst
+      ? readCgiDb().lectureAssignments.find(
+          (row) =>
+            row.studentId === input.studentId &&
+            row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+        )
+      : null;
 
-  const row: AtplLectureAssignment = {
-    id: generateId(),
-    courseId: input.courseId,
-    lessonId: input.lessonId,
-    lessonTitle: input.lessonTitle.trim() || "Lecture",
-    instructorId: input.instructorId,
-    studentId: input.studentId ?? null,
-    status: input.scheduledAt ? "scheduled" : "assigned",
-    scheduledAt: input.scheduledAt ?? null,
-    liveClassId,
-    notes: input.notes ?? null,
-    assignedById: input.actorId,
-    createdAt: stamp,
-    updatedAt: stamp,
-  };
+  const row: AtplLectureAssignment = existingFirst
+    ? {
+        ...existingFirst,
+        courseId: input.courseId,
+        lessonId,
+        lessonTitle: input.lessonTitle.trim() || existingFirst.lessonTitle,
+        instructorId: input.instructorId,
+        studentId: input.studentId ?? null,
+        status,
+        scheduledAt,
+        liveClassId,
+        notes: input.notes ?? existingFirst.notes,
+        assignedById: input.actorId,
+        updatedAt: stamp,
+      }
+    : {
+        id: generateId(),
+        courseId: input.courseId,
+        lessonId,
+        lessonTitle: input.lessonTitle.trim() || "Lecture",
+        instructorId: input.instructorId,
+        studentId: input.studentId ?? null,
+        status,
+        scheduledAt,
+        liveClassId,
+        notes: input.notes ?? null,
+        assignedById: input.actorId,
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
 
   writeCgiDb((db) => {
+    if (existingFirst) {
+      const index = db.lectureAssignments.findIndex((item) => item.id === existingFirst.id);
+      if (index >= 0) db.lectureAssignments[index] = row;
+      return;
+    }
     db.lectureAssignments.unshift(row);
   });
   audit("cgi.lectures.distribute", input.actorId, "lecture", row.id, row.lessonTitle);
@@ -1350,8 +1614,7 @@ async function placeConfirmedFirstLecture(input: {
     input.when.getTime() + DEFAULT_CLASS_DURATION_MINUTES * 60_000,
   ).toISOString();
   const plan = ensureStudentSubjectPlan(input.studentId, input.actorId);
-  const opening = openingSubjectCourse();
-  const first = (opening ? plan.find((row) => row.courseId === opening.id) : null) ?? plan[0];
+  const first = plan[0];
   if (!first) throw new CgiError("No ATPL subject is available for the first lecture");
   const course = listAtplCourses().find((item) => item.id === first.courseId);
   const notes = ATPL_PACKAGE_CONFIRMED_NOTICE;

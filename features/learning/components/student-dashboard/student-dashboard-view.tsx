@@ -185,13 +185,16 @@ function LearningDashboardView() {
       : sessions.map(sessionToCalendar)
     : [];
   const todayItems = plannerItems.filter((item) => sameDay(item.startsAt, now));
+  const assignedClassId =
+    atplSchedule?.nextLectureLiveClassId ||
+    atplSchedule?.firstLectureLiveClassId ||
+    overview?.upcomingLiveClassId ||
+    null;
   const liveItem = hasEnrolledCourses
     ? (calendar.find(
         (item) =>
           item.type === "live_class" &&
-          (overview?.upcomingLiveClassId
-            ? item.id.endsWith(overview.upcomingLiveClassId)
-            : item.status === "upcoming"),
+          (assignedClassId ? item.id.endsWith(assignedClassId) : item.status === "upcoming"),
       ) ?? calendar.find((item) => item.type === "live_class"))
     : undefined;
   const confirmedStartsAt =
@@ -199,6 +202,10 @@ function LearningDashboardView() {
       ? (atplSchedule.confirmedFirstLectureAt ?? null)
       : null;
   const liveStartsAt = liveItem?.startsAt ?? confirmedStartsAt ?? null;
+  const assignedSubjectTitle =
+    atplSchedule?.nextSubjectTitle && atplSchedule.nextLectureLiveClassId
+      ? atplSchedule.nextSubjectTitle
+      : (atplSchedule?.firstLectureSubjectTitle ?? null);
   const instructorName = hasEnrolledCourses
     ? (currentCourse?.primaryInstructorName ?? "Instructor")
     : "Academy team";
@@ -246,12 +253,20 @@ function LearningDashboardView() {
       time: formatDashboardEventTime(item.startsAt, now),
       title: calendarKindLabel(item.type),
       detail: item.title,
-      href: item.href ?? (item.type === "live_class" ? "/student/schedule" : resumeHref),
+      href:
+        item.href ??
+        (item.type === "live_class" && assignedClassId
+          ? `/join/${assignedClassId}`
+          : item.type === "live_class"
+            ? "/student/schedule"
+            : resumeHref),
       live,
       action:
         item.type === "live_class"
-          ? live
-            ? "Join"
+          ? assignedClassId
+            ? live
+              ? "Join"
+              : "Open classroom"
             : ACTION_LABELS.viewTimetable
           : item.type === "deadline"
             ? "Start"
@@ -267,9 +282,13 @@ function LearningDashboardView() {
             time: formatDashboardEventTime(liveItem.startsAt, now),
             title: "Upcoming live",
             detail: liveItem.title,
-            href: "/student/schedule",
+            href: assignedClassId ? `/join/${assignedClassId}` : "/student/schedule",
             live: liveNow,
-            action: liveNow ? "Join" : ACTION_LABELS.viewTimetable,
+            action: assignedClassId
+              ? liveNow
+                ? "Join"
+                : "Open classroom"
+              : ACTION_LABELS.viewTimetable,
           },
         ]
       : !liveItem && confirmedStartsAt && !sameDay(confirmedStartsAt, now)
@@ -278,10 +297,10 @@ function LearningDashboardView() {
               id: "atpl-first-lecture",
               time: formatDashboardEventTime(confirmedStartsAt, now),
               title: "Upcoming live",
-              detail: ATPL_PACKAGE_FIRST_LECTURE_TITLE,
-              href: "/student/schedule",
+              detail: assignedSubjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+              href: assignedClassId ? `/join/${assignedClassId}` : "/student/schedule",
               live: false,
-              action: ACTION_LABELS.viewTimetable,
+              action: assignedClassId ? "Open classroom" : ACTION_LABELS.viewTimetable,
             },
           ]
         : [];
@@ -329,9 +348,8 @@ function LearningDashboardView() {
     { id: "exam-ready", title: "Exam Ready", unlocked: (overview?.progressPercent ?? 0) >= 80 },
   ];
 
-  async function joinLive() {
-    const classId = overview?.upcomingLiveClassId;
-    if (!classId || !liveStartsAt || !isLiveWindow(liveStartsAt, Date.now())) {
+  async function joinLive(classId = assignedClassId) {
+    if (!classId) {
       window.location.href = "/student/schedule";
       return;
     }
@@ -641,6 +659,17 @@ function LearningDashboardView() {
               (atplSchedule.firstLectureOnTimetable || atplSchedule.firstLectureLiveClassId) ? (
                 <p className="sl-muted">It is now on your timetable.</p>
               ) : null}
+              {atplSchedule.firstLectureLiveClassId ? (
+                <button
+                  type="button"
+                  className="sl-btn-gold"
+                  style={{ marginTop: 12 }}
+                  onClick={() => void joinLive(atplSchedule.firstLectureLiveClassId)}
+                  disabled={joining}
+                >
+                  {joining ? "Opening…" : "Open classroom"}
+                </button>
+              ) : null}
               {atplSchedule.nextSubjectTitle ? (
                 <div className="mt-3">
                   <p className="sl-muted">Next subject</p>
@@ -764,7 +793,8 @@ function LearningDashboardView() {
             </div>
             <h2 id="live-session-title">
               {hasEnrolledCourses
-                ? (overview.upcomingLiveClass ??
+                ? (assignedSubjectTitle ??
+                  overview.upcomingLiveClass ??
                   liveItem?.title ??
                   (confirmedStartsAt ? ATPL_PACKAGE_FIRST_LECTURE_TITLE : "No live class booked"))
                 : ACTION_LABELS.enrolToUnlockLive}
@@ -772,21 +802,23 @@ function LearningDashboardView() {
             <p className="sl-muted">
               {hasEnrolledCourses
                 ? liveStartsAt
-                  ? `${countdownLabel(liveStartsAt, now)} · ${liveItem?.title ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
-                  : atplSchedule?.scheduleProvisional
-                    ? "Waiting for TKI 1 to confirm your first lecture."
-                    : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
+                  ? `${countdownLabel(liveStartsAt, now)} · ${assignedSubjectTitle ?? liveItem?.title ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
+                  : assignedClassId
+                    ? `${assignedSubjectTitle ?? "Your assigned subject"} is ready in the AviatorPass classroom.`
+                    : atplSchedule?.scheduleProvisional
+                      ? "Waiting for TKI 1 to confirm your first lecture."
+                      : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
                 : "Live classes appear here after you enrol in a programme."}
             </p>
             {hasEnrolledCourses ? (
-              liveNow ? (
+              assignedClassId ? (
                 <button
                   type="button"
                   className="sl-btn-gold"
                   onClick={() => void joinLive()}
                   disabled={joining}
                 >
-                  {joining ? "Joining…" : "Join Live Session"}
+                  {joining ? "Opening…" : liveNow ? "Join Live Session" : "Open classroom"}
                 </button>
               ) : (
                 <Link className="sl-btn-gold" href="/student/schedule">
