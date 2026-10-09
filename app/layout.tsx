@@ -9,7 +9,7 @@ import "@/styles/globals.css";
 
 const ibmPlex = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "600"],
   variable: "--font-ibm-plex",
   display: "swap",
   preload: true,
@@ -113,6 +113,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
+        <style
+          dangerouslySetInnerHTML={{
+            __html:
+              ".atpl-hero{min-height:100svh;background:#0d2235}.atpl-hero-bg{background:#0d2235}.sl-hero{background:#143048}",
+          }}
+        />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

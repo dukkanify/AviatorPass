@@ -111,6 +111,12 @@ function ensureTable(): void {
       PRIMARY KEY (key, chunk_index)
     )
   `);
+  neonSql(
+    `CREATE INDEX IF NOT EXISTS aep_json_store_updated_at_idx ON aep_json_store (updated_at)`,
+  );
+  neonSql(
+    `CREATE INDEX IF NOT EXISTS aep_json_store_chunks_key_idx ON aep_json_store_chunks (key)`,
+  );
   tableReady = true;
 }
 

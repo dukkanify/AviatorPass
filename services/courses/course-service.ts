@@ -8,6 +8,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_COURSE_PAGE_SIZE } from "@/constants/courses";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { readAuthDb } from "@/services/auth/store";
+import { readCourseDetailCache, writeCourseDetailCache } from "@/services/courses/detail-cache";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import {
@@ -290,6 +291,8 @@ export function getCourseDetail(id: string): CourseDetail | null {
   const course = getCourseById(id);
   if (!course) return null;
   const courseId = course.id;
+  const cached = readCourseDetailCache<CourseDetail>(courseId);
+  if (cached) return cached;
   const db = readCoursesDb();
   const modules = db.modules
     .filter((m) => m.courseId === courseId)
@@ -307,11 +310,11 @@ export function getCourseDetail(id: string): CourseDetail | null {
         })),
     }));
 
-  return {
+  return writeCourseDetailCache(courseId, {
     ...toListItem(course),
     modules,
     instructors: db.instructors.filter((i) => i.courseId === courseId),
-  };
+  });
 }
 
 export function listCourses(filters: CourseFilters = {}): {

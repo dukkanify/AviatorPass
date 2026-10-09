@@ -20,13 +20,22 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role") as Role | null;
-    const users = listUsersByRole(role ?? undefined);
+    const page = searchParams.get("page") ? Number(searchParams.get("page")) || 1 : 1;
+    const pageSize = searchParams.get("pageSize")
+      ? Math.min(200, Math.max(1, Number(searchParams.get("pageSize")) || 50))
+      : undefined;
+    const users = listUsersByRole(role ?? undefined, pageSize ? { page, pageSize } : undefined);
 
     // Admins cannot see super_admins in lists unless they are super admin
     const filtered =
       user.role === ROLES.SUPER_ADMIN ? users : users.filter((u) => u.role !== ROLES.SUPER_ADMIN);
 
-    return NextResponse.json({ success: true, data: filtered, error: null });
+    return NextResponse.json({
+      success: true,
+      data: filtered,
+      error: null,
+      meta: pageSize ? { page, pageSize } : undefined,
+    });
   } catch (error) {
     return authErrorResponse(error);
   }

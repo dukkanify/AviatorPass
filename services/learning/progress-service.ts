@@ -16,6 +16,7 @@ import {
 } from "@/services/learning/access";
 import { recordHistory } from "@/services/learning/history-service";
 import { syncGoalHoursFromProgress } from "@/services/learning/planner-service";
+import { readProgressCache, writeProgressCache } from "@/services/learning/progress-cache";
 import { readLearningDb, writeLearningDb } from "@/services/learning/store";
 import type { CourseLearningState, LessonProgressRecord } from "@/types/learning";
 import type { UserProfile } from "@/types";
@@ -41,9 +42,12 @@ export function assertLessonUnlocked(studentId: string, courseId: string, lesson
 }
 
 export function listProgressForStudent(studentId: string): LessonProgressRecord[] {
-  return readLearningDb()
+  const cached = readProgressCache<LessonProgressRecord[]>(studentId);
+  if (cached) return cached;
+  const rows = readLearningDb()
     .progress.filter((p) => p.studentId === studentId)
     .sort((a, b) => (b.lastAccessedAt ?? "").localeCompare(a.lastAccessedAt ?? ""));
+  return writeProgressCache(studentId, rows);
 }
 
 export function getLessonProgress(

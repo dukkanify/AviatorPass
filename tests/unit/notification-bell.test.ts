@@ -29,7 +29,9 @@ describe("notification bell alerts", () => {
   });
 
   it("rings the gold bell when there are unread alerts", () => {
-    expect(globals).toContain("./notification-bell.css");
+    expect(globals).not.toContain("./notification-bell.css");
+    expect(studentShell).toContain("notification-bell.css");
+    expect(roleShell).toContain("notification-bell.css");
     expect(css).toContain("@keyframes ap-bell-ring");
     expect(css).toContain("@keyframes ap-bell-pulse");
     expect(css).toContain("prefers-reduced-motion");

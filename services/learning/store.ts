@@ -6,6 +6,7 @@
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import { clearProgressCache } from "@/services/learning/progress-cache";
 import type {
   Bookmark,
   Favorite,
@@ -76,5 +77,6 @@ export function writeLearningDb(mutator: (db: LearningDatabase) => void): Learni
   const db = ensureLearningStore();
   mutator(db);
   writeJsonFile(dataFile(), db);
+  clearProgressCache();
   return db;
 }

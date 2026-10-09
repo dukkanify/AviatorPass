@@ -1737,18 +1737,139 @@ export async function completeAtplPackageSubject(input: { studentId: string; act
   return latestPaidPackageSchedule(input.studentId, student.email);
 }
 
+function orderStamp(order: { paidAt?: string | null; updatedAt: string }) {
+  return order.paidAt ?? order.updatedAt;
+}
+
+function slimNextSubject(
+  studentId: string,
+  plan: AtplSubjectAssignment[],
+  courses: ReturnType<typeof listAtplCourses>,
+  scheduledLectures: AtplLectureAssignment[],
+) {
+  const empty = {
+    nextSubjectCode: null as string | null,
+    nextSubjectTitle: null as string | null,
+    nextSubjectStatus: null as AtplPackageScheduleSnapshot["nextSubjectStatus"],
+    nextLectureLabel: null as string | null,
+    nextLectureLiveClassId: null as string | null,
+  };
+  if (!plan.length) return empty;
+  for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
+    if (subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE) continue;
+    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
+    if (!course) continue;
+    const row = plan.find((item) => item.courseId === course.id);
+    if (!row || row.status === "completed") continue;
+    const lecture =
+      scheduledLectures.find(
+        (item) => item.studentId === studentId && item.courseId === course.id,
+      ) ?? null;
+    return {
+      nextSubjectCode: subject.code,
+      nextSubjectTitle: subject.title,
+      nextSubjectStatus: row.status,
+      nextLectureLabel: lecture?.scheduledAt ? formatAtplPackageInstant(lecture.scheduledAt) : null,
+      nextLectureLiveClassId: lecture?.liveClassId ?? null,
+    };
+  }
+  return empty;
+}
+
+function slimDashboardSchedule(
+  order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
+  studentId: string,
+  index: {
+    courses: ReturnType<typeof listAtplCourses>;
+    courseById: Map<string, ReturnType<typeof listAtplCourses>[number]>;
+    plan: AtplSubjectAssignment[];
+    scheduledLectures: AtplLectureAssignment[];
+    classById: Map<string, ReturnType<typeof readClassesDb>["classes"][number]>;
+    participants: Set<string>;
+  },
+): AtplPackageScheduleSnapshot {
+  const requestedDate = String(
+    order.metadata.requestedStudyStartDate ?? order.metadata.studyStartDate,
+  );
+  const requestedTime = String(
+    order.metadata.requestedFirstLectureTime ?? order.metadata.firstLectureTime ?? "",
+  );
+  const currentDate = String(order.metadata.studyStartDate);
+  const currentTime = String(order.metadata.firstLectureTime ?? "");
+  const provisional = order.metadata.scheduleProvisional !== false;
+  const liveClassId = liveClassIdFromOrder(order);
+  const live = liveClassId ? (index.classById.get(liveClassId) ?? null) : null;
+  const planFirst = index.plan[0] ?? null;
+  const subjectCourse =
+    (live?.courseId ? (index.courseById.get(live.courseId) ?? null) : null) ??
+    (planFirst ? (index.courseById.get(planFirst.courseId) ?? null) : null) ??
+    openingSubjectCourse(index.courses);
+  const confirmedAt =
+    !provisional && typeof order.metadata.firstLectureAt === "string"
+      ? order.metadata.firstLectureAt
+      : null;
+  const next = slimNextSubject(studentId, index.plan, index.courses, index.scheduledLectures);
+  const onTimetable = Boolean(
+    liveClassId &&
+    live &&
+    live.status !== "cancelled" &&
+    index.participants.has(`${liveClassId}:${studentId}`),
+  );
+  return {
+    orderId: order.id,
+    requestedStudyStartDate: requestedDate,
+    requestedFirstLectureTime: requestedTime || null,
+    requestedFirstLectureLabel:
+      requestedDate && requestedTime
+        ? formatAtplPackageScheduleLabel(requestedDate, requestedTime)
+        : requestedDate,
+    requestedFirstLectureAt:
+      typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
+    confirmedStudyStartDate: provisional ? null : currentDate,
+    confirmedFirstLectureTime: provisional ? null : currentTime || null,
+    confirmedFirstLectureLabel:
+      !provisional && currentDate && currentTime
+        ? formatAtplPackageScheduleLabel(currentDate, currentTime)
+        : null,
+    confirmedFirstLectureAt: confirmedAt,
+    scheduleProvisional: provisional,
+    scheduleNotice:
+      typeof order.metadata.scheduleNotice === "string"
+        ? order.metadata.scheduleNotice
+        : provisional
+          ? ATPL_PACKAGE_TKI_NOTICE
+          : ATPL_PACKAGE_CONFIRMED_NOTICE,
+    scheduleConfirmedAt:
+      typeof order.metadata.scheduleConfirmedAt === "string"
+        ? order.metadata.scheduleConfirmedAt
+        : null,
+    firstLectureLiveClassId: liveClassId,
+    firstLectureOnTimetable: onTimetable,
+    firstLectureSubjectCode: subjectCourse ? easaFromAtplCourse(subjectCourse) : null,
+    firstLectureSubjectTitle: subjectCourse ? officialTitleForAtplCourse(subjectCourse) : null,
+    packageOwned: true,
+    subjects: [],
+    ...next,
+    ...instructorAssignmentFromOrder(order, studentId),
+  };
+}
+
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
   rebindPaidPackageOrdersToLiveUsers();
   const packageProduct = getAtplPackageProduct();
+  const courses = listAtplCourses();
+  const courseById = new Map(courses.map((course) => [course.id, course]));
   const courseIds = new Set(
     (Array.isArray(packageProduct?.metadata?.courseIds)
       ? (packageProduct!.metadata.courseIds as string[])
-      : listAtplCourses().map((c) => c.id)) as string[],
+      : courses.map((c) => c.id)) as string[],
   );
 
   const auth = readAuthDb().users;
+  const userById = new Map(auth.map((user) => [user.id, user]));
+  const userByEmail = new Map(auth.map((user) => [user.email.trim().toLowerCase(), user]));
   const enrollments = readCoursesDb().enrollments.filter(
     (e) => courseIds.has(e.courseId) && !["dropped", "rejected"].includes(e.status),
   );
@@ -1758,27 +1879,72 @@ export function listAtplStudents() {
     list.push(e);
     byStudent.set(e.studentId, list);
   }
-  for (const order of readPaymentsDb().orders) {
-    if (!isPaidAtplPackageOrder(order)) continue;
+
+  const paidOrders = readPaymentsDb().orders.filter((order) => isPaidAtplPackageOrder(order));
+  const latestByStudent = new Map<string, (typeof paidOrders)[number]>();
+  const latestByEmail = new Map<string, (typeof paidOrders)[number]>();
+  for (const order of paidOrders) {
+    if (order.studentId && order.studentId !== "guest") {
+      const current = latestByStudent.get(order.studentId);
+      if (!current || orderStamp(order).localeCompare(orderStamp(current)) > 0) {
+        latestByStudent.set(order.studentId, order);
+      }
+    }
     const email = (order.studentEmail || order.billingEmail || "").trim().toLowerCase();
-    const user = email
-      ? auth.find((row) => row.email.trim().toLowerCase() === email)
-      : auth.find((row) => row.id === order.studentId);
+    if (email) {
+      const current = latestByEmail.get(email);
+      if (!current || orderStamp(order).localeCompare(orderStamp(current)) > 0) {
+        latestByEmail.set(email, order);
+      }
+    }
+    const user = email ? userByEmail.get(email) : userById.get(order.studentId);
     const studentId = user?.id || order.studentId;
     if (!studentId || studentId === "guest" || byStudent.has(studentId)) continue;
     byStudent.set(studentId, []);
   }
 
+  const cgi = readCgiDb();
+  const planByStudent = new Map<string, typeof cgi.subjectAssignments>();
+  for (const row of cgi.subjectAssignments) {
+    const list = planByStudent.get(row.studentId) ?? [];
+    list.push(row);
+    planByStudent.set(row.studentId, list);
+  }
+  for (const plan of planByStudent.values()) {
+    plan.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+  const scheduledLectures = cgi.lectureAssignments.filter(
+    (item) => item.scheduledAt && item.status === "scheduled",
+  );
+  const classesDb = readClassesDb();
+  const classById = new Map(classesDb.classes.map((cls) => [cls.id, cls]));
+  const participants = new Set(
+    classesDb.participants
+      .filter((row) => row.role === "participant")
+      .map((row) => `${row.liveClassId}:${row.userId}`),
+  );
+
   return [...byStudent.entries()]
     .map(([studentId, rows]) => {
-      const user = auth.find((u) => u.id === studentId);
-      const plan = listStudentSubjectPlan(studentId);
-      const first = plan.find((p) => p.sortOrder === 1) ?? null;
-      const firstCourse = first
-        ? listAtplCourses().find((course) => course.id === first.courseId)
-        : null;
+      const user = userById.get(studentId);
       const email = user?.email ?? "";
-      const schedule = latestPaidPackageSchedule(studentId, email);
+      const plan = planByStudent.get(studentId) ?? [];
+      const first = plan.find((p) => p.sortOrder === 1) ?? plan[0] ?? null;
+      const firstCourse = first ? (courseById.get(first.courseId) ?? null) : null;
+      const order =
+        latestByStudent.get(studentId) ??
+        (email ? latestByEmail.get(email.trim().toLowerCase()) : undefined) ??
+        null;
+      const schedule = order
+        ? slimDashboardSchedule(order, studentId, {
+            courses,
+            courseById,
+            plan,
+            scheduledLectures,
+            classById,
+            participants,
+          })
+        : { ...EMPTY_ATPL_PACKAGE_SCHEDULE, subjects: [] };
       return {
         studentId,
         email,
@@ -1803,15 +1969,32 @@ export function listAllInstructors() {
   ensureCoursesSeeded();
   ensureClassesSeeded();
   const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
-  const courses = readCoursesDb().courses.filter((c) => !c.deletedAt);
+  const db = readCoursesDb();
+  const courses = db.courses.filter((c) => !c.deletedAt);
+  const assignedByInstructor = new Map<string, typeof courses>();
+  for (const course of courses) {
+    if (course.primaryInstructorId) {
+      const list = assignedByInstructor.get(course.primaryInstructorId) ?? [];
+      list.push(course);
+      assignedByInstructor.set(course.primaryInstructorId, list);
+    }
+  }
+  for (const row of db.instructors) {
+    const course = courses.find((item) => item.id === row.courseId);
+    if (!course) continue;
+    const list = assignedByInstructor.get(row.userId) ?? [];
+    if (!list.some((item) => item.id === course.id)) list.push(course);
+    assignedByInstructor.set(row.userId, list);
+  }
   const classes = readClassesDb().classes.filter((c) => !c.deletedAt);
+  const lectures = readCgiDb().lectureAssignments;
+  const lectureCount = new Map<string, number>();
+  for (const row of lectures) {
+    lectureCount.set(row.instructorId, (lectureCount.get(row.instructorId) ?? 0) + 1);
+  }
 
   return instructors.map((u) => {
-    const assignedCourses = courses.filter(
-      (c) =>
-        c.primaryInstructorId === u.id ||
-        readCoursesDb().instructors.some((i) => i.courseId === c.id && i.userId === u.id),
-    );
+    const assignedCourses = assignedByInstructor.get(u.id) ?? [];
     const atplCourses = assignedCourses.filter((c) => /^ATPL-/i.test(c.code));
     const upcoming = classes.filter(
       (c) =>
@@ -1827,7 +2010,7 @@ export function listAllInstructors() {
       courseCount: assignedCourses.length,
       atplSubjectCount: atplCourses.length,
       upcomingClasses: upcoming,
-      lectureAssignments: listLectureAssignments({ instructorId: u.id }).length,
+      lectureAssignments: lectureCount.get(u.id) ?? 0,
     };
   });
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+
+import "@/styles/course-studio.css";
 import Link from "@/components/ui/app-link";
 import {
   Archive,

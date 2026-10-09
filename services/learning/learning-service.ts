@@ -199,16 +199,17 @@ export function getResumeTarget(studentId: string): LearningDashboardOverview["r
     .sort((a, b) => (b.lastAccessedAt ?? "").localeCompare(a.lastAccessedAt ?? ""));
   const row = progress[0];
   if (!row) {
-    // Fall back to first enrolled course first lesson
-    const courses = listMyCourses(studentId);
-    const first = courses[0];
-    if (!first) return null;
-    const detail = getCourseDetail(first.id);
+    const enrollment = listStudentEnrollments(studentId).find((e) =>
+      ["approved", "completed", "pending"].includes(e.status),
+    );
+    if (!enrollment) return null;
+    const course = getCourseById(enrollment.courseId, true);
+    const detail = course ? getCourseDetail(course.id) : null;
     const lesson = detail?.modules[0]?.lessons[0];
-    if (!lesson) return null;
+    if (!course || !lesson) return null;
     return {
-      courseId: first.id,
-      courseTitle: first.title,
+      courseId: course.id,
+      courseTitle: course.title,
       lessonId: lesson.id,
       lessonTitle: lesson.title,
     };

@@ -59,6 +59,7 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
+    ppr: "incremental",
     optimizePackageImports: [
       "lucide-react",
       "recharts",
@@ -155,7 +156,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            value: "public, max-age=31536000, stale-while-revalidate=604800",
           },
           // Email clients (Yahoo/Outlook web) load the header logo cross-origin.
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
@@ -167,7 +168,25 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            value: "public, max-age=31536000, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/partners/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/_next/image",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, stale-while-revalidate=604800",
           },
         ],
       },

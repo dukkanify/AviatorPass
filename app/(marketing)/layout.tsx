@@ -2,6 +2,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { AdBannerSlot } from "@/features/marketing/components/ad-banner-slot";
 
+import "@/styles/landing.css";
+import "@/styles/atpl-pass-home.css";
+
 /**
  * Marketing segment layout — imports client Header/Footer directly.
  * Avoids a shared MarketingShell module that Client Components also pulled in

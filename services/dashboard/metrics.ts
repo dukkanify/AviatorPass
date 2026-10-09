@@ -242,11 +242,17 @@ export function getRecentActivityFeed(actorUserId?: string | null): ActivityItem
   }));
 }
 
-export function listUsersByRole(role?: Role) {
+export function listUsersByRole(
+  role?: Role,
+  options?: { page?: number; pageSize?: number; columns?: "profile" | "full" },
+) {
   ensureDemoUsersSeeded();
   const db = readAuthDb();
   const users = role ? db.users.filter((u) => u.role === role) : db.users;
-  return users.map(toUserProfile);
+  const pageSize = Math.min(200, Math.max(1, options?.pageSize ?? users.length));
+  const page = Math.max(1, options?.page ?? 1);
+  const start = (page - 1) * pageSize;
+  return users.slice(start, start + pageSize).map(toUserProfile);
 }
 
 export function getInstructorOverview(instructorUserId?: string | null) {
@@ -360,6 +366,19 @@ function listCoursesForMetrics(opts: {
   return db.enrollments.filter(
     (e) => e.studentId === student.id && ["approved", "completed", "pending"].includes(e.status),
   ).length;
+}
+
+export function getAdminDashboardPayload(user?: UserProfile | null) {
+  ensureDemoUsersSeeded();
+  ensureCoursesSeeded();
+  ensureClassesSeeded();
+  return {
+    overview: getAdminOverview(),
+    growth: getGrowthSeries(),
+    enrollments: getEnrollmentSeries(),
+    activity: getRecentActivityFeed(),
+    calendar: getDashboardCalendarEvents(user),
+  };
 }
 
 export function getAdminOverview() {
