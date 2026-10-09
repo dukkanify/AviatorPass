@@ -85,9 +85,11 @@ describe("lifetime store speed contracts", () => {
     expect(migration).toMatch(/aep_lms_enrollments_student_idx/);
     expect(migration).toMatch(/aep_lms_enrollments_course_idx/);
     const runtime = src("lib/data/lms-enrollment-store.ts");
-    expect(runtime).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_enrollments/);
+    expect(runtime).toMatch(/CREATE TABLE IF NOT EXISTS \$\{TABLE\}/);
     expect(runtime).toMatch(/WHERE student_id = \$1/);
     expect(runtime).toMatch(/WHERE course_id = \$1/);
+    expect(runtime).toContain('const TABLE = "aep_lms_enrollments"');
+    expect(runtime).toMatch(/function ensureFileIndex\(/);
   });
 });
 

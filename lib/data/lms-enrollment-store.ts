@@ -83,6 +83,12 @@ function readFileRows(): Enrollment[] {
   return rows;
 }
 
+function ensureFileIndex(): NonNullable<typeof fileIndex> {
+  if (fileIndex) return fileIndex;
+  readFileRows();
+  return fileIndex!;
+}
+
 function writeFileRows(rows: Enrollment[]): void {
   rebuildFileIndex(rows);
   writeJsonFile(FILE, { enrollments: rows });
@@ -102,8 +108,7 @@ export function listEnrollmentsForStudent(studentId: string): Enrollment[] {
       .map(payloadFromSql)
       .filter(Boolean) as Enrollment[];
   }
-  readFileRows();
-  return [...(fileIndex?.byStudent.get(studentId) ?? [])];
+  return [...(ensureFileIndex().byStudent.get(studentId) ?? [])];
 }
 
 export function listEnrollmentsForCourse(courseId: string): Enrollment[] {
@@ -116,8 +121,7 @@ export function listEnrollmentsForCourse(courseId: string): Enrollment[] {
       .map(payloadFromSql)
       .filter(Boolean) as Enrollment[];
   }
-  readFileRows();
-  return [...(fileIndex?.byCourse.get(courseId) ?? [])];
+  return [...(ensureFileIndex().byCourse.get(courseId) ?? [])];
 }
 
 export function getEnrollmentById(id: string): Enrollment | null {
@@ -127,8 +131,7 @@ export function getEnrollmentById(id: string): Enrollment | null {
     const rows = neonSql<{ payload: unknown }>(`SELECT payload FROM ${TABLE} WHERE id = $1`, [id]);
     return payloadFromSql(rows[0] ?? {}) ?? null;
   }
-  readFileRows();
-  return fileIndex?.byId.get(id) ?? null;
+  return ensureFileIndex().byId.get(id) ?? null;
 }
 
 export function listAllEnrollments(): Enrollment[] {
