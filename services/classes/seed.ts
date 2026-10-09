@@ -53,11 +53,11 @@ function remapLegacyHostEmails(): void {
 
 export function ensureClassesSeeded(): void {
   ensureDemoUsersSeeded();
-  ensureCoursesSeeded();
   remapLegacyHostEmails();
   stripPlaceholderMeetingsWhenLive();
   const db = readClassesDb();
   if (db.seeded && db.classes.length > 0) return;
+  ensureCoursesSeeded();
 
   const users = readAuthDb().users;
   const instructor = users.find((u) => u.role === ROLES.INSTRUCTOR)!;

@@ -6,6 +6,7 @@ import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById, getCourseDetail } from "@/services/courses/course-service";
 import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
 import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
+import { stableCourseId } from "@/lib/courses/public-course-path";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
@@ -137,6 +138,20 @@ function asEnrolledListItem(course: {
   };
 }
 
+function officialPackageCourseById(): Map<string, { id: string; code: string; title: string }> {
+  const byId = new Map<string, { id: string; code: string; title: string }>();
+  for (const code of ATPL_PACKAGE_LMS_COURSE_CODES) {
+    const id = stableCourseId(code);
+    if (!id) continue;
+    byId.set(id, {
+      id,
+      code,
+      title: officialCourseDisplayTitle({ code, title: code }),
+    });
+  }
+  return byId;
+}
+
 export function listMyCourses(
   studentId: string,
   options?: {
@@ -145,17 +160,21 @@ export function listMyCourses(
     favoritedOnly?: boolean;
   },
 ): Array<CourseListItem & { learning: CourseLearningState | null }> {
-  ensureCoursesSeeded();
   ensureLearningSeeded();
-  const catalog = new Map(readCoursesDb().courses.map((course) => [course.id, course]));
+  const officialById = officialPackageCourseById();
   const enrollments = listStudentEnrollments(studentId).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
   const startedCourseIds = new Set(listProgressForStudent(studentId).map((row) => row.courseId));
+  const needsCatalog = enrollments.some((row) => !officialById.has(row.courseId));
+  const catalog = needsCatalog
+    ? new Map((ensureCoursesSeeded(), readCoursesDb().courses.map((course) => [course.id, course])))
+    : new Map<string, ReturnType<typeof readCoursesDb>["courses"][number]>();
   let rows: Array<CourseListItem & { learning: CourseLearningState | null }> = [];
 
   for (const e of enrollments) {
-    const course = catalog.get(e.courseId) ?? getCourseById(e.courseId, true);
+    const course =
+      officialById.get(e.courseId) ?? catalog.get(e.courseId) ?? getCourseById(e.courseId, true);
     if (!course) continue;
     let learning: CourseLearningState | null = null;
     try {
@@ -267,14 +286,6 @@ export function getLearningDashboard(user: UserProfile): LearningDashboardOvervi
     path,
   };
 
-  safeDashboardQuery({
-    ...base,
-    label: "ensureCoursesSeeded",
-    fallback: undefined,
-    run: () => {
-      ensureCoursesSeeded();
-    },
-  });
   safeDashboardQuery({
     ...base,
     label: "ensureClassesSeeded",

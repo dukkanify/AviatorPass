@@ -10,6 +10,7 @@ import {
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
+  atplPackageLmsCourseCode,
   ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
   ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
@@ -33,6 +34,7 @@ import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
+import { stableCourseId } from "@/lib/courses/public-course-path";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
@@ -178,29 +180,30 @@ function officialPackageCourses() {
 }
 
 function studentHasAtplEnrollment(studentId: string): boolean {
-  const atplIds = new Set(officialPackageCourses().map((course) => course.id));
+  const atplIds = new Set(ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => stableCourseId(code)));
   return listStudentEnrollments(studentId).some(
-    (row) => atplIds.has(row.courseId) && !["dropped", "rejected"].includes(row.status),
+    (row) =>
+      !["dropped", "rejected"].includes(row.status) &&
+      (atplIds.has(row.courseId) || /ATPL|package/i.test(String(row.notes ?? ""))),
   );
 }
 
 function studentHasOfficialPackageCoverage(studentId: string): boolean {
-  const enrolled = new Set(
-    listStudentEnrollments(studentId)
-      .filter((row) => !["dropped", "rejected"].includes(row.status))
-      .map((row) => row.courseId),
+  const enrolled = listStudentEnrollments(studentId).filter(
+    (row) => !["dropped", "rejected"].includes(row.status),
   );
+  if (enrolled.length >= ATPL_PACKAGE_LMS_COURSE_CODES.length) return true;
+  const enrolledIds = new Set(enrolled.map((row) => row.courseId));
   const required = officialPackageCourses();
-  return required.length > 0 && required.every((course) => enrolled.has(course.id));
+  return required.length > 0 && required.every((course) => enrolledIds.has(course.id));
 }
 
 function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
   const plan = studentId ? listStudentSubjectPlan(studentId) : [];
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
-  const courses = officialPackageCourses();
   return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
-    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
-    const row = course ? (byCourse.get(course.id) ?? null) : null;
+    const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
+    const row = (courseId ? byCourse.get(courseId) : null) ?? null;
     const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
     const status = row?.status ?? (opening ? "available" : "locked");
     return {
@@ -1202,14 +1205,13 @@ function firstLectureSubjectForStudent(
 ): { code: string | null; title: string | null } {
   const live = liveClassId ? getLiveClass(liveClassId) : null;
   const planFirst = studentId ? (listStudentSubjectPlan(studentId)[0] ?? null) : null;
-  const course =
-    (live?.courseId ? listAtplCourses().find((item) => item.id === live.courseId) : null) ??
-    (planFirst ? listAtplCourses().find((item) => item.id === planFirst.courseId) : null) ??
-    openingSubjectCourse();
-  if (!course) return { code: null, title: null };
+  const courseId = live?.courseId ?? planFirst?.courseId ?? null;
+  const code =
+    ATPL_PACKAGE_LMS_COURSE_CODES.find((item) => stableCourseId(item) === courseId) ??
+    atplPackageLmsCourseCode(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
   return {
-    code: easaFromAtplCourse(course),
-    title: officialTitleForAtplCourse(course),
+    code: easaCodeFromAtplCourseCode(code),
+    title: atplPackageSubjectTitle(code) ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   };
 }
 
@@ -1232,15 +1234,14 @@ function nextOfficialSubjectState(studentId?: string): {
   if (!studentId) return empty;
   const plan = listStudentSubjectPlan(studentId);
   if (!plan.length) return empty;
-  const courses = listAtplCourses();
   for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
     if (subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE) continue;
-    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
-    if (!course) continue;
-    const row = plan.find((item) => item.courseId === course.id);
+    const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
+    if (!courseId) continue;
+    const row = plan.find((item) => item.courseId === courseId);
     if (!row || row.status === "completed") continue;
     const lecture =
-      listLectureAssignments({ studentId, courseId: course.id }).find(
+      listLectureAssignments({ studentId, courseId }).find(
         (item) => item.scheduledAt && item.status === "scheduled",
       ) ?? null;
     return {
@@ -1249,7 +1250,7 @@ function nextOfficialSubjectState(studentId?: string): {
       nextSubjectStatus: row.status,
       nextLectureLabel: lecture?.scheduledAt ? formatAtplPackageInstant(lecture.scheduledAt) : null,
       nextLectureLiveClassId: lecture?.liveClassId ?? null,
-      courseId: course.id,
+      courseId,
     };
   }
   return empty;

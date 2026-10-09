@@ -315,7 +315,6 @@ export function getInstructorOverview(instructorUserId?: string | null) {
 }
 
 export function getStudentOverview(studentUserId?: string | null) {
-  ensureCoursesSeeded();
   ensureLearningSeeded();
   const student = studentUserId ? findUserById(studentUserId) : null;
   if (student && student.role !== ROLES.STUDENT) {
