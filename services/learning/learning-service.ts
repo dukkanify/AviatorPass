@@ -8,7 +8,7 @@ import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package
 import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
-import { listLiveClasses } from "@/services/classes/class-service";
+import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
 import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
@@ -500,6 +500,42 @@ export function getLearningCalendar(studentId: string): LearningCalendarItem[] {
   }
 
   return items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+export function getLiveClassroomForStudentCourse(
+  studentId: string,
+  courseId: string,
+): {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  status: "live" | "upcoming";
+  href: string;
+} | null {
+  if (!studentId || !courseId) return null;
+  ensureClassesSeeded();
+  const allowed = new Set(listParticipantsForUser(studentId).map((p) => p.liveClassId));
+  const now = Date.now();
+  const rows = listLiveClasses({ courseId, pageSize: 80 }).data.filter((cls) => {
+    if (!allowed.has(cls.id)) return false;
+    if (["cancelled", "draft", "completed"].includes(cls.status)) return false;
+    return Number.isFinite(Date.parse(cls.startsAt));
+  });
+  const live = rows.find((cls) => computeRuntimeStatus(cls) === "live_now");
+  const upcoming = rows
+    .filter((cls) => Date.parse(cls.startsAt) >= now)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const match = live ?? upcoming ?? null;
+  if (!match) return null;
+  return {
+    id: match.id,
+    title: match.title,
+    startsAt: match.startsAt,
+    endsAt: match.endsAt,
+    status: live ? "live" : "upcoming",
+    href: `/join/${match.id}`,
+  };
 }
 
 export function searchLearning(

@@ -58,6 +58,8 @@ function ContentProtectionShell({ protection, className, children }: ContentProt
     if (!protection.deterScreenRecording) return;
 
     const sync = () => {
+      // Only the real tab-hidden state. window.blur also fires when Zoom or
+      // video controls take focus, which covered the live classroom.
       const hidden = document.visibilityState === "hidden";
       setObscured(hidden);
       if (hidden) {
@@ -71,18 +73,10 @@ function ContentProtectionShell({ protection, className, children }: ContentProt
       }
     };
 
-    const onBlur = () => setObscured(true);
-    const onFocus = () => {
-      if (document.visibilityState === "visible") setObscured(false);
-    };
-
+    sync();
     document.addEventListener("visibilitychange", sync);
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("focus", onFocus);
     return () => {
       document.removeEventListener("visibilitychange", sync);
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("focus", onFocus);
     };
   }, [protection.deterScreenRecording]);
 

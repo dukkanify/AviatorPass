@@ -12,6 +12,7 @@ import {
 import { listNotes } from "@/services/learning/notes-service";
 import { listBookmarks } from "@/services/learning/bookmark-service";
 import { getContentProtectionConfig } from "@/services/auth/session-service";
+import { getLiveClassroomForStudentCourse } from "@/services/learning/learning-service";
 import { learningErrorResponse } from "@/app/api/learning/_utils";
 
 type Ctx = { params: Promise<{ courseId: string; lessonId: string }> };
@@ -73,6 +74,7 @@ export async function GET(_request: Request, context: Ctx) {
         notes,
         bookmarks,
         adjacent: getAdjacentLessons(courseId, lessonId),
+        liveClassroom: getLiveClassroomForStudentCourse(user.id, courseId),
         protection: getContentProtectionConfig({
           fullName: user.fullName,
           email: user.email,
