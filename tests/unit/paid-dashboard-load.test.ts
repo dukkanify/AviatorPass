@@ -121,6 +121,21 @@ describe("paid student dashboard load", () => {
     ensurePaymentsSeeded();
   });
 
+  it("does not rewrite the course catalog or demo progress on a seeded read", () => {
+    const courses = src("services/courses/seed.ts");
+    const start = courses.indexOf("export function ensureCoursesSeeded");
+    const seeded = courses.slice(start, start + 400);
+    expect(seeded).toContain("if (db.seeded && db.courses.length > 0)");
+    expect(seeded).not.toContain("ensurePublishedCatalogEnrichment");
+    const learning = src("services/learning/seed.ts");
+    const learn = learning.slice(
+      learning.indexOf("export function ensureLearningSeeded"),
+      learning.indexOf("export function ensureLearningSeeded") + 280,
+    );
+    expect(learn).toMatch(/if \(db\.seeded\) return;/);
+    expect(learn).not.toMatch(/db\.progress\.length > 0/);
+  });
+
   it("does not rewrite the payment ledger on a covered student hydrate", () => {
     const journey = src("services/cgi/journey-service.ts");
     const start = journey.indexOf("export async function hydratePaidAtplStudentAccess");
