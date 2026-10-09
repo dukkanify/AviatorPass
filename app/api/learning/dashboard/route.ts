@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { requirePermission } from "@/services/auth/guards";
+import { hydratePaidAtplStudentAccess } from "@/services/cgi/journey-service";
 import {
   emptyLearningDashboardOverview,
   getLearningDashboard,
@@ -14,6 +15,11 @@ export async function GET() {
   const correlationId = newDashboardCorrelationId();
   try {
     const user = await requirePermission(PERMISSIONS.COURSES_ENROLLED);
+    try {
+      await hydratePaidAtplStudentAccess(user.id, user.email);
+    } catch (error) {
+      console.error("[learning] hydratePaidAtplStudentAccess failed", error);
+    }
     const data = getLearningDashboard(user);
     return NextResponse.json({
       success: true,

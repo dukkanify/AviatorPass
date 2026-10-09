@@ -5,6 +5,13 @@ import Link from "@/components/ui/app-link";
 import { Bookmark, PlayCircle, Search, Star } from "lucide-react";
 
 import { ACTION_LABELS } from "@/constants/programme-terms";
+import {
+  ATPL_COMPLETE_PACKAGE_NAME,
+  ATPL_INSTRUCTOR_CONFIRM_NOTICE,
+  ATPL_PACKAGE_TKI_NOTICE,
+  ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { MyCoursesEmptyState } from "@/features/learning/components/my-courses-empty-state";
@@ -21,8 +28,67 @@ import type { CourseListItem } from "@/types/courses";
 
 type CourseRow = CourseListItem & { learning: CourseLearningState | null };
 
+function PaidPackageSteps({ schedule }: { schedule: AtplPackageScheduleSnapshot }) {
+  const assignmentPending = schedule.instructorAssignmentStatus === "pending";
+  return (
+    <section
+      className="rounded-2xl border border-accent/40 bg-card p-5 shadow-soft sm:p-6"
+      aria-labelledby="atpl-next-steps-title"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
+        {ATPL_COMPLETE_PACKAGE_NAME}
+      </p>
+      <h2 id="atpl-next-steps-title" className="mt-1 font-display text-xl tracking-tight">
+        Your next steps
+      </h2>
+      <ol className="mt-4 space-y-3">
+        <li className="flex items-start justify-between gap-3 rounded-xl border border-border/70 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">Payment</p>
+            <p className="text-xs text-muted-foreground">Package confirmed.</p>
+          </div>
+          <Badge variant="secondary">{ACTION_LABELS.stepComplete}</Badge>
+        </li>
+        <li className="flex items-start justify-between gap-3 rounded-xl border border-accent/50 bg-accent/5 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">{ACTION_LABELS.instructorAssignmentStep}</p>
+            <p className="text-xs text-muted-foreground">
+              {assignmentPending
+                ? `${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}. ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`
+                : schedule.instructorAssignmentLabel}
+            </p>
+          </div>
+          <Badge variant={assignmentPending ? "destructive" : "secondary"}>
+            {assignmentPending ? ACTION_LABELS.stepIncomplete : ACTION_LABELS.stepComplete}
+          </Badge>
+        </li>
+        <li className="flex items-start justify-between gap-3 rounded-xl border border-border/70 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">First lecture</p>
+            <p className="text-xs text-muted-foreground">
+              {schedule.scheduleProvisional
+                ? schedule.requestedFirstLectureLabel
+                  ? `Requested ${schedule.requestedFirstLectureLabel}. ${ATPL_PACKAGE_TKI_NOTICE}`
+                  : ATPL_PACKAGE_TKI_NOTICE
+                : schedule.confirmedFirstLectureLabel
+                  ? `Confirmed ${schedule.confirmedFirstLectureLabel}`
+                  : ATPL_PACKAGE_TKI_NOTICE}
+            </p>
+          </div>
+          <Badge variant={schedule.scheduleProvisional ? "outline" : "secondary"}>
+            {schedule.scheduleProvisional
+              ? ACTION_LABELS.stepIncomplete
+              : ACTION_LABELS.stepComplete}
+          </Badge>
+        </li>
+      </ol>
+    </section>
+  );
+}
+
 function MyCoursesView() {
   const [courses, setCourses] = React.useState<CourseRow[]>([]);
+  const [schedule, setSchedule] = React.useState<AtplPackageScheduleSnapshot | null>(null);
   const [q, setQ] = React.useState("");
   const [sort, setSort] = React.useState<"recent" | "title" | "progress">("recent");
   const [loading, setLoading] = React.useState(true);
@@ -31,7 +97,11 @@ function MyCoursesView() {
   const load = React.useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ sort, q });
-    const result = await learningFetch<CourseRow[]>(`/api/learning/courses?${params}`);
+    const [result, scheduleResult] = await Promise.all([
+      learningFetch<CourseRow[]>(`/api/learning/courses?${params}`),
+      learningFetch<AtplPackageScheduleSnapshot>("/api/learning/atpl-schedule"),
+    ]);
+    setSchedule(scheduleResult.data ?? null);
     if (!result.success) {
       setError(result.error ?? "Unable to load courses");
       setCourses([]);
@@ -82,7 +152,7 @@ function MyCoursesView() {
         breadcrumbs={[{ label: "Student" }, { label: "My Courses" }]}
       />
 
-      {loading || error || courses.length > 0 ? (
+      {loading || error || courses.length > 0 || schedule?.packageOwned ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -106,6 +176,8 @@ function MyCoursesView() {
         </div>
       ) : null}
 
+      {!loading && schedule?.packageOwned ? <PaidPackageSteps schedule={schedule} /> : null}
+
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -114,6 +186,30 @@ function MyCoursesView() {
         </div>
       ) : error ? (
         <p className="text-sm text-destructive">{error}</p>
+      ) : courses.length === 0 && schedule?.packageOwned ? (
+        <ol className="grid gap-4 md:grid-cols-2">
+          {(schedule.subjects.length ? schedule.subjects : []).map((subject) => (
+            <li key={subject.code}>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="font-display text-xl leading-tight">
+                    {subject.title}
+                  </CardTitle>
+                  <CardDescription>{subject.shortDescription}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant={subject.opening ? "secondary" : "outline"}>
+                    {subject.opening
+                      ? ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
+                      : subject.status === "locked"
+                        ? ACTION_LABELS.stepIncomplete
+                        : subject.status}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ol>
       ) : courses.length === 0 ? (
         <MyCoursesEmptyState />
       ) : (

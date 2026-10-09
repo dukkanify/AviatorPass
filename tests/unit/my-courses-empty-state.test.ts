@@ -100,6 +100,10 @@ describe("my courses empty state", () => {
       "utf8",
     );
     expect(view).toContain("MyCoursesEmptyState");
+    expect(view).toContain("PaidPackageSteps");
+    expect(view).toContain("ACTION_LABELS.instructorAssignmentStep");
+    expect(view).toContain("ACTION_LABELS.stepIncomplete");
+    expect(view).toContain("ATPL_PENDING_INSTRUCTOR_ASSIGNMENT");
     expect(view).not.toContain("No enrolled courses");
     const empty = readFileSync(
       path.join(process.cwd(), "features/learning/components/my-courses-empty-state.tsx"),
