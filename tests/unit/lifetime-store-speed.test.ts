@@ -202,10 +202,9 @@ describe("indexed enrollment store", () => {
       )?.count,
     ).toBe(2);
 
-    expect(rebindEnrollmentsStudent(approved.studentId, "student-lifetime-speed-agg-rebound")).toBe(
-      1,
-    );
-    expect(listEnrollmentsForStudent(approved.studentId)).toEqual([]);
+    const fromStudentId = approved.studentId;
+    expect(rebindEnrollmentsStudent(fromStudentId, "student-lifetime-speed-agg-rebound")).toBe(1);
+    expect(listEnrollmentsForStudent(fromStudentId)).toEqual([]);
     expect(listEnrollmentsForStudent("student-lifetime-speed-agg-rebound")).toEqual([
       expect.objectContaining({ id: approved.id, courseId: approved.courseId }),
     ]);
