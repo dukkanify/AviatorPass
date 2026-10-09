@@ -458,43 +458,39 @@
 
 .sl-hero--command {
   display: grid;
-  align-content: space-between;
+  grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
+  grid-template-areas:
+    "copy media"
+    "brand media";
+  align-items: stretch;
   min-height: 460px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .sl-hero-media {
-  position: absolute;
-  inset: 0;
+  grid-area: media;
+  position: relative;
   z-index: 0;
+  min-height: 100%;
 }
 
 .sl-hero-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 72% center;
+  object-position: center;
 }
 
 .sl-hero-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(15, 34, 53, 0.92) 0%,
-      rgba(15, 34, 53, 0.72) 32%,
-      rgba(15, 34, 53, 0.22) 58%,
-      rgba(15, 34, 53, 0.04) 100%
-    ),
-    linear-gradient(180deg, rgba(15, 34, 53, 0.12), rgba(15, 34, 53, 0.28));
+  display: none;
 }
 
 .sl-hero-weather {
   position: absolute;
-  top: 28px;
-  right: 28px;
-  z-index: 3;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
   display: grid;
   justify-items: end;
   gap: 4px;
@@ -549,10 +545,12 @@
 }
 
 .sl-hero-brandline {
+  grid-area: brand;
   position: relative;
   z-index: 2;
-  margin: 18px 0 0;
-  justify-self: end;
+  margin: 0;
+  padding: 0 36px 28px;
+  justify-self: start;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -561,11 +559,14 @@
 }
 
 .sl-hero-copy {
+  grid-area: copy;
   position: relative;
   z-index: 2;
   display: grid;
+  align-content: start;
   gap: 16px;
-  max-width: 48rem;
+  max-width: none;
+  padding: 36px 28px 18px 36px;
   color: #fff;
 }
 
@@ -1402,6 +1403,27 @@
     padding: 24px;
     min-height: 0;
   }
+
+  .sl-hero--command {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "brand"
+      "media";
+    min-height: 0;
+  }
+
+  .sl-hero-copy {
+    padding: 24px 24px 12px;
+  }
+
+  .sl-hero-brandline {
+    padding: 0 24px 16px;
+  }
+
+  .sl-hero-media {
+    min-height: 220px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1416,10 +1438,10 @@
   }
 
   .sl-hero-weather {
-    position: static;
-    justify-items: start;
-    text-align: left;
-    margin-bottom: 16px;
+    top: 12px;
+    right: 12px;
+    justify-items: end;
+    text-align: right;
   }
 
   .sl-hero-brandline {

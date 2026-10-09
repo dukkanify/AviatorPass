@@ -21,10 +21,23 @@ describe("modern classroom join page", () => {
       "utf8",
     );
     expect(room).toMatch(/classroom-stage/);
+    expect(room).toMatch(/classroom-chrome/);
+    expect(room).toMatch(/classroom-viewport/);
+    expect(room).toMatch(/classroom-footer/);
     expect(room).toMatch(/classroom-dock/);
     expect(room).toMatch(/Leave classroom/);
     expect(room).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(room).toMatch(/startLocalMedia\(\)/);
+    expect(room).not.toContain("from-black/80");
+    expect(room).not.toContain("bottom-24");
+  });
+
+  it("keeps classroom title and notices outside the camera frame", () => {
+    const css = readFileSync(resolve(process.cwd(), "styles/classroom.css"), "utf8");
+    expect(css).toMatch(/\.classroom-chrome/);
+    expect(css).toMatch(/\.classroom-footer/);
+    expect(css).toMatch(/\.classroom-preview-fallback/);
+    expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
   });
 
   it("preconnects the Zoom CDN on the join route", () => {

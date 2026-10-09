@@ -244,52 +244,66 @@ function InAppZoomRoom({
 
   const shownMeeting = session?.meetingNumber || meetingNumber || "";
   const shownPassword = session?.password || password || "";
-  const liveLabel =
-    phase === "sdk" ? "Live Zoom · inside AviatorPass" : "Live classroom · inside AviatorPass";
+  const liveZoom = phase === "sdk";
+  const liveLabel = liveZoom
+    ? "Live Zoom · inside AviatorPass"
+    : "Live classroom · inside AviatorPass";
+  const showPreview = !liveZoom;
 
   return (
     <div className={cn("classroom-stage text-white", className)}>
-      <div className="absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-b from-black/80 via-black/35 to-transparent px-4 py-4 sm:px-5">
-        <div>
+      <header className="classroom-chrome">
+        <div className="min-w-0">
           <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
-            <Radio className="size-3 text-[#CCA04C]" />
+            <Radio className="size-3 shrink-0 text-[#CCA04C]" />
             {liveLabel}
           </p>
         </div>
-        <span className="classroom-chip text-[11px] uppercase tracking-[0.16em] text-white/70">
+        <span className="classroom-chip shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/70">
           {isHost ? "Host" : "Student"}
         </span>
-      </div>
+      </header>
 
-      <div className="relative min-h-[min(72vh,760px)] bg-black">
-        <div ref={stageRef} className="absolute inset-0" />
-        {phase !== "sdk" ? (
-          <div className="absolute inset-0 flex flex-col">
+      <div className="classroom-viewport">
+        <div
+          ref={stageRef}
+          className={cn("classroom-sdk-root", liveZoom && "is-live")}
+          aria-hidden={!liveZoom}
+        />
+        {showPreview ? (
+          <>
             <video
               ref={videoRef}
               muted
               playsInline
               autoPlay
-              className="h-full w-full object-cover"
+              className={cn("classroom-preview", !camOn && "is-off")}
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#071018] via-transparent to-black/35" />
-            <div className="absolute inset-x-0 bottom-24 flex flex-col items-center gap-2 px-6 text-center">
-              <Shield className="size-6 text-[#CCA04C]" />
-              <p className="max-w-lg text-sm text-white/80">{notice}</p>
+            {!camOn ? (
+              <div className="classroom-preview-fallback">
+                <VideoOff className="size-8 text-[#CCA04C]" />
+                <p>Camera is off</p>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+
+      {showPreview ? (
+        <div className="classroom-footer">
+          <div className="classroom-caption">
+            <Shield className="size-4 shrink-0 text-[#CCA04C]" />
+            <div className="min-w-0">
+              <p>{notice}</p>
               {shownMeeting ? (
-                <p className="font-mono text-[11px] text-white/50">
+                <p className="classroom-caption-meta">
                   Meeting ID {shownMeeting}
                   {shownPassword ? ` · Passcode ${shownPassword}` : ""}
                 </p>
               ) : null}
             </div>
           </div>
-        ) : null}
-      </div>
-
-      {phase !== "sdk" ? (
-        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-[#071018] via-[#071018]/70 to-transparent px-4 pb-5 pt-16">
           <div className="classroom-dock">
             <button
               type="button"
