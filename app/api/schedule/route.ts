@@ -11,10 +11,12 @@ import {
   canBuildSchedule,
   cancelSession,
   getNextSession,
+  getPaidStudentScheduleOverview,
   getScheduleOverview,
   getScheduleTimeline,
   getSessionStatus,
   listScheduleSessions,
+  sessionFromAtplPackageSchedule,
   listSessionAttendance,
   markSessionAttendance,
   queueAudienceReminders,
@@ -40,15 +42,34 @@ export async function GET(request: Request) {
   try {
     const user = await requireAuth();
     assertScheduleAccess(user.role);
-    if (user.role === ROLES.STUDENT) {
-      await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
-    }
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view") ?? "overview";
     const source = (searchParams.get("source") ?? "all") as ScheduleSource | "all";
     const courseId = searchParams.get("courseId") ?? undefined;
     const instructorId = searchParams.get("instructorId") ?? undefined;
     const studentId = searchParams.get("studentId") ?? undefined;
+
+    if (user.role === ROLES.STUDENT) {
+      const snapshot = await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
+      const overview = getPaidStudentScheduleOverview(snapshot);
+      const session = sessionFromAtplPackageSchedule(snapshot);
+      if (view === "overview") {
+        return NextResponse.json({ success: true, data: overview, error: null });
+      }
+      if (view === "sessions") {
+        return NextResponse.json({
+          success: true,
+          data: session ? [session] : [],
+          error: null,
+        });
+      }
+      if (view === "next") {
+        return NextResponse.json({ success: true, data: overview.nextSession, error: null });
+      }
+      if (view === "timeline") {
+        return NextResponse.json({ success: true, data: overview.timeline, error: null });
+      }
+    }
 
     if (view === "overview") {
       return NextResponse.json({
