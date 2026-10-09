@@ -77,7 +77,7 @@ import {
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { hasParticipant, listAllParticipants, readClassesDb } from "@/services/classes/store";
+import { listAllParticipants, readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import type {
   AtplLectureAssignment,
@@ -1195,17 +1195,12 @@ function liveClassIdFromOrder(
     : null;
 }
 
-function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
-  return hasParticipant(liveClassId, studentId, "participant");
-}
-
-function firstLectureSubjectForStudent(
-  studentId?: string,
-  liveClassId?: string | null,
-): { code: string | null; title: string | null } {
-  const live = liveClassId ? getLiveClass(liveClassId) : null;
+function firstLectureSubjectForStudent(studentId?: string): {
+  code: string | null;
+  title: string | null;
+} {
   const planFirst = studentId ? (listStudentSubjectPlan(studentId)[0] ?? null) : null;
-  const courseId = live?.courseId ?? planFirst?.courseId ?? null;
+  const courseId = planFirst?.courseId ?? null;
   const code =
     ATPL_PACKAGE_LMS_COURSE_CODES.find((item) => stableCourseId(item) === courseId) ??
     atplPackageLmsCourseCode(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
@@ -1256,13 +1251,6 @@ function nextOfficialSubjectState(studentId?: string): {
   return empty;
 }
 
-function firstLectureIsOnTimetable(studentId: string, liveClassId: string | null): boolean {
-  if (!liveClassId) return false;
-  const existing = getLiveClass(liveClassId);
-  if (!existing || existing.status === "cancelled") return false;
-  return studentIsInLiveClass(liveClassId, studentId);
-}
-
 function packageScheduleFromOrder(
   order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
   studentId?: string,
@@ -1281,7 +1269,7 @@ function packageScheduleFromOrder(
     !provisional && typeof order.metadata.firstLectureAt === "string"
       ? order.metadata.firstLectureAt
       : null;
-  const subject = firstLectureSubjectForStudent(studentId, liveClassId);
+  const subject = firstLectureSubjectForStudent(studentId);
   const next = nextOfficialSubjectState(studentId);
   return {
     orderId: order.id,
@@ -1312,7 +1300,7 @@ function packageScheduleFromOrder(
         ? order.metadata.scheduleConfirmedAt
         : null,
     firstLectureLiveClassId: liveClassId,
-    firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
+    firstLectureOnTimetable: Boolean(liveClassId),
     firstLectureSubjectCode: subject.code,
     firstLectureSubjectTitle: subject.title,
     packageOwned: true,
@@ -1471,65 +1459,6 @@ export async function ensureConfirmedFirstLectureOnTimetable(
 ): Promise<AtplPackageScheduleSnapshot> {
   const live = resolveLivePaidStudent(studentId, email);
   await hydratePaidAtplStudentAccess(live.studentId, live.email);
-  const order = latestPaidPackageOrder(live.studentId, live.email);
-  if (!order) return latestPaidPackageSchedule(live.studentId, live.email);
-  const schedule = packageScheduleFromOrder(order, live.studentId);
-  if (schedule.scheduleProvisional || !schedule.confirmedStudyStartDate) return schedule;
-  if (schedule.firstLectureOnTimetable) return schedule;
-
-  const date = schedule.confirmedStudyStartDate;
-  const time = schedule.confirmedFirstLectureTime;
-  if (!date || !time) return schedule;
-
-  const existingId = schedule.firstLectureLiveClassId;
-  const existing = existingId ? getLiveClass(existingId) : null;
-  if (existing && existing.status !== "cancelled") {
-    enrollStudentsInLiveClass(existing.id, [live.studentId]);
-    if (existing.courseId) {
-      const course = listAtplCourses().find((item) => item.id === existing.courseId);
-      upsertFirstLectureAssignment({
-        studentId: live.studentId,
-        courseId: existing.courseId,
-        instructorId: existing.instructorId,
-        scheduledAt: existing.startsAt,
-        liveClassId: existing.id,
-        actorId:
-          typeof order.metadata.scheduleConfirmedById === "string"
-            ? order.metadata.scheduleConfirmedById
-            : live.studentId,
-        notes: ATPL_PACKAGE_CONFIRMED_NOTICE,
-        lessonTitle: formatAtplFirstLectureTitle(
-          course ? officialTitleForAtplCourse(course) : ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
-        ),
-      });
-    }
-    if (firstLectureIsOnTimetable(live.studentId, existing.id)) {
-      return packageScheduleFromOrder(order, live.studentId);
-    }
-  }
-
-  try {
-    const actorId =
-      typeof order.metadata.scheduleConfirmedById === "string"
-        ? order.metadata.scheduleConfirmedById
-        : live.studentId;
-    const liveClassId = await placeConfirmedFirstLecture({
-      studentId: live.studentId,
-      actorId,
-      when: combineLocalDateAndTime(date, time),
-      existingLiveClassId: existingId,
-    });
-    const stamp = nowIso();
-    patchPaidOrder(order.id, (row) => {
-      row.metadata = {
-        ...row.metadata,
-        firstLectureLiveClassId: liveClassId,
-      };
-      row.updatedAt = stamp;
-    });
-  } catch {
-    // Confirmation metadata still describes the time; booking is retried on the next load.
-  }
   return latestPaidPackageSchedule(live.studentId, live.email);
 }
 

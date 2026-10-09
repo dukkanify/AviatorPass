@@ -159,6 +159,16 @@ export function getOverallProgress(studentId: string): {
     ["approved", "completed", "pending"].includes(e.status),
   );
   const courseIds = enrollments.map((e) => e.courseId);
+  if (enrollments.every((e) => e.status !== "completed") && enrollments.length > 0) {
+    return {
+      activeCourses: enrollments.length,
+      completedCourses: 0,
+      learningHours: 0,
+      progressPercent: 0,
+      lessonsStarted: 0,
+      lessonsCompleted: 0,
+    };
+  }
   const progress = listProgressForStudent(studentId);
   const startedCourseIds = new Set(progress.map((row) => row.courseId));
 

@@ -24,13 +24,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const scope = resolveDashboardScope(user.role, searchParams.get("scope"));
 
-    const calendar = getDashboardCalendarEvents(user);
     const activity =
       scope === ROLES.STUDENT ||
       scope === ROLES.INSTRUCTOR ||
       scope === ROLES.CHIEF_GROUND_INSTRUCTOR
         ? getRecentActivityFeed(user.id)
         : getRecentActivityFeed();
+
+    if (scope === ROLES.STUDENT) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          overview: getStudentOverview(user.id),
+          calendar: [],
+          activity,
+          charts: {
+            progress: getProgressBreakdown(user.id),
+            attendance: [],
+          },
+        },
+        error: null,
+      });
+    }
+
+    const calendar = getDashboardCalendarEvents(user);
 
     if (scope === ROLES.SUPER_ADMIN) {
       return NextResponse.json({

@@ -25,7 +25,6 @@ import type { CalendarEvent } from "@/components/dashboard/calendar-widget";
 import type { ActivityItem } from "@/components/dashboard/recent-activity";
 import { listWallets } from "@/services/payments/wallet-service";
 import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
-import { ensureLearningSeeded } from "@/services/learning/seed";
 import { getOverallProgress } from "@/services/learning/progress-service";
 import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
@@ -213,7 +212,6 @@ export function getProgressBreakdown(studentUserId?: string | null): {
   value: number;
 }[] {
   if (studentUserId) {
-    ensureLearningSeeded();
     const student = findUserById(studentUserId);
     if (student) {
       const overall = getOverallProgress(student.id);
@@ -315,7 +313,6 @@ export function getInstructorOverview(instructorUserId?: string | null) {
 }
 
 export function getStudentOverview(studentUserId?: string | null) {
-  ensureLearningSeeded();
   const student = studentUserId ? findUserById(studentUserId) : null;
   if (student && student.role !== ROLES.STUDENT) {
     return {
@@ -333,20 +330,16 @@ export function getStudentOverview(studentUserId?: string | null) {
   }
   if (student) {
     const overall = getOverallProgress(student.id);
-    const classStats = getClassStats({ studentId: student.id });
     return {
       currentCourses: overall.activeCourses,
-      nextLiveClass:
-        classStats.upcoming > 0 || classStats.liveNow > 0
-          ? `${classStats.liveNow + classStats.upcoming} scheduled`
-          : "None scheduled",
+      nextLiveClass: "None scheduled",
       progress: Math.round(overall.progressPercent),
       certificates: 0,
       notifications: 0,
       assignments: 0,
       quizzes: 0,
       weeklyProgress: 0,
-      attendance: classStats.attendanceRate,
+      attendance: 0,
       learningHours: overall.learningHours,
     };
   }

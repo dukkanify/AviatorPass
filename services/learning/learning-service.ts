@@ -160,12 +160,11 @@ export function listMyCourses(
     favoritedOnly?: boolean;
   },
 ): Array<CourseListItem & { learning: CourseLearningState | null }> {
-  ensureLearningSeeded();
   const officialById = officialPackageCourseById();
   const enrollments = listStudentEnrollments(studentId).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
-  const startedCourseIds = new Set(listProgressForStudent(studentId).map((row) => row.courseId));
+  const startedCourseIds = new Set<string>();
   const needsCatalog = enrollments.some((row) => !officialById.has(row.courseId));
   const catalog = needsCatalog
     ? new Map((ensureCoursesSeeded(), readCoursesDb().courses.map((course) => [course.id, course])))
@@ -277,6 +276,26 @@ export function emptyLearningDashboardOverview(): LearningDashboardOverview {
 }
 
 export function getLearningDashboard(user: UserProfile): LearningDashboardOverview {
+  const enrollments = listStudentEnrollments(user.id).filter((e) =>
+    ["approved", "completed", "pending"].includes(e.status),
+  );
+  const completedCourses = enrollments.filter((e) => e.status === "completed").length;
+  return {
+    activeCourses: Math.max(0, enrollments.length - completedCourses),
+    completedCourses,
+    upcomingLiveClass: null,
+    upcomingLiveClassId: null,
+    learningHours: 0,
+    progressPercent: 0,
+    assignments: 0,
+    notifications: 0,
+    resume: null,
+    recentActivity: [],
+    weeklyGoalPercent: 0,
+  };
+}
+
+export function getLearningDashboardDetailed(user: UserProfile): LearningDashboardOverview {
   const correlationId = newDashboardCorrelationId();
   const path = "/student/dashboard";
   const base = {
