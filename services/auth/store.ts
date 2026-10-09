@@ -157,6 +157,9 @@ interface AuthDatabase {
 
 const DATA_FILE = path.join(dataDir(), "aep-auth.json");
 
+/** Lifetime bound so activity/audit history cannot inflate the auth store. */
+export const AUTH_LOG_CAP = 400;
+
 const emptyDb = (): AuthDatabase => ({
   users: [],
   sessions: [],
@@ -186,7 +189,16 @@ function ensureStore(): AuthDatabase {
   parsed.notifications = parsed.notifications ?? [];
   parsed.activityLogs = parsed.activityLogs ?? [];
   parsed.auditLogs = parsed.auditLogs ?? [];
+  const trimmedLogs =
+    parsed.activityLogs.length > AUTH_LOG_CAP || parsed.auditLogs.length > AUTH_LOG_CAP;
+  if (parsed.activityLogs.length > AUTH_LOG_CAP) {
+    parsed.activityLogs = parsed.activityLogs.slice(0, AUTH_LOG_CAP);
+  }
+  if (parsed.auditLogs.length > AUTH_LOG_CAP) {
+    parsed.auditLogs = parsed.auditLogs.slice(0, AUTH_LOG_CAP);
+  }
   parsed.seeded = Boolean(parsed.seeded);
+  if (trimmedLogs) writeJsonFile(DATA_FILE, parsed);
   return parsed;
 }
 

@@ -9,7 +9,7 @@ import { assertAiAccess, AiError } from "@/services/ai/access";
 import { ensureAiSeeded } from "@/services/ai/seed";
 import { writeAiDb, readAiDb } from "@/services/ai/store";
 import { listCourses } from "@/services/courses/course-service";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForStudent } from "@/services/courses/store";
 import { getStudentProgressSnapshot } from "@/services/certificates/progress-service";
 import type { AiRecommendation } from "@/types/ai";
 import type { UserProfile } from "@/types";
@@ -23,9 +23,7 @@ export function getCourseRecommendations(user: UserProfile): AiRecommendation[] 
   }
 
   const courses = listCourses({ pageSize: 50, status: "published" }).data;
-  const enrolledIds = new Set(
-    readCoursesDb().enrollments.filter((e) => e.studentId === user.id).map((e) => e.courseId),
-  );
+  const enrolledIds = new Set(listEnrollmentsForStudent(user.id).map((e) => e.courseId));
   const snap = getStudentProgressSnapshot(user.id);
   const avgQuiz = snap.averageQuizScore ?? 0;
 

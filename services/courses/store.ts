@@ -1,11 +1,18 @@
 /**
  * Course LMS durable store (.data/aep-courses.json).
- * Production maps to SQL tables in migration 005.
+ * Enrollments live in the indexed LMS enrollment store so student reads
+ * never hydrate thousands of rows with the catalog.
  */
 
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import {
+  listAllEnrollments,
+  listEnrollmentsForCourse,
+  listEnrollmentsForStudent,
+  replaceAllEnrollments,
+} from "@/lib/data/lms-enrollment-store";
 import { clearCourseDetailCache } from "@/services/courses/detail-cache";
 import type {
   Course,
@@ -105,23 +112,99 @@ function normalize(raw: Partial<CoursesDatabase> | null | undefined): CoursesDat
   };
 }
 
+function persistCatalog(db: CoursesDatabase): void {
+  writeJsonFile(DATA_FILE, catalogSnapshot(db));
+}
+
+function catalogSnapshot(db: CoursesDatabase): CoursesDatabase {
+  return {
+    categories: db.categories,
+    courses: db.courses,
+    modules: db.modules,
+    lessons: db.lessons,
+    resources: db.resources,
+    instructors: db.instructors,
+    enrollments: [],
+    progress: db.progress,
+    seeded: db.seeded,
+  };
+}
+
+function extractEmbeddedEnrollments(db: CoursesDatabase): void {
+  const embedded = db.enrollments ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllEnrollments();
+  const merged = existing.length > 0 ? [...existing, ...embedded] : embedded;
+  replaceAllEnrollments(merged);
+  db.enrollments = [];
+  persistCatalog(db);
+}
+
+function withEnrollmentView(db: CoursesDatabase): CoursesDatabase {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "enrollments") return listAllEnrollments();
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+function withLazyEnrollmentWrites(catalog: CoursesDatabase): {
+  working: CoursesDatabase;
+  flushEnrollments: () => void;
+} {
+  let enrollmentsLoaded = false;
+  let enrollments: Enrollment[] = [];
+  const working = { ...catalog, enrollments: [] };
+  Object.defineProperty(working, "enrollments", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!enrollmentsLoaded) {
+        enrollments = listAllEnrollments();
+        enrollmentsLoaded = true;
+      }
+      return enrollments;
+    },
+    set(value: Enrollment[]) {
+      enrollments = Array.isArray(value) ? value : [];
+      enrollmentsLoaded = true;
+    },
+  });
+  return {
+    working,
+    flushEnrollments() {
+      if (enrollmentsLoaded) replaceAllEnrollments(enrollments);
+    },
+  };
+}
+
 export function ensureCoursesStore(): CoursesDatabase {
-  return normalize(readJsonFile<Partial<CoursesDatabase>>(DATA_FILE, emptyDb));
-}
-
-export function readCoursesDb(): CoursesDatabase {
-  return ensureCoursesStore();
-}
-
-export function writeCoursesDb(mutator: (db: CoursesDatabase) => void): CoursesDatabase {
-  const db = ensureCoursesStore();
-  mutator(db);
-  writeJsonFile(DATA_FILE, db);
-  clearCourseDetailCache();
+  const db = normalize(readJsonFile<Partial<CoursesDatabase>>(DATA_FILE, emptyDb));
+  extractEmbeddedEnrollments(db);
+  db.enrollments = [];
   return db;
 }
 
+export function readCoursesDb(): CoursesDatabase {
+  return withEnrollmentView(ensureCoursesStore());
+}
+
+export function writeCoursesDb(mutator: (db: CoursesDatabase) => void): CoursesDatabase {
+  const catalog = ensureCoursesStore();
+  const { working, flushEnrollments } = withLazyEnrollmentWrites(catalog);
+  mutator(working);
+  flushEnrollments();
+  const persisted = catalogSnapshot(working);
+  persistCatalog(persisted);
+  clearCourseDetailCache();
+  return withEnrollmentView(persisted);
+}
+
 export function replaceCoursesDb(db: CoursesDatabase): void {
-  writeJsonFile(DATA_FILE, db);
+  replaceAllEnrollments(db.enrollments ?? []);
+  persistCatalog(db);
   clearCourseDetailCache();
 }
+
+export { listAllEnrollments, listEnrollmentsForCourse, listEnrollmentsForStudent };

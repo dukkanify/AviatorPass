@@ -8,7 +8,7 @@ import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getCourseStats } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForStudent, readCoursesDb } from "@/services/courses/store";
 import { getClassStats } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb } from "@/services/classes/store";
@@ -363,8 +363,8 @@ function listCoursesForMetrics(opts: {
   }
   const student = users.find((u) => u.role === ROLES.STUDENT && u.status === ACCOUNT_STATUS.ACTIVE);
   if (!student) return 0;
-  return db.enrollments.filter(
-    (e) => e.studentId === student.id && ["approved", "completed", "pending"].includes(e.status),
+  return listEnrollmentsForStudent(student.id).filter((e) =>
+    ["approved", "completed", "pending"].includes(e.status),
   ).length;
 }
 
