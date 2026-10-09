@@ -213,7 +213,7 @@ describe("paid student dashboard load", () => {
       certs.indexOf("export async function POST"),
     );
     const student = get.slice(0, get.indexOf("ensureCertificatesSeeded"));
-    expect(student).toContain("listCertificates");
+    expect(student).toContain("listEnrollmentsForStudent");
     expect(student).toContain("ROLES.STUDENT");
     expect(student).not.toContain("ensureCertificatesSeeded");
   });
