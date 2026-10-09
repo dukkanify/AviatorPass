@@ -55,7 +55,6 @@ describe("production performance contracts", () => {
     expect(marketing).toContain("landing.css");
     expect(marketing).toContain("atpl-pass-home.css");
     expect(join).toContain("classroom.css");
-    expect(config).toContain('ppr: "incremental"');
     expect(config).toContain("max-age=31536000");
     expect(config).toContain("image/avif");
     expect(config).toContain("image/webp");

@@ -8,7 +8,6 @@ import { APP_METADATA } from "@/constants/navigation";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
 export const revalidate = 300;
-export const experimental_ppr = true;
 
 export const metadata: Metadata = {
   title: {
