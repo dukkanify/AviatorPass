@@ -21,6 +21,11 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  displayLessonHeading,
+  displayModuleHeading,
+  officialCourseDisplayTitle,
+} from "@/lib/courses/display-title";
 import { cn } from "@/lib/utils";
 import { learningFetch, learningJson } from "@/features/learning/lib/api";
 import { ContentProtectionShell } from "@/features/learning/components/content-protection";
@@ -140,7 +145,7 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
       targetId: lessonId,
       courseId,
       lessonId,
-      label: data?.lesson.title ?? "Lesson",
+      label: data ? displayLessonHeading(data.lesson.title, data.course) : "Lesson",
     });
     void load();
   }
@@ -192,14 +197,14 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {data.course.title}
+            {officialCourseDisplayTitle(data.course)}
           </p>
           <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
-            {data.lesson.title}
+            {officialCourseDisplayTitle(data.course)}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             ~{data.lesson.estimatedStudyMinutes || data.lesson.durationMinutes || 15} min ·{" "}
-            {data.module.title}
+            {displayModuleHeading(data.module.title)}
             {data.course.deliveryType === "recorded" ? " · Protected recorded lesson" : ""}
           </p>
         </div>
@@ -258,7 +263,9 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
                           l.id === lessonId && "bg-primary/10 font-medium text-primary",
                         )}
                       >
-                        <span className="truncate">{l.title}</span>
+                        <span className="truncate">
+                          {displayLessonHeading(l.title, data.course)}
+                        </span>
                         {l.completed ? (
                           <CheckCircle2 className="size-3.5 shrink-0 text-success" />
                         ) : null}

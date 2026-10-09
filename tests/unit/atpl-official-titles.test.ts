@@ -1,7 +1,16 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
-import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
+import {
+  displayLessonHeading,
+  displayModuleHeading,
+  isGenericLessonTitle,
+  officialCourseDisplayTitle,
+} from "@/lib/courses/display-title";
+import { readCoursesDb } from "@/services/courses/store";
 import { getCourseById, listCourses } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listAtplCourses } from "@/services/cgi/journey-service";
@@ -35,15 +44,50 @@ describe("official ATPL titles in the LMS", () => {
     const airLaw = getCourseById("ATPL-010");
     expect(airLaw?.title).toBe("Air Law");
     expect(airLaw?.title).not.toMatch(/^ATPL \d{3}/);
-    const listed = listCourses({ pageSize: 80, status: "published" }).data;
+    for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
+      const row = getCourseById(`ATPL-${subject.code}`);
+      expect(row?.title, subject.code).toBe(subject.title);
+    }
+    const listed = listCourses({ pageSize: 200, status: "published" }).data;
     for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
       const row = listed.find((course) => course.code === `ATPL-${subject.code}`);
-      expect(row?.title).toBe(subject.title);
+      expect(row?.title, subject.code).toBe(subject.title);
     }
     expect(listAtplCourses().map((course) => course.title)).not.toContain("ATPL 010 — Air Law");
     expect(listAtplCourses().find((course) => course.code === "ATPL-022")?.title).toBe(
       "Instrumentation",
     );
+
+    const instrumentation = getCourseById("ATPL-022");
+    const storedLessons = readCoursesDb().lessons.filter(
+      (lesson) => lesson.courseId === instrumentation?.id,
+    );
+    expect(storedLessons.length).toBeGreaterThan(0);
+    expect(storedLessons.some((lesson) => isGenericLessonTitle(lesson.title))).toBe(false);
+    expect(storedLessons.some((lesson) => lesson.title === "Instrumentation")).toBe(true);
+  });
+
+  it("shows the course name instead of Lesson 1.1 on the student player", () => {
+    expect(isGenericLessonTitle("Lesson 1.1")).toBe(true);
+    expect(isGenericLessonTitle("ICAO annexes & international agreements")).toBe(false);
+    expect(displayLessonHeading("Lesson 1.1", { code: "ATPL-022", title: "Instrumentation" })).toBe(
+      "Instrumentation",
+    );
+    expect(
+      displayLessonHeading("Pitot-static instruments", {
+        code: "ATPL-022",
+        title: "Instrumentation",
+      }),
+    ).toBe("Pitot-static instruments");
+    expect(displayModuleHeading("Module 1")).toBe("First lecture");
+    expect(displayModuleHeading("Regulatory foundations")).toBe("Regulatory foundations");
+
+    const player = readFileSync(
+      resolve(process.cwd(), "features/learning/components/course-player-view.tsx"),
+      "utf8",
+    );
+    expect(player).toContain("officialCourseDisplayTitle(data.course)");
+    expect(player).not.toContain("{data.lesson.title}");
   });
 
   it("keeps CMS extras off the public subject list", () => {

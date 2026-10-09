@@ -3,6 +3,7 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
+import { isGenericLessonTitle, isGenericModuleTitle } from "@/lib/courses/display-title";
 import { stableCourseId } from "@/lib/courses/public-course-path";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb } from "@/services/auth/store";
@@ -330,6 +331,15 @@ function catalogNeedsEnrichment(
     if (easa && course.title !== easa.title) return true;
   }
   for (const course of db.courses) {
+    const packageCourse = ATPL_PACKAGE_LMS_COURSE_CODES.includes(course.code);
+    if (packageCourse) {
+      const lessons = db.lessons.filter((lesson) => lesson.courseId === course.id);
+      if (lessons.some((lesson) => isGenericLessonTitle(lesson.title))) return true;
+      const modules = db.modules.filter((mod) => mod.courseId === course.id);
+      if (modules.some((mod) => isGenericModuleTitle(mod.title))) return true;
+    }
+  }
+  for (const course of db.courses) {
     if (!PUBLIC_CATALOG_CODES.includes(course.code as (typeof PUBLIC_CATALOG_CODES)[number])) {
       continue;
     }
@@ -343,11 +353,11 @@ function catalogNeedsEnrichment(
       .sort((a, b) => a.order - b.order);
     for (let i = 0; i < Math.min(modules.length, syllabus.length); i += 1) {
       const mod = modules[i]!;
-      if (/^module\s*\d+$/i.test(mod.title.trim())) return true;
+      if (isGenericModuleTitle(mod.title)) return true;
       const lessons = db.lessons
         .filter((l) => l.moduleId === mod.id)
         .sort((a, b) => a.order - b.order);
-      if (lessons.some((l) => /^lesson\s*\d+(\.\d+)?$/i.test(l.title.trim()))) return true;
+      if (lessons.some((l) => isGenericLessonTitle(l.title))) return true;
     }
   }
   return false;
@@ -424,7 +434,7 @@ function ensurePublishedCatalogEnrichment(): void {
       modules.forEach((mod, index) => {
         const def = syllabus[index];
         if (!def) return;
-        if (/^module\s*\d+$/i.test(mod.title.trim()) || !mod.description) {
+        if (isGenericModuleTitle(mod.title) || !mod.description) {
           mod.title = def.title;
           mod.description = def.description;
           mod.updatedAt = ts;
@@ -435,13 +445,35 @@ function ensurePublishedCatalogEnrichment(): void {
         lessons.forEach((lesson, lessonIndex) => {
           const lessonDef = def.lessons[lessonIndex];
           if (!lessonDef) return;
-          if (/^lesson\s*\d+(\.\d+)?$/i.test(lesson.title.trim()) || !lesson.description) {
+          if (isGenericLessonTitle(lesson.title) || !lesson.description) {
             lesson.title = lessonDef.title;
             lesson.description = lessonDef.description;
             lesson.updatedAt = ts;
           }
         });
       });
+    }
+
+    // Package subjects without a written syllabus still used "Lesson 1.1".
+    for (const course of d.courses) {
+      const easa = officialPackageSubject(
+        String(course.metadata?.subjectCode ?? "").replace(/^ATPL-/i, "") ||
+          course.code.replace(/^ATPL-/i, ""),
+      );
+      if (!easa) continue;
+      for (const mod of d.modules.filter((row) => row.courseId === course.id)) {
+        if (isGenericModuleTitle(mod.title)) {
+          mod.title = "First lecture";
+          mod.updatedAt = ts;
+        }
+      }
+      for (const lesson of d.lessons.filter((row) => row.courseId === course.id)) {
+        if (isGenericLessonTitle(lesson.title)) {
+          lesson.title = easa.title;
+          lesson.description = lesson.description || easa.shortDescription;
+          lesson.updatedAt = ts;
+        }
+      }
     }
 
     const existingCodes = new Set(d.courses.map((c) => c.code));
@@ -588,9 +620,9 @@ function ensurePublishedCatalogEnrichment(): void {
       }
       const syllabus = SYLLABUS_BY_CODE[def.code] ?? [
         {
-          title: "Module 1",
-          description: `Core content for ${def.code}`,
-          lessons: [{ title: "Lesson 1.1", description: `Opening lesson for ${def.code}` }],
+          title: "First lecture",
+          description: def.full,
+          lessons: [{ title: def.title, description: def.full }],
         },
       ];
       syllabus.forEach((modDef, modIndex) => {
