@@ -21,7 +21,7 @@ import { readCoursesDb } from "@/services/courses/store";
 import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/classes/class-service";
 import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass, readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { emitNotification, notifyUsers } from "@/services/notifications/notification-service";
@@ -704,8 +704,8 @@ export async function reportUnableToScheduleNextLecture(input: {
     throw new AssignmentError("This class is not linked to a subject", 400);
   }
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  const participants = listParticipantsForClass(input.liveClassId).filter(
+    (p) => p.role === "participant",
   );
   const studentId = input.studentId?.trim() || participants[0]?.userId || null;
   if (!studentId) throw new AssignmentError("Select a student", 400);
@@ -833,8 +833,8 @@ export async function scheduleNextLectureFromClass(input: {
     throw new AssignmentError("Next lecture must be in the future", 400);
   }
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  const participants = listParticipantsForClass(input.liveClassId).filter(
+    (p) => p.role === "participant",
   );
   const studentId = input.studentId?.trim() || participants[0]?.userId || null;
   if (!studentId) throw new AssignmentError("Select a student", 400);

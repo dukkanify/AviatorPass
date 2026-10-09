@@ -66,7 +66,7 @@ import {
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb } from "@/services/classes/store";
+import { hasParticipant, listAllParticipants, readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import type {
   AtplLectureAssignment,
@@ -1175,10 +1175,7 @@ function liveClassIdFromOrder(
 }
 
 function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
-  return readClassesDb().participants.some(
-    (row) =>
-      row.liveClassId === liveClassId && row.userId === studentId && row.role === "participant",
-  );
+  return hasParticipant(liveClassId, studentId, "participant");
 }
 
 function firstLectureSubjectForStudent(
@@ -2168,7 +2165,7 @@ export function listAtplStudents() {
   const classesDb = readClassesDb();
   const classById = new Map(classesDb.classes.map((cls) => [cls.id, cls]));
   const participants = new Set(
-    classesDb.participants
+    listAllParticipants()
       .filter((row) => row.role === "participant")
       .map((row) => `${row.liveClassId}:${row.userId}`),
   );

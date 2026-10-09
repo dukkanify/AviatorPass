@@ -1,12 +1,16 @@
 /**
  * Live classes durable store (.data/aep-classes.json).
- * Reminders live in the indexed class reminder store so dashboard class
- * reads never hydrate tens of thousands of queue rows.
+ * Reminders and participants live in indexed stores so dashboard class
+ * reads never hydrate the invite or reminder queues.
  */
 
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import {
+  listAllParticipants,
+  replaceAllParticipants,
+} from "@/lib/data/lms-class-participant-store";
 import { listAllReminders, replaceAllReminders } from "@/lib/data/lms-class-reminder-store";
 import type {
   AttendanceRecord,
@@ -67,7 +71,7 @@ function catalogSnapshot(db: ClassesDatabase): ClassesDatabase {
     zoomMeetings: db.zoomMeetings,
     recurringRules: db.recurringRules,
     attendance: db.attendance,
-    participants: db.participants,
+    participants: [],
     recordings: db.recordings,
     reminders: [],
     seeded: db.seeded,
@@ -82,28 +86,39 @@ function extractEmbeddedReminders(db: ClassesDatabase): void {
   const embedded = db.reminders ?? [];
   if (embedded.length === 0) return;
   const existing = listAllReminders();
-  const merged = existing.length > 0 ? [...existing, ...embedded] : embedded;
-  replaceAllReminders(merged);
+  replaceAllReminders(existing.length > 0 ? [...existing, ...embedded] : embedded);
   db.reminders = [];
   persistCatalog(db);
 }
 
-function withReminderView(db: ClassesDatabase): ClassesDatabase {
+function extractEmbeddedParticipants(db: ClassesDatabase): void {
+  const embedded = db.participants ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllParticipants();
+  replaceAllParticipants(existing.length > 0 ? [...existing, ...embedded] : embedded);
+  db.participants = [];
+  persistCatalog(db);
+}
+
+function withIndexedView(db: ClassesDatabase): ClassesDatabase {
   return new Proxy(db, {
     get(target, prop, receiver) {
       if (prop === "reminders") return listAllReminders();
+      if (prop === "participants") return listAllParticipants();
       return Reflect.get(target, prop, receiver);
     },
   });
 }
 
-function withLazyReminderWrites(catalog: ClassesDatabase): {
+function withLazyIndexedWrites(catalog: ClassesDatabase): {
   working: ClassesDatabase;
-  flushReminders: () => void;
+  flushIndexed: () => void;
 } {
   let remindersLoaded = false;
   let reminders: ReminderQueueItem[] = [];
-  const working = { ...catalog, reminders: [] };
+  let participantsLoaded = false;
+  let participants: MeetingParticipant[] = [];
+  const working = { ...catalog, reminders: [], participants: [] };
   Object.defineProperty(working, "reminders", {
     configurable: true,
     enumerable: true,
@@ -119,10 +134,26 @@ function withLazyReminderWrites(catalog: ClassesDatabase): {
       remindersLoaded = true;
     },
   });
+  Object.defineProperty(working, "participants", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!participantsLoaded) {
+        participants = listAllParticipants();
+        participantsLoaded = true;
+      }
+      return participants;
+    },
+    set(value: MeetingParticipant[]) {
+      participants = Array.isArray(value) ? value : [];
+      participantsLoaded = true;
+    },
+  });
   return {
     working,
-    flushReminders() {
+    flushIndexed() {
       if (remindersLoaded) replaceAllReminders(reminders);
+      if (participantsLoaded) replaceAllParticipants(participants);
     },
   };
 }
@@ -130,22 +161,24 @@ function withLazyReminderWrites(catalog: ClassesDatabase): {
 export function ensureClassesStore(): ClassesDatabase {
   const db = normalizeDb(readJsonFile<Partial<ClassesDatabase>>(dataFile(), emptyDb));
   extractEmbeddedReminders(db);
+  extractEmbeddedParticipants(db);
   db.reminders = [];
+  db.participants = [];
   return db;
 }
 
 export function readClassesDb(): ClassesDatabase {
-  return withReminderView(ensureClassesStore());
+  return withIndexedView(ensureClassesStore());
 }
 
 export function writeClassesDb(mutator: (db: ClassesDatabase) => void): ClassesDatabase {
   const catalog = ensureClassesStore();
-  const { working, flushReminders } = withLazyReminderWrites(catalog);
+  const { working, flushIndexed } = withLazyIndexedWrites(catalog);
   mutator(working);
-  flushReminders();
+  flushIndexed();
   const persisted = catalogSnapshot(working);
   persistCatalog(persisted);
-  return withReminderView(persisted);
+  return withIndexedView(persisted);
 }
 
 export {
@@ -153,3 +186,10 @@ export {
   listDueReminders,
   listRemindersForClass,
 } from "@/lib/data/lms-class-reminder-store";
+
+export {
+  hasParticipant,
+  listAllParticipants,
+  listParticipantsForClass,
+  listParticipantsForUser,
+} from "@/lib/data/lms-class-participant-store";

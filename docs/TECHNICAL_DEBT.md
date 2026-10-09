@@ -32,7 +32,7 @@ Effort bands: **S** (&lt; 1 engineer-day) · **M** (1–3 days) · **L** (multi-
 | TD-023 | Full WCAG 2.2 AA audit                            | medium   | A11y gaps beyond spot fixes    | Automated + manual audit; remediation sprint | L      | v1.9   | open        | Task 024 fixed FAB / language labels         |
 | TD-024 | Materialized views / query indexes (Postgres)     | medium   | Slow analytics at scale        | Add after Supabase cutover                   | L      | v1.8+  | open        | N/A on JSON stores                           |
 | TD-027 | Admin enrollment aggregates still scan all rows   | medium   | CGI/analytics dashboards       | SQL COUNT/GROUP BY on `aep_lms_enrollments`  | M      | —      | done        | Dashboard/analytics/CGI use count helpers    |
-| TD-028 | Class participants still live in the classes blob | medium   | Calendar / join paths          | Index participants by class and student      | M      | v1.8+  | open        | Reminders are extracted and capped           |
+| TD-028 | Class participants still live in the classes blob | medium   | Calendar / join paths          | Index participants by class and student      | M      | —      | done        | Calendar/join use listParticipantsForUser    |
 
 ## Process
 

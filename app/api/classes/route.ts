@@ -34,12 +34,8 @@ export async function GET(request: Request) {
     } else {
       assertPermission(user, PERMISSIONS.ZOOM_CLASSES);
       // Student list filtered in calendar/join; return participant classes via filter from
-      const { readClassesDb } = await import("@/services/classes/store");
-      const ids = new Set(
-        readClassesDb()
-          .participants.filter((p) => p.userId === user.id)
-          .map((p) => p.liveClassId),
-      );
+      const { listParticipantsForUser } = await import("@/services/classes/store");
+      const ids = new Set(listParticipantsForUser(user.id).map((p) => p.liveClassId));
       const all = listLiveClasses({ ...filters, pageSize: 200 });
       const data = all.data.filter((c) => ids.has(c.id));
       void import("@/services/zoom/live-upgrade")

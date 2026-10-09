@@ -20,7 +20,7 @@ import {
   replacePendingForClass,
   upsertReminder,
 } from "@/lib/data/lms-class-reminder-store";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass, readClassesDb } from "@/services/classes/store";
 import type { ReminderKind, ReminderQueueItem } from "@/types/classes";
 
 export async function queueClassReminders(liveClassId: string): Promise<ReminderQueueItem[]> {
@@ -35,7 +35,7 @@ export async function queueClassReminders(liveClassId: string): Promise<Reminder
     }
   }
 
-  const participants = readClassesDb().participants.filter((p) => p.liveClassId === liveClassId);
+  const participants = listParticipantsForClass(liveClassId);
   const start = Date.parse(cls.startsAt);
   const now = Date.now();
   const created: ReminderQueueItem[] = [];

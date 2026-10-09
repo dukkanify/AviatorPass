@@ -30,9 +30,16 @@ import {
   trimDoneReminders,
   upsertReminder,
 } from "@/lib/data/lms-class-reminder-store";
+import {
+  hasParticipant,
+  listParticipantsForClass,
+  listParticipantsForUser,
+  resetClassParticipantStoreRuntime,
+  upsertParticipant,
+} from "@/lib/data/lms-class-participant-store";
 import { writeClassesDb } from "@/services/classes/store";
 import type { Enrollment } from "@/types/courses";
-import type { ReminderQueueItem } from "@/types/classes";
+import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
 
 function src(rel: string) {
   return readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -90,6 +97,11 @@ describe("lifetime store speed contracts", () => {
     expect(reminders).not.toMatch(/writeClassesDb\(/);
     const classesStore = src("services/classes/store.ts");
     expect(classesStore).toMatch(/extractEmbeddedReminders/);
+    expect(classesStore).toMatch(/extractEmbeddedParticipants/);
+    expect(src("services/classes/calendar-service.ts")).toMatch(/listParticipantsForUser\(/);
+    expect(src("services/classes/class-service.ts")).toMatch(/listParticipantsForClass\(/);
+    expect(src("services/learning/learning-service.ts")).toMatch(/listParticipantsForUser\(/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/hasParticipant\(/);
     expect(classesStore).toMatch(/withLazyReminderWrites/);
   });
 
@@ -141,6 +153,12 @@ describe("lifetime store speed contracts", () => {
     expect(reminderRuntime).toContain('const TABLE = "aep_lms_class_reminders"');
     expect(reminderRuntime).toMatch(/CLASS_REMINDER_DONE_CAP = 400/);
     expect(reminderRuntime).toMatch(/status = 'pending' AND scheduled_for <= \$1/);
+    const participantMigration = src("database/migrations/037_lms_class_participant_store.sql");
+    expect(participantMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_class_participants/);
+    const participantRuntime = src("lib/data/lms-class-participant-store.ts");
+    expect(participantRuntime).toContain('const TABLE = "aep_lms_class_participants"');
+    expect(participantRuntime).toMatch(/WHERE live_class_id = \$1/);
+    expect(participantRuntime).toMatch(/WHERE user_id = \$1/);
   });
 });
 
@@ -298,5 +316,52 @@ describe("indexed class reminder store", () => {
       readFileSync(path.join(process.cwd(), ".data", "aep-classes.json"), "utf8"),
     ) as { reminders?: unknown[] };
     expect(catalog.reminders ?? []).toEqual([]);
+  });
+});
+
+function testParticipant(suffix: string): MeetingParticipant {
+  return {
+    id: `part-lifetime-speed-${suffix}`,
+    liveClassId: `cls-lifetime-speed-${suffix}`,
+    userId: `user-lifetime-speed-${suffix}`,
+    role: "participant",
+    invitedAt: new Date().toISOString(),
+    joinedAt: null,
+  };
+}
+
+describe("indexed class participant store", () => {
+  afterEach(() => {
+    resetClassParticipantStoreRuntime();
+  });
+
+  it("returns one student or class without scanning every invite", () => {
+    const first = testParticipant("alpha");
+    const second = testParticipant("beta");
+    upsertParticipant(first);
+    upsertParticipant(second);
+    resetClassParticipantStoreRuntime();
+
+    expect(listParticipantsForUser(first.userId)).toEqual([
+      expect.objectContaining({ id: first.id, liveClassId: first.liveClassId }),
+    ]);
+    expect(listParticipantsForClass(second.liveClassId)).toEqual([
+      expect.objectContaining({ id: second.id, userId: second.userId }),
+    ]);
+    expect(hasParticipant(first.liveClassId, first.userId, "participant")).toBe(true);
+    expect(hasParticipant(first.liveClassId, second.userId)).toBe(false);
+  });
+
+  it("extracts participants written through the classes database view", () => {
+    const row = testParticipant("extract");
+    writeClassesDb((db) => {
+      db.participants.push(row);
+    });
+    resetClassParticipantStoreRuntime();
+    expect(listParticipantsForClass(row.liveClassId).some((item) => item.id === row.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-classes.json"), "utf8"),
+    ) as { participants?: unknown[] };
+    expect(catalog.participants ?? []).toEqual([]);
   });
 });
