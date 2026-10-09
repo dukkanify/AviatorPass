@@ -121,6 +121,22 @@ describe("paid student dashboard load", () => {
     ensurePaymentsSeeded();
   });
 
+  it("does not rewrite the payment ledger on a covered student hydrate", () => {
+    const journey = src("services/cgi/journey-service.ts");
+    const start = journey.indexOf("export async function hydratePaidAtplStudentAccess");
+    const end = journey.indexOf("async function maybeSendPackageConfirmationFollowup");
+    const hydrate = journey.slice(start, end);
+    expect(hydrate).toMatch(/if \(studentHasOfficialPackageCoverage\(/);
+    expect(hydrate.indexOf("studentHasOfficialPackageCoverage")).toBeLessThan(
+      hydrate.indexOf("ensurePaymentsSeeded"),
+    );
+    expect(journey).toContain("function patchPaidOrder");
+    expect(journey).toContain("upsertOrder(current)");
+    expect(
+      journey.slice(start, journey.indexOf("async function ensureAtplPackageSubjectCoverage")),
+    ).not.toContain("writePaymentsDb");
+  });
+
   it("does not walk course graphs for untouched enrollments", () => {
     const progress = src("services/learning/progress-service.ts");
     const start = progress.indexOf("export function getOverallProgress");

@@ -62,8 +62,9 @@ import {
   listOrdersByStatus,
   listOrdersForEmail,
   listOrdersForStudent,
+  upsertOrder,
 } from "@/lib/data/lms-payment-ledger-store";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import { readPaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
   enrollStudentsInLiveClass,
@@ -94,6 +95,16 @@ export class CgiError extends Error {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function patchPaidOrder(
+  orderId: string,
+  patch: (order: NonNullable<ReturnType<typeof getOrderById>>) => void,
+) {
+  const current = getOrderById(orderId);
+  if (!current) return;
+  patch(current);
+  upsertOrder(current);
 }
 
 function audit(
@@ -659,9 +670,7 @@ function rememberFirstLectureLiveClass(studentId: string, liveClassId: string) {
   const order = latestPaidPackageOrder(studentId, student.email);
   if (!order) return;
   const stamp = nowIso();
-  writePaymentsDb((db) => {
-    const row = db.orders.find((item) => item.id === order.id);
-    if (!row) return;
+  patchPaidOrder(order.id, (row) => {
     row.metadata = { ...row.metadata, firstLectureLiveClassId: liveClassId };
     row.updatedAt = stamp;
   });
@@ -1093,15 +1102,14 @@ function bindPaidOrderToStudent(
 ) {
   const from = fromStudentId || "guest";
   if (!live.studentId || from === live.studentId) return;
-  writePaymentsDb((db) => {
-    const order = db.orders.find((item) => item.id === orderId);
-    if (!order || order.studentId === live.studentId) return;
-    order.studentId = live.studentId;
-    order.studentEmail = live.email || order.studentEmail;
-    if (live.name) order.studentName = live.name;
-    order.metadata = { ...order.metadata, reboundFromStudentId: from };
-    order.updatedAt = nowIso();
-  });
+  const order = getOrderById(orderId);
+  if (!order || order.studentId === live.studentId) return;
+  order.studentId = live.studentId;
+  order.studentEmail = live.email || order.studentEmail;
+  if (live.name) order.studentName = live.name;
+  order.metadata = { ...order.metadata, reboundFromStudentId: from };
+  order.updatedAt = nowIso();
+  upsertOrder(order);
   if (from && from !== "guest") {
     rebindEnrollmentsStudent(from, live.studentId);
   }
@@ -1128,18 +1136,17 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   }
   if (!pending.length) return 0;
 
-  writePaymentsDb((db) => {
-    const stamp = nowIso();
-    for (const row of pending) {
-      const order = db.orders.find((item) => item.id === row.id);
-      if (!order) continue;
-      order.studentId = row.to;
-      order.studentEmail = row.email;
-      order.studentName = row.name;
-      order.metadata = { ...order.metadata, reboundFromStudentId: row.from };
-      order.updatedAt = stamp;
-    }
-  });
+  const stamp = nowIso();
+  for (const row of pending) {
+    const order = getOrderById(row.id);
+    if (!order) continue;
+    order.studentId = row.to;
+    order.studentEmail = row.email;
+    order.studentName = row.name;
+    order.metadata = { ...order.metadata, reboundFromStudentId: row.from };
+    order.updatedAt = stamp;
+    upsertOrder(order);
+  }
   for (const { from, to } of pending) {
     rebindEnrollmentsStudent(from, to);
   }
@@ -1337,6 +1344,10 @@ export async function hydratePaidAtplStudentAccess(
   email: string,
   orderId?: string,
 ) {
+  const known = findUserByEmail(email) ?? findUserById(studentId);
+  if (studentHasOfficialPackageCoverage(known?.id ?? studentId)) {
+    return;
+  }
   ensurePaymentsSeeded();
   const live = resolveLivePaidStudent(studentId, email);
   const pinned = orderId ? (getOrderById(orderId) ?? null) : null;
@@ -1380,11 +1391,10 @@ async function maybeSendPackageConfirmationFollowup(
   if (!user) return;
   const packageName = order.items[0]?.productName ?? "Aviator Pass";
   const brand = getPublicBrandConfig();
-  writePaymentsDb((db) => {
-    const current = db.orders.find((row) => row.id === order.id);
-    if (!current) return;
-    current.metadata = { ...current.metadata, packageConfirmationFollowupAt: nowIso() };
-    current.updatedAt = nowIso();
+  const stamp = nowIso();
+  patchPaidOrder(order.id, (current) => {
+    current.metadata = { ...current.metadata, packageConfirmationFollowupAt: stamp };
+    current.updatedAt = stamp;
   });
   const data = {
     recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
@@ -1509,9 +1519,7 @@ export async function ensureConfirmedFirstLectureOnTimetable(
       existingLiveClassId: existingId,
     });
     const stamp = nowIso();
-    writePaymentsDb((db) => {
-      const row = db.orders.find((item) => item.id === order.id);
-      if (!row) return;
+    patchPaidOrder(order.id, (row) => {
       row.metadata = {
         ...row.metadata,
         firstLectureLiveClassId: liveClassId,
@@ -1740,9 +1748,7 @@ export async function confirmAtplPackageSchedule(input: {
   });
 
   const stamp = nowIso();
-  writePaymentsDb((db) => {
-    const row = db.orders.find((item) => item.id === order.id);
-    if (!row) return;
+  patchPaidOrder(order.id, (row) => {
     row.metadata = {
       ...row.metadata,
       requestedStudyStartDate: requestedDate,

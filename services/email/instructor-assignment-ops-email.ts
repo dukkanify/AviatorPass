@@ -16,8 +16,12 @@ import { findUserById } from "@/services/auth/store";
 import { sendEmail } from "@/services/email/mailer";
 import { renderBrandedEmail } from "@/services/settings/email-templates";
 import { formatMinor } from "@/services/payments/money";
-import { getPaymentById, listPaymentsForOrder } from "@/lib/data/lms-payment-ledger-store";
-import { writePaymentsDb } from "@/services/payments/store";
+import {
+  getOrderById,
+  getPaymentById,
+  listPaymentsForOrder,
+  upsertOrder,
+} from "@/lib/data/lms-payment-ledger-store";
 import type { Order } from "@/types/payments";
 
 export const AVIATORPASS_CEO_EMAIL = "ceo@aviatorpass.com";
@@ -206,15 +210,14 @@ export async function notifyInstructorAssignmentPendingOps(order: Order): Promis
     if (mail.success) sent += 1;
   }
   if (sent > 0) {
-    writePaymentsDb((db) => {
-      const current = db.orders.find((row) => row.id === order.id);
-      if (!current) return;
-      current.metadata = {
-        ...current.metadata,
-        opsInstructorAssignmentEmailAt: new Date().toISOString(),
-      };
-      current.updatedAt = new Date().toISOString();
-    });
+    const stamp = new Date().toISOString();
+    const current = getOrderById(order.id) ?? order;
+    current.metadata = {
+      ...current.metadata,
+      opsInstructorAssignmentEmailAt: stamp,
+    };
+    current.updatedAt = stamp;
+    upsertOrder(current);
   }
   return sent;
 }
