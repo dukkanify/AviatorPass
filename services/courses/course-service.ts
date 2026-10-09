@@ -8,7 +8,12 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_COURSE_PAGE_SIZE } from "@/constants/courses";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { readAuthDb } from "@/services/auth/store";
-import { readCourseDetailCache, writeCourseDetailCache } from "@/services/courses/detail-cache";
+import {
+  readCourseDetailCache,
+  readCourseGraphCache,
+  writeCourseDetailCache,
+  writeCourseGraphCache,
+} from "@/services/courses/detail-cache";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import {
@@ -287,33 +292,74 @@ export function listPublishedCoursesGroupedByCategory(pageSize = 100): CategoryC
   return groups.filter((group) => group.courses.length > 0);
 }
 
+type CourseGraph = {
+  modulesByCourse: Map<string, ReturnType<typeof readCoursesDb>["modules"]>;
+  lessonsByModule: Map<string, ReturnType<typeof readCoursesDb>["lessons"]>;
+  resourcesByLesson: Map<string, ReturnType<typeof readCoursesDb>["resources"]>;
+  instructorsByCourse: Map<string, ReturnType<typeof readCoursesDb>["instructors"]>;
+};
+
+function courseGraph(): CourseGraph {
+  const cached = readCourseGraphCache<CourseGraph>();
+  if (cached) return cached;
+  const db = readCoursesDb();
+  const modulesByCourse = new Map<string, typeof db.modules>();
+  for (const row of db.modules) {
+    const list = modulesByCourse.get(row.courseId) ?? [];
+    list.push(row);
+    modulesByCourse.set(row.courseId, list);
+  }
+  const lessonsByModule = new Map<string, typeof db.lessons>();
+  for (const row of db.lessons) {
+    const list = lessonsByModule.get(row.moduleId) ?? [];
+    list.push(row);
+    lessonsByModule.set(row.moduleId, list);
+  }
+  const resourcesByLesson = new Map<string, typeof db.resources>();
+  for (const row of db.resources) {
+    const list = resourcesByLesson.get(row.lessonId) ?? [];
+    list.push(row);
+    resourcesByLesson.set(row.lessonId, list);
+  }
+  const instructorsByCourse = new Map<string, typeof db.instructors>();
+  for (const row of db.instructors) {
+    const list = instructorsByCourse.get(row.courseId) ?? [];
+    list.push(row);
+    instructorsByCourse.set(row.courseId, list);
+  }
+  return writeCourseGraphCache({
+    modulesByCourse,
+    lessonsByModule,
+    resourcesByLesson,
+    instructorsByCourse,
+  });
+}
+
 export function getCourseDetail(id: string): CourseDetail | null {
   const course = getCourseById(id);
   if (!course) return null;
   const courseId = course.id;
   const cached = readCourseDetailCache<CourseDetail>(courseId);
   if (cached) return cached;
-  const db = readCoursesDb();
-  const modules = db.modules
-    .filter((m) => m.courseId === courseId)
+  const graph = courseGraph();
+  const modules = [...(graph.modulesByCourse.get(courseId) ?? [])]
     .sort((a, b) => a.order - b.order)
     .map((mod) => ({
       ...mod,
-      lessons: db.lessons
-        .filter((l) => l.moduleId === mod.id)
+      lessons: [...(graph.lessonsByModule.get(mod.id) ?? [])]
         .sort((a, b) => a.order - b.order)
         .map((lesson) => ({
           ...lesson,
-          resources: db.resources
-            .filter((r) => r.lessonId === lesson.id)
-            .sort((a, b) => a.order - b.order),
+          resources: [...(graph.resourcesByLesson.get(lesson.id) ?? [])].sort(
+            (a, b) => a.order - b.order,
+          ),
         })),
     }));
 
   return writeCourseDetailCache(courseId, {
     ...toListItem(course),
     modules,
-    instructors: db.instructors.filter((i) => i.courseId === courseId),
+    instructors: graph.instructorsByCourse.get(courseId) ?? [],
   });
 }
 
