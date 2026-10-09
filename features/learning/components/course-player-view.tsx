@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,11 +29,33 @@ import {
   officialCourseDisplayTitle,
 } from "@/lib/courses/display-title";
 import { cn } from "@/lib/utils";
+import { classFetch } from "@/features/classes/lib/api";
 import { learningFetch, learningJson } from "@/features/learning/lib/api";
 import { ContentProtectionShell } from "@/features/learning/components/content-protection";
+import { prefetchZoomEmbeddedSdk } from "@/features/zoom/lib/load-embedded-sdk";
 import type { Lesson, LessonResource } from "@/types/courses";
 import type { CourseLearningState, LessonProgressRecord, StudentNote } from "@/types/learning";
 import type { ContentProtectionConfig } from "@/types";
+
+const InAppZoomRoom = dynamic(
+  () => import("@/features/zoom/components/in-app-zoom-room").then((mod) => mod.InAppZoomRoom),
+  {
+    ssr: false,
+    loading: () => <div className="classroom-stage-skeleton min-h-[320px]" aria-hidden />,
+  },
+);
+
+type ClassroomJoin = {
+  join: {
+    zoomMeetingId: string;
+    joinUrl: string;
+    startUrl: string | null;
+    password: string;
+    waitingRoom: boolean;
+    providerMode: string;
+  } | null;
+  isHost: boolean;
+};
 
 type PlayerPayload = {
   course: {
@@ -87,6 +110,8 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
   const [noteTitle, setNoteTitle] = React.useState("");
   const [noteBody, setNoteBody] = React.useState("");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [classroom, setClassroom] = React.useState<ClassroomJoin | null>(null);
+  const [joiningClassroom, setJoiningClassroom] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
 
   const load = React.useCallback(async () => {
@@ -107,6 +132,30 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  React.useEffect(() => {
+    setClassroom(null);
+    setJoiningClassroom(false);
+  }, [courseId, lessonId]);
+
+  const openLiveClassroom = React.useCallback(async () => {
+    const live = data?.liveClassroom;
+    if (!live) return;
+    setJoiningClassroom(true);
+    prefetchZoomEmbeddedSdk();
+    const result = await classFetch<ClassroomJoin>(`/api/classes/${live.id}/join`, {
+      method: "POST",
+      body: "{}",
+    });
+    if (!result.success || !result.data?.join) {
+      setJoiningClassroom(false);
+      toast.error(result.error ?? "Unable to open the live classroom on this page.");
+      return;
+    }
+    if (result.data.join.providerMode === "zoom") prefetchZoomEmbeddedSdk();
+    setClassroom(result.data);
+    setJoiningClassroom(false);
+  }, [data?.liveClassroom]);
 
   // Auto-save progress every 20s
   React.useEffect(() => {
@@ -295,7 +344,18 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
 
         <section className="min-w-0 space-y-4">
           <ContentProtectionShell protection={protection}>
-            {liveClassroom ? (
+            {liveClassroom && classroom?.join ? (
+              <InAppZoomRoom
+                joinUrl={classroom.join.joinUrl}
+                startUrl={classroom.join.startUrl}
+                meetingNumber={classroom.join.zoomMeetingId}
+                password={classroom.join.password}
+                isHost={classroom.isHost}
+                providerMode={classroom.join.providerMode}
+                title={liveClassroom.title}
+                onLeave={() => setClassroom(null)}
+              />
+            ) : liveClassroom ? (
               <div className="flex aspect-video flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#0b1220] px-6 text-center text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#CCA04C]">
                   {liveClassroom.status === "live" ? "Live now" : "Upcoming live class"}
@@ -304,11 +364,18 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
                 <p className="text-sm text-white/65">
                   {new Date(liveClassroom.startsAt).toLocaleString()}
                 </p>
-                <Button asChild size="lg" className="gap-2">
-                  <Link href={liveClassroom.href}>
-                    <Radio className="size-4" />
-                    {liveClassroom.status === "live" ? "Join live Zoom" : "Open live classroom"}
-                  </Link>
+                <Button
+                  size="lg"
+                  className="gap-2"
+                  disabled={joiningClassroom}
+                  onClick={() => void openLiveClassroom()}
+                >
+                  <Radio className="size-4" />
+                  {joiningClassroom
+                    ? "Opening classroom"
+                    : liveClassroom.status === "live"
+                      ? "Join live Zoom"
+                      : "Open live classroom"}
                 </Button>
               </div>
             ) : data.lesson.videoUrl ? (

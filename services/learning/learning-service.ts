@@ -7,6 +7,8 @@ import { getCourseById, getCourseDetail } from "@/services/courses/course-servic
 import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
 import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { stableCourseId } from "@/lib/courses/public-course-path";
+import { findUserById } from "@/services/auth/store";
+import { getStudentAtplPackageSchedule } from "@/services/cgi/journey-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
@@ -549,6 +551,42 @@ export function getLearningCalendar(studentId: string): LearningCalendarItem[] {
   return items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+function liveClassroomFromPaidFirstLecture(
+  studentId: string,
+  courseId: string,
+): {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  status: "live" | "upcoming";
+  href: string;
+} | null {
+  const user = findUserById(studentId);
+  if (!user?.email) return null;
+  const schedule = getStudentAtplPackageSchedule(studentId, user.email);
+  if (!schedule.firstLectureLiveClassId) return null;
+  const subjectCode = schedule.firstLectureSubjectCode;
+  if (!subjectCode || (stableCourseId(subjectCode) !== courseId && courseId !== subjectCode)) {
+    return null;
+  }
+  const startsAt = schedule.confirmedFirstLectureAt || schedule.requestedFirstLectureAt;
+  if (!startsAt || !Number.isFinite(Date.parse(startsAt))) return null;
+  const startMs = Date.parse(startsAt);
+  const live = startMs <= Date.now() && Date.now() < startMs + 3 * 60 * 60_000;
+  const title = schedule.firstLectureSubjectTitle
+    ? `ATPL first lecture — ${schedule.firstLectureSubjectTitle}`
+    : "ATPL first lecture";
+  return {
+    id: schedule.firstLectureLiveClassId,
+    title,
+    startsAt,
+    endsAt: new Date(startMs + 90 * 60_000).toISOString(),
+    status: live ? "live" : "upcoming",
+    href: `/join/${schedule.firstLectureLiveClassId}`,
+  };
+}
+
 export function getLiveClassroomForStudentCourse(
   studentId: string,
   courseId: string,
@@ -561,6 +599,8 @@ export function getLiveClassroomForStudentCourse(
   href: string;
 } | null {
   if (!studentId || !courseId) return null;
+  const fromOrder = liveClassroomFromPaidFirstLecture(studentId, courseId);
+  if (fromOrder) return fromOrder;
   ensureClassesSeeded();
   const allowed = new Set(listParticipantsForUser(studentId).map((p) => p.liveClassId));
   const now = Date.now();
