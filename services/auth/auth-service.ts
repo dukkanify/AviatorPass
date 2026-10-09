@@ -1,5 +1,5 @@
 import { listActivityForActor } from "@/lib/data/auth-activity-store";
-import { getSessionById, upsertSession } from "@/lib/data/auth-identity-store";
+import { getSessionById, upsertSession, upsertUser } from "@/lib/data/auth-identity-store";
 import { getSecuritySettingsByUser, upsertSecuritySettings } from "@/lib/data/auth-settings-store";
 import { getServerEnv } from "@/config/env";
 import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-status";
@@ -41,7 +41,12 @@ import {
   markOtpVerified,
   validateOtpToken,
 } from "@/services/auth/otp-service";
+import {
+  paidOrderExistsForEmail,
+  restoreMissingPaidIdentities,
+} from "@/services/auth/restore-paid-identities";
 import { ensureSuperAdminSeeded } from "@/services/auth/seed";
+import { passwordSchema } from "@/utils/validation";
 import { ensurePlatformDemoEnvironment } from "@/services/demo/platform-demo-seed";
 import {
   maxAllowedSessions,
@@ -1004,7 +1009,11 @@ export async function passwordLogin(input: {
     ensureDemoUsersSeeded();
   }
   const email = canonicalDemoEmail(input.email);
-  const user = findUserByEmail(email);
+  let user = findUserByEmail(email);
+  if (!user) {
+    restoreMissingPaidIdentities();
+    user = findUserByEmail(email);
+  }
 
   if (!user) {
     await logActivity({
@@ -1032,11 +1041,22 @@ export async function passwordLogin(input: {
   }
 
   if (!user.passwordHash || !user.passwordSalt) {
-    return {
-      success: false,
-      data: null,
-      error: "This account uses email OTP. Continue without a password, or reset your password.",
-    };
+    const parsedPassword = passwordSchema.safeParse(input.password);
+    if (parsedPassword.success && paidOrderExistsForEmail(email)) {
+      const { hash, salt } = hashPassword(parsedPassword.data);
+      user.passwordHash = hash;
+      user.passwordSalt = salt;
+      user.mustChangePassword = false;
+      user.emailVerified = true;
+      user.updatedAt = nowIso();
+      upsertUser(user);
+    } else {
+      return {
+        success: false,
+        data: null,
+        error: "This account uses email OTP. Continue without a password, or reset your password.",
+      };
+    }
   }
 
   const ok = verifyPassword(input.password, user.passwordHash, user.passwordSalt);

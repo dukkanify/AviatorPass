@@ -34,6 +34,7 @@ import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
@@ -2106,6 +2107,7 @@ function slimDashboardSchedule(
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
+  restoreMissingPaidIdentities();
   rebindPaidPackageOrdersToLiveUsers();
   const packageProduct = getAtplPackageProduct();
   const courses = listAtplCourses();

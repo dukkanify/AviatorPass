@@ -297,16 +297,11 @@ export function replaceAllUsers(rows: StoredUser[]): void {
   const next = uniqueById(rows.map(asUser).filter(Boolean) as StoredUser[]);
   if (sqlEnabled()) {
     ensureSqlTables();
-    neonSql(`DELETE FROM ${USER_TABLE}`);
-    chunkInsert(
-      USER_TABLE,
-      "id, email, role, payload",
-      4,
-      next.map((row) => [row.id, row.email.toLowerCase(), row.role, JSON.stringify(row)]),
-      `email = EXCLUDED.email,
-       role = EXCLUDED.role,
-       payload = EXCLUDED.payload`,
-    );
+    // Upsert only — never DELETE the identity table. A partial in-memory
+    // list (demo seed, failed read, isolate race) must not wipe paid students.
+    for (const row of next) {
+      upsertUser(row);
+    }
     return;
   }
   writeUserRows(next);
