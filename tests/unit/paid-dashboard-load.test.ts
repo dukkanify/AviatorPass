@@ -202,6 +202,22 @@ describe("paid student dashboard load", () => {
     expect(timetable).not.toContain("resolveLivePaidStudent");
   });
 
+  it("does not hydrate classes or the certificate catalog on student widget GETs", () => {
+    const calendar = src("app/api/learning/calendar/route.ts");
+    expect(calendar).toContain("ensureConfirmedFirstLectureOnTimetable");
+    expect(calendar).not.toContain("getLearningCalendar");
+    expect(calendar).toContain("firstLectureSubjectTitle");
+    const certs = src("app/api/certificates/route.ts");
+    const get = certs.slice(
+      certs.indexOf("export async function GET"),
+      certs.indexOf("export async function POST"),
+    );
+    const student = get.slice(0, get.indexOf("ensureCertificatesSeeded"));
+    expect(student).toContain("listCertificates");
+    expect(student).toContain("ROLES.STUDENT");
+    expect(student).not.toContain("ensureCertificatesSeeded");
+  });
+
   it("skips first-lesson syllabus lookup when the student has not started", () => {
     const learning = src("services/learning/learning-service.ts");
     const start = learning.indexOf("export function getResumeTarget");

@@ -4,16 +4,12 @@ import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { requireAuth, requirePermission } from "@/services/auth/guards";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
-import {
-  createCertificate,
-  listCertificates,
-} from "@/services/certificates/certificate-service";
+import { createCertificate, listCertificates } from "@/services/certificates/certificate-service";
 import { certificateErrorResponse } from "@/app/api/certificates/_utils";
 import type { CertificateStatus } from "@/types/certificates";
 
 export async function GET(request: Request) {
   try {
-    ensureCertificatesSeeded();
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get("status") as CertificateStatus | "all") ?? "all";
@@ -27,6 +23,8 @@ export async function GET(request: Request) {
         error: null,
       });
     }
+
+    ensureCertificatesSeeded();
 
     await requirePermission(PERMISSIONS.CERTIFICATES_MANAGE);
     const studentId = searchParams.get("studentId") ?? undefined;
