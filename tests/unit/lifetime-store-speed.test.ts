@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AUTH_LOG_CAP, writeAuthDb } from "@/services/auth/store";
+import { AUTH_LOG_CAP, writeAuthDb, type StoredUser } from "@/services/auth/store";
 import {
   AUTH_NOTIFICATION_CAP,
   countUnreadForUser,
@@ -104,7 +104,19 @@ import type {
 } from "@/types/payments";
 import type { Enrollment } from "@/types/courses";
 import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
-import type { NotificationRecord } from "@/types";
+import {
+  getSessionById,
+  getUserByEmail,
+  getUserById,
+  listAllSessions,
+  listAllUsers,
+  replaceAllSessions,
+  replaceAllUsers,
+  resetAuthIdentityStoreRuntime,
+  upsertSession,
+  upsertUser,
+} from "@/lib/data/auth-identity-store";
+import type { NotificationRecord, SessionRecord } from "@/types";
 
 function src(rel: string) {
   return readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -179,8 +191,15 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/demo/reset-demo-environment.ts")).toMatch(/listNotificationsForUser\(/);
     const authStore = src("services/auth/store.ts");
     expect(authStore).toMatch(/extractEmbeddedNotifications/);
+    expect(authStore).toMatch(/extractEmbeddedIdentity/);
     expect(authStore).toMatch(/withLazyNotificationWrites/);
     expect(authStore).toMatch(/notifications: \[\]/);
+    expect(authStore).toMatch(/users: \[\]/);
+    expect(authStore).toMatch(/sessions: \[\]/);
+    expect(src("services/auth/store.ts")).toMatch(/getUserById\(/);
+    expect(src("services/auth/store.ts")).toMatch(/getUserByEmail\(/);
+    expect(src("services/auth/auth-service.ts")).toMatch(/getSessionById\(/);
+    expect(src("services/auth/auth-service.ts")).not.toMatch(/readAuthDb\(\)\.sessions/);
 
     const checkout = src("services/payments/checkout-service.ts");
     expect(checkout).toMatch(/listOrdersForStudent\(/);
@@ -308,6 +327,14 @@ describe("lifetime store speed contracts", () => {
     expect(activityRuntime).toMatch(/PAYMENT_LOG_CAP = 400/);
     expect(activityRuntime).toMatch(/WHERE instructor_id = \$1/);
     expect(activityRuntime).toMatch(/ORDER BY created_at DESC, id DESC LIMIT \$1/);
+    const identityMigration = src("database/migrations/042_auth_identity_store.sql");
+    expect(identityMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_users/);
+    expect(identityMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_sessions/);
+    const identityRuntime = src("lib/data/auth-identity-store.ts");
+    expect(identityRuntime).toContain('const USER_TABLE = "aep_auth_users"');
+    expect(identityRuntime).toContain('const SESSION_TABLE = "aep_auth_sessions"');
+    expect(identityRuntime).toMatch(/WHERE id = \$1/);
+    expect(identityRuntime).toMatch(/WHERE email = \$1/);
   });
 });
 
@@ -935,5 +962,96 @@ describe("indexed payment activity store", () => {
     ) as { walletTransactions?: unknown[]; transactionLogs?: unknown[] };
     expect(catalog.walletTransactions ?? []).toEqual([]);
     expect(catalog.transactionLogs ?? []).toEqual([]);
+  });
+});
+
+function testIdentityUser(suffix: string): StoredUser {
+  const now = new Date().toISOString();
+  return {
+    id: `user-lifetime-speed-${suffix}`,
+    email: `lifetime.speed.${suffix}@aviatorpass.test`,
+    firstName: "Speed",
+    lastName: suffix,
+    phone: null,
+    countryCode: null,
+    nationality: null,
+    dateOfBirth: null,
+    gender: null,
+    city: null,
+    bio: null,
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    avatarUrl: null,
+    timezone: "UTC",
+    language: "en",
+    role: "student",
+    status: "active",
+    emailVerified: true,
+    profileComplete: true,
+    mustChangePassword: false,
+    passwordHash: null,
+    passwordSalt: null,
+    lastLoginAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function testIdentitySession(suffix: string): SessionRecord {
+  const now = new Date().toISOString();
+  return {
+    id: `sess-lifetime-speed-${suffix}`,
+    userId: `user-lifetime-speed-${suffix}`,
+    tokenHash: `hash-${suffix}`,
+    userAgent: "test",
+    ipAddress: "127.0.0.1",
+    deviceFingerprint: null,
+    deviceLabel: null,
+    rememberMe: false,
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    revokedAt: null,
+    createdAt: now,
+    lastActiveAt: now,
+  };
+}
+
+describe("indexed auth identity store", () => {
+  afterEach(() => {
+    replaceAllUsers(listAllUsers().filter((row) => !row.id.startsWith("user-lifetime-speed-")));
+    replaceAllSessions(
+      listAllSessions().filter((row) => !row.id.startsWith("sess-lifetime-speed-")),
+    );
+    resetAuthIdentityStoreRuntime();
+  });
+
+  it("returns one user or session without scanning the auth catalog", () => {
+    const first = testIdentityUser("alpha");
+    const second = testIdentityUser("beta");
+    upsertUser(first);
+    upsertUser(second);
+    upsertSession(testIdentitySession("alpha"));
+    resetAuthIdentityStoreRuntime();
+
+    expect(getUserById(first.id)?.email).toBe(first.email);
+    expect(getUserByEmail(first.email)?.id).toBe(first.id);
+    expect(getSessionById("sess-lifetime-speed-alpha")?.userId).toBe(first.id);
+    expect(getUserByEmail(second.email)?.id).toBe(second.id);
+  });
+
+  it("extracts users and sessions written through the auth catalog view", () => {
+    const user = testIdentityUser("extract");
+    const session = testIdentitySession("extract");
+    writeAuthDb((db) => {
+      db.users.push(user);
+      db.sessions.push(session);
+    });
+    resetAuthIdentityStoreRuntime();
+    expect(getUserById(user.id)?.email).toBe(user.email);
+    expect(getSessionById(session.id)?.userId).toBe(user.id);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-auth.json"), "utf8"),
+    ) as { users?: unknown[]; sessions?: unknown[] };
+    expect(catalog.users ?? []).toEqual([]);
+    expect(catalog.sessions ?? []).toEqual([]);
   });
 });

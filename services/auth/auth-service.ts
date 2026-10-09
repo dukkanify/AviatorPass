@@ -1,3 +1,4 @@
+import { getSessionById, upsertSession } from "@/lib/data/auth-identity-store";
 import { getServerEnv } from "@/config/env";
 import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-status";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
@@ -223,27 +224,23 @@ export async function getCurrentSession(): Promise<{
     return { user: null, permissions: [] };
   }
 
-  const db = readAuthDb();
-  const session = db.sessions.find((s) => s.id === parsed.payload.sid);
+  const session = getSessionById(parsed.payload.sid);
 
   if (session) {
     if (session.revokedAt) {
       return { user: null, permissions: [] };
     }
     if (new Date(session.expiresAt).getTime() <= Date.now()) {
-      writeAuthDb((d) => {
-        const s = d.sessions.find((x) => x.id === session.id);
-        if (s) s.revokedAt = nowIso();
-      });
+      upsertSession({ ...session, revokedAt: nowIso() });
       return { user: null, permissions: [] };
     }
     if (session.tokenHash !== tokenHash) {
       return { user: null, permissions: [] };
     }
-    writeAuthDb((d) => {
-      const s = d.sessions.find((x) => x.id === session.id);
-      if (s) s.lastActiveAt = nowIso();
-    });
+    const lastActiveMs = Date.parse(session.lastActiveAt);
+    if (!Number.isFinite(lastActiveMs) || Date.now() - lastActiveMs > 60_000) {
+      upsertSession({ ...session, lastActiveAt: nowIso() });
+    }
   }
 
   // Do not call cookies().set() here. Next.js throws

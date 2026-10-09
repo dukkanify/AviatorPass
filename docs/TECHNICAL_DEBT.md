@@ -13,7 +13,7 @@ Effort bands: **S** (&lt; 1 engineer-day) · **M** (1–3 days) · **L** (multi-
 | TD-005 | CSP report-only → enforce                         | medium   | Weaker XSS defense             | Collect violations then enforce              | M      | v1.8   | open        | Collect first                                |
 | TD-006 | Replace demo OTP paths in prod docs automation    | high     | Auth bypass risk               | Hard-fail in production                      | S      | —      | done        | Task 022                                     |
 | TD-025 | OTP email delivery not implemented                | high     | Non-demo login impossible      | Wire SMTP/ESP send on `requestOtp`           | M      | v1.8   | open        | Audit final 2026-08-04                       |
-| TD-026 | Analytics hub static Recharts import              | low      | Undoes lazy-chart win          | Import from `lazy-charts` / dashboard barrel | S      | v1.8   | open        | `analytics-hub-view.tsx`                     |
+| TD-026 | Analytics hub static Recharts import              | low      | Undoes lazy-chart win          | Import from `lazy-charts` / dashboard barrel | S      | —      | done        | `analytics-hub-view` uses dashboard barrel   |
 | TD-007 | Component Testing Library suite for design system | low      | Slow UI refactors              | Add RTL unit suite                           | M      | v1.9   | open        | `cn` unit exists                             |
 | TD-008 | Deprecated cookie-only mobile clients             | low      | Dual auth paths                | Prefer `/api/v1` Bearer                      | S      | v1.9   | open        | Document deprecation                         |
 | TD-009 | Queue worker process (not in-request)             | medium   | Request latency / reliability  | Separate worker process                      | L      | v1.8   | open        | `processQueue` today                         |
@@ -37,6 +37,7 @@ Effort bands: **S** (&lt; 1 engineer-day) · **M** (1–3 days) · **L** (multi-
 | TD-030 | Student billing still hydrates the payments blob  | medium   | Billing / ATPL paid-order      | Index orders, invoices, and payments         | M      | —      | done        | Student lists use ledger helpers             |
 | TD-031 | Installment plans still live in the payments blob | medium   | Student plans / reminder cron  | Index plans and schedule by student and plan | M      | —      | done        | listInstallmentPlans uses student index      |
 | TD-032 | Wallet txns and payment logs still in the catalog | medium   | Instructor wallet / audit      | Index wallet rows; cap logs at 400 newest    | M      | —      | done        | listWalletTransactions uses instructor index |
+| TD-033 | Auth users/sessions still hydrate every request   | high     | Every signed-in page           | Index users and sessions by id / email       | M      | —      | done        | getCurrentSession uses identity helpers      |
 
 ## Process
 

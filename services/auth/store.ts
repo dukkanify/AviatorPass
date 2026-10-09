@@ -8,6 +8,15 @@ import path from "path";
 
 import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import {
+  getUserByEmail,
+  getUserById,
+  getUserByPhone,
+  listAllSessions,
+  listAllUsers,
+  replaceAllSessions,
+  replaceAllUsers,
+} from "@/lib/data/auth-identity-store";
 import { listAllNotifications, replaceAllNotifications } from "@/lib/data/auth-notification-store";
 import type {
   ActivityLogRecord,
@@ -177,8 +186,8 @@ const emptyDb = (): AuthDatabase => ({
 
 function catalogSnapshot(db: AuthDatabase): AuthDatabase {
   return {
-    users: db.users,
-    sessions: db.sessions,
+    users: [],
+    sessions: [],
     otps: db.otps,
     passwordSetupTokens: db.passwordSetupTokens,
     pendingRegistrations: db.pendingRegistrations,
@@ -195,6 +204,23 @@ function persistCatalog(db: AuthDatabase): void {
   writeJsonFile(DATA_FILE, catalogSnapshot(db));
 }
 
+function extractEmbeddedIdentity(db: AuthDatabase): void {
+  const embeddedUsers = (db.users ?? []).map(normalizeStoredUser);
+  const embeddedSessions = (db.sessions ?? []).map(normalizeSession);
+  if (embeddedUsers.length === 0 && embeddedSessions.length === 0) return;
+  if (embeddedUsers.length > 0) {
+    const existing = listAllUsers();
+    replaceAllUsers(existing.length > 0 ? [...existing, ...embeddedUsers] : embeddedUsers);
+    db.users = [];
+  }
+  if (embeddedSessions.length > 0) {
+    const existing = listAllSessions();
+    replaceAllSessions(existing.length > 0 ? [...existing, ...embeddedSessions] : embeddedSessions);
+    db.sessions = [];
+  }
+  persistCatalog(db);
+}
+
 function extractEmbeddedNotifications(db: AuthDatabase): void {
   const embedded = db.notifications ?? [];
   if (embedded.length === 0) return;
@@ -208,6 +234,8 @@ function withNotificationView(db: AuthDatabase): AuthDatabase {
   return new Proxy(db, {
     get(target, prop, receiver) {
       if (prop === "notifications") return listAllNotifications();
+      if (prop === "users") return listAllUsers();
+      if (prop === "sessions") return listAllSessions();
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -219,7 +247,11 @@ function withLazyNotificationWrites(catalog: AuthDatabase): {
 } {
   let notificationsLoaded = false;
   let notifications: NotificationRecord[] = [];
-  const working = { ...catalog, notifications: [] };
+  let usersLoaded = false;
+  let users: StoredUser[] = [];
+  let sessionsLoaded = false;
+  let sessions: SessionRecord[] = [];
+  const working = { ...catalog, notifications: [], users: [], sessions: [] };
   Object.defineProperty(working, "notifications", {
     configurable: true,
     enumerable: true,
@@ -235,10 +267,42 @@ function withLazyNotificationWrites(catalog: AuthDatabase): {
       notificationsLoaded = true;
     },
   });
+  Object.defineProperty(working, "users", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!usersLoaded) {
+        users = listAllUsers();
+        usersLoaded = true;
+      }
+      return users;
+    },
+    set(value: StoredUser[]) {
+      users = Array.isArray(value) ? value : [];
+      usersLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "sessions", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!sessionsLoaded) {
+        sessions = listAllSessions();
+        sessionsLoaded = true;
+      }
+      return sessions;
+    },
+    set(value: SessionRecord[]) {
+      sessions = Array.isArray(value) ? value : [];
+      sessionsLoaded = true;
+    },
+  });
   return {
     working,
     flushNotifications() {
       if (notificationsLoaded) replaceAllNotifications(notifications);
+      if (usersLoaded) replaceAllUsers(users);
+      if (sessionsLoaded) replaceAllSessions(sessions);
     },
   };
 }
@@ -268,9 +332,13 @@ function ensureStore(): AuthDatabase {
   }
   parsed.seeded = Boolean(parsed.seeded);
   const embeddedCount = parsed.notifications.length;
+  const embeddedUsers = parsed.users.length;
+  extractEmbeddedIdentity(parsed);
   extractEmbeddedNotifications(parsed);
+  parsed.users = [];
+  parsed.sessions = [];
   parsed.notifications = [];
-  if (trimmedLogs && embeddedCount === 0) persistCatalog(parsed);
+  if (trimmedLogs && embeddedCount === 0 && embeddedUsers === 0) persistCatalog(parsed);
   return parsed;
 }
 
@@ -334,8 +402,8 @@ export function writeAuthDb(mutator: (db: AuthDatabase) => void): AuthDatabase {
   flushNotifications();
   persistCatalog(working);
   return withNotificationView({
-    users: working.users,
-    sessions: working.sessions,
+    users: [],
+    sessions: [],
     otps: working.otps,
     passwordSetupTokens: working.passwordSetupTokens,
     pendingRegistrations: working.pendingRegistrations,
@@ -401,33 +469,26 @@ export function isStudentProfileComplete(
 }
 
 export function findUserByEmail(email: string): StoredUser | null {
-  const db = readAuthDb();
   const normalized = email.trim().toLowerCase();
-  const exact = db.users.find((u) => u.email.toLowerCase() === normalized);
+  const exact = getUserByEmail(normalized);
   if (exact) return exact;
   const canonical = canonicalDemoEmail(email);
-  return (
-    db.users.find((u) => u.email.toLowerCase() === canonical) ??
-    db.users.find((u) => demoEmailsEquivalent(u.email, email)) ??
-    null
-  );
+  if (canonical !== normalized) {
+    const byCanonical = getUserByEmail(canonical);
+    if (byCanonical) return byCanonical;
+  }
+  if (normalized.includes("aviatorpass") || normalized.includes("demo")) {
+    return listAllUsers().find((user) => demoEmailsEquivalent(user.email, email)) ?? null;
+  }
+  return null;
 }
 
 export function findUserByPhone(phone: string): StoredUser | null {
-  const normalized = phone.replace(/\s+/g, "");
-  if (!normalized) return null;
-  const db = readAuthDb();
-  return (
-    db.users.find((u) => {
-      if (!u.phone) return false;
-      return u.phone.replace(/\s+/g, "") === normalized;
-    }) ?? null
-  );
+  return getUserByPhone(phone);
 }
 
 export function findUserById(id: string): StoredUser | null {
-  const db = readAuthDb();
-  return db.users.find((u) => u.id === id) ?? null;
+  return getUserById(id);
 }
 
 export function findPendingRegistrationByEmail(email: string): PendingRegistration | null {

@@ -259,15 +259,11 @@ export function listUsersByRole(
 export function getInstructorOverview(instructorUserId?: string | null) {
   ensureCoursesSeeded();
   ensureClassesSeeded();
-  const users = readAuthDb().users;
-  const instructor = instructorUserId
-    ? users.find(
-        (u) =>
-          u.id === instructorUserId &&
-          (u.role === ROLES.INSTRUCTOR || u.role === ROLES.CHIEF_GROUND_INSTRUCTOR),
-      )
-    : null;
-  if (!instructor) {
+  const instructor = instructorUserId ? findUserById(instructorUserId) : null;
+  if (
+    !instructor ||
+    (instructor.role !== ROLES.INSTRUCTOR && instructor.role !== ROLES.CHIEF_GROUND_INSTRUCTOR)
+  ) {
     return {
       myCourses: 0,
       todaysClasses: 0,

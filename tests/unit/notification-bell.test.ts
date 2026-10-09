@@ -26,6 +26,9 @@ describe("notification bell alerts", () => {
     expect(bell).toContain("ap-notify-badge");
     expect(bell).toContain("BellRing");
     expect(bell).toContain("unread alerts");
+    expect(bell).toContain("routes.api.notificationUnreadCount");
+    expect(bell).toContain("void pollUnread()");
+    expect(bell).toContain("if (open) void load()");
   });
 
   it("rings the gold bell when there are unread alerts", () => {
