@@ -12,6 +12,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Radio,
   StickyNote,
 } from "lucide-react";
 
@@ -62,6 +63,14 @@ type PlayerPayload = {
     prev: { id: string; title: string; moduleId: string } | null;
     next: { id: string; title: string; moduleId: string } | null;
   };
+  liveClassroom: {
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt: string;
+    status: "live" | "upcoming";
+    href: string;
+  } | null;
   protection: ContentProtectionConfig;
 };
 
@@ -183,13 +192,19 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
   }
 
   const pct = Math.round(data.learning.progressPercent);
-  const protection = data.protection ?? {
-    watermarkEnabled: false,
-    watermarkText: "",
-    disableRightClick: false,
-    blockScreenshotShortcuts: false,
-    deterScreenRecording: false,
-    videoDownloadProtection: false,
+  const liveCourse = data.course.deliveryType === "live";
+  const liveClassroom = data.liveClassroom ?? null;
+  const protection = {
+    ...(data.protection ?? {
+      watermarkEnabled: false,
+      watermarkText: "",
+      disableRightClick: false,
+      blockScreenshotShortcuts: false,
+      deterScreenRecording: false,
+      videoDownloadProtection: false,
+    }),
+    // Live Zoom must stay visible. Tab-blur overlays covered the classroom.
+    deterScreenRecording: liveCourse ? false : Boolean(data.protection?.deterScreenRecording),
   };
 
   return (
@@ -280,7 +295,23 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
 
         <section className="min-w-0 space-y-4">
           <ContentProtectionShell protection={protection}>
-            {data.lesson.videoUrl ? (
+            {liveClassroom ? (
+              <div className="flex aspect-video flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#0b1220] px-6 text-center text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#CCA04C]">
+                  {liveClassroom.status === "live" ? "Live now" : "Upcoming live class"}
+                </p>
+                <p className="max-w-md text-lg font-semibold">{liveClassroom.title}</p>
+                <p className="text-sm text-white/65">
+                  {new Date(liveClassroom.startsAt).toLocaleString()}
+                </p>
+                <Button asChild size="lg" className="gap-2">
+                  <Link href={liveClassroom.href}>
+                    <Radio className="size-4" />
+                    {liveClassroom.status === "live" ? "Join live Zoom" : "Open live classroom"}
+                  </Link>
+                </Button>
+              </div>
+            ) : data.lesson.videoUrl ? (
               <div className="overflow-hidden rounded-2xl border border-border bg-black">
                 <video
                   ref={videoRef}
@@ -307,7 +338,9 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
               </div>
             ) : (
               <div className="flex aspect-video items-center justify-center rounded-2xl border border-dashed border-border bg-muted/40 text-sm text-muted-foreground">
-                No video for this lesson — study the content below.
+                {liveCourse
+                  ? "No live Zoom class is on the timetable for this subject yet."
+                  : "No video for this lesson — study the content below."}
               </div>
             )}
 
