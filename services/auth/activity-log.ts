@@ -1,9 +1,17 @@
 import { generateId } from "@/lib/security/crypto";
 import type { ActivityLogRecord, AuditLogRecord } from "@/types";
 import type { ActivityAction } from "@/constants/activity-actions";
-import { writeAuthDb, readAuthDb, findUserById, toUserProfile } from "@/services/auth/store";
+import {
+  AUTH_LOG_CAP,
+  writeAuthDb,
+  readAuthDb,
+  findUserById,
+  toUserProfile,
+} from "@/services/auth/store";
 import { locationFromParts, parseUserAgent } from "@/lib/ops/client-telemetry";
 import { currentRequestContext } from "@/lib/ops/request-als";
+
+export { AUTH_LOG_CAP };
 
 export async function logActivity(input: {
   actorId: string | null;
@@ -36,8 +44,8 @@ export async function logActivity(input: {
 
   writeAuthDb((db) => {
     db.activityLogs.unshift(record);
-    if (db.activityLogs.length > 5000) {
-      db.activityLogs = db.activityLogs.slice(0, 5000);
+    if (db.activityLogs.length > AUTH_LOG_CAP) {
+      db.activityLogs = db.activityLogs.slice(0, AUTH_LOG_CAP);
     }
   });
 
@@ -67,8 +75,8 @@ export async function logAudit(input: {
 
   writeAuthDb((db) => {
     db.auditLogs.unshift(record);
-    if (db.auditLogs.length > 5000) {
-      db.auditLogs = db.auditLogs.slice(0, 5000);
+    if (db.auditLogs.length > AUTH_LOG_CAP) {
+      db.auditLogs = db.auditLogs.slice(0, AUTH_LOG_CAP);
     }
   });
 

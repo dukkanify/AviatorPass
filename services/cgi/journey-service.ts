@@ -35,7 +35,7 @@ import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { findUserByEmail, findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForCourse, readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -2133,9 +2133,9 @@ export function listAtplStudents() {
   const auth = readAuthDb().users;
   const userById = new Map(auth.map((user) => [user.id, user]));
   const userByEmail = new Map(auth.map((user) => [user.email.trim().toLowerCase(), user]));
-  const enrollments = readCoursesDb().enrollments.filter(
-    (e) => courseIds.has(e.courseId) && !["dropped", "rejected"].includes(e.status),
-  );
+  const enrollments = [...courseIds]
+    .flatMap((id) => listEnrollmentsForCourse(id))
+    .filter((e) => !["dropped", "rejected"].includes(e.status));
   const byStudent = new Map<string, typeof enrollments>();
   for (const e of enrollments) {
     const list = byStudent.get(e.studentId) ?? [];

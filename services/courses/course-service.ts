@@ -15,7 +15,12 @@ import {
   writeCourseGraphCache,
 } from "@/services/courses/detail-cache";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import {
+  listAllEnrollments,
+  listEnrollmentsForCourse,
+  readCoursesDb,
+  writeCoursesDb,
+} from "@/services/courses/store";
 import {
   CourseValidationError,
   assertBooleanFlag,
@@ -67,7 +72,7 @@ function toListItem(course: Course): CourseListItem {
   const modules = db.modules.filter((m) => m.courseId === course.id);
   const lessons = db.lessons.filter((l) => l.courseId === course.id);
   const resources = db.resources.filter((r) => lessons.some((l) => l.id === r.lessonId));
-  const enrollments = db.enrollments.filter((e) => e.courseId === course.id);
+  const enrollments = listEnrollmentsForCourse(course.id);
   return {
     ...presented,
     categoryName: category?.name ?? null,
@@ -464,7 +469,7 @@ export function listCourses(filters: CourseFilters = {}): {
 export function getCourseStats(): CourseStats {
   ensureCoursesSeeded();
   const courses = readCoursesDb().courses.filter((c) => !c.deletedAt);
-  const enrollments = readCoursesDb().enrollments;
+  const enrollments = listAllEnrollments();
   const activeStudentIds = new Set(
     enrollments.filter((e) => e.status === "approved").map((e) => e.studentId),
   );

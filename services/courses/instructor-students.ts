@@ -1,7 +1,7 @@
 import { generateId } from "@/lib/security/crypto";
 import { readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForCourse, readCoursesDb } from "@/services/courses/store";
 
 export type InstructorStudentRow = {
   id: string;
@@ -34,8 +34,9 @@ export function listInstructorStudents(instructorUserId: string): InstructorStud
   const authUsers = readAuthDb().users;
   const courseTitle = (id: string) => coursesDb.courses.find((c) => c.id === id)?.title ?? "Course";
 
-  return coursesDb.enrollments
-    .filter((e) => courseIds.has(e.courseId) && !["dropped", "rejected"].includes(e.status))
+  return [...courseIds]
+    .flatMap((id) => listEnrollmentsForCourse(id))
+    .filter((e) => !["dropped", "rejected"].includes(e.status))
     .map((e) => {
       const student = authUsers.find((u) => u.id === e.studentId);
       const name = student

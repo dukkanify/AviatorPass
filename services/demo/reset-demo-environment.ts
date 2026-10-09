@@ -8,7 +8,7 @@ import { resetPermanentDemoAccounts } from "@/services/auth/demo-users";
 import { ensurePlatformDemoEnvironment } from "@/services/demo/platform-demo-seed";
 import { findUserByEmail, readAuthDb } from "@/services/auth/store";
 import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForStudent } from "@/services/courses/store";
 import { readBookingsDb } from "@/services/bookings/store";
 import { readCgiDb } from "@/services/cgi/store";
 import { readPerformanceDb } from "@/services/performance/store";
@@ -42,8 +42,8 @@ export function resetDemoEnvironment(options?: { password?: string }): DemoReset
       };
     }),
     studentEnrollments: student
-      ? readCoursesDb().enrollments.filter(
-          (e) => e.studentId === student.id && !["dropped", "rejected"].includes(e.status),
+      ? listEnrollmentsForStudent(student.id).filter(
+          (e) => !["dropped", "rejected"].includes(e.status),
         ).length
       : 0,
     studentNotifications: student

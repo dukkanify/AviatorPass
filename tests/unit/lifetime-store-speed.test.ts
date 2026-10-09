@@ -1,0 +1,158 @@
+/**
+ * Lifetime data-layer speed: enrollments are indexed, catalog JSON stays slim,
+ * and auth activity/audit logs cannot grow without bound.
+ */
+
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { AUTH_LOG_CAP } from "@/services/auth/store";
+import {
+  getEnrollmentById,
+  listEnrollmentsForCourse,
+  listEnrollmentsForStudent,
+  resetEnrollmentStoreRuntime,
+  upsertEnrollment,
+} from "@/lib/data/lms-enrollment-store";
+import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import type { Enrollment } from "@/types/courses";
+
+function src(rel: string) {
+  return readFileSync(path.join(process.cwd(), rel), "utf8");
+}
+
+function testEnrollment(suffix: string): Enrollment {
+  const now = new Date().toISOString();
+  return {
+    id: `enr-lifetime-speed-${suffix}`,
+    courseId: `course-lifetime-speed-${suffix}`,
+    studentId: `student-lifetime-speed-${suffix}`,
+    status: "approved",
+    enrolledById: null,
+    enrolledAt: now,
+    approvedAt: now,
+    completedAt: null,
+    droppedAt: null,
+    suspendedAt: null,
+    notes: "lifetime-store-speed test",
+    updatedAt: now,
+  };
+}
+
+describe("lifetime store speed contracts", () => {
+  it("keeps student enrollment reads on the indexed helpers", () => {
+    const enrollment = src("services/courses/enrollment-service.ts");
+    expect(enrollment).toMatch(/listEnrollmentsForStudent\(/);
+    expect(enrollment).toMatch(/listEnrollmentsForCourse\(/);
+    expect(enrollment).toMatch(/upsertEnrollment\(/);
+    expect(enrollment).toMatch(/getEnrollmentById\(/);
+
+    const learning = src("services/learning/learning-service.ts");
+    expect(learning).toMatch(/listStudentEnrollments\(/);
+    expect(learning).not.toMatch(/readCoursesDb\(\)\.enrollments/);
+
+    const access = src("services/learning/access.ts");
+    expect(access).toMatch(/listStudentEnrollments\(/);
+
+    expect(src("services/ai/context-service.ts")).toMatch(/listEnrollmentsForStudent\(/);
+    expect(src("services/ai/recommendation-service.ts")).toMatch(/listEnrollmentsForStudent\(/);
+    expect(src("services/courses/instructor-students.ts")).toMatch(/listEnrollmentsForCourse\(/);
+  });
+
+  it("persists the course catalog without an enrollments blob", () => {
+    const store = src("services/courses/store.ts");
+    expect(store).toMatch(/enrollments: \[\]/);
+    expect(store).toMatch(/extractEmbeddedEnrollments/);
+    expect(store).toMatch(/withLazyEnrollmentWrites/);
+    expect(store).toMatch(/flushEnrollments/);
+  });
+
+  it("bounds auth activity and audit history for the lifetime of the store", () => {
+    expect(AUTH_LOG_CAP).toBe(400);
+    const authStore = src("services/auth/store.ts");
+    expect(authStore).toMatch(/export const AUTH_LOG_CAP = 400/);
+    expect(authStore).toMatch(/activityLogs = parsed\.activityLogs\.slice\(0, AUTH_LOG_CAP\)/);
+    expect(authStore).toMatch(/auditLogs = parsed\.auditLogs\.slice\(0, AUTH_LOG_CAP\)/);
+    const activity = src("services/auth/activity-log.ts");
+    expect(activity).toMatch(/AUTH_LOG_CAP/);
+    expect(activity).not.toMatch(/slice\(0,\s*5000\)/);
+  });
+
+  it("declares the indexed SQL table for production", () => {
+    const migration = src("database/migrations/035_lms_enrollment_store.sql");
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_enrollments/);
+    expect(migration).toMatch(/aep_lms_enrollments_student_idx/);
+    expect(migration).toMatch(/aep_lms_enrollments_course_idx/);
+    const runtime = src("lib/data/lms-enrollment-store.ts");
+    expect(runtime).toMatch(/CREATE TABLE IF NOT EXISTS \$\{TABLE\}/);
+    expect(runtime).toMatch(/WHERE student_id = \$1/);
+    expect(runtime).toMatch(/WHERE course_id = \$1/);
+    expect(runtime).toContain('const TABLE = "aep_lms_enrollments"');
+    expect(runtime).toMatch(/function ensureFileIndex\(/);
+  });
+});
+
+describe("indexed enrollment store", () => {
+  const createdIds: string[] = [];
+
+  afterEach(() => {
+    if (createdIds.length === 0) return;
+    writeCoursesDb((db) => {
+      db.enrollments = db.enrollments.filter((row) => !createdIds.includes(row.id));
+    });
+    createdIds.length = 0;
+    resetEnrollmentStoreRuntime();
+  });
+
+  it("returns one student without scanning every enrollment", () => {
+    const first = testEnrollment("alpha");
+    const second = testEnrollment("beta");
+    upsertEnrollment(first);
+    upsertEnrollment(second);
+    createdIds.push(first.id, second.id);
+    resetEnrollmentStoreRuntime();
+
+    expect(listEnrollmentsForStudent(first.studentId)).toEqual([
+      expect.objectContaining({ id: first.id, courseId: first.courseId }),
+    ]);
+    expect(listEnrollmentsForCourse(second.courseId)).toEqual([
+      expect.objectContaining({ id: second.id, studentId: second.studentId }),
+    ]);
+    expect(getEnrollmentById(first.id)?.studentId).toBe(first.studentId);
+  });
+
+  it("keeps catalog writes from wiping enrollments when they are not touched", () => {
+    const row = testEnrollment("catalog-write");
+    upsertEnrollment(row);
+    createdIds.push(row.id);
+
+    writeCoursesDb((db) => {
+      db.seeded = db.seeded;
+    });
+
+    expect(getEnrollmentById(row.id)?.id).toBe(row.id);
+    expect(listEnrollmentsForStudent(row.studentId)).toHaveLength(1);
+
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-courses.json"), "utf8"),
+    ) as { enrollments?: unknown[] };
+    expect(catalog.enrollments ?? []).toEqual([]);
+  });
+
+  it("extracts enrollments written through the courses database view", () => {
+    const row = testEnrollment("extract");
+    createdIds.push(row.id);
+    writeCoursesDb((db) => {
+      db.enrollments.push(row);
+    });
+    resetEnrollmentStoreRuntime();
+
+    expect(getEnrollmentById(row.id)?.courseId).toBe(row.courseId);
+    expect(readCoursesDb().enrollments.some((item) => item.id === row.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-courses.json"), "utf8"),
+    ) as { enrollments?: unknown[] };
+    expect(catalog.enrollments ?? []).toEqual([]);
+  });
+});

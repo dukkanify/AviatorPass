@@ -3,7 +3,7 @@
  */
 
 import { ROLES } from "@/constants/roles";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForStudent, readCoursesDb } from "@/services/courses/store";
 import { listCourses } from "@/services/courses/course-service";
 import { readLearningDb } from "@/services/learning/store";
 import { getLearningDashboard } from "@/services/learning/learning-service";
@@ -17,7 +17,7 @@ export function buildUserContext(user: UserProfile): AiUserContext {
   const persona = resolvePersona(user);
   const courses = listCourses({ pageSize: 50 }).data;
   const learning = readLearningDb();
-  const enrollments = readCoursesDb().enrollments.filter((e) => e.studentId === user.id);
+  const enrollments = listEnrollmentsForStudent(user.id);
 
   let enrolledCourses: AiUserContext["enrolledCourses"] = [];
   let quizAvg = 0;

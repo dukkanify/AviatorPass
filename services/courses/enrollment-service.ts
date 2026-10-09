@@ -12,7 +12,13 @@ import { readAuthDb } from "@/services/auth/store";
 import { getCourseById } from "@/services/courses/course-service";
 import { canAcceptEnrollment } from "@/services/courses/publishing";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import { getEnrollmentById, upsertEnrollment } from "@/lib/data/lms-enrollment-store";
+import {
+  listEnrollmentsForCourse,
+  listEnrollmentsForStudent,
+  readCoursesDb,
+  writeCoursesDb,
+} from "@/services/courses/store";
 import { CourseValidationError } from "@/services/courses/validation";
 import type {
   CourseProgressSummary,
@@ -40,17 +46,17 @@ function assertStudent(studentId: string) {
 
 export function listEnrollments(courseId: string): EnrollmentWithStudent[] {
   ensureCoursesSeeded();
-  return readCoursesDb()
-    .enrollments.filter((e) => e.courseId === courseId)
+  return listEnrollmentsForCourse(courseId)
     .map((e) => ({ ...e, ...studentMeta(e.studentId) }))
     .sort((a, b) => b.enrolledAt.localeCompare(a.enrolledAt));
 }
 
 export function listStudentEnrollments(studentId: string): EnrollmentWithStudent[] {
   ensureCoursesSeeded();
-  return readCoursesDb()
-    .enrollments.filter((e) => e.studentId === studentId)
-    .map((e) => ({ ...e, ...studentMeta(e.studentId) }));
+  return listEnrollmentsForStudent(studentId).map((e) => ({
+    ...e,
+    ...studentMeta(e.studentId),
+  }));
 }
 
 export async function enrollStudent(input: {
@@ -75,11 +81,8 @@ export async function enrollStudent(input: {
   }
   assertStudent(input.studentId);
 
-  const existing = readCoursesDb().enrollments.find(
-    (e) =>
-      e.courseId === input.courseId &&
-      e.studentId === input.studentId &&
-      !["dropped", "rejected"].includes(e.status),
+  const existing = listEnrollmentsForStudent(input.studentId).find(
+    (e) => e.courseId === input.courseId && !["dropped", "rejected"].includes(e.status),
   );
   if (existing) {
     throw new CourseValidationError("Student is already enrolled in this course");
@@ -106,9 +109,7 @@ export async function enrollStudent(input: {
     updatedAt: now,
   };
 
-  writeCoursesDb((d) => {
-    d.enrollments.push(enrollment);
-  });
+  upsertEnrollment(enrollment);
 
   await logActivity({
     actorId: input.actorId,
@@ -169,7 +170,7 @@ export async function updateEnrollmentStatus(input: {
   if (!ENROLLMENT_STATUSES.includes(input.status)) {
     throw new CourseValidationError("Invalid enrollment status");
   }
-  const existing = readCoursesDb().enrollments.find((e) => e.id === input.id);
+  const existing = getEnrollmentById(input.id);
   if (!existing) throw new CourseValidationError("Enrollment not found");
 
   const now = new Date().toISOString();
@@ -183,10 +184,7 @@ export async function updateEnrollmentStatus(input: {
     suspendedAt: input.status === "suspended" ? now : existing.suspendedAt,
   };
 
-  writeCoursesDb((d) => {
-    const idx = d.enrollments.findIndex((e) => e.id === input.id);
-    if (idx >= 0) d.enrollments[idx] = next;
-  });
+  upsertEnrollment(next);
 
   await logActivity({
     actorId: input.actorId,
@@ -208,7 +206,7 @@ export async function removeEnrollment(input: {
   userAgent?: string | null;
 }): Promise<void> {
   ensureCoursesSeeded();
-  const existing = readCoursesDb().enrollments.find((e) => e.id === input.id);
+  const existing = getEnrollmentById(input.id);
   if (!existing) throw new CourseValidationError("Enrollment not found");
 
   // Soft-remove via dropped status to preserve history
@@ -239,7 +237,7 @@ export async function transferEnrollment(input: {
   userAgent?: string | null;
 }): Promise<EnrollmentWithStudent> {
   ensureCoursesSeeded();
-  const existing = readCoursesDb().enrollments.find((e) => e.id === input.id);
+  const existing = getEnrollmentById(input.id);
   if (!existing) throw new CourseValidationError("Enrollment not found");
   if (!getCourseById(input.targetCourseId)) {
     throw new CourseValidationError("Target course not found");
@@ -267,7 +265,7 @@ export async function transferEnrollment(input: {
 /** Progress foundation — compute summary from stored lesson progress rows. */
 export function getProgressSummary(enrollmentId: string): CourseProgressSummary | null {
   ensureCoursesSeeded();
-  const enrollment = readCoursesDb().enrollments.find((e) => e.id === enrollmentId);
+  const enrollment = getEnrollmentById(enrollmentId);
   if (!enrollment) return null;
   const totalLessons = readCoursesDb().lessons.filter(
     (l) => l.courseId === enrollment.courseId,
