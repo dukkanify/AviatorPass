@@ -34,6 +34,7 @@ import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
@@ -1352,14 +1353,15 @@ export async function hydratePaidAtplStudentAccess(
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    await notifyInstructorAssignmentPendingOps(order);
+    // Ops mail must not block My Courses — Resend can hang for a full function timeout.
+    void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
     return;
   }
   ensureCoursesSeeded();
   await ensureAtplPackageSubjectCoverage(live.studentId, live.email, order);
   if (order) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    await notifyInstructorAssignmentPendingOps(order);
+    void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
   }
 }
 
@@ -2106,6 +2108,7 @@ function slimDashboardSchedule(
 export function listAtplStudents() {
   ensureCoursesSeeded();
   ensurePaymentsSeeded();
+  restoreMissingPaidIdentities();
   rebindPaidPackageOrdersToLiveUsers();
   const packageProduct = getAtplPackageProduct();
   const courses = listAtplCourses();

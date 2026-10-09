@@ -42,6 +42,29 @@ function emptyCourseCounts(): CourseListItem["counts"] {
   return { modules: 0, lessons: 0, resources: 0, enrollments: 0, activeEnrollments: 0 };
 }
 
+function untouchedCourseLearning(
+  studentId: string,
+  courseId: string,
+  enrollmentId: string,
+): CourseLearningState {
+  return {
+    studentId,
+    courseId,
+    enrollmentId,
+    lastLessonId: null,
+    lastModuleId: null,
+    progressPercent: 0,
+    completedLessons: 0,
+    totalLessons: 0,
+    timeSpentSeconds: 0,
+    bookmarked: false,
+    favorited: false,
+    startedAt: null,
+    lastAccessedAt: null,
+    completedAt: null,
+  };
+}
+
 function asEnrolledListItem(course: {
   id: string;
   title: string;
@@ -127,6 +150,7 @@ export function listMyCourses(
   const enrollments = listStudentEnrollments(studentId).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
+  const startedCourseIds = new Set(listProgressForStudent(studentId).map((row) => row.courseId));
   let rows: Array<CourseListItem & { learning: CourseLearningState | null }> = [];
 
   for (const e of enrollments) {
@@ -134,7 +158,9 @@ export function listMyCourses(
     if (!course) continue;
     let learning: CourseLearningState | null = null;
     try {
-      learning = getCourseLearningState(studentId, e.courseId);
+      learning = startedCourseIds.has(e.courseId)
+        ? getCourseLearningState(studentId, e.courseId)
+        : untouchedCourseLearning(studentId, e.courseId, e.id);
     } catch {
       learning = null;
     }
@@ -153,7 +179,9 @@ export function listMyCourses(
         if (!detail) continue;
         let learning: CourseLearningState | null = null;
         try {
-          learning = getCourseLearningState(studentId, course.id);
+          learning = startedCourseIds.has(course.id)
+            ? getCourseLearningState(studentId, course.id)
+            : untouchedCourseLearning(studentId, course.id, `package-${course.id}`);
         } catch {
           learning = null;
         }

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
@@ -181,5 +184,17 @@ describe("paid ATPL my courses", () => {
     const courses = listMyCourses(studentId);
     expect(courses.length).toBeGreaterThanOrEqual(ATPL_PACKAGE_LMS_COURSE_CODES.length);
     expect(courses.some((course) => course.title === "Instrumentation")).toBe(true);
+  });
+
+  it("does not await ops assignment email on the student hydrate path", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "services/cgi/journey-service.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export async function hydratePaidAtplStudentAccess");
+    const end = source.indexOf("async function maybeSendPackageConfirmationFollowup");
+    const hydrate = source.slice(start, end);
+    expect(hydrate).toMatch(/void notifyInstructorAssignmentPendingOps/);
+    expect(hydrate).not.toMatch(/await notifyInstructorAssignmentPendingOps/);
   });
 });
