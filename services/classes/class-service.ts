@@ -215,6 +215,17 @@ export function getClassStats(
   }
   if (opts.studentId) {
     const classIds = new Set(listParticipantsForUser(opts.studentId).map((p) => p.liveClassId));
+    if (!classIds.size) {
+      return {
+        today: 0,
+        upcoming: 0,
+        liveNow: 0,
+        completed: 0,
+        cancelled: 0,
+        attendanceRate: 0,
+        recentlyUpdated: [],
+      };
+    }
     rows = rows.filter((c) => classIds.has(c.id));
   }
   const todayStart = new Date();

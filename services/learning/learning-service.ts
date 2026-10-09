@@ -147,6 +147,7 @@ export function listMyCourses(
 ): Array<CourseListItem & { learning: CourseLearningState | null }> {
   ensureCoursesSeeded();
   ensureLearningSeeded();
+  const catalog = new Map(readCoursesDb().courses.map((course) => [course.id, course]));
   const enrollments = listStudentEnrollments(studentId).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
@@ -154,7 +155,7 @@ export function listMyCourses(
   let rows: Array<CourseListItem & { learning: CourseLearningState | null }> = [];
 
   for (const e of enrollments) {
-    const course = getCourseById(e.courseId, true);
+    const course = catalog.get(e.courseId) ?? getCourseById(e.courseId, true);
     if (!course) continue;
     let learning: CourseLearningState | null = null;
     try {
@@ -226,20 +227,8 @@ export function getResumeTarget(studentId: string): LearningDashboardOverview["r
     .sort((a, b) => (b.lastAccessedAt ?? "").localeCompare(a.lastAccessedAt ?? ""));
   const row = progress[0];
   if (!row) {
-    const enrollment = listStudentEnrollments(studentId).find((e) =>
-      ["approved", "completed", "pending"].includes(e.status),
-    );
-    if (!enrollment) return null;
-    const course = getCourseById(enrollment.courseId, true);
-    const detail = course ? getCourseDetail(course.id) : null;
-    const lesson = detail?.modules[0]?.lessons[0];
-    if (!course || !lesson) return null;
-    return {
-      courseId: course.id,
-      courseTitle: course.title,
-      lessonId: lesson.id,
-      lessonTitle: lesson.title,
-    };
+    // Untouched enrollments must not load every course syllabus on the dashboard.
+    return null;
   }
   const course = getCourseById(row.courseId);
   const detail = getCourseDetail(row.courseId);

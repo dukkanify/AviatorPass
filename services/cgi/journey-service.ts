@@ -1146,8 +1146,13 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   return pending.length;
 }
 
+let rebindPaidOrdersThisIsolate = false;
+
 function resolveLivePaidStudent(studentId: string, email: string) {
-  rebindPaidPackageOrdersToLiveUsers();
+  if (!rebindPaidOrdersThisIsolate) {
+    rebindPaidOrdersThisIsolate = true;
+    rebindPaidPackageOrdersToLiveUsers();
+  }
   const live = findUserByEmail(email) ?? findUserById(studentId);
   return {
     studentId: live?.id ?? studentId,
@@ -1352,15 +1357,15 @@ export async function hydratePaidAtplStudentAccess(
     order = getOrderById(order.id) ?? order;
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
-    await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    // Ops mail must not block My Courses — Resend can hang for a full function timeout.
+    // Confirmation / ops mail must not block the student dashboard.
+    void maybeSendPackageConfirmationFollowup(order, live.studentId).catch(() => undefined);
     void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
     return;
   }
   ensureCoursesSeeded();
   await ensureAtplPackageSubjectCoverage(live.studentId, live.email, order);
   if (order) {
-    await maybeSendPackageConfirmationFollowup(order, live.studentId);
+    void maybeSendPackageConfirmationFollowup(order, live.studentId).catch(() => undefined);
     void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
   }
 }
