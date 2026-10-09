@@ -171,6 +171,35 @@ describe("paid student dashboard load", () => {
     expect(body).not.toContain("getLearningDashboard");
     expect(body).not.toContain("listWrittenAttempts");
     expect(body).not.toContain("listCertificates");
+    const route = src("app/api/dashboard/metrics/route.ts");
+    const student = route.slice(
+      route.indexOf("if (scope === ROLES.STUDENT)"),
+      route.indexOf("const activity ="),
+    );
+    expect(student).toContain("activity: []");
+    expect(student).not.toContain("getRecentActivityFeed");
+  });
+
+  it("keeps paid student enrollment reads off the course catalog", () => {
+    const enrollment = src("services/courses/enrollment-service.ts");
+    const start = enrollment.indexOf("export function listStudentEnrollments");
+    const body = enrollment.slice(start, start + 220);
+    expect(body).toContain("listEnrollmentsForStudent");
+    expect(body).not.toContain("ensureCoursesSeeded");
+    const journey = src("services/cgi/journey-service.ts");
+    const coverage = journey.slice(
+      journey.indexOf("function studentHasOfficialPackageCoverage"),
+      journey.indexOf("function listOfficialPackageSubjectProgress"),
+    );
+    expect(coverage).toContain("listEnrollmentsForStudent");
+    expect(coverage).not.toContain("officialPackageCourses");
+    const timetable = journey.slice(
+      journey.indexOf("export async function ensureConfirmedFirstLectureOnTimetable"),
+      journey.indexOf("const FIRST_LECTURE_LESSON_ID"),
+    );
+    expect(timetable).toContain("listOfficialPackageSubjectProgress");
+    expect(timetable).not.toContain("latestPaidPackageSchedule");
+    expect(timetable).not.toContain("resolveLivePaidStudent");
   });
 
   it("skips first-lesson syllabus lookup when the student has not started", () => {

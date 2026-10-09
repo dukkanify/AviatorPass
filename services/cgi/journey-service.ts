@@ -44,7 +44,7 @@ import {
   readCoursesDb,
   rebindEnrollmentsStudent,
 } from "@/services/courses/store";
-import { upsertEnrollment } from "@/lib/data/lms-enrollment-store";
+import { listEnrollmentsForStudent, upsertEnrollment } from "@/lib/data/lms-enrollment-store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -181,7 +181,7 @@ function officialPackageCourses() {
 
 function studentHasAtplEnrollment(studentId: string): boolean {
   const atplIds = new Set(ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => stableCourseId(code)));
-  return listStudentEnrollments(studentId).some(
+  return listEnrollmentsForStudent(studentId).some(
     (row) =>
       !["dropped", "rejected"].includes(row.status) &&
       (atplIds.has(row.courseId) || /ATPL|package/i.test(String(row.notes ?? ""))),
@@ -189,13 +189,26 @@ function studentHasAtplEnrollment(studentId: string): boolean {
 }
 
 function studentHasOfficialPackageCoverage(studentId: string): boolean {
-  const enrolled = listStudentEnrollments(studentId).filter(
+  const enrolled = listEnrollmentsForStudent(studentId).filter(
     (row) => !["dropped", "rejected"].includes(row.status),
   );
   if (enrolled.length >= ATPL_PACKAGE_LMS_COURSE_CODES.length) return true;
   const enrolledIds = new Set(enrolled.map((row) => row.courseId));
-  const required = officialPackageCourses();
-  return required.length > 0 && required.every((course) => enrolledIds.has(course.id));
+  const requiredIds = new Set(ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => stableCourseId(code)));
+  return requiredIds.size > 0 && [...requiredIds].every((courseId) => enrolledIds.has(courseId));
+}
+
+function listOfficialPackageSubjectProgress(): AtplPackageSubjectProgress[] {
+  return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
+    const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
+    return {
+      code: subject.code,
+      title: subject.title,
+      shortDescription: subject.shortDescription,
+      status: opening ? "available" : "locked",
+      opening,
+    };
+  });
 }
 
 function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
@@ -1171,7 +1184,6 @@ function resolveLivePaidStudent(studentId: string, email: string) {
 }
 
 function latestPaidPackageOrder(studentId: string, email: string) {
-  ensurePaymentsSeeded();
   const byId = new Map<string, ReturnType<typeof listOrdersForStudent>[number]>();
   for (const order of [...listOrdersForStudent(studentId), ...listOrdersForEmail(email)]) {
     byId.set(order.id, order);
@@ -1457,9 +1469,21 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   studentId: string,
   email: string,
 ): Promise<AtplPackageScheduleSnapshot> {
-  const live = resolveLivePaidStudent(studentId, email);
-  await hydratePaidAtplStudentAccess(live.studentId, live.email);
-  return latestPaidPackageSchedule(live.studentId, live.email);
+  const live = findUserByEmail(email) ?? findUserById(studentId);
+  const liveId = live?.id ?? studentId;
+  const liveEmail = live?.email ?? email;
+  await hydratePaidAtplStudentAccess(liveId, liveEmail);
+  const order = latestPaidPackageOrder(liveId, liveEmail);
+  const owned = Boolean(order) || studentHasAtplEnrollment(liveId);
+  const subjects = owned ? listOfficialPackageSubjectProgress() : [];
+  if (!order) {
+    return { ...EMPTY_ATPL_PACKAGE_SCHEDULE, packageOwned: owned, subjects };
+  }
+  return {
+    ...packageScheduleFromOrder(order),
+    packageOwned: true,
+    subjects,
+  };
 }
 
 const FIRST_LECTURE_LESSON_ID = ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID;

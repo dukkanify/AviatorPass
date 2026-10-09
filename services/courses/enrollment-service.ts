@@ -52,7 +52,6 @@ export function listEnrollments(courseId: string): EnrollmentWithStudent[] {
 }
 
 export function listStudentEnrollments(studentId: string): EnrollmentWithStudent[] {
-  ensureCoursesSeeded();
   return listEnrollmentsForStudent(studentId).map((e) => ({
     ...e,
     ...studentMeta(e.studentId),
