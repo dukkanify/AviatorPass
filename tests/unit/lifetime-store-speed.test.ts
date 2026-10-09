@@ -7,7 +7,17 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AUTH_LOG_CAP } from "@/services/auth/store";
+import { AUTH_LOG_CAP, writeAuthDb } from "@/services/auth/store";
+import {
+  AUTH_NOTIFICATION_CAP,
+  countUnreadForUser,
+  listAllNotifications,
+  listNotificationsForUser,
+  replaceAllNotifications,
+  resetNotificationStoreRuntime,
+  trimNotifications,
+  upsertNotification,
+} from "@/lib/data/auth-notification-store";
 import {
   countDistinctStudents,
   countEnrollments,
@@ -40,6 +50,7 @@ import {
 import { writeClassesDb } from "@/services/classes/store";
 import type { Enrollment } from "@/types/courses";
 import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
+import type { NotificationRecord } from "@/types";
 
 function src(rel: string) {
   return readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -102,7 +113,20 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/classes/class-service.ts")).toMatch(/listParticipantsForClass\(/);
     expect(src("services/learning/learning-service.ts")).toMatch(/listParticipantsForUser\(/);
     expect(src("services/cgi/journey-service.ts")).toMatch(/hasParticipant\(/);
-    expect(classesStore).toMatch(/withLazyReminderWrites/);
+    expect(classesStore).toMatch(/withLazyIndexedWrites/);
+
+    const notifications = src("services/notifications/notification-service.ts");
+    expect(notifications).toMatch(/listNotificationsForUser\(/);
+    expect(notifications).toMatch(/countUnreadForUser\(/);
+    expect(notifications).toMatch(/upsertNotification\(/);
+    expect(notifications).not.toMatch(/readAuthDb\(\)\.notifications/);
+    expect(src("services/analytics/aggregator.ts")).toMatch(/countUnreadNotifications\(/);
+    expect(src("services/analytics/aggregator.ts")).not.toMatch(/readAuthDb\(\)\.notifications/);
+    expect(src("services/demo/reset-demo-environment.ts")).toMatch(/listNotificationsForUser\(/);
+    const authStore = src("services/auth/store.ts");
+    expect(authStore).toMatch(/extractEmbeddedNotifications/);
+    expect(authStore).toMatch(/withLazyNotificationWrites/);
+    expect(authStore).toMatch(/notifications: \[\]/);
   });
 
   it("serves admin course stats and enrollment charts from aggregates", () => {
@@ -159,6 +183,13 @@ describe("lifetime store speed contracts", () => {
     expect(participantRuntime).toContain('const TABLE = "aep_lms_class_participants"');
     expect(participantRuntime).toMatch(/WHERE live_class_id = \$1/);
     expect(participantRuntime).toMatch(/WHERE user_id = \$1/);
+    const notificationMigration = src("database/migrations/038_auth_notification_store.sql");
+    expect(notificationMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_notifications/);
+    const notificationRuntime = src("lib/data/auth-notification-store.ts");
+    expect(notificationRuntime).toContain('const TABLE = "aep_auth_notifications"');
+    expect(notificationRuntime).toMatch(/AUTH_NOTIFICATION_CAP = 400/);
+    expect(notificationRuntime).toMatch(/WHERE user_id = \$1/);
+    expect(notificationRuntime).toMatch(/WHERE user_id = \$1 AND status = 'unread'/);
   });
 });
 
@@ -363,5 +394,70 @@ describe("indexed class participant store", () => {
       readFileSync(path.join(process.cwd(), ".data", "aep-classes.json"), "utf8"),
     ) as { participants?: unknown[] };
     expect(catalog.participants ?? []).toEqual([]);
+  });
+});
+
+function testNotification(suffix: string, read = false): NotificationRecord {
+  const now = new Date().toISOString();
+  return {
+    id: `note-lifetime-speed-${suffix}`,
+    userId: `user-lifetime-speed-${suffix}`,
+    title: "Lifetime inbox",
+    body: "Indexed notification",
+    channel: "in_app",
+    type: "system",
+    status: read ? "read" : "unread",
+    data: {},
+    readAt: read ? now : null,
+    createdAt: now,
+  };
+}
+
+describe("indexed auth notification store", () => {
+  afterEach(() => {
+    const kept = listAllNotifications().filter((row) => !row.id.startsWith("note-lifetime-speed-"));
+    replaceAllNotifications(kept);
+    resetNotificationStoreRuntime();
+  });
+
+  it("returns one student inbox without scanning every notification", () => {
+    const first = testNotification("alpha");
+    const second = testNotification("beta");
+    upsertNotification(first);
+    upsertNotification(second);
+    resetNotificationStoreRuntime();
+
+    expect(listNotificationsForUser(first.userId)).toEqual([
+      expect.objectContaining({ id: first.id, userId: first.userId }),
+    ]);
+    expect(countUnreadForUser(first.userId)).toBe(1);
+    expect(countUnreadForUser(second.userId)).toBe(1);
+    expect(listNotificationsForUser("missing-user")).toEqual([]);
+  });
+
+  it("caps read history per user and never drops unread rows", () => {
+    const unread = testNotification("keep-unread");
+    const read = Array.from({ length: AUTH_NOTIFICATION_CAP + 25 }, (_, index) => {
+      const row = testNotification(`read-${index}`, true);
+      row.userId = unread.userId;
+      row.createdAt = new Date(Date.now() - index * 1000).toISOString();
+      return row;
+    });
+    const trimmed = trimNotifications([unread, ...read]);
+    expect(trimmed.filter((row) => !row.readAt)).toHaveLength(1);
+    expect(trimmed.filter((row) => row.readAt)).toHaveLength(AUTH_NOTIFICATION_CAP - 1);
+  });
+
+  it("extracts notifications written through the auth database view", () => {
+    const row = testNotification("extract");
+    writeAuthDb((db) => {
+      db.notifications.push(row);
+    });
+    resetNotificationStoreRuntime();
+    expect(listNotificationsForUser(row.userId).some((item) => item.id === row.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-auth.json"), "utf8"),
+    ) as { notifications?: unknown[] };
+    expect(catalog.notifications ?? []).toEqual([]);
   });
 });

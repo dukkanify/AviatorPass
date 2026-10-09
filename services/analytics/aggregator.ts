@@ -4,6 +4,7 @@
 
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
+import { countUnreadNotifications } from "@/lib/data/auth-notification-store";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { listCertificates } from "@/services/certificates/certificate-service";
@@ -697,11 +698,7 @@ export function buildPlatformHealthAnalytics(): PlatformHealthAnalytics {
       kpi("failed_jobs", "Failed Jobs", 0),
       kpi("bg_jobs", "Background Jobs", 3),
       kpi("email_q", "Email Queue", settings.email.smtpHost ? 0 : 1),
-      kpi(
-        "notif_q",
-        "Notification Queue",
-        readAuthDb().notifications.filter((n) => !n.readAt).length,
-      ),
+      kpi("notif_q", "Notification Queue", countUnreadNotifications()),
       kpi("zoom", "Zoom API Status", zoomOk ? "ready" : "not configured", { format: "text" }),
     ],
     charts: [

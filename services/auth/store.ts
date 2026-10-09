@@ -8,6 +8,7 @@ import path from "path";
 
 import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import { listAllNotifications, replaceAllNotifications } from "@/lib/data/auth-notification-store";
 import type {
   ActivityLogRecord,
   AuditLogRecord,
@@ -174,6 +175,74 @@ const emptyDb = (): AuthDatabase => ({
   seeded: false,
 });
 
+function catalogSnapshot(db: AuthDatabase): AuthDatabase {
+  return {
+    users: db.users,
+    sessions: db.sessions,
+    otps: db.otps,
+    passwordSetupTokens: db.passwordSetupTokens,
+    pendingRegistrations: db.pendingRegistrations,
+    notificationPreferences: db.notificationPreferences,
+    securitySettings: db.securitySettings,
+    notifications: [],
+    activityLogs: db.activityLogs,
+    auditLogs: db.auditLogs,
+    seeded: db.seeded,
+  };
+}
+
+function persistCatalog(db: AuthDatabase): void {
+  writeJsonFile(DATA_FILE, catalogSnapshot(db));
+}
+
+function extractEmbeddedNotifications(db: AuthDatabase): void {
+  const embedded = db.notifications ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllNotifications();
+  replaceAllNotifications(existing.length > 0 ? [...existing, ...embedded] : embedded);
+  db.notifications = [];
+  persistCatalog(db);
+}
+
+function withNotificationView(db: AuthDatabase): AuthDatabase {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "notifications") return listAllNotifications();
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+function withLazyNotificationWrites(catalog: AuthDatabase): {
+  working: AuthDatabase;
+  flushNotifications: () => void;
+} {
+  let notificationsLoaded = false;
+  let notifications: NotificationRecord[] = [];
+  const working = { ...catalog, notifications: [] };
+  Object.defineProperty(working, "notifications", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!notificationsLoaded) {
+        notifications = listAllNotifications();
+        notificationsLoaded = true;
+      }
+      return notifications;
+    },
+    set(value: NotificationRecord[]) {
+      notifications = Array.isArray(value) ? value : [];
+      notificationsLoaded = true;
+    },
+  });
+  return {
+    working,
+    flushNotifications() {
+      if (notificationsLoaded) replaceAllNotifications(notifications);
+    },
+  };
+}
+
 function ensureStore(): AuthDatabase {
   const parsed = {
     ...emptyDb(),
@@ -198,7 +267,10 @@ function ensureStore(): AuthDatabase {
     parsed.auditLogs = parsed.auditLogs.slice(0, AUTH_LOG_CAP);
   }
   parsed.seeded = Boolean(parsed.seeded);
-  if (trimmedLogs) writeJsonFile(DATA_FILE, parsed);
+  const embeddedCount = parsed.notifications.length;
+  extractEmbeddedNotifications(parsed);
+  parsed.notifications = [];
+  if (trimmedLogs && embeddedCount === 0) persistCatalog(parsed);
   return parsed;
 }
 
@@ -251,19 +323,29 @@ function normalizeStoredUser(user: StoredUser): StoredUser {
   };
 }
 
-function saveStore(db: AuthDatabase): void {
-  writeJsonFile(DATA_FILE, db);
-}
-
 export function readAuthDb(): AuthDatabase {
-  return ensureStore();
+  return withNotificationView(ensureStore());
 }
 
 export function writeAuthDb(mutator: (db: AuthDatabase) => void): AuthDatabase {
-  const db = ensureStore();
-  mutator(db);
-  saveStore(db);
-  return db;
+  const catalog = ensureStore();
+  const { working, flushNotifications } = withLazyNotificationWrites(catalog);
+  mutator(working);
+  flushNotifications();
+  persistCatalog(working);
+  return withNotificationView({
+    users: working.users,
+    sessions: working.sessions,
+    otps: working.otps,
+    passwordSetupTokens: working.passwordSetupTokens,
+    pendingRegistrations: working.pendingRegistrations,
+    notificationPreferences: working.notificationPreferences,
+    securitySettings: working.securitySettings,
+    notifications: [],
+    activityLogs: working.activityLogs,
+    auditLogs: working.auditLogs,
+    seeded: working.seeded,
+  });
 }
 
 export function toUserProfile(user: StoredUser): UserProfile {
