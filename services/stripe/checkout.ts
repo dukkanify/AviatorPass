@@ -9,13 +9,14 @@ import { generateId, generateToken } from "@/lib/security/crypto";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { ORDER_EXPIRY_MINUTES } from "@/constants/payments";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { PaymentError } from "@/services/payments/access";
 import {
-  blankStripePaymentFields,
-  readPaymentsDb,
-  writePaymentsDb,
-} from "@/services/payments/store";
+  countOrders,
+  getOrderByIdempotencyKey,
+  listOrdersForStudent,
+} from "@/lib/data/lms-payment-ledger-store";
+import { blankStripePaymentFields, writePaymentsDb } from "@/services/payments/store";
 import { STRIPE_API_VERSION, getStripeClient, isStripeConfigured } from "@/services/stripe/client";
 import { stripeCancelUrl, stripeSuccessUrl } from "@/services/stripe/config";
 import { resolveCourseOffer } from "@/services/stripe/course-offer";
@@ -50,7 +51,7 @@ function integrationIdentifier(): string {
 
 function nextOrderNumber(): string {
   const y = new Date().getFullYear();
-  const n = readPaymentsDb().orders.length + 1;
+  const n = countOrders() + 1;
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 
@@ -61,23 +62,20 @@ function reusePendingCheckout(input: {
   amount: number;
   idempotencyKey: string;
 }): { url: string; sessionId: string; checkoutId: string; status: "pending" } | null {
-  const db = readPaymentsDb();
-  const byKey = db.orders.find(
-    (o) => o.idempotencyKey === input.idempotencyKey && o.status === "pending",
-  );
+  const byKey = getOrderByIdempotencyKey(input.idempotencyKey);
   const byStudentCourse =
-    byKey ??
-    db.orders.find(
-      (o) =>
-        o.status === "pending" &&
-        o.studentId === input.studentId &&
-        o.currency === input.currency &&
-        o.totalAmount === input.amount &&
-        o.items.some((item) => item.courseId === input.courseId) &&
-        Boolean(o.metadata?.checkoutUrl) &&
-        Boolean(o.metadata?.stripeSessionId) &&
-        (!o.expiresAt || Date.parse(o.expiresAt) > Date.now()),
-    );
+    byKey?.status === "pending"
+      ? byKey
+      : listOrdersForStudent(input.studentId).find(
+          (o) =>
+            o.status === "pending" &&
+            o.currency === input.currency &&
+            o.totalAmount === input.amount &&
+            o.items.some((item) => item.courseId === input.courseId) &&
+            Boolean(o.metadata?.checkoutUrl) &&
+            Boolean(o.metadata?.stripeSessionId) &&
+            (!o.expiresAt || Date.parse(o.expiresAt) > Date.now()),
+        );
   if (byStudentCourse?.metadata?.checkoutUrl && byStudentCourse.metadata.stripeSessionId) {
     return {
       url: String(byStudentCourse.metadata.checkoutUrl),
@@ -150,10 +148,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     id: generateId(),
     orderNumber: nextOrderNumber(),
     studentId,
-    studentName:
-      readAuthDb().users.find((u) => u.id === studentId)?.email ||
-      input.customerName ||
-      "Aviator Pass student",
+    studentName: findUserById(studentId)?.email || input.customerName || "Aviator Pass student",
     studentEmail: email || `${studentId}@checkout.invalid`,
     status: "pending",
     currency: offer.currency,

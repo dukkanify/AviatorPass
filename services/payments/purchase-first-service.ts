@@ -72,6 +72,13 @@ import {
 import { assertPaymentMethodAllowedForCountry } from "@/services/payments/regional-rules-service";
 import { isStripeConfigured } from "@/services/payments/stripe-client";
 import {
+  countOrders,
+  getOrderByIdempotencyKey,
+  getPaymentByProviderRef,
+  listAllOrders,
+  listOrdersForStudent,
+} from "@/lib/data/lms-payment-ledger-store";
+import {
   blankStripePaymentFields,
   readPaymentsDb,
   writePaymentsDb,
@@ -185,7 +192,7 @@ function defaultAvatarDataUri(initials: string): string {
 
 function nextOrderNumber(): string {
   const y = new Date().getFullYear();
-  const n = readPaymentsDb().orders.length + 1;
+  const n = countOrders() + 1;
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 
@@ -287,8 +294,8 @@ export async function quotePublicCheckout(input: {
 }
 
 export function listPurchaseFirstOrders(limit = 50): Order[] {
-  return readPaymentsDb()
-    .orders.filter((o) => Boolean(o.metadata?.purchaseFirst))
+  return listAllOrders()
+    .filter((o) => Boolean(o.metadata?.purchaseFirst))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
 }
@@ -364,11 +371,8 @@ export function publicOrderSnapshot(order: Order) {
 }
 
 function alreadyOwnsProduct(studentId: string, productId: string): boolean {
-  const paid = readPaymentsDb().orders.find(
-    (o) =>
-      o.studentId === studentId &&
-      o.status === "paid" &&
-      o.items.some((i) => i.productId === productId),
+  const paid = listOrdersForStudent(studentId).find(
+    (o) => o.status === "paid" && o.items.some((i) => i.productId === productId),
   );
   if (paid) return true;
   const product = getProduct(productId);
@@ -421,7 +425,7 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
 
   const idempotencyKey =
     input.idempotencyKey?.trim() || `guest-${email}-${product.id}-${generateToken(8)}`;
-  const existing = readPaymentsDb().orders.find((o) => o.idempotencyKey === idempotencyKey);
+  const existing = getOrderByIdempotencyKey(idempotencyKey);
   if (existing?.status === "paid") {
     return {
       order: existing,
@@ -1250,9 +1254,7 @@ export async function startHostedCheckout(input: {
 }
 
 export function getWelcomeBySessionId(sessionId: string) {
-  const payment = readPaymentsDb().payments.find(
-    (p) => p.checkoutSessionId === sessionId || p.providerPaymentId === sessionId,
-  );
+  const payment = getPaymentByProviderRef(sessionId);
   if (!payment) return null;
   const order = getOrder(payment.orderId);
   if (!order || !order.metadata?.purchaseFirst) return null;

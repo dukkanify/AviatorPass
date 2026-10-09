@@ -4,7 +4,7 @@
 
 import type { LiveClass, MeetingType } from "@/types/classes";
 import { MEETING_TYPES } from "@/constants/classes";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
 
 export class ClassValidationError extends Error {
   status: number;
@@ -82,10 +82,9 @@ export function detectScheduleConflicts(input: {
   const studentConflicts: string[] = [];
   // Student conflict detection uses enrollment-linked classes via participants
   if (input.studentIds?.length) {
-    const participants = readClassesDb().participants;
     for (const studentId of input.studentIds) {
-      const classIds = participants
-        .filter((p) => p.userId === studentId && p.role === "participant")
+      const classIds = listParticipantsForUser(studentId)
+        .filter((p) => p.role === "participant")
         .map((p) => p.liveClassId);
       const clash = active.find(
         (c) =>

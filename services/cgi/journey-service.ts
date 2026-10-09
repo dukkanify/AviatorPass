@@ -33,9 +33,15 @@ import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
-import { findUserByEmail, findUserById, readAuthDb } from "@/services/auth/store";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { findUserByEmail, findUserById } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { listEnrollmentsForCourse, readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import {
+  listEnrollmentsForCourse,
+  readCoursesDb,
+  rebindEnrollmentsStudent,
+} from "@/services/courses/store";
+import { upsertEnrollment } from "@/lib/data/lms-enrollment-store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -50,6 +56,12 @@ import { notifyInstructorAssignmentPendingOps } from "@/services/email/instructo
 import { sendEmail } from "@/services/email/mailer";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
+import {
+  getOrderById,
+  listOrdersByStatus,
+  listOrdersForEmail,
+  listOrdersForStudent,
+} from "@/lib/data/lms-payment-ledger-store";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
@@ -61,7 +73,7 @@ import {
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb } from "@/services/classes/store";
+import { hasParticipant, listAllParticipants, readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import type {
   AtplLectureAssignment,
@@ -69,7 +81,6 @@ import type {
   AtplSubjectDistributionStatus,
   CgiOversightNote,
 } from "@/types/cgi";
-import type { Enrollment } from "@/types/courses";
 
 export class CgiError extends Error {
   status: number;
@@ -1091,21 +1102,17 @@ function bindPaidOrderToStudent(
     order.updatedAt = nowIso();
   });
   if (from && from !== "guest") {
-    writeCoursesDb((db) => {
-      for (const enrollment of db.enrollments) {
-        if (enrollment.studentId === from) enrollment.studentId = live.studentId;
-      }
-    });
+    rebindEnrollmentsStudent(from, live.studentId);
   }
 }
 
 /** Rebind paid ATPL orders/enrollments onto the live account for the billing email. */
 export function rebindPaidPackageOrdersToLiveUsers(): number {
   const usersByEmail = new Map(
-    readAuthDb().users.map((user) => [user.email.trim().toLowerCase(), user] as const),
+    listAllUsers().map((user) => [user.email.trim().toLowerCase(), user] as const),
   );
   const pending: Array<{ id: string; from: string; to: string; email: string; name: string }> = [];
-  for (const order of readPaymentsDb().orders) {
+  for (const order of listOrdersByStatus("paid")) {
     if (!isPaidAtplPackageOrder(order)) continue;
     const email = orderEmail(order);
     const user = email ? usersByEmail.get(email) : undefined;
@@ -1132,13 +1139,9 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
       order.updatedAt = stamp;
     }
   });
-  writeCoursesDb((db) => {
-    for (const { from, to } of pending) {
-      for (const enrollment of db.enrollments) {
-        if (enrollment.studentId === from) enrollment.studentId = to;
-      }
-    }
-  });
+  for (const { from, to } of pending) {
+    rebindEnrollmentsStudent(from, to);
+  }
   return pending.length;
 }
 
@@ -1153,15 +1156,13 @@ function resolveLivePaidStudent(studentId: string, email: string) {
 
 function latestPaidPackageOrder(studentId: string, email: string) {
   ensurePaymentsSeeded();
-  const needle = email.trim().toLowerCase();
-  const matches = readPaymentsDb().orders.filter((order) => {
-    const identity =
-      order.studentId === studentId ||
-      order.studentEmail?.trim().toLowerCase() === needle ||
-      order.billingEmail?.trim().toLowerCase() === needle;
-    if (!identity) return false;
-    return order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
-  });
+  const byId = new Map<string, ReturnType<typeof listOrdersForStudent>[number]>();
+  for (const order of [...listOrdersForStudent(studentId), ...listOrdersForEmail(email)]) {
+    byId.set(order.id, order);
+  }
+  const matches = [...byId.values()].filter(
+    (order) => order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt),
+  );
   const atpl = matches.filter((order) => isPaidAtplPackageOrder(order));
   return (
     (atpl.length ? atpl : matches)
@@ -1179,10 +1180,7 @@ function liveClassIdFromOrder(
 }
 
 function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
-  return readClassesDb().participants.some(
-    (row) =>
-      row.liveClassId === liveClassId && row.userId === studentId && row.role === "participant",
-  );
+  return hasParticipant(liveClassId, studentId, "participant");
 }
 
 function firstLectureSubjectForStudent(
@@ -1335,9 +1333,7 @@ export async function hydratePaidAtplStudentAccess(
 ) {
   ensurePaymentsSeeded();
   const live = resolveLivePaidStudent(studentId, email);
-  const pinned = orderId
-    ? (readPaymentsDb().orders.find((order) => order.id === orderId) ?? null)
-    : null;
+  const pinned = orderId ? (getOrderById(orderId) ?? null) : null;
   let order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
   if (order && order.studentId !== live.studentId) {
     const liveUser = findUserById(live.studentId);
@@ -1352,7 +1348,7 @@ export async function hydratePaidAtplStudentAccess(
       },
       order.studentId,
     );
-    order = readPaymentsDb().orders.find((row) => row.id === order!.id) ?? order;
+    order = getOrderById(order.id) ?? order;
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
@@ -1432,32 +1428,22 @@ async function ensureAtplPackageSubjectCoverage(
   const missing = officialPackageCourses().filter((course) => !enrolled.has(course.id));
   if (!missing.length) return;
   const now = nowIso();
-  writeCoursesDb((db) => {
-    for (const course of missing) {
-      const already = db.enrollments.some(
-        (row) =>
-          row.courseId === course.id &&
-          row.studentId === studentId &&
-          !["dropped", "rejected"].includes(row.status),
-      );
-      if (already) continue;
-      const enrollment: Enrollment = {
-        id: generateId(),
-        courseId: course.id,
-        studentId,
-        status: "approved",
-        enrolledById: actorId,
-        enrolledAt: now,
-        approvedAt: now,
-        completedAt: null,
-        droppedAt: null,
-        suspendedAt: null,
-        notes: "ATPL Complete Package",
-        updatedAt: now,
-      };
-      db.enrollments.push(enrollment);
-    }
-  });
+  for (const course of missing) {
+    upsertEnrollment({
+      id: generateId(),
+      courseId: course.id,
+      studentId,
+      status: "approved",
+      enrolledById: actorId,
+      enrolledAt: now,
+      approvedAt: now,
+      completedAt: null,
+      droppedAt: null,
+      suspendedAt: null,
+      notes: "ATPL Complete Package",
+      updatedAt: now,
+    });
+  }
 }
 
 /** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */
@@ -2130,7 +2116,7 @@ export function listAtplStudents() {
       : courses.map((c) => c.id)) as string[],
   );
 
-  const auth = readAuthDb().users;
+  const auth = listAllUsers();
   const userById = new Map(auth.map((user) => [user.id, user]));
   const userByEmail = new Map(auth.map((user) => [user.email.trim().toLowerCase(), user]));
   const enrollments = [...courseIds]
@@ -2143,7 +2129,7 @@ export function listAtplStudents() {
     byStudent.set(e.studentId, list);
   }
 
-  const paidOrders = readPaymentsDb().orders.filter((order) => isPaidAtplPackageOrder(order));
+  const paidOrders = listOrdersByStatus("paid").filter((order) => isPaidAtplPackageOrder(order));
   const latestByStudent = new Map<string, (typeof paidOrders)[number]>();
   const latestByEmail = new Map<string, (typeof paidOrders)[number]>();
   for (const order of paidOrders) {
@@ -2182,7 +2168,7 @@ export function listAtplStudents() {
   const classesDb = readClassesDb();
   const classById = new Map(classesDb.classes.map((cls) => [cls.id, cls]));
   const participants = new Set(
-    classesDb.participants
+    listAllParticipants()
       .filter((row) => row.role === "participant")
       .map((row) => `${row.liveClassId}:${row.userId}`),
   );
@@ -2231,7 +2217,7 @@ export function listAtplStudents() {
 export function listAllInstructors() {
   ensureCoursesSeeded();
   ensureClassesSeeded();
-  const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+  const instructors = listAllUsers().filter((u) => u.role === ROLES.INSTRUCTOR);
   const db = readCoursesDb();
   const courses = db.courses.filter((c) => !c.deletedAt);
   const assignedByInstructor = new Map<string, typeof courses>();

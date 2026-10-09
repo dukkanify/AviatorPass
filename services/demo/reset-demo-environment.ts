@@ -6,8 +6,9 @@
 import { DEMO_ACCOUNT_PASSWORD } from "@/constants/demo-accounts";
 import { resetPermanentDemoAccounts } from "@/services/auth/demo-users";
 import { ensurePlatformDemoEnvironment } from "@/services/demo/platform-demo-seed";
-import { findUserByEmail, readAuthDb } from "@/services/auth/store";
+import { findUserByEmail } from "@/services/auth/store";
 import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
+import { listNotificationsForUser } from "@/lib/data/auth-notification-store";
 import { listEnrollmentsForStudent } from "@/services/courses/store";
 import { readBookingsDb } from "@/services/bookings/store";
 import { readCgiDb } from "@/services/cgi/store";
@@ -29,7 +30,6 @@ export function resetDemoEnvironment(options?: { password?: string }): DemoReset
   ensurePlatformDemoEnvironment();
 
   const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student);
-  const auth = readAuthDb();
 
   return {
     password,
@@ -46,9 +46,7 @@ export function resetDemoEnvironment(options?: { password?: string }): DemoReset
           (e) => !["dropped", "rejected"].includes(e.status),
         ).length
       : 0,
-    studentNotifications: student
-      ? auth.notifications.filter((n) => n.userId === student.id).length
-      : 0,
+    studentNotifications: student ? listNotificationsForUser(student.id).length : 0,
     studentBookings: student
       ? readBookingsDb().bookings.filter((b) => b.studentId === student.id).length
       : 0,

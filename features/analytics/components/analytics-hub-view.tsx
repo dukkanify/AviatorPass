@@ -19,7 +19,7 @@ import {
   ChartCard,
   DonutChart,
   LineTrendChart,
-} from "@/components/dashboard/charts";
+} from "@/components/dashboard";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

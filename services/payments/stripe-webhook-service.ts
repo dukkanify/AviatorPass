@@ -21,6 +21,7 @@ import { getStripeClient, isStripeConfigured } from "@/services/payments/stripe-
 import { constructStripeEvent } from "@/services/stripe/client";
 import { resolveCourseOffer } from "@/services/stripe/course-offer";
 import { shouldRevokeAccessOnRefund } from "@/services/stripe/config";
+import { countOrders } from "@/lib/data/lms-payment-ledger-store";
 import {
   blankStripePaymentFields,
   readPaymentsDb,
@@ -80,8 +81,8 @@ function markProcessed(input: {
       orderId: input.orderId,
       result: input.result,
     });
-    if (db.processedProviderEvents.length > 5000) {
-      db.processedProviderEvents = db.processedProviderEvents.slice(0, 5000);
+    if (db.processedProviderEvents.length > 400) {
+      db.processedProviderEvents = db.processedProviderEvents.slice(0, 400);
     }
   });
 }
@@ -126,7 +127,7 @@ function findOrder(orderId: string | null): Order | null {
 
 function nextReconstructedOrderNumber(): string {
   const y = new Date().getFullYear();
-  const n = readPaymentsDb().orders.length + 1;
+  const n = countOrders() + 1;
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 

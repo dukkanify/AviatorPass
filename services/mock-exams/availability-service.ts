@@ -5,7 +5,7 @@
 
 import { ROLES } from "@/constants/roles";
 import { weekdayOfLocalDate, zonedWallTimeToUtc } from "@/lib/datetime/zoned";
-import { readAuthDb } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
 import { readBookingsDb } from "@/services/bookings/store";
 import { rangesOverlap } from "@/services/classes/validation";
 import { ensureMockExamsSeeded, readMockExamsDb } from "@/services/mock-exams/store";
@@ -17,9 +17,7 @@ const ACTIVE = new Set(["pending_payment", "confirmed", "in_progress"]);
 export function listMockExaminers() {
   ensureMockExamsSeeded();
   const settings = readMockExamsDb().settings;
-  const instructors = readAuthDb().users.filter(
-    (u) => u.role === ROLES.INSTRUCTOR && u.status === "active",
-  );
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR).filter((u) => u.status === "active");
   const pool = settings.examinerIds.length
     ? instructors.filter((u) => settings.examinerIds.includes(u.id))
     : instructors;

@@ -38,14 +38,34 @@ interface OutboxDb {
 
 const DATA_FILE = path.join(dataDir(), "aep-email-outbox.json");
 const DEFAULT_MAX_ATTEMPTS = 5;
+/** Lifetime bound so HTML bodies cannot inflate the outbox forever. */
+export const EMAIL_OUTBOX_CAP = 400;
+const EMAIL_OUTBOX_FULL_BODY = 40;
 
 function emptyOutbox(): OutboxDb {
   return { messages: [] };
 }
 
+function slimOutbox(messages: OutboundEmailRecord[]): OutboundEmailRecord[] {
+  return messages
+    .slice(0, EMAIL_OUTBOX_CAP)
+    .map((message, index) =>
+      index < EMAIL_OUTBOX_FULL_BODY
+        ? message
+        : { ...message, html: "", text: message.text?.slice(0, 180) ?? "" },
+    );
+}
+
 function readOutbox(): OutboxDb {
   const db = readJsonFile<OutboxDb>(DATA_FILE, emptyOutbox);
   if (!Array.isArray(db.messages)) return emptyOutbox();
+  if (
+    db.messages.length > EMAIL_OUTBOX_CAP ||
+    db.messages.some((m, i) => i >= EMAIL_OUTBOX_FULL_BODY && m.html)
+  ) {
+    db.messages = slimOutbox(db.messages);
+    writeOutbox(db);
+  }
   return db;
 }
 
@@ -68,7 +88,7 @@ export function recordOutboundEmail(
     nextRetryAt: input.nextRetryAt ?? null,
   };
   const db = readOutbox();
-  db.messages = [record, ...db.messages.filter((m) => m.id !== record.id)].slice(0, 500);
+  db.messages = slimOutbox([record, ...db.messages.filter((m) => m.id !== record.id)]);
   writeOutbox(db);
   return record;
 }

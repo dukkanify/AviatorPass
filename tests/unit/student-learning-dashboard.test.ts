@@ -127,9 +127,8 @@ describe("student dashboard isolation", () => {
     expect(view).not.toContain('todayItems.find((item) => item.type === "live_class") ?? liveItem');
     expect(view).toContain("ACTION_LABELS.viewTimetable");
     expect(view).toContain("/api/learning/atpl-schedule");
-    expect(view.indexOf("setLoading(false)")).toBeLessThan(
-      view.lastIndexOf("/api/learning/atpl-schedule"),
-    );
+    expect(view).toContain("widgetsPromise");
+    expect(view.indexOf("widgetsPromise")).toBeLessThan(view.indexOf("setLoading(false)"));
     expect(view).toContain("First lecture");
     expect(view).toContain("firstLectureLiveClassId");
     expect(view).toContain("confirmedFirstLectureAt");

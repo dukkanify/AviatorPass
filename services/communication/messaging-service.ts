@@ -11,7 +11,8 @@ import {
 } from "@/constants/communication";
 import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import {
   assertCanMessage,
   assertCanMessagePeer,
@@ -38,7 +39,7 @@ function nowIso() {
 }
 
 function displayName(userId: string): string {
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return "User";
   const p = toUserProfile(u);
   return p.fullName || p.email;
@@ -51,7 +52,7 @@ function roleSegment(role: string): string {
 }
 
 function messagesHref(userId: string, conversationId: string): string {
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   const seg = u ? roleSegment(u.role) : "student";
   return `/${seg}/messages?c=${conversationId}`;
 }
@@ -107,7 +108,7 @@ export async function startDirectConversation(input: {
   user: UserProfile;
   peerUserId: string;
 }): Promise<Conversation> {
-  const peer = readAuthDb().users.find((u) => u.id === input.peerUserId);
+  const peer = findUserById(input.peerUserId);
   if (!peer) throw new CommunicationError("User not found", 404);
   assertCanMessagePeer(input.user, peer.role);
 
@@ -183,9 +184,10 @@ export async function getOrCreateSupportConversation(user: UserProfile): Promise
   );
   if (existing) return existing;
 
-  const supportAgents = readAuthDb().users.filter(
-    (u) => u.status === "active" && (u.role === ROLES.ADMIN || u.role === ROLES.SUPER_ADMIN),
-  );
+  const supportAgents = [
+    ...listUsersByRole(ROLES.ADMIN),
+    ...listUsersByRole(ROLES.SUPER_ADMIN),
+  ].filter((u) => u.status === "active");
   const ids = [...new Set([user.id, ...supportAgents.map((a) => a.id)])];
   const stamp = nowIso();
   const conv: Conversation = {
@@ -261,7 +263,7 @@ export async function createGroupConversation(input: {
   const ids = [...new Set([input.user.id, ...input.participantIds])];
   for (const id of ids) {
     if (id === input.user.id) continue;
-    const peer = readAuthDb().users.find((u) => u.id === id);
+    const peer = findUserById(id);
     if (peer) assertCanMessagePeer(input.user, peer.role);
   }
 

@@ -108,10 +108,10 @@ function NotificationBell() {
   }, []);
 
   React.useEffect(() => {
-    void load();
+    void pollUnread();
     const id = window.setInterval(() => void pollUnread(), 15_000);
     return () => window.clearInterval(id);
-  }, [load, pollUnread]);
+  }, [pollUnread]);
 
   React.useEffect(() => {
     if (open) void load();

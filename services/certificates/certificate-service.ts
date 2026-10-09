@@ -10,7 +10,7 @@ import { canonicalCertificateVerifyUrl, publicCertificateVerifyUrl } from "@/lib
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { siteConfig } from "@/config/site";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import { getCourseById } from "@/services/courses/course-service";
 import { getCourseLearningState } from "@/services/learning/progress-service";
 import { assertCanManageCertificates, CertificateError } from "@/services/certificates/access";
@@ -146,7 +146,7 @@ export async function createCertificate(input: {
     );
   }
 
-  const student = readAuthDb().users.find((u) => u.id === input.studentId);
+  const student = findUserById(input.studentId);
   if (!student) throw new CertificateError("Student not found", 404);
   const course = getCourseById(input.courseId);
   if (!course) throw new CertificateError("Course not found", 404);
@@ -158,7 +158,7 @@ export async function createCertificate(input: {
   let instructorName = "AviatorPass Faculty";
   const instructorId: string | null = course.primaryInstructorId;
   if (instructorId) {
-    const instructor = readAuthDb().users.find((u) => u.id === instructorId);
+    const instructor = findUserById(instructorId);
     if (instructor) instructorName = toUserProfile(instructor).fullName || "Faculty";
   }
 

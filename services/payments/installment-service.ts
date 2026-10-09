@@ -22,6 +22,15 @@ import {
   assertCheckoutModeAllowed,
   getRegionalPaymentRule,
 } from "@/services/payments/regional-rules-service";
+import {
+  getInstallmentPlanById,
+  listAllInstallmentPlans,
+  listInstallmentPlansForStudent,
+  listScheduleByStatus,
+  listScheduleForPlan as listIndexedScheduleForPlan,
+  upsertInstallmentPlan,
+  upsertScheduleItem,
+} from "@/lib/data/lms-installment-store";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type {
   CheckoutPaymentMode,
@@ -60,20 +69,16 @@ function productCourseIds(productId: string, fallbackCourseId: string | null): s
 }
 
 export function listInstallmentPlans(studentId?: string): InstallmentPlan[] {
-  const rows = readPaymentsDb().installmentPlans;
-  return (studentId ? rows.filter((p) => p.studentId === studentId) : rows).sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  );
+  const rows = studentId ? listInstallmentPlansForStudent(studentId) : listAllInstallmentPlans();
+  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function getInstallmentPlan(planId: string): InstallmentPlan | null {
-  return readPaymentsDb().installmentPlans.find((p) => p.id === planId) ?? null;
+  return getInstallmentPlanById(planId);
 }
 
 export function listScheduleForPlan(planId: string): InstallmentScheduleItem[] {
-  return readPaymentsDb()
-    .installmentSchedule.filter((s) => s.planId === planId)
-    .sort((a, b) => a.sequence - b.sequence);
+  return listIndexedScheduleForPlan(planId).sort((a, b) => a.sequence - b.sequence);
 }
 
 export function buildInstallmentAmounts(total: number, count: number): number[] {
@@ -448,23 +453,19 @@ export async function processOverdueInstallments(actorId: string | null = "syste
   let markedOverdue = 0;
   const plansToSuspend = new Set<string>();
 
-  writePaymentsDb((db) => {
-    for (const item of db.installmentSchedule) {
-      if (item.status !== "due" && item.status !== "upcoming") continue;
-      const due = Date.parse(item.dueAt);
-      if (Number.isNaN(due)) continue;
-      if (due + graceMs >= now) continue;
-      item.status = "overdue";
-      item.updatedAt = nowIso();
-      markedOverdue += 1;
-      plansToSuspend.add(item.planId);
-      const plan = db.installmentPlans.find((p) => p.id === item.planId);
-      if (plan && plan.status === "active") {
-        plan.status = "overdue";
-        plan.updatedAt = nowIso();
-      }
+  const stamp = nowIso();
+  for (const item of listScheduleByStatus(["due", "upcoming"])) {
+    const due = Date.parse(item.dueAt);
+    if (Number.isNaN(due)) continue;
+    if (due + graceMs >= now) continue;
+    upsertScheduleItem({ ...item, status: "overdue", updatedAt: stamp });
+    markedOverdue += 1;
+    plansToSuspend.add(item.planId);
+    const plan = getInstallmentPlanById(item.planId);
+    if (plan && plan.status === "active") {
+      upsertInstallmentPlan({ ...plan, status: "overdue", updatedAt: stamp });
     }
-  });
+  }
 
   let suspended = 0;
   if (settings.autoSuspendOnOverdue) {

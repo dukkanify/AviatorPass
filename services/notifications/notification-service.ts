@@ -11,10 +11,19 @@ import {
   type NotificationPriority,
 } from "@/types/notifications";
 import {
+  countUnreadForUser,
+  getNotificationById,
+  listNotificationsForUser,
+  upsertNotification,
+} from "@/lib/data/auth-notification-store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import {
+  getNotificationPreferencesByUser,
+  upsertNotificationPreferences,
+} from "@/lib/data/auth-settings-store";
+import {
   defaultNotificationPreferences,
   findUserById,
-  readAuthDb,
-  writeAuthDb,
   type NotificationPreferences,
 } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
@@ -80,7 +89,7 @@ export function normalizePreferences(
 }
 
 export function getNotificationPreferences(userId: string): NotificationPreferences {
-  const row = readAuthDb().notificationPreferences.find((p) => p.userId === userId);
+  const row = getNotificationPreferencesByUser(userId);
   if (row) return normalizePreferences(row);
   return defaultNotificationPreferences(userId, false);
 }
@@ -89,23 +98,17 @@ export function updateNotificationPreferences(
   userId: string,
   patch: Partial<Omit<NotificationPreferences, "userId" | "createdAt">>,
 ): NotificationPreferences {
-  let updated = defaultNotificationPreferences(userId, false);
-  writeAuthDb((db) => {
-    const idx = db.notificationPreferences.findIndex((p) => p.userId === userId);
-    const current =
-      idx >= 0
-        ? normalizePreferences(db.notificationPreferences[idx]!)
-        : defaultNotificationPreferences(userId, false);
-    updated = normalizePreferences({
-      ...current,
-      ...patch,
-      userId,
-      updatedAt: nowIso(),
-      createdAt: current.createdAt,
-    });
-    if (idx >= 0) db.notificationPreferences[idx] = updated;
-    else db.notificationPreferences.push(updated);
+  const current = normalizePreferences(
+    getNotificationPreferencesByUser(userId) ?? defaultNotificationPreferences(userId, false),
+  );
+  const updated = normalizePreferences({
+    ...current,
+    ...patch,
+    userId,
+    updatedAt: nowIso(),
+    createdAt: current.createdAt,
   });
+  upsertNotificationPreferences(updated);
   return updated;
 }
 
@@ -137,12 +140,8 @@ function findRecentDedupe(
 ): NotificationRecord | null {
   if (!dedupeKey) return null;
   const cutoff = Date.now() - DEDUPE_WINDOW_MS;
-  const rows = readAuthDb().notifications.filter(
-    (n) =>
-      n.userId === userId &&
-      n.dedupeKey === dedupeKey &&
-      !n.deletedAt &&
-      Date.parse(n.createdAt) >= cutoff,
+  const rows = listNotificationsForUser(userId).filter(
+    (n) => n.dedupeKey === dedupeKey && !n.deletedAt && Date.parse(n.createdAt) >= cutoff,
   );
   return rows[0] ? normalizeNotification(rows[0]) : null;
 }
@@ -271,20 +270,7 @@ export async function emitNotification(
   );
 
   if (prefs.inAppEnabled && platform.notifications.inAppNotifications) {
-    writeAuthDb((db) => {
-      db.notifications.unshift(record);
-      // Cap per-user history
-      const kept: NotificationRecord[] = [];
-      const counts = new Map<string, number>();
-      for (const n of db.notifications) {
-        const c = counts.get(n.userId) ?? 0;
-        if (c < 500) {
-          kept.push(n);
-          counts.set(n.userId, c + 1);
-        }
-      }
-      db.notifications = kept;
-    });
+    upsertNotification(record);
   }
 
   const emailed = await maybeSendEmail({
@@ -298,10 +284,11 @@ export async function emitNotification(
     reference: input.reference,
   });
   if (emailed) {
-    writeAuthDb((db) => {
-      const n = db.notifications.find((x) => x.id === record.id);
-      if (n) n.emailSentAt = nowIso();
-    });
+    const current = getNotificationById(record.id);
+    if (current) {
+      current.emailSentAt = nowIso();
+      upsertNotification(current);
+    }
     record.emailSentAt = nowIso();
     logEmailEvent(
       "notification_delivered",
@@ -471,17 +458,13 @@ export function listNotifications(
 } {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 20;
-  const db = readAuthDb();
-  const rows = db.notifications
-    .filter((n) => n.userId === userId)
+  const rows = listNotificationsForUser(userId)
     .map(normalizeNotification)
     .filter((n) => matchesFilters(n, options));
 
   rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  const unreadCount = db.notifications.filter(
-    (n) => n.userId === userId && !n.readAt && !n.deletedAt && !n.archivedAt,
-  ).length;
+  const unreadCount = countUnreadForUser(userId);
 
   const total = rows.length;
   const start = (page - 1) * pageSize;
@@ -510,29 +493,25 @@ export function markNotificationRead(
   userId: string,
   notificationId: string,
 ): NotificationRecord | null {
-  let updated: NotificationRecord | null = null;
-  writeAuthDb((db) => {
-    const n = db.notifications.find((x) => x.id === notificationId && x.userId === userId);
-    if (n && !n.deletedAt) {
-      if (!n.readAt) n.readAt = nowIso();
-      n.status = n.archivedAt ? "archived" : "read";
-      updated = normalizeNotification(n);
-    }
-  });
-  return updated;
+  const n = getNotificationById(notificationId);
+  if (!n || n.userId !== userId || n.deletedAt) return null;
+  if (!n.readAt) n.readAt = nowIso();
+  n.status = n.archivedAt ? "archived" : "read";
+  upsertNotification(n);
+  return normalizeNotification(n);
 }
 
 export function markAllNotificationsRead(userId: string): number {
   let count = 0;
-  writeAuthDb((db) => {
-    db.notifications.forEach((n) => {
-      if (n.userId === userId && !n.readAt && !n.deletedAt && !n.archivedAt) {
-        n.readAt = nowIso();
-        n.status = "read";
-        count += 1;
-      }
-    });
-  });
+  const readAt = nowIso();
+  for (const n of listNotificationsForUser(userId)) {
+    if (!n.readAt && !n.deletedAt && !n.archivedAt) {
+      n.readAt = readAt;
+      n.status = "read";
+      upsertNotification(n);
+      count += 1;
+    }
+  }
   return count;
 }
 
@@ -540,40 +519,30 @@ export function archiveNotification(
   userId: string,
   notificationId: string,
 ): NotificationRecord | null {
-  let updated: NotificationRecord | null = null;
-  writeAuthDb((db) => {
-    const n = db.notifications.find((x) => x.id === notificationId && x.userId === userId);
-    if (n && !n.deletedAt) {
-      n.archivedAt = nowIso();
-      n.status = "archived";
-      if (!n.readAt) n.readAt = n.archivedAt;
-      updated = normalizeNotification(n);
-    }
-  });
-  return updated;
+  const n = getNotificationById(notificationId);
+  if (!n || n.userId !== userId || n.deletedAt) return null;
+  n.archivedAt = nowIso();
+  n.status = "archived";
+  if (!n.readAt) n.readAt = n.archivedAt;
+  upsertNotification(n);
+  return normalizeNotification(n);
 }
 
 export function deleteNotification(
   userId: string,
   notificationId: string,
 ): NotificationRecord | null {
-  let updated: NotificationRecord | null = null;
-  writeAuthDb((db) => {
-    const n = db.notifications.find((x) => x.id === notificationId && x.userId === userId);
-    if (n) {
-      n.deletedAt = nowIso();
-      n.status = "deleted";
-      if (!n.readAt) n.readAt = n.deletedAt;
-      updated = normalizeNotification(n);
-    }
-  });
-  return updated;
+  const n = getNotificationById(notificationId);
+  if (!n || n.userId !== userId) return null;
+  n.deletedAt = nowIso();
+  n.status = "deleted";
+  if (!n.readAt) n.readAt = n.deletedAt;
+  upsertNotification(n);
+  return normalizeNotification(n);
 }
 
 export function getUnreadCount(userId: string): number {
-  return readAuthDb().notifications.filter(
-    (n) => n.userId === userId && !n.readAt && !n.deletedAt && !n.archivedAt,
-  ).length;
+  return countUnreadForUser(userId);
 }
 
 /** Fan-out helper used by domain modules */
@@ -618,7 +587,7 @@ export async function notifyRole(
     email?: boolean;
   },
 ) {
-  const users = readAuthDb().users.filter((u) => u.role === role && u.status === "active");
+  const users = listUsersByRole(role).filter((u) => u.status === "active");
   await notifyUsers(
     users.map((u) => u.id),
     input,

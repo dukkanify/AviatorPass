@@ -70,5 +70,25 @@ describe("production performance contracts", () => {
     expect(learningApi).toContain("cachedQuery");
     expect(cgi).toContain("slimDashboardSchedule");
     expect(cgi).toContain("planByStudent");
+    const studentDash = src(
+      "features/learning/components/student-dashboard/student-dashboard-view.tsx",
+    );
+    expect(studentDash).toContain("dashPromise");
+    expect(studentDash).toContain("widgetsPromise");
+    expect(studentDash.indexOf("widgetsPromise")).toBeLessThan(
+      studentDash.indexOf("setLoading(false)"),
+    );
+    expect(src("components/notifications/notification-bell.tsx")).toContain(
+      "routes.api.notificationUnreadCount",
+    );
+    expect(src("components/notifications/notification-bell.tsx")).toContain("void pollUnread()");
+    expect(src("features/analytics/components/analytics-hub-view.tsx")).toContain(
+      'from "@/components/dashboard"',
+    );
+    expect(src("features/analytics/components/analytics-hub-view.tsx")).not.toContain(
+      'from "@/components/dashboard/charts"',
+    );
+    expect(src("services/auth/auth-service.ts")).toContain("getSessionById");
+    expect(src("services/auth/auth-service.ts")).toContain("sessionSeedReady");
   });
 });

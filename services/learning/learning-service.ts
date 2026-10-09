@@ -9,7 +9,7 @@ import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
   getCourseLearningState,
@@ -303,9 +303,7 @@ export function getLearningDashboard(user: UserProfile): LearningDashboardOvervi
     fallback: null as { id: string; title: string; startsAt: string } | null,
     run: () => {
       const db = readClassesDb();
-      const allowed = new Set(
-        db.participants.filter((p) => p.userId === user.id).map((p) => p.liveClassId),
-      );
+      const allowed = new Set(listParticipantsForUser(user.id).map((p) => p.liveClassId));
       if (!allowed.size) return null;
       const now = Date.now();
       return (
@@ -450,11 +448,7 @@ export function getLearningCalendar(studentId: string): LearningCalendarItem[] {
   const now = Date.now();
   const items: LearningCalendarItem[] = [];
 
-  const allowed = new Set(
-    readClassesDb()
-      .participants.filter((p) => p.userId === studentId)
-      .map((p) => p.liveClassId),
-  );
+  const allowed = new Set(listParticipantsForUser(studentId).map((p) => p.liveClassId));
   for (const c of listLiveClasses({ pageSize: 100 }).data) {
     if (!allowed.has(c.id)) continue;
     const start = Date.parse(c.startsAt);
@@ -521,11 +515,7 @@ export function getLiveClassroomForStudentCourse(
 } | null {
   if (!studentId || !courseId) return null;
   ensureClassesSeeded();
-  const allowed = new Set(
-    readClassesDb()
-      .participants.filter((p) => p.userId === studentId)
-      .map((p) => p.liveClassId),
-  );
+  const allowed = new Set(listParticipantsForUser(studentId).map((p) => p.liveClassId));
   const now = Date.now();
   const rows = listLiveClasses({ courseId, pageSize: 80 }).data.filter((cls) => {
     if (!allowed.has(cls.id)) return false;

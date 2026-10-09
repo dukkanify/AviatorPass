@@ -12,7 +12,8 @@ import { getCourseById } from "@/services/courses/course-service";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { notifyUsers } from "@/services/notifications/notification-service";
 import { getProduct } from "@/services/payments/catalog-service";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import { getOrderById, listOrdersByStatus } from "@/lib/data/lms-payment-ledger-store";
+import { writePaymentsDb } from "@/services/payments/store";
 import type { Order, OrderItem } from "@/types/payments";
 
 export const LIVE_PROGRAM_WELCOME_SKUS = ["PPL-LIVE", "BASICS-LIVE"] as const;
@@ -101,7 +102,7 @@ export function scheduleLiveProgramWelcome(
 }
 
 function getStoredOrder(orderId: string): Order | null {
-  return readPaymentsDb().orders.find((row) => row.id === orderId) ?? null;
+  return getOrderById(orderId);
 }
 
 export async function sendLiveProgramWelcome(orderId: string): Promise<{
@@ -245,9 +246,8 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
 export async function processDueLiveProgramWelcomes(options?: { now?: Date; limit?: number }) {
   const now = (options?.now ?? new Date()).getTime();
   const limit = options?.limit ?? 25;
-  const due = readPaymentsDb()
-    .orders.filter((order) => {
-      if (order.status !== "paid") return false;
+  const due = listOrdersByStatus("paid")
+    .filter((order) => {
       if (order.metadata.liveWelcomeSentAt) return false;
       const dueAt = String(order.metadata.liveWelcomeDueAt ?? "");
       if (!dueAt) return false;

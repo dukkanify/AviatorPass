@@ -12,12 +12,17 @@ import {
 } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import {
+  listParticipantsForClass,
+  listParticipantsForUser,
+  readClassesDb,
+  writeClassesDb,
+} from "@/services/classes/store";
 import {
   createMeetingForClass,
   updateMeetingForClass,
@@ -53,7 +58,7 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 
 function userName(userId: string | null): string | null {
   if (!userId) return null;
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return null;
   return [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email;
 }
@@ -75,9 +80,7 @@ function toListItem(cls: LiveClass): LiveClassListItem {
   ensureCoursesSeeded();
   const course = cls.courseId ? getCourseById(cls.courseId) : null;
   const zoom = getZoomMeetingByClassId(cls.id);
-  const enrolled = readClassesDb().participants.filter(
-    (p) => p.liveClassId === cls.id && p.role === "participant",
-  ).length;
+  const enrolled = listParticipantsForClass(cls.id).filter((p) => p.role === "participant").length;
   return {
     ...cls,
     courseTitle: course?.title ?? null,
@@ -137,7 +140,7 @@ export function getLiveClassDetail(id: string, viewer?: { id: string; role: stri
           participantCount: isHost ? (zoom.participantCount ?? null) : null,
         }
       : null,
-    participants: readClassesDb().participants.filter((p) => p.liveClassId === id),
+    participants: listParticipantsForClass(id),
     recordings: readClassesDb().recordings.filter((r) => r.liveClassId === id),
   };
 }
@@ -211,11 +214,7 @@ export function getClassStats(
     );
   }
   if (opts.studentId) {
-    const classIds = new Set(
-      readClassesDb()
-        .participants.filter((p) => p.userId === opts.studentId)
-        .map((p) => p.liveClassId),
-    );
+    const classIds = new Set(listParticipantsForUser(opts.studentId).map((p) => p.liveClassId));
     rows = rows.filter((c) => classIds.has(c.id));
   }
   const todayStart = new Date();
@@ -264,7 +263,7 @@ export function getClassStats(
 }
 
 function assertInstructorUser(userId: string) {
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) throw new ClassValidationError("Instructor not found");
   if (u.role !== ROLES.INSTRUCTOR && u.role !== ROLES.ADMIN && u.role !== ROLES.SUPER_ADMIN) {
     throw new ClassValidationError("Assigned instructor must be an instructor or admin");
@@ -614,9 +613,7 @@ export async function updateLiveClass(input: {
   await cancelClassReminders(next.id);
   await queueClassReminders(next.id);
 
-  const participantIds = readClassesDb()
-    .participants.filter((p) => p.liveClassId === next.id)
-    .map((p) => p.userId);
+  const participantIds = listParticipantsForClass(next.id).map((p) => p.userId);
   await notifyUsers(
     participantIds,
     "Live class updated",
@@ -667,9 +664,7 @@ export async function cancelLiveClass(input: {
   await cancelMeetingForClass({ liveClassId: input.id, actorId: input.actorId });
   await cancelClassReminders(input.id);
 
-  const participantIds = readClassesDb()
-    .participants.filter((p) => p.liveClassId === input.id)
-    .map((p) => p.userId);
+  const participantIds = listParticipantsForClass(input.id).map((p) => p.userId);
   await notifyUsers(
     participantIds,
     "Live class cancelled",
@@ -747,8 +742,8 @@ export async function rescheduleLiveClass(input: {
     }
   });
 
-  const priorStudents = readClassesDb()
-    .participants.filter((p) => p.liveClassId === existing.id && p.role === "participant")
+  const priorStudents = listParticipantsForClass(existing.id)
+    .filter((p) => p.role === "participant")
     .map((p) => p.userId);
 
   const created = await createLiveClass({
@@ -796,9 +791,10 @@ export async function rescheduleLiveClass(input: {
     userAgent: input.userAgent,
   });
 
-  const participantIds = readClassesDb()
-    .participants.filter((p) => p.liveClassId === existing.id || p.liveClassId === created?.id)
-    .map((p) => p.userId);
+  const participantIds = [
+    ...listParticipantsForClass(existing.id),
+    ...(created ? listParticipantsForClass(created.id) : []),
+  ].map((p) => p.userId);
   await notifyUsers(
     participantIds,
     "Live class rescheduled",
@@ -893,9 +889,7 @@ export async function softDeleteLiveClass(input: {
   await cancelMeetingForClass({ liveClassId: input.id, actorId: input.actorId });
   await cancelClassReminders(input.id);
 
-  const participantIds = readClassesDb()
-    .participants.filter((p) => p.liveClassId === input.id)
-    .map((p) => p.userId);
+  const participantIds = listParticipantsForClass(input.id).map((p) => p.userId);
   if (participantIds.length) {
     await notifyUsers(
       participantIds,
@@ -930,12 +924,10 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
   const isHost =
     cls.instructorId === userId ||
     cls.assistantInstructorId === userId ||
-    readAuthDb().users.find((u) => u.id === userId)?.role === ROLES.SUPER_ADMIN ||
-    readAuthDb().users.find((u) => u.id === userId)?.role === ROLES.ADMIN;
+    findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
+    findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = readClassesDb().participants.find(
-    (p) => p.liveClassId === liveClassId && p.userId === userId,
-  );
+  const participant = listParticipantsForClass(liveClassId).find((p) => p.userId === userId);
   if (!isHost && !participant) {
     throw new ClassValidationError("You are not invited to this class");
   }

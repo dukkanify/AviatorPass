@@ -8,7 +8,14 @@ import { logActivity } from "@/services/auth/activity-log";
 import { formatMinor } from "@/services/payments/money";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { notifyPayment } from "@/services/payments/notify";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import {
+  countInvoices,
+  getInvoiceById,
+  getInvoiceByPaymentId,
+  listAllInvoices,
+  listInvoicesForStudent,
+} from "@/lib/data/lms-payment-ledger-store";
+import { writePaymentsDb } from "@/services/payments/store";
 import type { Invoice, Order, PaymentRecord } from "@/types/payments";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 
@@ -18,26 +25,21 @@ function nowIso() {
 
 function nextInvoiceNumber(): string {
   const y = new Date().getFullYear();
-  const n = readPaymentsDb().invoices.length + 1;
+  const n = countInvoices() + 1;
   return `INV-${y}-${String(n).padStart(5, "0")}`;
 }
 
 export function getInvoice(id: string): Invoice | null {
-  return readPaymentsDb().invoices.find((i) => i.id === id) ?? null;
+  return getInvoiceById(id);
 }
 
 export function listInvoices(filters?: { studentId?: string }) {
-  let rows = [...readPaymentsDb().invoices];
-  if (filters?.studentId) rows = rows.filter((i) => i.studentId === filters.studentId);
+  const rows = filters?.studentId ? listInvoicesForStudent(filters.studentId) : listAllInvoices();
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function findInvoiceForPayment(paymentId: string): Invoice | null {
-  return (
-    readPaymentsDb().invoices.find(
-      (invoice) => invoice.paymentId === paymentId || invoice.metadata?.paymentId === paymentId,
-    ) ?? null
-  );
+  return getInvoiceByPaymentId(paymentId);
 }
 
 export async function issueInvoiceForPayment(

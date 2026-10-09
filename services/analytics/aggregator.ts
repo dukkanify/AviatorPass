@@ -4,10 +4,16 @@
 
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { countUnreadNotifications } from "@/lib/data/auth-notification-store";
+import { getUserById, listAllSessions, listUsersByRole } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { listCertificates } from "@/services/certificates/certificate-service";
-import { getAdminReport, getExecutiveReport, getInstructorReport } from "@/services/certificates/reporting-service";
+import {
+  getAdminReport,
+  getExecutiveReport,
+  getInstructorReport,
+} from "@/services/certificates/reporting-service";
 import { getStudentProgressSnapshot } from "@/services/certificates/progress-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { getClassStats } from "@/services/classes/class-service";
@@ -17,7 +23,7 @@ import { readCommunicationDb } from "@/services/communication/store";
 import { ticketStats } from "@/services/communication/support-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { getCourseStats, listCourses } from "@/services/courses/course-service";
-import { readCoursesDb } from "@/services/courses/store";
+import { countEnrollments, countEnrollmentsByCourse } from "@/services/courses/store";
 import { ensureLearningSeeded } from "@/services/learning/seed";
 import { readLearningDb } from "@/services/learning/store";
 import { getLearningDashboard } from "@/services/learning/learning-service";
@@ -67,19 +73,13 @@ function inRange(iso: string | null | undefined, filters?: AnalyticsFilters): bo
   return true;
 }
 
-function kpi(
-  id: string,
-  label: string,
-  value: number | string,
-  extra?: Partial<KpiCard>,
-): KpiCard {
+function kpi(id: string, label: string, value: number | string, extra?: Partial<KpiCard>): KpiCard {
   return { id, label, value, format: "number", ...extra };
 }
 
 export function buildExecutiveAnalytics(filters?: AnalyticsFilters): ExecutiveAnalytics {
   ensureAllSeeded();
-  const auth = readAuthDb();
-  const students = auth.users.filter((u) => u.role === ROLES.STUDENT);
+  const students = listUsersByRole(ROLES.STUDENT);
   const activeStudents = students.filter((u) => u.status === ACCOUNT_STATUS.ACTIVE);
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -87,13 +87,15 @@ export function buildExecutiveAnalytics(filters?: AnalyticsFilters): ExecutiveAn
   const newThisMonth = students.filter(
     (u) => new Date(u.createdAt).getTime() >= monthStart.getTime(),
   ).length;
-  const instructors = auth.users.filter((u) => u.role === ROLES.INSTRUCTOR && u.status === ACCOUNT_STATUS.ACTIVE);
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR).filter(
+    (u) => u.status === ACCOUNT_STATUS.ACTIVE,
+  );
   const courseStats = getCourseStats();
   const classStats = getClassStats();
   const finance = getFinanceDashboard();
   const exec = getExecutiveReport();
   const learning = readLearningDb();
-  const sessions = auth.sessions.filter((s) => !s.revokedAt);
+  const sessions = listAllSessions().filter((s) => !s.revokedAt);
 
   const completionRate = exec.courseSuccessRate ?? 0;
   const progressRows = learning.progress ?? [];
@@ -114,7 +116,14 @@ export function buildExecutiveAnalytics(filters?: AnalyticsFilters): ExecutiveAn
     kpi("revenue", "Revenue", formatMinor(finance.platformRevenue, finance.currency), {
       format: "currency",
     }),
-    kpi("revenue_growth", "Monthly Revenue Growth", finance.monthlyGrowth.length > 1 ? `${Math.round(((finance.monthlyGrowth.at(-1)!.value - finance.monthlyGrowth.at(-2)!.value) / Math.max(1, finance.monthlyGrowth.at(-2)!.value)) * 100)}%` : "0%", { format: "text", trend: "up" }),
+    kpi(
+      "revenue_growth",
+      "Monthly Revenue Growth",
+      finance.monthlyGrowth.length > 1
+        ? `${Math.round(((finance.monthlyGrowth.at(-1)!.value - finance.monthlyGrowth.at(-2)!.value) / Math.max(1, finance.monthlyGrowth.at(-2)!.value)) * 100)}%`
+        : "0%",
+      { format: "text", trend: "up" },
+    ),
     kpi("engagement", "Platform Engagement", engagement, { format: "percent", unit: "%" }),
     kpi("completion", "Course Completion Rate", Math.round(completionRate), {
       format: "percent",
@@ -173,19 +182,16 @@ function buildUserGrowthSeries(createdAts: string[]) {
 }
 
 function buildEnrollmentBars(filters?: AnalyticsFilters) {
-  const enrollments = readCoursesDb().enrollments.filter((e) =>
-    inRange(e.enrolledAt, filters),
-  );
   const courses = listCourses({ pageSize: 50 }).data;
-  const counts = new Map<string, number>();
-  for (const e of enrollments) {
-    if (filters?.courseId && e.courseId !== filters.courseId) continue;
-    counts.set(e.courseId, (counts.get(e.courseId) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([id, value]) => ({
-      name: courses.find((c) => c.id === id)?.code ?? id.slice(0, 6),
-      value,
+  const counts = countEnrollmentsByCourse({
+    courseId: filters?.courseId,
+    enrolledFrom: filters?.dateFrom,
+    enrolledTo: filters?.dateTo,
+  });
+  return counts
+    .map((row) => ({
+      name: courses.find((c) => c.id === row.courseId)?.code ?? row.courseId.slice(0, 6),
+      value: row.count,
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
@@ -195,7 +201,9 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
   ensureAllSeeded();
   const learning = readLearningDb();
   const courses = listCourses({ pageSize: 50 }).data;
-  const enrollments = readCoursesDb().enrollments;
+  const enrollmentCounts = countEnrollmentsByCourse();
+  const enrollmentTotal = countEnrollments();
+  const enrollmentsByCourse = new Map(enrollmentCounts.map((row) => [row.courseId, row.count]));
   const quizDb = (() => {
     try {
       return getPlatformAssessmentOverview();
@@ -216,7 +224,11 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
             if (!rows.length) return sum;
             const done = rows.filter((r) => r.completed).length;
             return sum + (done / rows.length) * 100;
-          }, 0) / Math.max(1, courses.filter((c) => progress.some((p) => p.courseId === c.id)).length || 1),
+          }, 0) /
+            Math.max(
+              1,
+              courses.filter((c) => progress.some((p) => p.courseId === c.id)).length || 1,
+            ),
         );
 
   // Approximate average quiz score from certificate admin bundle
@@ -224,7 +236,7 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
   const avgQuiz = admin.quizPassRate ?? 0;
 
   const courseRows = courses.map((c) => {
-    const enrolled = enrollments.filter((e) => e.courseId === c.id);
+    const enrolledCount = enrollmentsByCourse.get(c.id) ?? 0;
     const rows = progress.filter((p) => p.courseId === c.id);
     const done = rows.filter((r) => r.completed).length;
     const completionRate = rows.length ? Math.round((done / rows.length) * 100) : 0;
@@ -232,7 +244,7 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
     return {
       courseId: c.id,
       title: c.title,
-      enrollments: enrolled.length,
+      enrollments: enrolledCount,
       completionRate,
       avgProgress: completionRate,
       dropOffRate,
@@ -242,7 +254,7 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
   void quizDb;
   return {
     kpis: [
-      kpi("enrollments", "Course Enrollments", enrollments.length),
+      kpi("enrollments", "Course Enrollments", enrollmentTotal),
       kpi("completion", "Completion Rate", avgProgress, { format: "percent", unit: "%" }),
       kpi("avg_time", "Avg Learning Time (h)", Math.round((studySeconds / 3600) * 10) / 10),
       kpi("avg_quiz", "Average Quiz Score", Math.round(avgQuiz), {
@@ -273,7 +285,9 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
         id: "course_completion",
         title: "Completion by course",
         kind: "bar",
-        points: courseRows.slice(0, 8).map((c) => ({ name: c.title.slice(0, 18), value: c.completionRate })),
+        points: courseRows
+          .slice(0, 8)
+          .map((c) => ({ name: c.title.slice(0, 18), value: c.completionRate })),
       },
     ],
     courses: courseRows.filter((c) => !filters?.courseId || c.courseId === filters.courseId),
@@ -297,7 +311,7 @@ export function buildInstructorAnalytics(
   filters?: AnalyticsFilters,
 ): InstructorAnalytics {
   ensureAllSeeded();
-  const user = readAuthDb().users.find((u) => u.id === instructorId);
+  const user = getUserById(instructorId);
   const name = user ? toUserProfile(user).fullName || user.email : "Instructor";
   const report = getInstructorReport(instructorId);
   const wallet = listWallets().find((w) => w.instructorId === instructorId);
@@ -325,13 +339,22 @@ export function buildInstructorAnalytics(
         format: "percent",
         unit: "%",
       }),
-      kpi("revenue", "Revenue", formatMinor(wallet?.lifetimeEarned ?? 0, wallet?.currency ?? "KWD"), {
-        format: "currency",
-      }),
+      kpi(
+        "revenue",
+        "Revenue",
+        formatMinor(wallet?.lifetimeEarned ?? 0, wallet?.currency ?? "KWD"),
+        {
+          format: "currency",
+        },
+      ),
       kpi("live", "Live Classes", classStats.upcoming + classStats.liveNow + classStats.today),
       kpi("certs", "Certificates Issued", report.certificatesIssued),
       kpi("rating", "Avg Rating", 4.6),
-      kpi("teaching_hours", "Teaching Hours", Math.round((classStats.today + classStats.upcoming) * 1.5)),
+      kpi(
+        "teaching_hours",
+        "Teaching Hours",
+        Math.round((classStats.today + classStats.upcoming) * 1.5),
+      ),
       kpi("satisfaction", "Student Satisfaction", 92, { format: "percent", unit: "%" }),
     ],
     charts: [
@@ -427,15 +450,11 @@ export function buildFinancialAnalytics(filters?: AnalyticsFilters): FinancialAn
   const orders = listOrders().filter((o) => inRange(o.paidAt ?? o.createdAt, filters));
   const paid = orders.filter((o) => o.status === "paid");
   const aov =
-    paid.length === 0
-      ? 0
-      : Math.round(paid.reduce((s, o) => s + o.totalAmount, 0) / paid.length);
+    paid.length === 0 ? 0 : Math.round(paid.reduce((s, o) => s + o.totalAmount, 0) / paid.length);
   const refundRate =
     orders.length === 0
       ? 0
-      : Math.round(
-          (orders.filter((o) => o.status === "refunded").length / orders.length) * 100,
-        );
+      : Math.round((orders.filter((o) => o.status === "refunded").length / orders.length) * 100);
   const outstanding = listWallets().reduce((s, w) => s + w.availableBalance + w.pendingBalance, 0);
   const annual = finance.monthlyGrowth.reduce((s, p) => s + p.value, 0);
 
@@ -457,9 +476,14 @@ export function buildFinancialAnalytics(filters?: AnalyticsFilters): FinancialAn
       kpi("payouts", "Outstanding Payouts", formatMinor(outstanding, finance.currency), {
         format: "currency",
       }),
-      kpi("instructor_earn", "Instructor Earnings", formatMinor(finance.instructorEarnings, finance.currency), {
-        format: "currency",
-      }),
+      kpi(
+        "instructor_earn",
+        "Instructor Earnings",
+        formatMinor(finance.instructorEarnings, finance.currency),
+        {
+          format: "currency",
+        },
+      ),
       kpi("pending", "Pending Payments", finance.pendingPayments),
     ],
     charts: [
@@ -574,10 +598,19 @@ export function buildCommunityAnalytics(): CommunityAnalytics {
     kpis: [
       kpi("posts", "Posts", posts.length),
       kpi("comments", "Comments", comments.length),
-      kpi("likes", "Likes", posts.reduce((s, p) => s + (p.likeCount ?? 0), 0)),
+      kpi(
+        "likes",
+        "Likes",
+        posts.reduce((s, p) => s + (p.likeCount ?? 0), 0),
+      ),
       kpi("communities", "Communities", communities.length),
       kpi("members", "Active Members", new Set(communities.flatMap((c) => c.memberIds)).size),
-      kpi("daily", "Daily Activity", posts.filter((p) => p.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length),
+      kpi(
+        "daily",
+        "Daily Activity",
+        posts.filter((p) => p.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10))
+          .length,
+      ),
     ],
     charts: [
       {
@@ -611,7 +644,11 @@ export function buildSupportAnalytics(): SupportAnalytics {
       kpi("open", "Open Tickets", stats.open),
       kpi("resolved", "Resolved Tickets", stats.resolved + stats.closed),
       kpi("response", "Avg Response (min)", stats.avgFirstResponseMinutes),
-      kpi("resolution", "Avg Resolution (h)", Math.round((stats.avgFirstResponseMinutes || 30) / 6)),
+      kpi(
+        "resolution",
+        "Avg Resolution (h)",
+        Math.round((stats.avgFirstResponseMinutes || 30) / 6),
+      ),
       kpi("satisfaction", "Support Satisfaction", 94, { format: "percent", unit: "%" }),
       kpi("in_progress", "In Progress", stats.inProgress),
       kpi("waiting", "Waiting", stats.waiting),
@@ -661,7 +698,7 @@ export function buildPlatformHealthAnalytics(): PlatformHealthAnalytics {
       kpi("failed_jobs", "Failed Jobs", 0),
       kpi("bg_jobs", "Background Jobs", 3),
       kpi("email_q", "Email Queue", settings.email.smtpHost ? 0 : 1),
-      kpi("notif_q", "Notification Queue", readAuthDb().notifications.filter((n) => !n.readAt).length),
+      kpi("notif_q", "Notification Queue", countUnreadNotifications()),
       kpi("zoom", "Zoom API Status", zoomOk ? "ready" : "not configured", { format: "text" }),
     ],
     charts: [

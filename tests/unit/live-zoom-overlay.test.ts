@@ -24,5 +24,8 @@ describe("live Zoom lesson overlay", () => {
       /getLiveClassroomForStudentCourse/,
     );
     expect(src("services/learning/learning-service.ts")).toMatch(/href: `\/join\/\$\{match\.id\}`/);
+    expect(src("services/learning/learning-service.ts")).toMatch(
+      /getLiveClassroomForStudentCourse[\s\S]*listParticipantsForUser\(studentId\)/,
+    );
   });
 });

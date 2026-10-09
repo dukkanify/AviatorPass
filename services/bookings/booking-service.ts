@@ -9,7 +9,8 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listAllUsers, listUsersByRole } from "@/lib/data/auth-identity-store";
+import { findUserByEmail, findUserById, toUserProfile } from "@/services/auth/store";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { BookingAccessError } from "@/services/bookings/access";
 import { defaultBookingSettings, readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
@@ -37,7 +38,7 @@ const GUEST_HOLD_TTL_MS = 15 * 60_000;
 
 function buildUserNameMap(): Map<string, string> {
   const map = new Map<string, string>();
-  for (const u of readAuthDb().users) {
+  for (const u of listAllUsers()) {
     map.set(u.id, `${u.firstName} ${u.lastName}`.trim() || u.email);
   }
   return map;
@@ -46,7 +47,7 @@ function buildUserNameMap(): Map<string, string> {
 function displayName(userId: string | null | undefined, names?: Map<string, string>): string {
   if (!userId) return "Guest";
   if (names) return names.get(userId) ?? "Unknown";
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return "Unknown";
   return `${u.firstName} ${u.lastName}`.trim() || u.email;
 }
@@ -261,8 +262,8 @@ export async function updateBookingSettings(input: {
 export function listBookableInstructors(): UserProfile[] {
   ensureDemoUsersSeeded();
   const settings = getBookingSettings();
-  const instructors = readAuthDb()
-    .users.filter((u) => u.role === ROLES.INSTRUCTOR && u.status === ACCOUNT_STATUS.ACTIVE)
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR)
+    .filter((u) => u.status === ACCOUNT_STATUS.ACTIVE)
     .map(toUserProfile);
 
   if (!settings.instructorIds.length) return instructors;
@@ -777,7 +778,7 @@ export async function createGuestBookingHold(input: {
   if (!email || !email.includes("@")) throw new BookingAccessError("Valid email required");
   if (!firstName || !lastName) throw new BookingAccessError("First and last name required");
 
-  const existingUser = readAuthDb().users.find((u) => u.email === email);
+  const existingUser = findUserByEmail(email);
   if (existingUser && existingUser.role !== ROLES.STUDENT) {
     throw new BookingAccessError("This email belongs to a staff account — sign in instead", 400);
   }

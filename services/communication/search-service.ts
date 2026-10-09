@@ -2,8 +2,14 @@
  * Global communication search across messages, posts, comments, announcements, tickets, users, communities.
  */
 
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
-import { canManageSupport, canMessage, canAccessCommunity, canManageBlog } from "@/services/communication/access";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
+import {
+  canManageSupport,
+  canMessage,
+  canAccessCommunity,
+  canManageBlog,
+} from "@/services/communication/access";
 import { readCommunicationDb } from "@/services/communication/store";
 import type { SearchHit } from "@/types/communication";
 import type { UserProfile } from "@/types";
@@ -38,10 +44,7 @@ export function searchCommunication(user: UserProfile, query: string, limit = 40
   if (canAccessCommunity(user)) {
     for (const c of db.communities) {
       if (c.isArchived) continue;
-      if (
-        c.name.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q)
-      ) {
+      if (c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q)) {
         hits.push({
           type: "community",
           id: c.id,
@@ -74,7 +77,8 @@ export function searchCommunication(user: UserProfile, query: string, limit = 40
         id: c.id,
         title: "Comment",
         snippet: c.body.slice(0, 120),
-        href: c.targetType === "blog_post" ? `blog?post=${c.targetId}` : `community?post=${c.targetId}`,
+        href:
+          c.targetType === "blog_post" ? `blog?post=${c.targetId}` : `community?post=${c.targetId}`,
       });
     }
     if (hits.length >= limit) return hits;
@@ -125,7 +129,7 @@ export function searchCommunication(user: UserProfile, query: string, limit = 40
     }
   }
 
-  for (const u of readAuthDb().users) {
+  for (const u of listAllUsers()) {
     if (u.status !== "active") continue;
     const profile = toUserProfile(u);
     const hay = `${profile.fullName ?? ""} ${profile.email}`.toLowerCase();

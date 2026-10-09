@@ -15,6 +15,7 @@ import { routes } from "@/constants/routes";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import {
+  AUTH_TOKEN_CAP,
   findUserByEmail,
   findUserById,
   readAuthDb,
@@ -92,8 +93,8 @@ export function issuePasswordSetupToken(userId: string): {
       (t) => t.userId !== user.id || t.consumedAt,
     );
     db.passwordSetupTokens.unshift(record);
-    if (db.passwordSetupTokens.length > 2000) {
-      db.passwordSetupTokens = db.passwordSetupTokens.slice(0, 2000);
+    if (db.passwordSetupTokens.length > AUTH_TOKEN_CAP) {
+      db.passwordSetupTokens = db.passwordSetupTokens.slice(0, AUTH_TOKEN_CAP);
     }
   });
   return { token, url: passwordSetupUrl(user.email, token), expiresAt };

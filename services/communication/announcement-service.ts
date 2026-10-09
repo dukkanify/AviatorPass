@@ -5,18 +5,12 @@
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { listAllUsers, listUsersByRole } from "@/lib/data/auth-identity-store";
 import { ROLES } from "@/constants/roles";
-import {
-  assertCanManageAnnouncements,
-  CommunicationError,
-} from "@/services/communication/access";
+import { assertCanManageAnnouncements, CommunicationError } from "@/services/communication/access";
 import { moderateText } from "@/services/communication/moderation-service";
 import { notifyUsers } from "@/services/communication/notify";
-import {
-  readCommunicationDb,
-  writeCommunicationDb,
-} from "@/services/communication/store";
+import { readCommunicationDb, writeCommunicationDb } from "@/services/communication/store";
 import type { Announcement, AnnouncementTarget } from "@/types/communication";
 import type { UserProfile } from "@/types";
 
@@ -85,8 +79,7 @@ export async function publishAnnouncement(input: {
 
   const stamp = nowIso();
   const status =
-    input.status ??
-    (input.scheduledAt && input.scheduledAt > stamp ? "scheduled" : "published");
+    input.status ?? (input.scheduledAt && input.scheduledAt > stamp ? "scheduled" : "published");
 
   const announcement: Announcement = {
     id,
@@ -129,13 +122,13 @@ export async function publishAnnouncement(input: {
 }
 
 function resolveRecipients(a: Announcement): string[] {
-  const users = readAuthDb().users.filter((u) => u.status === "active");
+  const users = listAllUsers().filter((u) => u.status === "active");
   if (a.target === "platform") return users.map((u) => u.id);
   if ((a.target === "student" || a.target === "instructor") && a.targetId) {
     return [a.targetId];
   }
   // course / group — notify students + instructors broadly for demo
-  return users
-    .filter((u) => u.role === ROLES.STUDENT || u.role === ROLES.INSTRUCTOR)
+  return [...listUsersByRole(ROLES.STUDENT), ...listUsersByRole(ROLES.INSTRUCTOR)]
+    .filter((u) => u.status === "active")
     .map((u) => u.id);
 }

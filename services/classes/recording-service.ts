@@ -7,7 +7,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { createNotification } from "@/services/notifications/notification-service";
 import { getLiveClass } from "@/services/classes/class-service";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass, readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { ClassValidationError } from "@/services/classes/validation";
 import type { MeetingRecording } from "@/types/classes";
 
@@ -56,9 +56,7 @@ export async function registerRecording(input: {
     d.recordings.push(record);
   });
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId,
-  );
+  const participants = listParticipantsForClass(input.liveClassId);
   for (const p of participants) {
     if (p.role === "participant" && !record.studentAccess) continue;
     await createNotification({

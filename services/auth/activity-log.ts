@@ -2,12 +2,11 @@ import { generateId } from "@/lib/security/crypto";
 import type { ActivityLogRecord, AuditLogRecord } from "@/types";
 import type { ActivityAction } from "@/constants/activity-actions";
 import {
-  AUTH_LOG_CAP,
-  writeAuthDb,
-  readAuthDb,
-  findUserById,
-  toUserProfile,
-} from "@/services/auth/store";
+  listAllActivityLogs,
+  prependActivityLog,
+  prependAuditLog,
+} from "@/lib/data/auth-activity-store";
+import { AUTH_LOG_CAP, findUserById, toUserProfile } from "@/services/auth/store";
 import { locationFromParts, parseUserAgent } from "@/lib/ops/client-telemetry";
 import { currentRequestContext } from "@/lib/ops/request-als";
 
@@ -42,12 +41,7 @@ export async function logActivity(input: {
     createdAt: new Date().toISOString(),
   };
 
-  writeAuthDb((db) => {
-    db.activityLogs.unshift(record);
-    if (db.activityLogs.length > AUTH_LOG_CAP) {
-      db.activityLogs = db.activityLogs.slice(0, AUTH_LOG_CAP);
-    }
-  });
+  prependActivityLog(record);
 
   return record;
 }
@@ -73,12 +67,7 @@ export async function logAudit(input: {
     createdAt: new Date().toISOString(),
   };
 
-  writeAuthDb((db) => {
-    db.auditLogs.unshift(record);
-    if (db.auditLogs.length > AUTH_LOG_CAP) {
-      db.auditLogs = db.auditLogs.slice(0, AUTH_LOG_CAP);
-    }
-  });
+  prependAuditLog(record);
 
   return record;
 }
@@ -123,8 +112,7 @@ export function listActivityLogs(options?: { page?: number; pageSize?: number; a
 } {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 25;
-  const db = readAuthDb();
-  let rows = db.activityLogs;
+  let rows = listAllActivityLogs();
   if (options?.action) {
     rows = rows.filter((r) => r.action === options.action);
   }
