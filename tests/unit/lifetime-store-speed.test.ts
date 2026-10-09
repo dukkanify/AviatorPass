@@ -9,13 +9,19 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { AUTH_LOG_CAP } from "@/services/auth/store";
 import {
+  countDistinctStudents,
+  countEnrollments,
+  countEnrollmentsByCourse,
   getEnrollmentById,
   listEnrollmentsForCourse,
   listEnrollmentsForStudent,
+  rebindEnrollmentsStudent,
   resetEnrollmentStoreRuntime,
   upsertEnrollment,
 } from "@/lib/data/lms-enrollment-store";
+import { getCourseStats } from "@/services/courses/course-service";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import { getEnrollmentSeries } from "@/services/dashboard/metrics";
 import type { Enrollment } from "@/types/courses";
 
 function src(rel: string) {
@@ -58,6 +64,23 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/ai/context-service.ts")).toMatch(/listEnrollmentsForStudent\(/);
     expect(src("services/ai/recommendation-service.ts")).toMatch(/listEnrollmentsForStudent\(/);
     expect(src("services/courses/instructor-students.ts")).toMatch(/listEnrollmentsForCourse\(/);
+    expect(src("services/courses/course-service.ts")).toMatch(/countEnrollments\(/);
+    expect(src("services/courses/course-service.ts")).toMatch(/countDistinctStudents\(/);
+    expect(src("services/dashboard/metrics.ts")).toMatch(/countEnrollmentsByCourse\(/);
+    expect(src("services/analytics/aggregator.ts")).toMatch(/countEnrollmentsByCourse\(/);
+    expect(src("services/analytics/aggregator.ts")).not.toMatch(/readCoursesDb\(\)\.enrollments/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/rebindEnrollmentsStudent\(/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/upsertEnrollment\(/);
+    expect(src("services/cgi/journey-service.ts")).not.toMatch(/writeCoursesDb\(/);
+  });
+
+  it("serves admin course stats and enrollment charts from aggregates", () => {
+    const stats = getCourseStats();
+    expect(stats.totalEnrollments).toBeGreaterThanOrEqual(0);
+    expect(stats.activeStudents).toBeGreaterThanOrEqual(0);
+    const series = getEnrollmentSeries();
+    expect(series.length).toBeGreaterThan(0);
+    expect(series.every((point) => Number.isFinite(point.value))).toBe(true);
   });
 
   it("persists the course catalog without an enrollments blob", () => {
@@ -90,6 +113,9 @@ describe("lifetime store speed contracts", () => {
     expect(runtime).toMatch(/WHERE course_id = \$1/);
     expect(runtime).toContain('const TABLE = "aep_lms_enrollments"');
     expect(runtime).toMatch(/function ensureFileIndex\(/);
+    expect(runtime).toMatch(/COUNT\(\*\)::int AS n FROM \$\{TABLE\}/);
+    expect(runtime).toMatch(/GROUP BY course_id/);
+    expect(runtime).toMatch(/COUNT\(DISTINCT student_id\)/);
   });
 });
 
@@ -154,5 +180,34 @@ describe("indexed enrollment store", () => {
       readFileSync(path.join(process.cwd(), ".data", "aep-courses.json"), "utf8"),
     ) as { enrollments?: unknown[] };
     expect(catalog.enrollments ?? []).toEqual([]);
+  });
+
+  it("aggregates and rebinds without listing every enrollment", () => {
+    const approved = testEnrollment("agg-approved");
+    const pending = testEnrollment("agg-pending");
+    pending.status = "pending";
+    pending.courseId = approved.courseId;
+    pending.studentId = "student-lifetime-speed-agg-other";
+    upsertEnrollment(approved);
+    upsertEnrollment(pending);
+    createdIds.push(approved.id, pending.id);
+    resetEnrollmentStoreRuntime();
+
+    expect(countEnrollments({ courseId: approved.courseId })).toBe(2);
+    expect(countEnrollments({ courseId: approved.courseId, statuses: ["approved"] })).toBe(1);
+    expect(countDistinctStudents({ courseId: approved.courseId })).toBe(2);
+    expect(
+      countEnrollmentsByCourse({ courseId: approved.courseId }).find(
+        (row) => row.courseId === approved.courseId,
+      )?.count,
+    ).toBe(2);
+
+    expect(rebindEnrollmentsStudent(approved.studentId, "student-lifetime-speed-agg-rebound")).toBe(
+      1,
+    );
+    expect(listEnrollmentsForStudent(approved.studentId)).toEqual([]);
+    expect(listEnrollmentsForStudent("student-lifetime-speed-agg-rebound")).toEqual([
+      expect.objectContaining({ id: approved.id, courseId: approved.courseId }),
+    ]);
   });
 });

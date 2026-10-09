@@ -6,7 +6,7 @@ import { ROLES } from "@/constants/roles";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getCourseStats } from "@/services/courses/course-service";
-import { readCoursesDb } from "@/services/courses/store";
+import { listEnrollmentsForCourse, readCoursesDb } from "@/services/courses/store";
 import { getClassStats } from "@/services/classes/class-service";
 import { getAttendanceOverview } from "@/services/classes/attendance-service";
 import { listAttemptsForStudent } from "@/services/quizzes/attempt-service";
@@ -44,8 +44,9 @@ export function getInstructorReport(instructorId: string): InstructorReportBundl
     db.instructors.filter((i) => i.userId === instructorId).map((i) => i.courseId),
   );
   const studentIds = new Set(
-    db.enrollments
-      .filter((e) => courseIds.has(e.courseId) && ["approved", "completed", "pending"].includes(e.status))
+    [...courseIds]
+      .flatMap((id) => listEnrollmentsForCourse(id))
+      .filter((e) => ["approved", "completed", "pending"].includes(e.status))
       .map((e) => e.studentId),
   );
 
@@ -64,8 +65,8 @@ export function getInstructorReport(instructorId: string): InstructorReportBundl
   });
 
   const attendance = getAttendanceOverview(instructorId);
-  const certificatesIssued = listCertificates({ status: "issued" }).filter((c) =>
-    c.instructorId === instructorId || (c.courseId ? courseIds.has(c.courseId) : false),
+  const certificatesIssued = listCertificates({ status: "issued" }).filter(
+    (c) => c.instructorId === instructorId || (c.courseId ? courseIds.has(c.courseId) : false),
   ).length;
 
   const avgProgress =
@@ -77,9 +78,8 @@ export function getInstructorReport(instructorId: string): InstructorReportBundl
   const avgQuiz =
     studentRows.length === 0
       ? 0
-      : Math.round(
-          (studentRows.reduce((s, r) => s + r.quizAverage, 0) / studentRows.length) * 10,
-        ) / 10;
+      : Math.round((studentRows.reduce((s, r) => s + r.quizAverage, 0) / studentRows.length) * 10) /
+        10;
   const completed = studentRows.filter((r) => r.progressPercent >= 100).length;
 
   return {
@@ -89,9 +89,7 @@ export function getInstructorReport(instructorId: string): InstructorReportBundl
     averageStudentProgress: avgProgress,
     attendanceRate: attendance.rate,
     courseCompletionRate:
-      studentRows.length === 0
-        ? 0
-        : Math.round((completed / studentRows.length) * 1000) / 10,
+      studentRows.length === 0 ? 0 : Math.round((completed / studentRows.length) * 1000) / 10,
     quizAverage: avgQuiz,
     certificatesIssued,
     studentRows,

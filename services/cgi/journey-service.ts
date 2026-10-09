@@ -35,7 +35,12 @@ import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { findUserByEmail, findUserById, readAuthDb } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { listEnrollmentsForCourse, readCoursesDb, writeCoursesDb } from "@/services/courses/store";
+import {
+  listEnrollmentsForCourse,
+  readCoursesDb,
+  rebindEnrollmentsStudent,
+} from "@/services/courses/store";
+import { upsertEnrollment } from "@/lib/data/lms-enrollment-store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -69,7 +74,6 @@ import type {
   AtplSubjectDistributionStatus,
   CgiOversightNote,
 } from "@/types/cgi";
-import type { Enrollment } from "@/types/courses";
 
 export class CgiError extends Error {
   status: number;
@@ -1091,11 +1095,7 @@ function bindPaidOrderToStudent(
     order.updatedAt = nowIso();
   });
   if (from && from !== "guest") {
-    writeCoursesDb((db) => {
-      for (const enrollment of db.enrollments) {
-        if (enrollment.studentId === from) enrollment.studentId = live.studentId;
-      }
-    });
+    rebindEnrollmentsStudent(from, live.studentId);
   }
 }
 
@@ -1132,13 +1132,9 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
       order.updatedAt = stamp;
     }
   });
-  writeCoursesDb((db) => {
-    for (const { from, to } of pending) {
-      for (const enrollment of db.enrollments) {
-        if (enrollment.studentId === from) enrollment.studentId = to;
-      }
-    }
-  });
+  for (const { from, to } of pending) {
+    rebindEnrollmentsStudent(from, to);
+  }
   return pending.length;
 }
 
@@ -1432,32 +1428,22 @@ async function ensureAtplPackageSubjectCoverage(
   const missing = officialPackageCourses().filter((course) => !enrolled.has(course.id));
   if (!missing.length) return;
   const now = nowIso();
-  writeCoursesDb((db) => {
-    for (const course of missing) {
-      const already = db.enrollments.some(
-        (row) =>
-          row.courseId === course.id &&
-          row.studentId === studentId &&
-          !["dropped", "rejected"].includes(row.status),
-      );
-      if (already) continue;
-      const enrollment: Enrollment = {
-        id: generateId(),
-        courseId: course.id,
-        studentId,
-        status: "approved",
-        enrolledById: actorId,
-        enrolledAt: now,
-        approvedAt: now,
-        completedAt: null,
-        droppedAt: null,
-        suspendedAt: null,
-        notes: "ATPL Complete Package",
-        updatedAt: now,
-      };
-      db.enrollments.push(enrollment);
-    }
-  });
+  for (const course of missing) {
+    upsertEnrollment({
+      id: generateId(),
+      courseId: course.id,
+      studentId,
+      status: "approved",
+      enrolledById: actorId,
+      enrolledAt: now,
+      approvedAt: now,
+      completedAt: null,
+      droppedAt: null,
+      suspendedAt: null,
+      notes: "ATPL Complete Package",
+      updatedAt: now,
+    });
+  }
 }
 
 /** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */

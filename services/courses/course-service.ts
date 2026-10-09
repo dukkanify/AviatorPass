@@ -16,7 +16,8 @@ import {
 } from "@/services/courses/detail-cache";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
-  listAllEnrollments,
+  countDistinctStudents,
+  countEnrollments,
   listEnrollmentsForCourse,
   readCoursesDb,
   writeCoursesDb,
@@ -469,10 +470,8 @@ export function listCourses(filters: CourseFilters = {}): {
 export function getCourseStats(): CourseStats {
   ensureCoursesSeeded();
   const courses = readCoursesDb().courses.filter((c) => !c.deletedAt);
-  const enrollments = listAllEnrollments();
-  const activeStudentIds = new Set(
-    enrollments.filter((e) => e.status === "approved").map((e) => e.studentId),
-  );
+  const activeStudents = countDistinctStudents({ statuses: ["approved"] });
+  const totalEnrollments = countEnrollments();
   const recentlyUpdated = [...courses]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 5)
@@ -486,8 +485,8 @@ export function getCourseStats(): CourseStats {
     privateCourses: courses.filter((c) => c.status === "private").length,
     scheduledCourses: courses.filter((c) => c.status === "scheduled").length,
     totalCategories: readCoursesDb().categories.filter((c) => c.visible).length,
-    activeStudents: activeStudentIds.size,
-    totalEnrollments: enrollments.length,
+    activeStudents,
+    totalEnrollments,
     recentlyUpdated,
   };
 }

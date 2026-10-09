@@ -8,7 +8,11 @@ import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getCourseStats } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { listEnrollmentsForStudent, readCoursesDb } from "@/services/courses/store";
+import {
+  countEnrollmentsByCourse,
+  listEnrollmentsForStudent,
+  readCoursesDb,
+} from "@/services/courses/store";
 import { getClassStats } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb } from "@/services/classes/store";
@@ -124,25 +128,22 @@ export function getEnrollmentSeries(): SeriesPoint[] {
   ensureCoursesSeeded();
   const db = readCoursesDb();
   const byId = new Map(db.courses.map((c) => [c.id, c]));
-  const counts = new Map<string, number>();
-  for (const e of db.enrollments) {
-    counts.set(e.courseId, (counts.get(e.courseId) ?? 0) + 1);
-  }
-  const top = [...counts.entries()]
-    .map(([id, value]) => ({
-      name: byId.get(id)?.code ?? id.slice(0, 6),
-      value,
+  const counts = countEnrollmentsByCourse();
+  const top = counts
+    .map((row) => ({
+      name: byId.get(row.courseId)?.code ?? row.courseId.slice(0, 6),
+      value: row.count,
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
   if (top.length) return top;
 
   const buckets = { PPL: 0, CPL: 0, ATPL: 0 };
-  for (const e of db.enrollments) {
-    const code = byId.get(e.courseId)?.code ?? "";
-    if (code.startsWith("ATPL")) buckets.ATPL += 1;
-    else if (code.startsWith("CPL")) buckets.CPL += 1;
-    else if (code.startsWith("PPL")) buckets.PPL += 1;
+  for (const row of counts) {
+    const code = byId.get(row.courseId)?.code ?? "";
+    if (code.startsWith("ATPL")) buckets.ATPL += row.count;
+    else if (code.startsWith("CPL")) buckets.CPL += row.count;
+    else if (code.startsWith("PPL")) buckets.PPL += row.count;
   }
   return [
     { name: "PPL", value: buckets.PPL },
