@@ -8,9 +8,13 @@ import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import {
+  countDistinctStudents,
+  countEnrollments,
+  countEnrollmentsByCourse,
   listAllEnrollments,
   listEnrollmentsForCourse,
   listEnrollmentsForStudent,
+  rebindEnrollmentsStudent,
   replaceAllEnrollments,
 } from "@/lib/data/lms-enrollment-store";
 import { clearCourseDetailCache } from "@/services/courses/detail-cache";
@@ -207,4 +211,12 @@ export function replaceCoursesDb(db: CoursesDatabase): void {
   clearCourseDetailCache();
 }
 
-export { listAllEnrollments, listEnrollmentsForCourse, listEnrollmentsForStudent };
+export {
+  countDistinctStudents,
+  countEnrollments,
+  countEnrollmentsByCourse,
+  listAllEnrollments,
+  listEnrollmentsForCourse,
+  listEnrollmentsForStudent,
+  rebindEnrollmentsStudent,
+};

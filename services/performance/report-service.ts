@@ -9,7 +9,7 @@ import { ROLES } from "@/constants/roles";
 import { findUserById } from "@/services/auth/store";
 import { getLiveClass } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass } from "@/services/classes/store";
 import { getCourseById } from "@/services/courses/course-service";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { sendEmail } from "@/services/email/mailer";
@@ -106,8 +106,8 @@ export async function createPerformanceReport(
     throw new PerformanceReportError("Student not found", 404);
   }
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  const participants = listParticipantsForClass(input.liveClassId).filter(
+    (p) => p.role === "participant",
   );
   const isParticipant = participants.some((p) => p.userId === input.studentId);
   // Allow report even if not yet enrolled as participant when instructor manages the class.

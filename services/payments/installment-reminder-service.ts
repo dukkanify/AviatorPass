@@ -10,6 +10,11 @@ import { installmentReminderEmailTemplate } from "@/services/settings/email-temp
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { processOverdueInstallments } from "@/services/payments/installment-service";
 import { formatMinor } from "@/services/payments/money";
+import {
+  listInstallmentPlansByStatus,
+  listScheduleForPlan,
+  upsertScheduleItem,
+} from "@/lib/data/lms-installment-store";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { InstallmentReminderLog } from "@/types/payments";
 
@@ -34,15 +39,11 @@ export async function processInstallmentReminders(): Promise<{
   const today = startOfDay(Date.now());
   let sent = 0;
 
-  const plans = readPaymentsDb().installmentPlans.filter(
-    (p) => p.status === "active" || p.status === "overdue" || p.status === "suspended",
-  );
+  const plans = listInstallmentPlansByStatus(["active", "overdue", "suspended"]);
 
   for (const plan of plans) {
-    const items = readPaymentsDb().installmentSchedule.filter(
-      (s) =>
-        s.planId === plan.id &&
-        (s.status === "due" || s.status === "upcoming" || s.status === "overdue"),
+    const items = listScheduleForPlan(plan.id).filter(
+      (s) => s.status === "due" || s.status === "upcoming" || s.status === "overdue",
     );
     const student = findUserById(plan.studentId);
     if (!student) continue;
@@ -124,12 +125,11 @@ export async function processInstallmentReminders(): Promise<{
         }
       }
 
-      writePaymentsDb((db) => {
-        const row = db.installmentSchedule.find((s) => s.id === item.id);
-        if (!row) return;
-        row.reminderSentAt = [...row.reminderSentAt, reminderKey];
-        row.lastReminderAt = nowIso();
-        row.updatedAt = nowIso();
+      upsertScheduleItem({
+        ...item,
+        reminderSentAt: [...item.reminderSentAt, reminderKey],
+        lastReminderAt: nowIso(),
+        updatedAt: nowIso(),
       });
     }
   }

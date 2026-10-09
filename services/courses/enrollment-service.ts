@@ -8,7 +8,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ENROLLMENT_STATUSES } from "@/constants/courses";
 import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { getCourseById } from "@/services/courses/course-service";
 import { canAcceptEnrollment } from "@/services/courses/publishing";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -29,14 +29,14 @@ import type {
 } from "@/types/courses";
 
 function studentMeta(studentId: string) {
-  const u = readAuthDb().users.find((x) => x.id === studentId);
+  const u = findUserById(studentId);
   if (!u) return { studentName: null, studentEmail: null };
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return { studentName: name || u.email, studentEmail: u.email };
 }
 
 function assertStudent(studentId: string) {
-  const u = readAuthDb().users.find((x) => x.id === studentId);
+  const u = findUserById(studentId);
   if (!u) throw new CourseValidationError("Student not found");
   if (u.role !== ROLES.STUDENT) {
     throw new CourseValidationError("Only student accounts can be enrolled");

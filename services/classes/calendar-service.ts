@@ -5,7 +5,7 @@
 import { ROLES } from "@/constants/roles";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
 import type { CalendarViewEvent, LiveClass } from "@/types/classes";
 import type { UserProfile } from "@/types";
 
@@ -33,11 +33,7 @@ export function getCalendarEventsForUser(
   let classes = db.classes.filter((c) => !c.deletedAt);
 
   if (user.role === ROLES.STUDENT) {
-    const allowed = new Set(
-      db.participants
-        .filter((p) => p.userId === user.id)
-        .map((p) => p.liveClassId),
-    );
+    const allowed = new Set(listParticipantsForUser(user.id).map((p) => p.liveClassId));
     classes = classes.filter((c) => allowed.has(c.id) && c.status !== "draft");
   } else if (user.role === ROLES.INSTRUCTOR) {
     classes = classes.filter(
@@ -69,11 +65,7 @@ export function getAgendaForUser(user: UserProfile) {
   // For students, filter list by participation
   let upcomingData = upcoming.data;
   if (user.role === ROLES.STUDENT) {
-    const allowed = new Set(
-      readClassesDb()
-        .participants.filter((p) => p.userId === user.id)
-        .map((p) => p.liveClassId),
-    );
+    const allowed = new Set(listParticipantsForUser(user.id).map((p) => p.liveClassId));
     upcomingData = upcomingData.filter((c) => allowed.has(c.id));
   }
 

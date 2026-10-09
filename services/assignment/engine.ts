@@ -14,14 +14,15 @@ import {
 } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { appJoinUrl } from "@/lib/site-origin";
-import { findUserById, readAuthDb } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { findUserById } from "@/services/auth/store";
 import { assignInstructor, getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { createLiveClass, getLiveClass, listLiveClasses } from "@/services/classes/class-service";
 import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass, readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { dispatchEmailEvent } from "@/services/email/automation-service";
 import { emitNotification, notifyUsers } from "@/services/notifications/notification-service";
@@ -91,14 +92,11 @@ async function alertUnableToSchedule(input: {
     .filter(Boolean)
     .join(" ");
 
-  const auth = readAuthDb();
-  const cgiIds = auth.users
-    .filter((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR && u.status === "active")
+  const cgiIds = listUsersByRole(ROLES.CHIEF_GROUND_INSTRUCTOR)
+    .filter((u) => u.status === "active")
     .map((u) => u.id);
-  const adminIds = auth.users
-    .filter(
-      (u) => (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
-    )
+  const adminIds = [...listUsersByRole(ROLES.SUPER_ADMIN), ...listUsersByRole(ROLES.ADMIN)]
+    .filter((u) => u.status === "active")
     .map((u) => u.id);
   const recipients = [...new Set([...cgiIds, ...adminIds])];
 
@@ -704,8 +702,8 @@ export async function reportUnableToScheduleNextLecture(input: {
     throw new AssignmentError("This class is not linked to a subject", 400);
   }
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  const participants = listParticipantsForClass(input.liveClassId).filter(
+    (p) => p.role === "participant",
   );
   const studentId = input.studentId?.trim() || participants[0]?.userId || null;
   if (!studentId) throw new AssignmentError("Select a student", 400);
@@ -833,8 +831,8 @@ export async function scheduleNextLectureFromClass(input: {
     throw new AssignmentError("Next lecture must be in the future", 400);
   }
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId && p.role === "participant",
+  const participants = listParticipantsForClass(input.liveClassId).filter(
+    (p) => p.role === "participant",
   );
   const studentId = input.studentId?.trim() || participants[0]?.userId || null;
   if (!studentId) throw new AssignmentError("Select a student", 400);
@@ -1165,7 +1163,7 @@ export function getInstructorCalendar(
 
 export function getAssignmentEngineSnapshot() {
   ensureCoursesSeeded();
-  const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR);
   const requests = listAssignmentRequests();
   return {
     settings: readAssignmentDb().settings,

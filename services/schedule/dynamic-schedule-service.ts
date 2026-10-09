@@ -7,7 +7,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { generateId } from "@/lib/security/crypto";
 import { logActivity } from "@/services/auth/activity-log";
-import { findUserById, readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import {
   cancelLiveClass,
   canManageClass,
@@ -21,7 +21,12 @@ import {
 import { listAttendance, upsertAttendance } from "@/services/classes/attendance-service";
 import { listReminders, queueClassReminders } from "@/services/classes/reminder-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import {
+  listParticipantsForClass,
+  listParticipantsForUser,
+  readClassesDb,
+  writeClassesDb,
+} from "@/services/classes/store";
 import { getCourseById } from "@/services/courses/course-service";
 import { listAssignedFirstLectures } from "@/services/cgi/journey-service";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
@@ -49,7 +54,7 @@ export class ScheduleError extends Error {
 
 function userName(userId: string | null): string | null {
   if (!userId) return null;
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return null;
   return [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email;
 }
@@ -142,8 +147,8 @@ function visibleClassIds(options: {
       );
     } else if (options.role === ROLES.STUDENT) {
       const myIds = new Set(
-        readClassesDb()
-          .participants.filter((p) => p.userId === options.userId && p.role === "participant")
+        listParticipantsForUser(options.userId)
+          .filter((p) => p.role === "participant")
           .map((p) => p.liveClassId),
       );
       rows = rows.filter((c) => myIds.has(c.id));
@@ -153,8 +158,8 @@ function visibleClassIds(options: {
   if (options.studentId) {
     const sid = options.studentId;
     const studentClassIds = new Set(
-      readClassesDb()
-        .participants.filter((p) => p.userId === sid && p.role === "participant")
+      listParticipantsForUser(sid)
+        .filter((p) => p.role === "participant")
         .map((p) => p.liveClassId),
     );
     rows = rows.filter((c) => studentClassIds.has(c.id));
@@ -227,11 +232,7 @@ export function getNextSession(options: {
   const reminders = session ? listReminders({ liveClassId: session.id, status: "pending" }) : [];
   const instructorIds = new Set(session ? [session.instructorId].filter(Boolean) : []);
   const participantRoles = session
-    ? new Map(
-        readClassesDb()
-          .participants.filter((p) => p.liveClassId === session.id)
-          .map((p) => [p.userId, p.role] as const),
-      )
+    ? new Map(listParticipantsForClass(session.id).map((p) => [p.userId, p.role] as const))
     : new Map<string, string>();
 
   let pendingStudentReminders = 0;
@@ -708,9 +709,7 @@ export async function sendImmediateAudienceReminder(input: {
   const cls = getLiveClass(input.liveClassId);
   if (!cls) throw new ScheduleError("Session not found", 404);
 
-  const participants = readClassesDb().participants.filter(
-    (p) => p.liveClassId === input.liveClassId,
-  );
+  const participants = listParticipantsForClass(input.liveClassId);
   const targets = participants.filter((p) => {
     const isInstructor = p.role === "host" || p.role === "cohost" || p.userId === cls.instructorId;
     if (input.audience === "all") return true;

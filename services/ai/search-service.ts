@@ -6,7 +6,8 @@ import { assertAiAccess, assertRateLimit, canUseAdminInsights } from "@/services
 import { ensureAiSeeded } from "@/services/ai/seed";
 import { listCourses } from "@/services/courses/course-service";
 import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { listOrders } from "@/services/payments/checkout-service";
@@ -15,7 +16,10 @@ import { getStudentProgressSnapshot } from "@/services/certificates/progress-ser
 import type { AiSearchResult } from "@/types/ai";
 import type { UserProfile } from "@/types";
 
-export function aiSearch(user: UserProfile, query: string): {
+export function aiSearch(
+  user: UserProfile,
+  query: string,
+): {
   interpretation: string;
   results: AiSearchResult[];
 } {
@@ -42,7 +46,10 @@ export function aiSearch(user: UserProfile, query: string): {
 
   if (/atpl|navigation|lesson|course/.test(q)) {
     interpretation = "Course / lesson catalog search";
-    const courses = listCourses({ pageSize: 50, q: query.replace(/find|show|all/gi, "").trim() }).data;
+    const courses = listCourses({
+      pageSize: 50,
+      q: query.replace(/find|show|all/gi, "").trim(),
+    }).data;
     for (const c of courses.slice(0, 8)) {
       results.push({
         type: "course",
@@ -56,8 +63,8 @@ export function aiSearch(user: UserProfile, query: string): {
 
   if (/low attendance|inactive student|at risk/.test(q) && canUseAdminInsights(user)) {
     interpretation = "Students needing attention";
-    const students = readAuthDb().users.filter(
-      (u) => u.role === ROLES.STUDENT && u.status === ACCOUNT_STATUS.ACTIVE,
+    const students = listUsersByRole(ROLES.STUDENT).filter(
+      (u) => u.status === ACCOUNT_STATUS.ACTIVE,
     );
     for (const s of students.slice(0, 10)) {
       const snap = getStudentProgressSnapshot(s.id);

@@ -5,7 +5,12 @@
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { assertCanManageFinance } from "@/services/payments/access";
-import { listOrders, listPayments, listTransactionLogs } from "@/services/payments/checkout-service";
+import { listOrdersByStatus } from "@/lib/data/lms-payment-ledger-store";
+import {
+  listOrders,
+  listPayments,
+  listTransactionLogs,
+} from "@/services/payments/checkout-service";
 import { listRefunds } from "@/services/payments/refund-service";
 import { listPayouts } from "@/services/payments/payout-service";
 import { listWallets } from "@/services/payments/wallet-service";
@@ -14,12 +19,13 @@ import { formatMinor } from "@/services/payments/money";
 import type { UserProfile } from "@/types";
 
 export function getFinanceDashboard() {
-  const orders = listOrders();
-  const paid = orders.filter((o) => o.status === "paid" || o.status === "refunded");
-  const revenue = paid.reduce((s, o) => s + (o.status === "refunded" ? 0 : o.totalAmount), 0);
-  const refunded = listRefunds().filter((r) => r.status === "processed");
+  const paid = listOrdersByStatus("paid");
+  const pending = listOrdersByStatus("pending");
+  const failed = listOrdersByStatus("failed");
+  const revenue = paid.reduce((s, o) => s + o.totalAmount, 0);
+  const refunded = listRefunds({ status: "processed" });
   const refundTotal = refunded.reduce((s, r) => s + r.amount, 0);
-  const pendingPayments = orders.filter((o) => o.status === "pending" || o.status === "failed").length;
+  const pendingPayments = pending.length + failed.length;
   const wallets = listWallets();
   const instructorEarnings = wallets.reduce((s, w) => s + w.lifetimeEarned, 0);
 
@@ -44,8 +50,8 @@ export function getFinanceDashboard() {
     liveClassRevenue: w.liveClassRevenue,
   }));
 
-  const monthly = buildMonthlySeries(paid.filter((o) => o.status === "paid"));
-  const daily = buildDailySeries(paid.filter((o) => o.status === "paid"));
+  const monthly = buildMonthlySeries(paid);
+  const daily = buildDailySeries(paid);
 
   return {
     platformRevenue: revenue,
@@ -56,9 +62,7 @@ export function getFinanceDashboard() {
     instructorEarnings,
     refundRequests: listRefunds({ status: "requested" }).length,
     refundTotal,
-    topSellingCourses: [...byCourse.values()]
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 8),
+    topSellingCourses: [...byCourse.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8),
     revenueByInstructor: byInstructor,
     monthlyGrowth: monthly,
     dailyGrowth: daily,
@@ -66,7 +70,7 @@ export function getFinanceDashboard() {
   };
 }
 
-function buildMonthlySeries(orders: ReturnType<typeof listOrders>) {
+function buildMonthlySeries(orders: ReturnType<typeof listOrdersByStatus>) {
   const map = new Map<string, number>();
   for (const o of orders) {
     const key = (o.paidAt ?? o.createdAt).slice(0, 7);
@@ -77,7 +81,7 @@ function buildMonthlySeries(orders: ReturnType<typeof listOrders>) {
     .map(([name, value]) => ({ name, value }));
 }
 
-function buildDailySeries(orders: ReturnType<typeof listOrders>) {
+function buildDailySeries(orders: ReturnType<typeof listOrdersByStatus>) {
   const map = new Map<string, number>();
   for (const o of orders) {
     const key = (o.paidAt ?? o.createdAt).slice(0, 10);
@@ -133,13 +137,7 @@ export function exportFinanceCsv(
   if (report === "refunds") {
     return toCsv(
       ["refundNumber", "orderId", "status", "amount", "reason"],
-      listRefunds().map((r) => [
-        r.refundNumber,
-        r.orderId,
-        r.status,
-        String(r.amount),
-        r.reason,
-      ]),
+      listRefunds().map((r) => [r.refundNumber, r.orderId, r.status, String(r.amount), r.reason]),
     );
   }
   if (report === "payouts") {

@@ -16,7 +16,8 @@ import { findUserById } from "@/services/auth/store";
 import { sendEmail } from "@/services/email/mailer";
 import { renderBrandedEmail } from "@/services/settings/email-templates";
 import { formatMinor } from "@/services/payments/money";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import { getPaymentById, listPaymentsForOrder } from "@/lib/data/lms-payment-ledger-store";
+import { writePaymentsDb } from "@/services/payments/store";
 import type { Order } from "@/types/payments";
 
 export const AVIATORPASS_CEO_EMAIL = "ceo@aviatorpass.com";
@@ -145,9 +146,9 @@ function opsEmailInputFromOrder(order: Order): InstructorAssignmentOpsEmailInput
     [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
     order.studentName ||
     "Student";
-  const payment = readPaymentsDb().payments.find(
-    (row) => row.id === order.paymentId || row.orderId === order.id,
-  );
+  const payment = order.paymentId
+    ? getPaymentById(order.paymentId)
+    : (listPaymentsForOrder(order.id)[0] ?? null);
   const method =
     (payment?.methodBrand && PAYMENT_METHOD_LABELS[payment.methodBrand]) ||
     (payment?.provider === "stripe" ? "Credit Card" : payment?.provider) ||

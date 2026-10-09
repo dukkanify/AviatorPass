@@ -11,7 +11,14 @@ import { formatMinor, formatTamaraAmount } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
 import { notifyRole } from "@/services/notifications/notification-service";
 import { dispatchEmailEvent, dispatchRoleAlert } from "@/services/email/automation-service";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import {
+  countRefunds,
+  getRefundById,
+  listAllRefunds,
+  listRefundsByStatus,
+  listRefundsForStudent,
+} from "@/lib/data/lms-refund-store";
+import { writePaymentsDb } from "@/services/payments/store";
 import { clawbackForRefund } from "@/services/payments/wallet-service";
 import { refundTalyOrder } from "@/services/payments/taly-client";
 import { isTalyConfigured } from "@/services/payments/taly-config";
@@ -24,7 +31,7 @@ function nowIso() {
 }
 
 function nextRefundNumber(): string {
-  const n = readPaymentsDb().refunds.length + 1;
+  const n = countRefunds() + 1;
   return `REF-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
 }
 
@@ -32,16 +39,19 @@ export function listRefunds(filters?: {
   studentId?: string;
   status?: RefundRequest["status"] | "all";
 }) {
-  let rows = [...readPaymentsDb().refunds];
-  if (filters?.studentId) rows = rows.filter((r) => r.studentId === filters.studentId);
-  if (filters?.status && filters.status !== "all") {
+  let rows = filters?.studentId
+    ? listRefundsForStudent(filters.studentId)
+    : filters?.status && filters.status !== "all"
+      ? listRefundsByStatus(filters.status)
+      : listAllRefunds();
+  if (filters?.studentId && filters?.status && filters.status !== "all") {
     rows = rows.filter((r) => r.status === filters.status);
   }
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function getRefund(id: string): RefundRequest | null {
-  return readPaymentsDb().refunds.find((r) => r.id === id) ?? null;
+  return getRefundById(id);
 }
 
 export async function requestRefund(input: {

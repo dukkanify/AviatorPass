@@ -5,7 +5,8 @@
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
 import {
   assertCanManageSupport,
@@ -100,9 +101,7 @@ export async function createTicket(input: {
     db.tickets.unshift(ticket);
   });
 
-  const admins = readAuthDb().users.filter(
-    (u) => u.role === ROLES.ADMIN || u.role === ROLES.SUPER_ADMIN,
-  );
+  const admins = [...listUsersByRole(ROLES.ADMIN), ...listUsersByRole(ROLES.SUPER_ADMIN)];
   await notifyUsers(
     admins.map((a) => a.id),
     {
@@ -144,7 +143,7 @@ export async function updateTicket(input: {
     if (input.assigneeId !== undefined) {
       t.assigneeId = input.assigneeId;
       if (input.assigneeId) {
-        const u = readAuthDb().users.find((x) => x.id === input.assigneeId);
+        const u = findUserById(input.assigneeId);
         t.assigneeName = u ? toUserProfile(u).fullName || u.email : null;
       } else {
         t.assigneeName = null;

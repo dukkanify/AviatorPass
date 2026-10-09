@@ -7,18 +7,14 @@ import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ATTENDANCE_STATUSES } from "@/constants/classes";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { getLiveClass } from "@/services/classes/class-service";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { ClassValidationError } from "@/services/classes/validation";
-import type {
-  AttendanceRecord,
-  AttendanceStatus,
-  AttendanceWithStudent,
-} from "@/types/classes";
+import type { AttendanceRecord, AttendanceStatus, AttendanceWithStudent } from "@/types/classes";
 
 function studentMeta(studentId: string) {
-  const u = readAuthDb().users.find((x) => x.id === studentId);
+  const u = findUserById(studentId);
   if (!u) return { studentName: null, studentEmail: null };
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return { studentName: name || u.email, studentEmail: u.email };
@@ -55,10 +51,7 @@ export async function upsertAttendance(input: {
       Math.floor((Date.parse(input.leaveTime) - Date.parse(input.joinTime)) / 1000),
     );
   }
-  const attendancePercent = Math.min(
-    100,
-    Math.round((durationSeconds / classDuration) * 100),
-  );
+  const attendancePercent = Math.min(100, Math.round((durationSeconds / classDuration) * 100));
 
   const existing = readClassesDb().attendance.find(
     (a) => a.liveClassId === input.liveClassId && a.studentId === input.studentId,
@@ -155,16 +148,11 @@ export function getAttendanceOverview(
   let classes = readClassesDb().classes.filter((c) => !c.deletedAt);
   if (opts.instructorId) {
     classes = classes.filter(
-      (c) =>
-        c.instructorId === opts.instructorId || c.assistantInstructorId === opts.instructorId,
+      (c) => c.instructorId === opts.instructorId || c.assistantInstructorId === opts.instructorId,
     );
   }
   if (opts.studentId) {
-    const classIds = new Set(
-      readClassesDb()
-        .participants.filter((p) => p.userId === opts.studentId)
-        .map((p) => p.liveClassId),
-    );
+    const classIds = new Set(listParticipantsForUser(opts.studentId).map((p) => p.liveClassId));
     classes = classes.filter((c) => classIds.has(c.id));
   }
   const ids = new Set(classes.map((c) => c.id));

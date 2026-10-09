@@ -23,7 +23,13 @@ function emptyDb(): StripeDatabase {
 
 export function readStripeDb(): StripeDatabase {
   const raw = readJsonFile<Partial<StripeDatabase>>(dataFile(), emptyDb);
-  return { checkouts: raw.checkouts ?? [] };
+  const checkouts = raw.checkouts ?? [];
+  if (checkouts.length > 400) {
+    const trimmed = { checkouts: checkouts.slice(0, 400) };
+    writeJsonFile(dataFile(), trimmed);
+    return trimmed;
+  }
+  return { checkouts };
 }
 
 export function writeStripeDb(mutator: (db: StripeDatabase) => void): StripeDatabase {
@@ -60,7 +66,7 @@ export function upsertCheckout(record: StripeCheckoutRecord): StripeCheckoutReco
     );
     if (idx >= 0) db.checkouts[idx] = record;
     else db.checkouts.unshift(record);
-    if (db.checkouts.length > 5000) db.checkouts = db.checkouts.slice(0, 5000);
+    if (db.checkouts.length > 400) db.checkouts = db.checkouts.slice(0, 400);
   });
   return record;
 }

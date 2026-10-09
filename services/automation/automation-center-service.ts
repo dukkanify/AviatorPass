@@ -6,7 +6,8 @@
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { getUserById, listUsersByRole } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { readAssignmentDb, updateAssignmentEngineSettings } from "@/services/assignment/store";
 import {
   getAutomationMeta,
@@ -97,8 +98,8 @@ function buildDomainCards(): AutomationDomainCard[] {
   const email = getEmailAutomationOverview();
   const atplCourses = listAtplCourses();
   const certDefault = getDefaultTemplate();
-  const instructorCount = readAuthDb().users.filter(
-    (u) => u.role === ROLES.INSTRUCTOR && u.status === "active",
+  const instructorCount = listUsersByRole(ROLES.INSTRUCTOR).filter(
+    (u) => u.status === "active",
   ).length;
 
   const cards: AutomationDomainCard[] = [
@@ -424,7 +425,7 @@ export async function configureAutomationDomain(
   }
 
   const patch = input.patch;
-  const actor = readAuthDb().users.find((u) => u.id === input.actorId);
+  const actor = getUserById(input.actorId);
   if (!actor) throw new AutomationCenterError("Actor not found", 404);
   const user = toUserProfile(actor);
 

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { ROLES } from "@/constants/roles";
 import { requireAuth } from "@/services/auth/guards";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { communicationErrorResponse } from "@/app/api/communication/_utils";
 
 /** Directory of users available for starting conversations — scoped by role. */
@@ -18,8 +19,8 @@ export async function GET(request: Request) {
       ROLES.SUPER_ADMIN,
     ]);
 
-    const rows = readAuthDb()
-      .users.filter((u) => {
+    const rows = listAllUsers()
+      .filter((u) => {
         if (u.id === user.id || u.status !== "active") return false;
         // Students: instructors / CGI / admin / support — never other students.
         if (user.role === ROLES.STUDENT) return staffRoles.has(u.role);

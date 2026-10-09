@@ -7,7 +7,7 @@ import { enqueueJob, processQueue } from "@/services/api-platform/queue-service"
 import { emailScheduleLifecycle } from "@/services/email/automation-service";
 import { notifyUsers } from "@/services/notifications/notification-service";
 import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForClass } from "@/services/classes/store";
 
 export type ZoomNotifyKind = "created" | "updated" | "cancelled" | "starts_soon" | "finished";
 
@@ -57,9 +57,7 @@ function titles(kind: ZoomNotifyKind, classTitle: string) {
 }
 
 export function classParticipantIds(liveClassId: string): string[] {
-  return readClassesDb()
-    .participants.filter((p) => p.liveClassId === liveClassId)
-    .map((p) => p.userId);
+  return listParticipantsForClass(liveClassId).map((p) => p.userId);
 }
 
 export async function sendZoomMeetingNotifications(input: {
