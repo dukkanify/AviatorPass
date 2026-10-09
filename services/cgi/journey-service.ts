@@ -143,7 +143,7 @@ export function listAtplCourses() {
 
 function officialPackageCourses() {
   const wanted = new Set<string>(ATPL_PACKAGE_LMS_COURSE_CODES);
-  const wantedEasa = new Set(ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject) => subject.code));
+  const wantedEasa = new Set<string>(ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject) => subject.code));
   const courses = listAtplCourses();
   const byCode = courses.filter((course) => wanted.has(course.code));
   if (byCode.length) return byCode;
