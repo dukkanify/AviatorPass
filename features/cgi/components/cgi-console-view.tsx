@@ -29,6 +29,7 @@ type Snapshot = {
     studentId: string;
     name: string;
     email: string;
+    firstSubjectCourseId?: string | null;
     firstSubjectCode: string | null;
     firstSubjectTitle?: string | null;
     enrollmentCount: number;
@@ -273,6 +274,18 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
   );
   const [noteTarget, setNoteTarget] = React.useState(initial.students[0]?.studentId ?? "");
   const [noteBody, setNoteBody] = React.useState("");
+
+  React.useEffect(() => {
+    const student = data.students.find((row) => row.studentId === studentId);
+    const selected =
+      student?.firstSubjectCourseId ||
+      data.subjects.find((subject) => subject.code === student?.firstSubjectCode)?.id ||
+      "";
+    if (selected) {
+      setStudentFirstSubject(selected);
+      setLectureCourseId(selected);
+    }
+  }, [studentId, data.students, data.subjects]);
 
   async function refresh() {
     const next = await cgiFetch<Snapshot>("?view=dashboard");

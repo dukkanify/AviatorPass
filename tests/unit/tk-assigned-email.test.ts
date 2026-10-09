@@ -166,7 +166,16 @@ describe("official ATPL instructor assignment email", () => {
       actorId: cgi.id,
     });
 
-    expect(lecture.status).toBe("assigned");
+    expect(lecture.status).toBe("scheduled");
+    expect(lecture.liveClassId).toBeTruthy();
+    expect(lecture.courseId).toBe(course.id);
+    expect(
+      listNotifications(student.id).data.some(
+        (row) =>
+          row.type === "student.instructor_assigned" &&
+          row.actionUrl === `/join/${lecture.liveClassId}`,
+      ),
+    ).toBe(true);
     const sent = newEmails(beforeIds);
     expect(
       sent.some(

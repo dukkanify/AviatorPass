@@ -160,9 +160,14 @@ export async function notifyAtplInstructorAssigned(
     date ? `Date: ${date}.` : "",
     time ? `Time: ${time}.` : "",
     comments ? `Comments: ${comments}.` : "",
+    joinUrl ? `Meeting link: ${joinUrl}` : "",
   ]
     .filter(Boolean)
     .join(" ");
+  const studentActionUrl = input.liveClassId ? `/join/${input.liveClassId}` : "/student/dashboard";
+  const instructorActionUrl = input.liveClassId
+    ? `/join/${input.liveClassId}`
+    : "/instructor/dashboard";
 
   const templateData = {
     title: subjectTitle,
@@ -184,7 +189,7 @@ export async function notifyAtplInstructorAssigned(
       body: studentDetail,
       type: "student.instructor_assigned",
       email: false,
-      actionUrl: "/student/dashboard",
+      actionUrl: studentActionUrl,
       data: {
         instructorId: input.instructorId,
         courseId: input.courseId,
@@ -216,7 +221,7 @@ export async function notifyAtplInstructorAssigned(
         body: staffDetail,
         type: "instructor.student_assigned",
         email: false,
-        actionUrl: "/instructor/dashboard",
+        actionUrl: instructorActionUrl,
         data: {
           studentId: input.studentId,
           courseId: input.courseId,

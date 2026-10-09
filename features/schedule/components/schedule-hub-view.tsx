@@ -248,6 +248,16 @@ export function ScheduleHubView({
                       {lecture.onTimetable ? "On timetable" : "Assigned"}
                     </span>
                   </p>
+                  {lecture.liveClassId ? (
+                    <p className="mt-2">
+                      <Link
+                        className="text-sm font-medium text-accent"
+                        href={`/join/${lecture.liveClassId}`}
+                      >
+                        Open classroom
+                      </Link>
+                    </p>
+                  ) : null}
                 </li>
               ))
             )}
@@ -294,17 +304,32 @@ export function ScheduleHubView({
                 Instructor: {overview?.nextSession.pendingInstructorReminders ?? 0}
               </span>
             </div>
+            <p>
+              <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
+                Open classroom
+              </Link>
+            </p>
           </div>
         ) : atplSchedule &&
           !atplSchedule.scheduleProvisional &&
           atplSchedule.confirmedFirstLectureLabel ? (
           <div className="space-y-2">
             <p className="text-2xl font-semibold tracking-tight">
-              {ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+              {atplSchedule.firstLectureSubjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
             </p>
             <p className="text-sm text-muted-foreground">
               {atplSchedule.confirmedFirstLectureLabel} · upcoming · ATPL
             </p>
+            {atplSchedule.firstLectureLiveClassId ? (
+              <p>
+                <Link
+                  className="text-sm font-medium text-accent"
+                  href={`/join/${atplSchedule.firstLectureLiveClassId}`}
+                >
+                  Open classroom
+                </Link>
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No upcoming session.</p>

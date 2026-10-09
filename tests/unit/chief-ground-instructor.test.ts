@@ -112,8 +112,9 @@ describe("chief ground instructor (CR004)", () => {
       studentId: student!.id,
       actorId: cgi.id,
     });
-    expect(lecture.status).toBe("assigned");
+    expect(lecture.status).toBe("scheduled");
     expect(lecture.lessonTitle).toBe("Met briefing");
-    expect(lecture.liveClassId).toBeNull();
+    expect(lecture.liveClassId).toBeTruthy();
+    expect(lecture.courseId).toBe(subjects[0]!.id);
   }, 60_000);
 });
