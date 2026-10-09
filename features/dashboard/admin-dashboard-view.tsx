@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   BookOpen,
   ClipboardList,
@@ -18,11 +19,21 @@ import {
   AreaTrendChart,
   QuickActions,
   RecentActivity,
-  CalendarWidget,
   type SeriesPoint,
   type ActivityItem,
   type CalendarEvent,
 } from "@/components/dashboard";
+
+const CalendarWidget = dynamic(
+  () =>
+    import("@/components/dashboard/calendar-widget").then((m) => ({
+      default: m.CalendarWidget,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 animate-pulse rounded-xl bg-muted" aria-hidden />,
+  },
+);
 
 interface AdminDashboardViewProps {
   overview: {

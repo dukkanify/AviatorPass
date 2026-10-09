@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "@/components/ui/app-link";
 
 import { siteStatic } from "@/config/site-static";
@@ -75,25 +76,43 @@ function BrandLogo({
   // (JS default params do NOT apply when the caller passes `href={undefined}`).
   // Only invalid non-empty values go through safeHref (which warns in dev).
 
+  const width = variant === "mark" ? 44 : variant === "stacked" ? 160 : 360;
+  const height = variant === "mark" ? 44 : variant === "stacked" ? 150 : 76;
+  const raster = /\.(png|jpe?g|webp|avif)(\?|$)/i.test(src);
+  const imageClass = cn(
+    "h-11 w-auto object-contain object-left",
+    variant === "mark" && "h-11 w-11",
+    variant === "full" && "h-10 w-auto max-w-[min(360px,85vw)] sm:h-11",
+    variant === "dark" && "h-10 w-auto max-w-[min(360px,85vw)] sm:h-11",
+    variant === "stacked" && "h-28 w-auto max-w-[180px]",
+  );
+
   const content = (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG/SVG lockup */}
-      <img
-        src={src}
-        alt={name}
-        width={variant === "mark" ? 44 : variant === "stacked" ? 160 : 360}
-        height={variant === "mark" ? 44 : variant === "stacked" ? 150 : 76}
-        className={cn(
-          "h-11 w-auto object-contain object-left",
-          variant === "mark" && "h-11 w-11",
-          variant === "full" && "h-10 w-auto max-w-[min(360px,85vw)] sm:h-11",
-          variant === "dark" && "h-10 w-auto max-w-[min(360px,85vw)] sm:h-11",
-          variant === "stacked" && "h-28 w-auto max-w-[180px]",
-        )}
-        decoding="async"
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-      />
+      {raster ? (
+        <Image
+          src={src}
+          alt={name}
+          width={width}
+          height={height}
+          className={imageClass}
+          priority={priority}
+          fetchPriority={priority ? "high" : "auto"}
+          loading={priority ? "eager" : "lazy"}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- SVG lockups stay unoptimized
+        <img
+          src={src}
+          alt={name}
+          width={width}
+          height={height}
+          className={imageClass}
+          decoding="async"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+        />
+      )}
       {showWordmark && variant === "mark" ? (
         <span className="font-display text-lg font-semibold tracking-tight text-primary">
           <span className="text-primary">AVIATOR</span> <span className="text-accent">PASS</span>

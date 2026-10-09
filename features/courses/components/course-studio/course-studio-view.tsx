@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import "@/styles/course-studio.css";
 import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Copy, Eye, Loader2, Save } from "lucide-react";

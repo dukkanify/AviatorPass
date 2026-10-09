@@ -78,6 +78,7 @@ import {
   type DashboardIcon,
   type DashboardNavItem,
 } from "@/constants/dashboard-nav";
+import "@/styles/notification-bell.css";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { BrandLogo } from "@/components/brand/brand-logo";

@@ -38,9 +38,9 @@ import {
   X,
 } from "lucide-react";
 
+import dynamic from "next/dynamic";
 import Link from "@/components/ui/app-link";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { CommandPalette } from "@/components/navigation/command-palette";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
@@ -59,8 +59,23 @@ import { siteStatic } from "@/config/site-static";
 import { useAuth } from "@/providers/auth-provider";
 
 import "@/styles/student-learning.css";
+import "@/styles/notification-bell.css";
 
-import { FloatingAiAssistant } from "@/features/ai";
+const CommandPalette = dynamic(
+  () =>
+    import("@/components/navigation/command-palette").then((m) => ({
+      default: m.CommandPalette,
+    })),
+  { ssr: false },
+);
+
+const FloatingAiAssistant = dynamic(
+  () =>
+    import("@/features/ai").then((m) => ({
+      default: m.FloatingAiAssistant,
+    })),
+  { ssr: false },
+);
 
 const iconMap: Record<DashboardIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,

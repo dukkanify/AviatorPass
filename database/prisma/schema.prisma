@@ -162,6 +162,8 @@ model Notification {
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, readAt])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -329,6 +331,9 @@ model Course {
 
   @@index([status])
   @@index([categoryId])
+  @@index([code])
+  @@index([deletedAt])
+  @@index([primaryInstructorId])
   @@map("courses")
 }
 
@@ -426,6 +431,7 @@ model Enrollment {
   progress LessonProgress[]
 
   @@index([studentId])
+  @@index([studentId, status])
   @@index([courseId, status])
   @@map("enrollments")
 }
@@ -448,5 +454,8 @@ model LessonProgress {
   course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([enrollmentId, lessonId])
+  @@index([studentId])
+  @@index([courseId, studentId])
+  @@index([studentId, completed])
   @@map("lesson_progress")
 }

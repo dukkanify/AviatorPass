@@ -6,6 +6,7 @@
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import { clearCourseDetailCache } from "@/services/courses/detail-cache";
 import type {
   Course,
   CourseCategory,
@@ -116,9 +117,11 @@ export function writeCoursesDb(mutator: (db: CoursesDatabase) => void): CoursesD
   const db = ensureCoursesStore();
   mutator(db);
   writeJsonFile(DATA_FILE, db);
+  clearCourseDetailCache();
   return db;
 }
 
 export function replaceCoursesDb(db: CoursesDatabase): void {
   writeJsonFile(DATA_FILE, db);
+  clearCourseDetailCache();
 }

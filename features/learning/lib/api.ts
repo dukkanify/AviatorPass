@@ -3,19 +3,20 @@
  */
 
 import { authFetch } from "@/features/auth/services/auth-api";
+import { cachedQuery } from "@/lib/client/query-cache";
 
 export async function learningFetch<T>(
   url: string,
   init?: RequestInit,
 ): Promise<{ success: boolean; data: T | null; error: string | null }> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return cachedQuery(url, () => authFetch<T>(url, init));
+  }
   return authFetch<T>(url, init);
 }
 
-export function learningJson<T>(
-  url: string,
-  method: "POST" | "PATCH" | "DELETE",
-  body?: unknown,
-) {
+export function learningJson<T>(url: string, method: "POST" | "PATCH" | "DELETE", body?: unknown) {
   return learningFetch<T>(url, {
     method,
     headers: { "Content-Type": "application/json" },

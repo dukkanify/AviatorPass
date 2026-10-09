@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Award,
   BookOpen,
@@ -63,11 +63,6 @@ import {
 } from "./student-dashboard-utils";
 
 type CourseRow = CourseListItem & { learning: CourseLearningState | null };
-
-const fade = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-};
 
 function StatCard({
   label,
@@ -399,16 +394,17 @@ function LearningDashboardView() {
           </div>
         </section>
       ) : null}
-      <motion.section
-        className="sl-hero sl-hero--command"
-        aria-label="Welcome back"
-        initial="hidden"
-        animate="show"
-        variants={fade}
-      >
+      <section className="sl-hero sl-hero--command" aria-label="Welcome back">
         <div className="sl-hero-media" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element -- decorative hero art */}
-          <img src={HERO_IMAGE} alt="" loading="eager" />
+          <Image
+            src={HERO_IMAGE}
+            alt=""
+            width={1200}
+            height={900}
+            priority
+            fetchPriority="high"
+            sizes="(max-width: 768px) 100vw, 42vw"
+          />
         </div>
         <div className="sl-hero-overlay" aria-hidden />
         <div className="sl-hero-weather">
@@ -449,7 +445,7 @@ function LearningDashboardView() {
         <p className="sl-hero-brandline">
           Discipline · Knowledge · Confidence · A brighter aviation future
         </p>
-      </motion.section>
+      </section>
 
       <section className="sl-stats" aria-label="Learning snapshot">
         <StatCard

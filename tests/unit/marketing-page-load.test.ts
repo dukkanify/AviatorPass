@@ -32,6 +32,12 @@ describe("marketing page load stays read-only", () => {
     expect(journey).not.toMatch(/ensurePaymentsSeeded/);
     expect(home).toMatch(/export const revalidate = 300/);
     expect(home).not.toMatch(/force-dynamic/);
+    const atplPage = readFileSync(
+      path.join(process.cwd(), "app/(marketing)/atpl/page.tsx"),
+      "utf8",
+    );
+    expect(atplPage).toMatch(/export const revalidate = 300/);
+    expect(atplPage).not.toMatch(/force-dynamic/);
   });
 
   it("skips payments writes when the catalog is already complete", () => {

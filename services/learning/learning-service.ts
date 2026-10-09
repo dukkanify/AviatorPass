@@ -11,7 +11,6 @@ import { readCoursesDb } from "@/services/courses/store";
 import { listLiveClasses } from "@/services/classes/class-service";
 import { readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { listNotifications } from "@/services/notifications/notification-service";
 import {
   getCourseLearningState,
   getOverallProgress,
@@ -199,16 +198,17 @@ export function getResumeTarget(studentId: string): LearningDashboardOverview["r
     .sort((a, b) => (b.lastAccessedAt ?? "").localeCompare(a.lastAccessedAt ?? ""));
   const row = progress[0];
   if (!row) {
-    // Fall back to first enrolled course first lesson
-    const courses = listMyCourses(studentId);
-    const first = courses[0];
-    if (!first) return null;
-    const detail = getCourseDetail(first.id);
+    const enrollment = listStudentEnrollments(studentId).find((e) =>
+      ["approved", "completed", "pending"].includes(e.status),
+    );
+    if (!enrollment) return null;
+    const course = getCourseById(enrollment.courseId, true);
+    const detail = course ? getCourseDetail(course.id) : null;
     const lesson = detail?.modules[0]?.lessons[0];
-    if (!lesson) return null;
+    if (!course || !lesson) return null;
     return {
-      courseId: first.id,
-      courseTitle: first.title,
+      courseId: course.id,
+      courseTitle: course.title,
       lessonId: lesson.id,
       lessonTitle: lesson.title,
     };
@@ -297,34 +297,26 @@ export function getLearningDashboard(user: UserProfile): LearningDashboardOvervi
     run: () => getOverallProgress(user.id),
   });
 
-  const notifications = safeDashboardQuery({
-    ...base,
-    label: "listNotifications",
-    fallback: {
-      data: [],
-      page: 1,
-      pageSize: 1,
-      total: 0,
-      totalPages: 0,
-      unreadCount: 0,
-    },
-    run: () => listNotifications(user.id, { pageSize: 1 }),
-  });
-
   const upcoming = safeDashboardQuery({
     ...base,
     label: "upcomingLiveClass",
-    fallback: null as ReturnType<typeof listLiveClasses>["data"][number] | null,
+    fallback: null as { id: string; title: string; startsAt: string } | null,
     run: () => {
+      const db = readClassesDb();
       const allowed = new Set(
-        readClassesDb()
-          .participants.filter((p) => p.userId === user.id)
-          .map((p) => p.liveClassId),
+        db.participants.filter((p) => p.userId === user.id).map((p) => p.liveClassId),
       );
+      if (!allowed.size) return null;
+      const now = Date.now();
       return (
-        listLiveClasses({ status: "upcoming", pageSize: 20 }).data.filter((c) =>
-          allowed.has(c.id),
-        )[0] ?? null
+        db.classes
+          .filter((cls) => {
+            if (!allowed.has(cls.id) || cls.deletedAt) return false;
+            if (["cancelled", "draft", "completed"].includes(cls.status)) return false;
+            const start = Date.parse(cls.startsAt);
+            return Number.isFinite(start) && start > now;
+          })
+          .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null
       );
     },
   });
@@ -368,7 +360,7 @@ export function getLearningDashboard(user: UserProfile): LearningDashboardOvervi
     learningHours: overall.learningHours,
     progressPercent: overall.progressPercent,
     assignments: 0,
-    notifications: notifications.unreadCount,
+    notifications: 0,
     resume,
     recentActivity,
     weeklyGoalPercent,

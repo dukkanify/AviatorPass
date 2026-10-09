@@ -1,6 +1,7 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
 
+import { HeroLcpImage } from "@/components/media/hero-lcp-image";
 import { Button } from "@/components/ui/button";
 import {
   ATPL_COMPLETE_PACKAGE_NAME,
@@ -56,15 +57,9 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
   return (
     <>
       <section className="atpl-program-hero relative isolate overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: "url(/images/marketing/hero-aircraft.jpg)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-          aria-hidden
-        />
+        <div className="absolute inset-0 opacity-40" aria-hidden>
+          <HeroLcpImage className="object-center" />
+        </div>
         <div
           className="absolute inset-0 bg-gradient-to-b from-[var(--landing-ink)]/80 via-[var(--landing-ink)]/90 to-[var(--landing-ink)]"
           aria-hidden

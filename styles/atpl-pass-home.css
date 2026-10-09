@@ -39,13 +39,15 @@
 
 /* —— Hero —— */
 .atpl-hero-bg {
-  background-size: cover, cover, cover;
-  background-position:
-    center 25%,
-    center 55%,
-    center top;
-  background-repeat: no-repeat;
+  background-color: #0d2235;
   filter: saturate(1.12) brightness(1.08) contrast(1.02);
+}
+
+.atpl-hero-bg img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: center 25%;
 }
 
 .atpl-hero-overlay {

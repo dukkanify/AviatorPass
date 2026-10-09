@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "@/components/ui/app-link";
 import {
   ArrowUpRight,
@@ -19,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 
+import { HeroLcpImage } from "@/components/media/hero-lcp-image";
 import { Button } from "@/components/ui/button";
 import {
   ABOUT,
@@ -79,14 +78,9 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
     <>
       {/* —— Hero —— */}
       <section className="atpl-hero relative isolate -mt-[4.75rem] min-h-[100svh] overflow-hidden pt-[4.75rem]">
-        <div
-          className="atpl-hero-bg absolute inset-0"
-          style={{
-            backgroundImage:
-              "url(/images/marketing/hero-aircraft.jpg), url(/images/marketing/hero-cockpit.jpg), url(/images/hero-aviation.svg)",
-          }}
-          aria-hidden
-        />
+        <div className="atpl-hero-bg absolute inset-0" aria-hidden>
+          <HeroLcpImage />
+        </div>
         <div className="atpl-hero-overlay absolute inset-0" aria-hidden />
         <div className="atpl-hero-glow absolute inset-0" aria-hidden />
 
