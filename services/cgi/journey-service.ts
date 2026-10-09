@@ -1353,14 +1353,15 @@ export async function hydratePaidAtplStudentAccess(
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    await notifyInstructorAssignmentPendingOps(order);
+    // Ops mail must not block My Courses — Resend can hang for a full function timeout.
+    void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
     return;
   }
   ensureCoursesSeeded();
   await ensureAtplPackageSubjectCoverage(live.studentId, live.email, order);
   if (order) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    await notifyInstructorAssignmentPendingOps(order);
+    void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
   }
 }
 

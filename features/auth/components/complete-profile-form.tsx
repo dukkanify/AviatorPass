@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { completeProfileSchema } from "@/utils/validation";
 import { sanitizeString } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
+import { ROLE_DASHBOARD } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -43,6 +44,12 @@ function CompleteProfileForm() {
   React.useEffect(() => {
     if (user) setValues(emptyValues(user));
   }, [user]);
+
+  React.useEffect(() => {
+    if (user?.profileComplete) {
+      router.replace(ROLE_DASHBOARD[user.role] ?? routes.studentDashboard);
+    }
+  }, [user, router]);
 
   const onChange = (patch: Partial<StudentAccountFieldValues>) => {
     setValues((prev) => ({ ...prev, ...patch }));

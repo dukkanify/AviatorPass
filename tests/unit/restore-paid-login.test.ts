@@ -11,13 +11,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { passwordLogin } from "@/services/auth/auth-service";
-import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
+import {
+  completePaidStudentProfileFromOrder,
+  restoreMissingPaidIdentities,
+} from "@/services/auth/restore-paid-identities";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { findUserByEmail, findUserById, writeAuthDb } from "@/services/auth/store";
-import {
-  resetAuthIdentityStoreRuntime,
-  upsertUser,
-} from "@/lib/data/auth-identity-store";
+import { resetAuthIdentityStoreRuntime, upsertUser } from "@/lib/data/auth-identity-store";
 import { upsertOrder } from "@/lib/data/lms-payment-ledger-store";
 import type { Order } from "@/types/payments";
 import type { StoredUser } from "@/services/auth/store";
@@ -114,7 +114,7 @@ describe("restore paid student login", () => {
   });
 
   it("restores a missing paid identity and binds the first valid password", async () => {
-    const order = paidOrder("bind");
+    const order = paidOrder(`bind-${Date.now()}`);
     upsertOrder(order);
     expect(findUserByEmail(order.studentEmail)).toBeNull();
 
@@ -135,5 +135,70 @@ describe("restore paid student login", () => {
       password: "RestorePass123!",
     });
     expect(again.success).toBe(true);
+  });
+
+  it("completes a restored paid profile from guestPhone checkout fields", async () => {
+    const order = paidOrder(`guest-phone-${Date.now()}`);
+    order.metadata = { guestPhone: "+96595555030", guestCountry: "KW" };
+    upsertOrder(order);
+
+    const restored = restoreMissingPaidIdentities();
+    expect(restored.some((user) => user.id === order.studentId)).toBe(true);
+
+    const user = findUserById(order.studentId);
+    expect(user?.phone).toBe("+96595555030");
+    expect(user?.countryCode).toBe("KW");
+    expect(user?.nationality).toBe("Kuwait");
+    expect(user?.profileComplete).toBe(true);
+
+    const signedIn = await passwordLogin({
+      email: order.studentEmail,
+      password: "RestorePass123!",
+    });
+    expect(signedIn.success).toBe(true);
+    expect(signedIn.data?.requiresProfile).toBe(false);
+    expect(signedIn.data?.redirectTo).toBe("/student/dashboard");
+  });
+
+  it("backfills an incomplete paid student from the paid order", () => {
+    const order = paidOrder(`backfill-${Date.now()}`);
+    order.metadata = { guestPhone: "+96595555030" };
+    upsertOrder(order);
+    const stamp = new Date().toISOString();
+    upsertUser({
+      id: order.studentId,
+      email: order.studentEmail,
+      firstName: "Abdulaziz",
+      lastName: "Buyer",
+      phone: null,
+      countryCode: null,
+      nationality: null,
+      dateOfBirth: null,
+      gender: null,
+      city: null,
+      bio: null,
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      avatarUrl: null,
+      timezone: "UTC",
+      language: "en",
+      role: "student",
+      status: "active",
+      emailVerified: true,
+      profileComplete: false,
+      mustChangePassword: false,
+      passwordHash: "hash",
+      passwordSalt: "salt",
+      lastLoginAt: null,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+
+    const filled = completePaidStudentProfileFromOrder(order.studentId, order.studentEmail);
+    expect(filled?.phone).toBe("+96595555030");
+    expect(filled?.countryCode).toBe("KW");
+    expect(filled?.nationality).toBe("Kuwait");
+    expect(filled?.profileComplete).toBe(true);
+    expect(findUserById(order.studentId)?.profileComplete).toBe(true);
   });
 });

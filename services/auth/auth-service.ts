@@ -42,6 +42,7 @@ import {
   validateOtpToken,
 } from "@/services/auth/otp-service";
 import {
+  completePaidStudentProfileFromOrder,
   paidOrderExistsForEmail,
   restoreMissingPaidIdentities,
 } from "@/services/auth/restore-paid-identities";
@@ -211,6 +212,40 @@ async function issueSession(
   );
 
   return { profile: toUserProfile(fresh), expiresAt };
+}
+
+export async function refreshSessionProfileClaims(user: StoredUser): Promise<void> {
+  const parsed = await readSessionCookie();
+  if (!parsed) return;
+  const env = getServerEnv();
+  const days = env.AUTH_SESSION_DAYS;
+  await setSessionCookies(
+    parsed.payload.sid,
+    parsed.rawToken,
+    {
+      userId: user.id,
+      role: user.role,
+      status: user.status,
+      profileComplete: user.profileComplete,
+      mustChangePassword: Boolean(user.mustChangePassword),
+    },
+    days * 86_400,
+  );
+}
+
+/** Rewrite the session JWT when live profile claims drifted from the cookie. */
+export async function refreshSessionProfileClaimsIfStale(user: StoredUser): Promise<void> {
+  const parsed = await readSessionCookie();
+  if (!parsed) return;
+  if (
+    parsed.payload.pc === user.profileComplete &&
+    Boolean(parsed.payload.mp) === Boolean(user.mustChangePassword) &&
+    parsed.payload.status === user.status &&
+    parsed.payload.role === user.role
+  ) {
+    return;
+  }
+  await refreshSessionProfileClaims(user);
 }
 
 let sessionSeedReady = false;
@@ -829,25 +864,7 @@ export async function completeProfile(input: {
   }
 
   const profile = toUserProfile(fresh);
-
-  // Refresh JWT claims so middleware sees profileComplete
-  const parsed = await readSessionCookie();
-  if (parsed) {
-    const env = getServerEnv();
-    const days = env.AUTH_SESSION_DAYS;
-    await setSessionCookies(
-      parsed.payload.sid,
-      parsed.rawToken,
-      {
-        userId: profile.id,
-        role: profile.role,
-        status: profile.status,
-        profileComplete: profile.profileComplete,
-        mustChangePassword: Boolean(fresh.mustChangePassword),
-      },
-      days * 86_400,
-    );
-  }
+  await refreshSessionProfileClaims(fresh);
 
   await logActivity({
     actorId: profile.id,
@@ -1086,6 +1103,9 @@ export async function passwordLogin(input: {
     unlocked.updatedAt = nowIso();
     upsertSecuritySettings(unlocked);
   }
+
+  const filled = completePaidStudentProfileFromOrder(user.id, user.email);
+  if (filled) user = filled;
 
   const { profile } = await issueSession(user, Boolean(input.rememberMe), {
     ...(input.ctx ?? {}),
