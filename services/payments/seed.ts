@@ -39,8 +39,6 @@ export function ensurePaymentsSeeded(): void {
   ensureCoursesSeeded();
   const db = readPaymentsDb();
   if (db.seeded && db.products.length > 0) {
-    ensureAtplPackageAndRegionalRules();
-    ensureCustomerJourneyProducts();
     return;
   }
 
@@ -395,7 +393,7 @@ export function ensurePaymentsSeeded(): void {
 }
 
 /** Backfill ATPL package + regional BNPL rules on already-seeded payment DBs. */
-function ensureAtplPackageAndRegionalRules(): void {
+export function ensureAtplPackageAndRegionalRules(): void {
   const current = readPaymentsDb();
   const existing = current.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
   const missingPrices = existing

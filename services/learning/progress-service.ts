@@ -155,27 +155,52 @@ export function getOverallProgress(studentId: string): {
   lessonsStarted: number;
   lessonsCompleted: number;
 } {
-  const courseIds = listStudentEnrollments(studentId)
-    .filter((e) => ["approved", "completed", "pending"].includes(e.status))
-    .map((e) => e.courseId);
+  const enrollments = listStudentEnrollments(studentId).filter((e) =>
+    ["approved", "completed", "pending"].includes(e.status),
+  );
+  const courseIds = enrollments.map((e) => e.courseId);
+  if (enrollments.every((e) => e.status !== "completed") && enrollments.length > 0) {
+    return {
+      activeCourses: enrollments.length,
+      completedCourses: 0,
+      learningHours: 0,
+      progressPercent: 0,
+      lessonsStarted: 0,
+      lessonsCompleted: 0,
+    };
+  }
+  const progress = listProgressForStudent(studentId);
+  const startedCourseIds = new Set(progress.map((row) => row.courseId));
 
   let activeCourses = 0;
   let completedCourses = 0;
   let sumPct = 0;
 
-  for (const courseId of courseIds) {
+  for (const enrollment of enrollments) {
+    if (!startedCourseIds.has(enrollment.courseId)) {
+      if (enrollment.status === "completed") {
+        completedCourses += 1;
+        sumPct += 100;
+      } else {
+        activeCourses += 1;
+      }
+      continue;
+    }
     try {
-      const state = getCourseLearningState(studentId, courseId);
+      const state = getCourseLearningState(studentId, enrollment.courseId);
       sumPct += state.progressPercent;
       if (state.progressPercent >= 100) completedCourses += 1;
-      else if (state.completedLessons > 0 || state.startedAt) activeCourses += 1;
       else activeCourses += 1;
     } catch {
-      /* skip */
+      if (enrollment.status === "completed") {
+        completedCourses += 1;
+        sumPct += 100;
+      } else {
+        activeCourses += 1;
+      }
     }
   }
 
-  const progress = listProgressForStudent(studentId);
   const totalSeconds = progress.reduce((s, p) => s + p.timeSpentSeconds, 0);
 
   return {

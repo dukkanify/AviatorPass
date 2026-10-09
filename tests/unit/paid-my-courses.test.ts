@@ -196,5 +196,7 @@ describe("paid ATPL my courses", () => {
     const hydrate = source.slice(start, end);
     expect(hydrate).toMatch(/void notifyInstructorAssignmentPendingOps/);
     expect(hydrate).not.toMatch(/await notifyInstructorAssignmentPendingOps/);
+    expect(hydrate).toMatch(/void maybeSendPackageConfirmationFollowup/);
+    expect(hydrate).not.toMatch(/await maybeSendPackageConfirmationFollowup/);
   });
 });

@@ -15,13 +15,11 @@ import { endOfWeek, startOfWeek } from "date-fns";
 
 export function ensureLearningSeeded(): void {
   ensureDemoUsersSeeded();
-  ensureCoursesSeeded();
   const db = readLearningDb();
-  if (db.seeded && db.progress.length > 0) return;
+  if (db.seeded) return;
+  ensureCoursesSeeded();
 
-  const student = readAuthDb().users.find(
-    (u) => u.role === ROLES.STUDENT && u.status === "active",
-  );
+  const student = readAuthDb().users.find((u) => u.role === ROLES.STUDENT && u.status === "active");
   if (!student) {
     writeLearningDb((d) => {
       d.seeded = true;
@@ -36,9 +34,7 @@ export function ensureLearningSeeded(): void {
   for (const e of enrollments.slice(0, 2)) {
     const detail = getCourseDetail(e.courseId);
     if (!detail) continue;
-    const lessons = detail.modules.flatMap((m) =>
-      m.lessons.map((l) => ({ ...l, moduleId: m.id })),
-    );
+    const lessons = detail.modules.flatMap((m) => m.lessons.map((l) => ({ ...l, moduleId: m.id })));
     lessons.slice(0, 2).forEach((lesson, idx) => {
       progress.push({
         id: generateId(),

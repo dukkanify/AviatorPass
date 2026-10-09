@@ -24,12 +24,8 @@ import type { SeriesPoint } from "@/components/dashboard/chart-types";
 import type { CalendarEvent } from "@/components/dashboard/calendar-widget";
 import type { ActivityItem } from "@/components/dashboard/recent-activity";
 import { listWallets } from "@/services/payments/wallet-service";
-import { listWrittenAttempts } from "@/services/mock-exams/written-exam-service";
 import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
-import { ensureLearningSeeded } from "@/services/learning/seed";
-import { getLearningDashboard } from "@/services/learning/learning-service";
-import { ensureCertificatesSeeded } from "@/services/certificates/seed";
-import { listCertificates } from "@/services/certificates/certificate-service";
+import { getOverallProgress } from "@/services/learning/progress-service";
 import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
 import type { UserProfile } from "@/types";
@@ -216,11 +212,10 @@ export function getProgressBreakdown(studentUserId?: string | null): {
   value: number;
 }[] {
   if (studentUserId) {
-    ensureLearningSeeded();
     const student = findUserById(studentUserId);
     if (student) {
-      const learning = getLearningDashboard(toUserProfile(student));
-      const completed = Math.max(0, Math.min(100, Math.round(learning.progressPercent)));
+      const overall = getOverallProgress(student.id);
+      const completed = Math.max(0, Math.min(100, Math.round(overall.progressPercent)));
       const inProgress = Math.max(0, Math.min(100 - completed, 100 - completed));
       const notStarted = Math.max(0, 100 - completed - Math.round(inProgress * 0.5));
       const mid = Math.max(0, 100 - completed - notStarted);
@@ -318,8 +313,6 @@ export function getInstructorOverview(instructorUserId?: string | null) {
 }
 
 export function getStudentOverview(studentUserId?: string | null) {
-  ensureCoursesSeeded();
-  ensureLearningSeeded();
   const student = studentUserId ? findUserById(studentUserId) : null;
   if (student && student.role !== ROLES.STUDENT) {
     return {
@@ -336,20 +329,18 @@ export function getStudentOverview(studentUserId?: string | null) {
     };
   }
   if (student) {
-    const learning = getLearningDashboard(toUserProfile(student));
-    ensureCertificatesSeeded();
-    const certificates = listCertificates({ studentId: student.id, status: "issued" }).length;
+    const overall = getOverallProgress(student.id);
     return {
-      currentCourses: learning.activeCourses,
-      nextLiveClass: learning.upcomingLiveClass ?? "None scheduled",
-      progress: Math.round(learning.progressPercent),
-      certificates,
-      notifications: learning.notifications,
-      assignments: learning.assignments,
-      quizzes: listWrittenAttempts(student.id).filter((a) => a.status !== "in_progress").length,
-      weeklyProgress: learning.weeklyGoalPercent,
-      attendance: getClassStats({ studentId: student.id }).attendanceRate,
-      learningHours: learning.learningHours,
+      currentCourses: overall.activeCourses,
+      nextLiveClass: "None scheduled",
+      progress: Math.round(overall.progressPercent),
+      certificates: 0,
+      notifications: 0,
+      assignments: 0,
+      quizzes: 0,
+      weeklyProgress: 0,
+      attendance: 0,
+      learningHours: overall.learningHours,
     };
   }
   // Never fall back to another student's demo profile — empty for this account only.

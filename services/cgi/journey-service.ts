@@ -10,6 +10,7 @@ import {
   ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
+  atplPackageLmsCourseCode,
   ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
   ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
@@ -33,6 +34,7 @@ import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
+import { stableCourseId } from "@/lib/courses/public-course-path";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
@@ -42,7 +44,7 @@ import {
   readCoursesDb,
   rebindEnrollmentsStudent,
 } from "@/services/courses/store";
-import { upsertEnrollment } from "@/lib/data/lms-enrollment-store";
+import { listEnrollmentsForStudent, upsertEnrollment } from "@/lib/data/lms-enrollment-store";
 import {
   enrollStudent,
   listStudentEnrollments,
@@ -62,8 +64,9 @@ import {
   listOrdersByStatus,
   listOrdersForEmail,
   listOrdersForStudent,
+  upsertOrder,
 } from "@/lib/data/lms-payment-ledger-store";
-import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
+import { readPaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
   enrollStudentsInLiveClass,
@@ -74,7 +77,7 @@ import {
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { hasParticipant, listAllParticipants, readClassesDb } from "@/services/classes/store";
+import { listAllParticipants, readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import type {
   AtplLectureAssignment,
@@ -94,6 +97,16 @@ export class CgiError extends Error {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function patchPaidOrder(
+  orderId: string,
+  patch: (order: NonNullable<ReturnType<typeof getOrderById>>) => void,
+) {
+  const current = getOrderById(orderId);
+  if (!current) return;
+  patch(current);
+  upsertOrder(current);
 }
 
 function audit(
@@ -167,29 +180,43 @@ function officialPackageCourses() {
 }
 
 function studentHasAtplEnrollment(studentId: string): boolean {
-  const atplIds = new Set(officialPackageCourses().map((course) => course.id));
-  return listStudentEnrollments(studentId).some(
-    (row) => atplIds.has(row.courseId) && !["dropped", "rejected"].includes(row.status),
+  const atplIds = new Set(ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => stableCourseId(code)));
+  return listEnrollmentsForStudent(studentId).some(
+    (row) =>
+      !["dropped", "rejected"].includes(row.status) &&
+      (atplIds.has(row.courseId) || /ATPL|package/i.test(String(row.notes ?? ""))),
   );
 }
 
 function studentHasOfficialPackageCoverage(studentId: string): boolean {
-  const enrolled = new Set(
-    listStudentEnrollments(studentId)
-      .filter((row) => !["dropped", "rejected"].includes(row.status))
-      .map((row) => row.courseId),
+  const enrolled = listEnrollmentsForStudent(studentId).filter(
+    (row) => !["dropped", "rejected"].includes(row.status),
   );
-  const required = officialPackageCourses();
-  return required.length > 0 && required.every((course) => enrolled.has(course.id));
+  if (enrolled.length >= ATPL_PACKAGE_LMS_COURSE_CODES.length) return true;
+  const enrolledIds = new Set(enrolled.map((row) => row.courseId));
+  const requiredIds = new Set(ATPL_PACKAGE_LMS_COURSE_CODES.map((code) => stableCourseId(code)));
+  return requiredIds.size > 0 && [...requiredIds].every((courseId) => enrolledIds.has(courseId));
+}
+
+function listOfficialPackageSubjectProgress(): AtplPackageSubjectProgress[] {
+  return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
+    const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
+    return {
+      code: subject.code,
+      title: subject.title,
+      shortDescription: subject.shortDescription,
+      status: opening ? "available" : "locked",
+      opening,
+    };
+  });
 }
 
 function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
   const plan = studentId ? listStudentSubjectPlan(studentId) : [];
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
-  const courses = officialPackageCourses();
   return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
-    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
-    const row = course ? (byCourse.get(course.id) ?? null) : null;
+    const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
+    const row = (courseId ? byCourse.get(courseId) : null) ?? null;
     const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
     const status = row?.status ?? (opening ? "available" : "locked");
     return {
@@ -659,9 +686,7 @@ function rememberFirstLectureLiveClass(studentId: string, liveClassId: string) {
   const order = latestPaidPackageOrder(studentId, student.email);
   if (!order) return;
   const stamp = nowIso();
-  writePaymentsDb((db) => {
-    const row = db.orders.find((item) => item.id === order.id);
-    if (!row) return;
+  patchPaidOrder(order.id, (row) => {
     row.metadata = { ...row.metadata, firstLectureLiveClassId: liveClassId };
     row.updatedAt = stamp;
   });
@@ -1093,15 +1118,14 @@ function bindPaidOrderToStudent(
 ) {
   const from = fromStudentId || "guest";
   if (!live.studentId || from === live.studentId) return;
-  writePaymentsDb((db) => {
-    const order = db.orders.find((item) => item.id === orderId);
-    if (!order || order.studentId === live.studentId) return;
-    order.studentId = live.studentId;
-    order.studentEmail = live.email || order.studentEmail;
-    if (live.name) order.studentName = live.name;
-    order.metadata = { ...order.metadata, reboundFromStudentId: from };
-    order.updatedAt = nowIso();
-  });
+  const order = getOrderById(orderId);
+  if (!order || order.studentId === live.studentId) return;
+  order.studentId = live.studentId;
+  order.studentEmail = live.email || order.studentEmail;
+  if (live.name) order.studentName = live.name;
+  order.metadata = { ...order.metadata, reboundFromStudentId: from };
+  order.updatedAt = nowIso();
+  upsertOrder(order);
   if (from && from !== "guest") {
     rebindEnrollmentsStudent(from, live.studentId);
   }
@@ -1128,26 +1152,30 @@ export function rebindPaidPackageOrdersToLiveUsers(): number {
   }
   if (!pending.length) return 0;
 
-  writePaymentsDb((db) => {
-    const stamp = nowIso();
-    for (const row of pending) {
-      const order = db.orders.find((item) => item.id === row.id);
-      if (!order) continue;
-      order.studentId = row.to;
-      order.studentEmail = row.email;
-      order.studentName = row.name;
-      order.metadata = { ...order.metadata, reboundFromStudentId: row.from };
-      order.updatedAt = stamp;
-    }
-  });
+  const stamp = nowIso();
+  for (const row of pending) {
+    const order = getOrderById(row.id);
+    if (!order) continue;
+    order.studentId = row.to;
+    order.studentEmail = row.email;
+    order.studentName = row.name;
+    order.metadata = { ...order.metadata, reboundFromStudentId: row.from };
+    order.updatedAt = stamp;
+    upsertOrder(order);
+  }
   for (const { from, to } of pending) {
     rebindEnrollmentsStudent(from, to);
   }
   return pending.length;
 }
 
+let rebindPaidOrdersThisIsolate = false;
+
 function resolveLivePaidStudent(studentId: string, email: string) {
-  rebindPaidPackageOrdersToLiveUsers();
+  if (!rebindPaidOrdersThisIsolate) {
+    rebindPaidOrdersThisIsolate = true;
+    rebindPaidPackageOrdersToLiveUsers();
+  }
   const live = findUserByEmail(email) ?? findUserById(studentId);
   return {
     studentId: live?.id ?? studentId,
@@ -1156,7 +1184,6 @@ function resolveLivePaidStudent(studentId: string, email: string) {
 }
 
 function latestPaidPackageOrder(studentId: string, email: string) {
-  ensurePaymentsSeeded();
   const byId = new Map<string, ReturnType<typeof listOrdersForStudent>[number]>();
   for (const order of [...listOrdersForStudent(studentId), ...listOrdersForEmail(email)]) {
     byId.set(order.id, order);
@@ -1180,24 +1207,18 @@ function liveClassIdFromOrder(
     : null;
 }
 
-function studentIsInLiveClass(liveClassId: string, studentId: string): boolean {
-  return hasParticipant(liveClassId, studentId, "participant");
-}
-
-function firstLectureSubjectForStudent(
-  studentId?: string,
-  liveClassId?: string | null,
-): { code: string | null; title: string | null } {
-  const live = liveClassId ? getLiveClass(liveClassId) : null;
+function firstLectureSubjectForStudent(studentId?: string): {
+  code: string | null;
+  title: string | null;
+} {
   const planFirst = studentId ? (listStudentSubjectPlan(studentId)[0] ?? null) : null;
-  const course =
-    (live?.courseId ? listAtplCourses().find((item) => item.id === live.courseId) : null) ??
-    (planFirst ? listAtplCourses().find((item) => item.id === planFirst.courseId) : null) ??
-    openingSubjectCourse();
-  if (!course) return { code: null, title: null };
+  const courseId = planFirst?.courseId ?? null;
+  const code =
+    ATPL_PACKAGE_LMS_COURSE_CODES.find((item) => stableCourseId(item) === courseId) ??
+    atplPackageLmsCourseCode(ATPL_PACKAGE_OPENING_SUBJECT_CODE);
   return {
-    code: easaFromAtplCourse(course),
-    title: officialTitleForAtplCourse(course),
+    code: easaCodeFromAtplCourseCode(code),
+    title: atplPackageSubjectTitle(code) ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
   };
 }
 
@@ -1220,15 +1241,14 @@ function nextOfficialSubjectState(studentId?: string): {
   if (!studentId) return empty;
   const plan = listStudentSubjectPlan(studentId);
   if (!plan.length) return empty;
-  const courses = listAtplCourses();
   for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
     if (subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE) continue;
-    const course = courses.find((item) => easaFromAtplCourse(item) === subject.code);
-    if (!course) continue;
-    const row = plan.find((item) => item.courseId === course.id);
+    const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
+    if (!courseId) continue;
+    const row = plan.find((item) => item.courseId === courseId);
     if (!row || row.status === "completed") continue;
     const lecture =
-      listLectureAssignments({ studentId, courseId: course.id }).find(
+      listLectureAssignments({ studentId, courseId }).find(
         (item) => item.scheduledAt && item.status === "scheduled",
       ) ?? null;
     return {
@@ -1237,17 +1257,10 @@ function nextOfficialSubjectState(studentId?: string): {
       nextSubjectStatus: row.status,
       nextLectureLabel: lecture?.scheduledAt ? formatAtplPackageInstant(lecture.scheduledAt) : null,
       nextLectureLiveClassId: lecture?.liveClassId ?? null,
-      courseId: course.id,
+      courseId,
     };
   }
   return empty;
-}
-
-function firstLectureIsOnTimetable(studentId: string, liveClassId: string | null): boolean {
-  if (!liveClassId) return false;
-  const existing = getLiveClass(liveClassId);
-  if (!existing || existing.status === "cancelled") return false;
-  return studentIsInLiveClass(liveClassId, studentId);
 }
 
 function packageScheduleFromOrder(
@@ -1268,7 +1281,7 @@ function packageScheduleFromOrder(
     !provisional && typeof order.metadata.firstLectureAt === "string"
       ? order.metadata.firstLectureAt
       : null;
-  const subject = firstLectureSubjectForStudent(studentId, liveClassId);
+  const subject = firstLectureSubjectForStudent(studentId);
   const next = nextOfficialSubjectState(studentId);
   return {
     orderId: order.id,
@@ -1299,7 +1312,7 @@ function packageScheduleFromOrder(
         ? order.metadata.scheduleConfirmedAt
         : null,
     firstLectureLiveClassId: liveClassId,
-    firstLectureOnTimetable: studentId ? firstLectureIsOnTimetable(studentId, liveClassId) : false,
+    firstLectureOnTimetable: Boolean(liveClassId),
     firstLectureSubjectCode: subject.code,
     firstLectureSubjectTitle: subject.title,
     packageOwned: true,
@@ -1332,6 +1345,10 @@ export async function hydratePaidAtplStudentAccess(
   email: string,
   orderId?: string,
 ) {
+  const known = findUserByEmail(email) ?? findUserById(studentId);
+  if (studentHasOfficialPackageCoverage(known?.id ?? studentId)) {
+    return;
+  }
   ensurePaymentsSeeded();
   const live = resolveLivePaidStudent(studentId, email);
   const pinned = orderId ? (getOrderById(orderId) ?? null) : null;
@@ -1352,15 +1369,15 @@ export async function hydratePaidAtplStudentAccess(
     order = getOrderById(order.id) ?? order;
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
-    await maybeSendPackageConfirmationFollowup(order, live.studentId);
-    // Ops mail must not block My Courses — Resend can hang for a full function timeout.
+    // Confirmation / ops mail must not block the student dashboard.
+    void maybeSendPackageConfirmationFollowup(order, live.studentId).catch(() => undefined);
     void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
     return;
   }
   ensureCoursesSeeded();
   await ensureAtplPackageSubjectCoverage(live.studentId, live.email, order);
   if (order) {
-    await maybeSendPackageConfirmationFollowup(order, live.studentId);
+    void maybeSendPackageConfirmationFollowup(order, live.studentId).catch(() => undefined);
     void notifyInstructorAssignmentPendingOps(order).catch(() => undefined);
   }
 }
@@ -1375,11 +1392,10 @@ async function maybeSendPackageConfirmationFollowup(
   if (!user) return;
   const packageName = order.items[0]?.productName ?? "Aviator Pass";
   const brand = getPublicBrandConfig();
-  writePaymentsDb((db) => {
-    const current = db.orders.find((row) => row.id === order.id);
-    if (!current) return;
-    current.metadata = { ...current.metadata, packageConfirmationFollowupAt: nowIso() };
-    current.updatedAt = nowIso();
+  const stamp = nowIso();
+  patchPaidOrder(order.id, (current) => {
+    current.metadata = { ...current.metadata, packageConfirmationFollowupAt: stamp };
+    current.updatedAt = stamp;
   });
   const data = {
     recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
@@ -1453,70 +1469,21 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   studentId: string,
   email: string,
 ): Promise<AtplPackageScheduleSnapshot> {
-  const live = resolveLivePaidStudent(studentId, email);
-  await hydratePaidAtplStudentAccess(live.studentId, live.email);
-  const order = latestPaidPackageOrder(live.studentId, live.email);
-  if (!order) return latestPaidPackageSchedule(live.studentId, live.email);
-  const schedule = packageScheduleFromOrder(order, live.studentId);
-  if (schedule.scheduleProvisional || !schedule.confirmedStudyStartDate) return schedule;
-  if (schedule.firstLectureOnTimetable) return schedule;
-
-  const date = schedule.confirmedStudyStartDate;
-  const time = schedule.confirmedFirstLectureTime;
-  if (!date || !time) return schedule;
-
-  const existingId = schedule.firstLectureLiveClassId;
-  const existing = existingId ? getLiveClass(existingId) : null;
-  if (existing && existing.status !== "cancelled") {
-    enrollStudentsInLiveClass(existing.id, [live.studentId]);
-    if (existing.courseId) {
-      const course = listAtplCourses().find((item) => item.id === existing.courseId);
-      upsertFirstLectureAssignment({
-        studentId: live.studentId,
-        courseId: existing.courseId,
-        instructorId: existing.instructorId,
-        scheduledAt: existing.startsAt,
-        liveClassId: existing.id,
-        actorId:
-          typeof order.metadata.scheduleConfirmedById === "string"
-            ? order.metadata.scheduleConfirmedById
-            : live.studentId,
-        notes: ATPL_PACKAGE_CONFIRMED_NOTICE,
-        lessonTitle: formatAtplFirstLectureTitle(
-          course ? officialTitleForAtplCourse(course) : ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
-        ),
-      });
-    }
-    if (firstLectureIsOnTimetable(live.studentId, existing.id)) {
-      return packageScheduleFromOrder(order, live.studentId);
-    }
+  const live = findUserByEmail(email) ?? findUserById(studentId);
+  const liveId = live?.id ?? studentId;
+  const liveEmail = live?.email ?? email;
+  await hydratePaidAtplStudentAccess(liveId, liveEmail);
+  const order = latestPaidPackageOrder(liveId, liveEmail);
+  const owned = Boolean(order) || studentHasAtplEnrollment(liveId);
+  const subjects = owned ? listOfficialPackageSubjectProgress() : [];
+  if (!order) {
+    return { ...EMPTY_ATPL_PACKAGE_SCHEDULE, packageOwned: owned, subjects };
   }
-
-  try {
-    const actorId =
-      typeof order.metadata.scheduleConfirmedById === "string"
-        ? order.metadata.scheduleConfirmedById
-        : live.studentId;
-    const liveClassId = await placeConfirmedFirstLecture({
-      studentId: live.studentId,
-      actorId,
-      when: combineLocalDateAndTime(date, time),
-      existingLiveClassId: existingId,
-    });
-    const stamp = nowIso();
-    writePaymentsDb((db) => {
-      const row = db.orders.find((item) => item.id === order.id);
-      if (!row) return;
-      row.metadata = {
-        ...row.metadata,
-        firstLectureLiveClassId: liveClassId,
-      };
-      row.updatedAt = stamp;
-    });
-  } catch {
-    // Confirmation metadata still describes the time; booking is retried on the next load.
-  }
-  return latestPaidPackageSchedule(live.studentId, live.email);
+  return {
+    ...packageScheduleFromOrder(order),
+    packageOwned: true,
+    subjects,
+  };
 }
 
 const FIRST_LECTURE_LESSON_ID = ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID;
@@ -1735,9 +1702,7 @@ export async function confirmAtplPackageSchedule(input: {
   });
 
   const stamp = nowIso();
-  writePaymentsDb((db) => {
-    const row = db.orders.find((item) => item.id === order.id);
-    if (!row) return;
+  patchPaidOrder(order.id, (row) => {
     row.metadata = {
       ...row.metadata,
       requestedStudyStartDate: requestedDate,
@@ -1764,7 +1729,7 @@ export async function confirmAtplPackageSchedule(input: {
 
   const brand = getPublicBrandConfig();
   const label = formatAtplPackageScheduleLabel(studyStartDate, firstLectureTime);
-  const subject = firstLectureSubjectForStudent(input.studentId, liveClassId);
+  const subject = firstLectureSubjectForStudent(input.studentId);
   const subjectLabel = subject.title ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE;
   try {
     await dispatchEmailEvent({

@@ -668,8 +668,8 @@ export function ensureCoursesSeeded(): void {
   ensureDemoUsersSeeded();
   const db = readCoursesDb();
   if (db.seeded && db.courses.length > 0) {
-    ensurePublishedCatalogEnrichment();
-    ensureCustomerJourneyCourses();
+    // Do not rewrite the catalog on student/dashboard reads. Official titles
+    // are applied at present-time; enrichment is an admin/seed concern.
     return;
   }
 
