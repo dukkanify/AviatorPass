@@ -3,17 +3,11 @@
  */
 
 import { generateId } from "@/lib/security/crypto";
-import {
-  assertOwnWallet,
-  PaymentError,
-} from "@/services/payments/access";
+import { listWalletTransactionsForInstructor } from "@/lib/data/lms-payment-activity-store";
+import { assertOwnWallet, PaymentError } from "@/services/payments/access";
 import { calcPlatformFee } from "@/services/payments/money";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
-import type {
-  InstructorWallet,
-  WalletTransaction,
-  WalletTxnType,
-} from "@/types/payments";
+import type { InstructorWallet, WalletTransaction, WalletTxnType } from "@/types/payments";
 import type { UserProfile } from "@/types";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 
@@ -55,15 +49,13 @@ export function getWalletForUser(user: UserProfile, instructorId?: string): Inst
 }
 
 export function listWallets(): InstructorWallet[] {
-  return [...readPaymentsDb().wallets].sort((a, b) =>
-    b.availableBalance - a.availableBalance,
-  );
+  return [...readPaymentsDb().wallets].sort((a, b) => b.availableBalance - a.availableBalance);
 }
 
 export function listWalletTransactions(instructorId: string): WalletTransaction[] {
-  return readPaymentsDb()
-    .walletTransactions.filter((t) => t.instructorId === instructorId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return listWalletTransactionsForInstructor(instructorId).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
 export function creditInstructorEarnings(input: {

@@ -35,6 +35,7 @@ import { markAtplInstructorAssignmentPending } from "@/services/cgi/instructor-a
 import { issueInvoiceForOrder, issueInvoiceForPayment } from "@/services/payments/invoice-service";
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
+import { listRecentTransactionLogs } from "@/lib/data/lms-payment-activity-store";
 import {
   countOrders,
   getOrderById,
@@ -116,9 +117,7 @@ export function listSubscriptions(studentId?: string) {
 }
 
 export function listTransactionLogs(limit = 100) {
-  return [...readPaymentsDb().transactionLogs]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit);
+  return listRecentTransactionLogs(limit);
 }
 
 function expireStaleOrders() {

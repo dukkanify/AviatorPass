@@ -81,12 +81,26 @@ import {
   upsertInstallmentPlan,
   upsertScheduleItem,
 } from "@/lib/data/lms-installment-store";
+import {
+  listAllTransactionLogs,
+  listAllWalletTransactions,
+  listRecentTransactionLogs,
+  listWalletTransactionsForInstructor,
+  PAYMENT_LOG_CAP,
+  replaceAllTransactionLogs,
+  replaceAllWalletTransactions,
+  resetPaymentActivityStoreRuntime,
+  trimTransactionLogs,
+  upsertWalletTransaction,
+} from "@/lib/data/lms-payment-activity-store";
 import type {
   InstallmentPlan,
   InstallmentScheduleItem,
   Invoice,
   Order,
   PaymentRecord,
+  TransactionLog,
+  WalletTransaction,
 } from "@/types/payments";
 import type { Enrollment } from "@/types/courses";
 import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
@@ -181,8 +195,21 @@ describe("lifetime store speed contracts", () => {
     const paymentsStore = src("services/payments/store.ts");
     expect(paymentsStore).toMatch(/extractEmbeddedLedger/);
     expect(paymentsStore).toMatch(/extractEmbeddedInstallments/);
+    expect(paymentsStore).toMatch(/extractEmbeddedActivity/);
     expect(paymentsStore).toMatch(/withLazyLedgerWrites/);
     expect(paymentsStore).toMatch(/orders: \[\]/);
+    expect(paymentsStore).toMatch(/walletTransactions: \[\]/);
+    expect(paymentsStore).toMatch(/transactionLogs: \[\]/);
+    expect(src("services/payments/wallet-service.ts")).toMatch(
+      /listWalletTransactionsForInstructor\(/,
+    );
+    expect(src("services/payments/wallet-service.ts")).not.toMatch(
+      /readPaymentsDb\(\)\.walletTransactions/,
+    );
+    expect(src("services/payments/checkout-service.ts")).toMatch(/listRecentTransactionLogs\(/);
+    expect(src("services/payments/checkout-service.ts")).not.toMatch(
+      /readPaymentsDb\(\)\.transactionLogs/,
+    );
     const installments = src("services/payments/installment-service.ts");
     expect(installments).toMatch(/listInstallmentPlansForStudent\(/);
     expect(installments).toMatch(/getInstallmentPlanById\(/);
@@ -272,6 +299,15 @@ describe("lifetime store speed contracts", () => {
     expect(installmentRuntime).toContain('const PLAN_TABLE = "aep_lms_installment_plans"');
     expect(installmentRuntime).toMatch(/WHERE student_id = \$1/);
     expect(installmentRuntime).toMatch(/WHERE plan_id = \$1/);
+    const activityMigration = src("database/migrations/041_lms_payment_activity_store.sql");
+    expect(activityMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_wallet_transactions/);
+    expect(activityMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_transaction_logs/);
+    const activityRuntime = src("lib/data/lms-payment-activity-store.ts");
+    expect(activityRuntime).toContain('const WALLET_TABLE = "aep_lms_wallet_transactions"');
+    expect(activityRuntime).toContain('const LOG_TABLE = "aep_lms_transaction_logs"');
+    expect(activityRuntime).toMatch(/PAYMENT_LOG_CAP = 400/);
+    expect(activityRuntime).toMatch(/WHERE instructor_id = \$1/);
+    expect(activityRuntime).toMatch(/ORDER BY created_at DESC, id DESC LIMIT \$1/);
   });
 });
 
@@ -792,5 +828,112 @@ describe("indexed installment store", () => {
     ) as { installmentPlans?: unknown[]; installmentSchedule?: unknown[] };
     expect(catalog.installmentPlans ?? []).toEqual([]);
     expect(catalog.installmentSchedule ?? []).toEqual([]);
+  });
+});
+
+function testWalletTxn(suffix: string): WalletTransaction {
+  const now = new Date().toISOString();
+  return {
+    id: `wtxn-lifetime-speed-${suffix}`,
+    walletId: `wallet-lifetime-speed-${suffix}`,
+    instructorId: `instructor-lifetime-speed-${suffix}`,
+    type: "course_sale",
+    direction: "credit",
+    amount: 2500,
+    currency: "KWD",
+    availableDelta: 2500,
+    pendingDelta: 0,
+    orderId: `ord-wtxn-${suffix}`,
+    payoutId: null,
+    description: "lifetime wallet extract",
+    createdAt: now,
+  };
+}
+
+function testTxnLog(suffix: string, createdAt = new Date().toISOString()): TransactionLog {
+  return {
+    id: `tlog-lifetime-speed-${suffix}`,
+    kind: "payment",
+    referenceId: `ref-${suffix}`,
+    actorId: "actor-lifetime-speed",
+    studentId: `student-tlog-${suffix}`,
+    instructorId: null,
+    amount: 1000,
+    currency: "KWD",
+    description: "lifetime payment log",
+    metadata: {},
+    createdAt,
+  };
+}
+
+describe("indexed payment activity store", () => {
+  afterEach(() => {
+    replaceAllWalletTransactions(
+      listAllWalletTransactions().filter((row) => !row.id.startsWith("wtxn-lifetime-speed-")),
+    );
+    replaceAllTransactionLogs(
+      listAllTransactionLogs().filter((row) => !row.id.startsWith("tlog-lifetime-speed-")),
+    );
+    resetPaymentActivityStoreRuntime();
+  });
+
+  it("returns one instructor wallet ledger without scanning the catalog", () => {
+    const first = testWalletTxn("alpha");
+    const second = testWalletTxn("beta");
+    upsertWalletTransaction(first);
+    upsertWalletTransaction(second);
+    resetPaymentActivityStoreRuntime();
+
+    expect(listWalletTransactionsForInstructor(first.instructorId)).toEqual([
+      expect.objectContaining({ id: first.id, instructorId: first.instructorId }),
+    ]);
+    expect(
+      listWalletTransactionsForInstructor(second.instructorId).some((row) => row.id === first.id),
+    ).toBe(false);
+  });
+
+  it("keeps the newest payment logs and never caps wallet rows", () => {
+    expect(PAYMENT_LOG_CAP).toBe(400);
+    const overflow = Array.from({ length: PAYMENT_LOG_CAP + 40 }, (_, index) =>
+      testTxnLog(`overflow-${index}`, new Date(2026, 0, 1, 0, 0, index).toISOString()),
+    );
+    const kept = trimTransactionLogs(overflow);
+    expect(kept).toHaveLength(PAYMENT_LOG_CAP);
+    expect(kept[0]?.id).toBe(`tlog-lifetime-speed-overflow-${PAYMENT_LOG_CAP + 39}`);
+
+    const existingLogs = listAllTransactionLogs().filter(
+      (row) => !row.id.startsWith("tlog-lifetime-speed-"),
+    );
+    replaceAllTransactionLogs([...existingLogs, ...overflow]);
+    expect(listAllTransactionLogs().length).toBeLessThanOrEqual(PAYMENT_LOG_CAP);
+    expect(listRecentTransactionLogs(10).length).toBeLessThanOrEqual(10);
+
+    const existingWallet = listAllWalletTransactions().filter(
+      (row) => !row.id.startsWith("wtxn-lifetime-speed-"),
+    );
+    const walletRows = Array.from({ length: 12 }, (_, index) => testWalletTxn(`keep-${index}`));
+    replaceAllWalletTransactions([...existingWallet, ...walletRows]);
+    expect(
+      listAllWalletTransactions().filter((row) => row.id.startsWith("wtxn-lifetime-speed-keep-")),
+    ).toHaveLength(12);
+  });
+
+  it("extracts wallet and log rows written through the payments catalog view", () => {
+    const txn = testWalletTxn("extract");
+    const log = testTxnLog("extract");
+    writePaymentsDb((db) => {
+      db.walletTransactions.push(txn);
+      db.transactionLogs.push(log);
+    });
+    resetPaymentActivityStoreRuntime();
+    expect(
+      listWalletTransactionsForInstructor(txn.instructorId).some((row) => row.id === txn.id),
+    ).toBe(true);
+    expect(listRecentTransactionLogs(20).some((row) => row.id === log.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-payments.json"), "utf8"),
+    ) as { walletTransactions?: unknown[]; transactionLogs?: unknown[] };
+    expect(catalog.walletTransactions ?? []).toEqual([]);
+    expect(catalog.transactionLogs ?? []).toEqual([]);
   });
 });

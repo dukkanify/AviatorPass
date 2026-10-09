@@ -36,6 +36,7 @@ Effort bands: **S** (&lt; 1 engineer-day) · **M** (1–3 days) · **L** (multi-
 | TD-029 | Auth notifications still live in the auth blob    | medium   | Inbox / unread-count paths     | Index notifications by user and cap history  | M      | —      | done        | Inbox uses listNotificationsForUser          |
 | TD-030 | Student billing still hydrates the payments blob  | medium   | Billing / ATPL paid-order      | Index orders, invoices, and payments         | M      | —      | done        | Student lists use ledger helpers             |
 | TD-031 | Installment plans still live in the payments blob | medium   | Student plans / reminder cron  | Index plans and schedule by student and plan | M      | —      | done        | listInstallmentPlans uses student index      |
+| TD-032 | Wallet txns and payment logs still in the catalog | medium   | Instructor wallet / audit      | Index wallet rows; cap logs at 400 newest    | M      | —      | done        | listWalletTransactions uses instructor index |
 
 ## Process
 

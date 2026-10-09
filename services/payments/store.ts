@@ -1,7 +1,8 @@
 /**
  * Payments durable store (.data/aep-payments.json).
- * Orders, invoices, and payment records live in the indexed ledger so
- * student billing never hydrates the whole catalog blob.
+ * Orders, invoices, payments, installments, wallet rows, and audit logs
+ * live in indexed stores so student and instructor reads never hydrate
+ * the whole catalog blob.
  */
 
 import path from "path";
@@ -13,6 +14,12 @@ import {
   replaceAllInstallmentPlans,
   replaceAllInstallmentSchedule,
 } from "@/lib/data/lms-installment-store";
+import {
+  listAllTransactionLogs,
+  listAllWalletTransactions,
+  replaceAllTransactionLogs,
+  replaceAllWalletTransactions,
+} from "@/lib/data/lms-payment-activity-store";
 import {
   listAllInvoices,
   listAllOrders,
@@ -216,10 +223,10 @@ function catalogSnapshot(db: PaymentsDatabase): PaymentsDatabase {
     invoices: [],
     subscriptions: db.subscriptions,
     wallets: db.wallets,
-    walletTransactions: db.walletTransactions,
+    walletTransactions: [],
     payouts: db.payouts,
     refunds: db.refunds,
-    transactionLogs: db.transactionLogs,
+    transactionLogs: [],
     regionalRules: db.regionalRules,
     installmentPlans: [],
     installmentSchedule: [],
@@ -232,6 +239,25 @@ function catalogSnapshot(db: PaymentsDatabase): PaymentsDatabase {
 
 function persistCatalog(db: PaymentsDatabase): void {
   writeJsonFile(dataFile(), catalogSnapshot(db));
+}
+
+function extractEmbeddedActivity(db: PaymentsDatabase): void {
+  const embeddedWallet = db.walletTransactions ?? [];
+  const embeddedLogs = db.transactionLogs ?? [];
+  if (embeddedWallet.length === 0 && embeddedLogs.length === 0) return;
+  if (embeddedWallet.length > 0) {
+    const existing = listAllWalletTransactions();
+    replaceAllWalletTransactions(
+      existing.length > 0 ? [...existing, ...embeddedWallet] : embeddedWallet,
+    );
+    db.walletTransactions = [];
+  }
+  if (embeddedLogs.length > 0) {
+    const existing = listAllTransactionLogs();
+    replaceAllTransactionLogs(existing.length > 0 ? [...existing, ...embeddedLogs] : embeddedLogs);
+    db.transactionLogs = [];
+  }
+  persistCatalog(db);
 }
 
 function extractEmbeddedLedger(db: PaymentsDatabase): void {
@@ -292,6 +318,8 @@ function withLedgerView(db: PaymentsDatabase): PaymentsDatabase {
       if (prop === "payments") return listAllPayments();
       if (prop === "installmentPlans") return listAllInstallmentPlans();
       if (prop === "installmentSchedule") return listAllInstallmentSchedule();
+      if (prop === "walletTransactions") return listAllWalletTransactions();
+      if (prop === "transactionLogs") return listAllTransactionLogs();
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -311,6 +339,10 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
   let installmentPlans: InstallmentPlan[] = [];
   let scheduleLoaded = false;
   let installmentSchedule: InstallmentScheduleItem[] = [];
+  let walletLoaded = false;
+  let walletTransactions: WalletTransaction[] = [];
+  let logsLoaded = false;
+  let transactionLogs: TransactionLog[] = [];
   const working = {
     ...catalog,
     orders: [],
@@ -318,6 +350,8 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
     payments: [],
     installmentPlans: [],
     installmentSchedule: [],
+    walletTransactions: [],
+    transactionLogs: [],
   };
   Object.defineProperty(working, "orders", {
     configurable: true,
@@ -394,6 +428,36 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
       scheduleLoaded = true;
     },
   });
+  Object.defineProperty(working, "walletTransactions", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!walletLoaded) {
+        walletTransactions = listAllWalletTransactions();
+        walletLoaded = true;
+      }
+      return walletTransactions;
+    },
+    set(value: WalletTransaction[]) {
+      walletTransactions = Array.isArray(value) ? value : [];
+      walletLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "transactionLogs", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!logsLoaded) {
+        transactionLogs = listAllTransactionLogs();
+        logsLoaded = true;
+      }
+      return transactionLogs;
+    },
+    set(value: TransactionLog[]) {
+      transactionLogs = Array.isArray(value) ? value : [];
+      logsLoaded = true;
+    },
+  });
   return {
     working,
     flushLedger() {
@@ -402,12 +466,15 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
       if (paymentsLoaded) replaceAllPayments(payments.map(normalizePayment));
       if (plansLoaded) replaceAllInstallmentPlans(installmentPlans);
       if (scheduleLoaded) replaceAllInstallmentSchedule(installmentSchedule);
+      if (walletLoaded) replaceAllWalletTransactions(walletTransactions);
+      if (logsLoaded) replaceAllTransactionLogs(transactionLogs);
     },
   };
 }
 
 export function ensurePaymentsStore(): PaymentsDatabase {
   const db = normalizeDb(readJsonFile<Partial<PaymentsDatabase>>(dataFile(), emptyDb));
+  extractEmbeddedActivity(db);
   extractEmbeddedInstallments(db);
   extractEmbeddedLedger(db);
   db.orders = [];
@@ -415,6 +482,8 @@ export function ensurePaymentsStore(): PaymentsDatabase {
   db.payments = [];
   db.installmentPlans = [];
   db.installmentSchedule = [];
+  db.walletTransactions = [];
+  db.transactionLogs = [];
   return db;
 }
 
