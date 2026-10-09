@@ -27,7 +27,11 @@ import {
   assertScheduledPublish,
   assertStatus,
 } from "@/services/courses/validation";
-import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
+import {
+  displayLessonHeading,
+  displayModuleHeading,
+  officialCourseDisplayTitle,
+} from "@/lib/courses/display-title";
 import { getPublicDeliveryFilter, isCoursePubliclyListed } from "@/services/courses/publishing";
 import { syncCatalogProductForCourse } from "@/services/stripe/catalog-sync";
 import { isIso4217Currency } from "@/services/stripe/currency";
@@ -346,10 +350,12 @@ export function getCourseDetail(id: string): CourseDetail | null {
     .sort((a, b) => a.order - b.order)
     .map((mod) => ({
       ...mod,
+      title: displayModuleHeading(mod.title),
       lessons: [...(graph.lessonsByModule.get(mod.id) ?? [])]
         .sort((a, b) => a.order - b.order)
         .map((lesson) => ({
           ...lesson,
+          title: displayLessonHeading(lesson.title, course),
           resources: [...(graph.resourcesByLesson.get(lesson.id) ?? [])].sort(
             (a, b) => a.order - b.order,
           ),
