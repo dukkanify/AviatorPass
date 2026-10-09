@@ -8,6 +8,12 @@ import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import {
+  listAllInstallmentPlans,
+  listAllInstallmentSchedule,
+  replaceAllInstallmentPlans,
+  replaceAllInstallmentSchedule,
+} from "@/lib/data/lms-installment-store";
+import {
   listAllInvoices,
   listAllOrders,
   listAllPayments,
@@ -215,8 +221,8 @@ function catalogSnapshot(db: PaymentsDatabase): PaymentsDatabase {
     refunds: db.refunds,
     transactionLogs: db.transactionLogs,
     regionalRules: db.regionalRules,
-    installmentPlans: db.installmentPlans,
-    installmentSchedule: db.installmentSchedule,
+    installmentPlans: [],
+    installmentSchedule: [],
     installmentReminders: db.installmentReminders,
     kycDocuments: db.kycDocuments,
     processedProviderEvents: db.processedProviderEvents,
@@ -257,12 +263,35 @@ function extractEmbeddedLedger(db: PaymentsDatabase): void {
   persistCatalog(db);
 }
 
+function extractEmbeddedInstallments(db: PaymentsDatabase): void {
+  const embeddedPlans = db.installmentPlans ?? [];
+  const embeddedSchedule = db.installmentSchedule ?? [];
+  if (embeddedPlans.length === 0 && embeddedSchedule.length === 0) return;
+  if (embeddedPlans.length > 0) {
+    const existing = listAllInstallmentPlans();
+    replaceAllInstallmentPlans(
+      existing.length > 0 ? [...existing, ...embeddedPlans] : embeddedPlans,
+    );
+    db.installmentPlans = [];
+  }
+  if (embeddedSchedule.length > 0) {
+    const existing = listAllInstallmentSchedule();
+    replaceAllInstallmentSchedule(
+      existing.length > 0 ? [...existing, ...embeddedSchedule] : embeddedSchedule,
+    );
+    db.installmentSchedule = [];
+  }
+  persistCatalog(db);
+}
+
 function withLedgerView(db: PaymentsDatabase): PaymentsDatabase {
   return new Proxy(db, {
     get(target, prop, receiver) {
       if (prop === "orders") return listAllOrders();
       if (prop === "invoices") return listAllInvoices();
       if (prop === "payments") return listAllPayments();
+      if (prop === "installmentPlans") return listAllInstallmentPlans();
+      if (prop === "installmentSchedule") return listAllInstallmentSchedule();
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -278,7 +307,18 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
   let invoices: Invoice[] = [];
   let paymentsLoaded = false;
   let payments: PaymentRecord[] = [];
-  const working = { ...catalog, orders: [], invoices: [], payments: [] };
+  let plansLoaded = false;
+  let installmentPlans: InstallmentPlan[] = [];
+  let scheduleLoaded = false;
+  let installmentSchedule: InstallmentScheduleItem[] = [];
+  const working = {
+    ...catalog,
+    orders: [],
+    invoices: [],
+    payments: [],
+    installmentPlans: [],
+    installmentSchedule: [],
+  };
   Object.defineProperty(working, "orders", {
     configurable: true,
     enumerable: true,
@@ -324,22 +364,57 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
       paymentsLoaded = true;
     },
   });
+  Object.defineProperty(working, "installmentPlans", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!plansLoaded) {
+        installmentPlans = listAllInstallmentPlans();
+        plansLoaded = true;
+      }
+      return installmentPlans;
+    },
+    set(value: InstallmentPlan[]) {
+      installmentPlans = Array.isArray(value) ? value : [];
+      plansLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "installmentSchedule", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!scheduleLoaded) {
+        installmentSchedule = listAllInstallmentSchedule();
+        scheduleLoaded = true;
+      }
+      return installmentSchedule;
+    },
+    set(value: InstallmentScheduleItem[]) {
+      installmentSchedule = Array.isArray(value) ? value : [];
+      scheduleLoaded = true;
+    },
+  });
   return {
     working,
     flushLedger() {
       if (ordersLoaded) replaceAllOrders(orders);
       if (invoicesLoaded) replaceAllInvoices(invoices);
       if (paymentsLoaded) replaceAllPayments(payments.map(normalizePayment));
+      if (plansLoaded) replaceAllInstallmentPlans(installmentPlans);
+      if (scheduleLoaded) replaceAllInstallmentSchedule(installmentSchedule);
     },
   };
 }
 
 export function ensurePaymentsStore(): PaymentsDatabase {
   const db = normalizeDb(readJsonFile<Partial<PaymentsDatabase>>(dataFile(), emptyDb));
+  extractEmbeddedInstallments(db);
   extractEmbeddedLedger(db);
   db.orders = [];
   db.invoices = [];
   db.payments = [];
+  db.installmentPlans = [];
+  db.installmentSchedule = [];
   return db;
 }
 

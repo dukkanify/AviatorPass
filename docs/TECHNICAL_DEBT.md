@@ -35,6 +35,7 @@ Effort bands: **S** (&lt; 1 engineer-day) · **M** (1–3 days) · **L** (multi-
 | TD-028 | Class participants still live in the classes blob | medium   | Calendar / join paths          | Index participants by class and student      | M      | —      | done        | Calendar/join use listParticipantsForUser    |
 | TD-029 | Auth notifications still live in the auth blob    | medium   | Inbox / unread-count paths     | Index notifications by user and cap history  | M      | —      | done        | Inbox uses listNotificationsForUser          |
 | TD-030 | Student billing still hydrates the payments blob  | medium   | Billing / ATPL paid-order      | Index orders, invoices, and payments         | M      | —      | done        | Student lists use ledger helpers             |
+| TD-031 | Installment plans still live in the payments blob | medium   | Student plans / reminder cron  | Index plans and schedule by student and plan | M      | —      | done        | listInstallmentPlans uses student index      |
 
 ## Process
 

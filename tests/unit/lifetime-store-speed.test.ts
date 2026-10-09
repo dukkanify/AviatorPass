@@ -69,7 +69,25 @@ import {
   upsertPayment,
 } from "@/lib/data/lms-payment-ledger-store";
 import { writePaymentsDb } from "@/services/payments/store";
-import type { Invoice, Order, PaymentRecord } from "@/types/payments";
+import {
+  getInstallmentPlanById,
+  listAllInstallmentPlans,
+  listAllInstallmentSchedule,
+  listInstallmentPlansForStudent,
+  listScheduleForPlan,
+  replaceAllInstallmentPlans,
+  replaceAllInstallmentSchedule,
+  resetInstallmentStoreRuntime,
+  upsertInstallmentPlan,
+  upsertScheduleItem,
+} from "@/lib/data/lms-installment-store";
+import type {
+  InstallmentPlan,
+  InstallmentScheduleItem,
+  Invoice,
+  Order,
+  PaymentRecord,
+} from "@/types/payments";
 import type { Enrollment } from "@/types/courses";
 import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
 import type { NotificationRecord } from "@/types";
@@ -162,8 +180,19 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/cgi/journey-service.ts")).toMatch(/listOrdersForEmail\(/);
     const paymentsStore = src("services/payments/store.ts");
     expect(paymentsStore).toMatch(/extractEmbeddedLedger/);
+    expect(paymentsStore).toMatch(/extractEmbeddedInstallments/);
     expect(paymentsStore).toMatch(/withLazyLedgerWrites/);
     expect(paymentsStore).toMatch(/orders: \[\]/);
+    const installments = src("services/payments/installment-service.ts");
+    expect(installments).toMatch(/listInstallmentPlansForStudent\(/);
+    expect(installments).toMatch(/getInstallmentPlanById\(/);
+    expect(installments).not.toMatch(/readPaymentsDb\(\)\.installmentPlans/);
+    expect(src("services/payments/installment-reminder-service.ts")).toMatch(
+      /listInstallmentPlansByStatus\(/,
+    );
+    expect(src("services/payments/installment-reminder-service.ts")).toMatch(
+      /listScheduleForPlan\(/,
+    );
   });
 
   it("serves admin course stats and enrollment charts from aggregates", () => {
@@ -236,6 +265,13 @@ describe("lifetime store speed contracts", () => {
     expect(ledgerRuntime).toMatch(/WHERE student_id = \$1/);
     expect(ledgerRuntime).toMatch(/WHERE student_email = \$1 OR billing_email = \$1/);
     expect(ledgerRuntime).toMatch(/WHERE order_id = \$1/);
+    const installmentMigration = src("database/migrations/040_lms_installment_store.sql");
+    expect(installmentMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_installment_plans/);
+    expect(installmentMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_installment_schedule/);
+    const installmentRuntime = src("lib/data/lms-installment-store.ts");
+    expect(installmentRuntime).toContain('const PLAN_TABLE = "aep_lms_installment_plans"');
+    expect(installmentRuntime).toMatch(/WHERE student_id = \$1/);
+    expect(installmentRuntime).toMatch(/WHERE plan_id = \$1/);
   });
 });
 
@@ -665,5 +701,96 @@ describe("indexed payment ledger", () => {
     expect(catalog.orders ?? []).toEqual([]);
     expect(catalog.invoices ?? []).toEqual([]);
     expect(catalog.payments ?? []).toEqual([]);
+  });
+});
+
+function testPlan(suffix: string): InstallmentPlan {
+  const now = new Date().toISOString();
+  return {
+    id: `plan-lifetime-speed-${suffix}`,
+    orderId: `ord-plan-${suffix}`,
+    studentId: `student-plan-${suffix}`,
+    productId: `prod-plan-${suffix}`,
+    productName: "ATPL package",
+    courseIds: ["course-plan"],
+    countryCode: "KW",
+    mode: "installments",
+    status: "active",
+    currency: "KWD",
+    totalAmount: 4000,
+    installmentCount: 4,
+    agreementAcceptedAt: now,
+    agreementVersion: "1",
+    passportDocumentId: null,
+    suspendedAt: null,
+    resumedAt: null,
+    metadata: {},
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function testSchedule(suffix: string): InstallmentScheduleItem {
+  const now = new Date().toISOString();
+  return {
+    id: `sched-lifetime-speed-${suffix}`,
+    planId: `plan-lifetime-speed-${suffix}`,
+    sequence: 1,
+    amount: 1000,
+    currency: "KWD",
+    dueAt: now,
+    status: "due",
+    paidAt: null,
+    paymentId: null,
+    reminderSentAt: [],
+    lastReminderAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+describe("indexed installment store", () => {
+  afterEach(() => {
+    replaceAllInstallmentPlans(
+      listAllInstallmentPlans().filter((row) => !row.id.startsWith("plan-lifetime-speed-")),
+    );
+    replaceAllInstallmentSchedule(
+      listAllInstallmentSchedule().filter((row) => !row.id.startsWith("sched-lifetime-speed-")),
+    );
+    resetInstallmentStoreRuntime();
+  });
+
+  it("returns one student plan and its schedule without scanning the catalog", () => {
+    const first = testPlan("alpha");
+    const second = testPlan("beta");
+    upsertInstallmentPlan(first);
+    upsertInstallmentPlan(second);
+    upsertScheduleItem(testSchedule("alpha"));
+    resetInstallmentStoreRuntime();
+
+    expect(listInstallmentPlansForStudent(first.studentId)).toEqual([
+      expect.objectContaining({ id: first.id, studentId: first.studentId }),
+    ]);
+    expect(getInstallmentPlanById(first.id)?.orderId).toBe(first.orderId);
+    expect(listScheduleForPlan(first.id)).toEqual([
+      expect.objectContaining({ id: "sched-lifetime-speed-alpha", planId: first.id }),
+    ]);
+  });
+
+  it("extracts installment rows written through the payments catalog view", () => {
+    const plan = testPlan("extract");
+    const item = testSchedule("extract");
+    writePaymentsDb((db) => {
+      db.installmentPlans.push(plan);
+      db.installmentSchedule.push(item);
+    });
+    resetInstallmentStoreRuntime();
+    expect(getInstallmentPlanById(plan.id)?.studentId).toBe(plan.studentId);
+    expect(listScheduleForPlan(plan.id).some((row) => row.id === item.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-payments.json"), "utf8"),
+    ) as { installmentPlans?: unknown[]; installmentSchedule?: unknown[] };
+    expect(catalog.installmentPlans ?? []).toEqual([]);
+    expect(catalog.installmentSchedule ?? []).toEqual([]);
   });
 });
