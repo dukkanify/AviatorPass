@@ -1705,7 +1705,7 @@ export async function confirmAtplPackageSchedule(input: {
 
   const brand = getPublicBrandConfig();
   const label = formatAtplPackageScheduleLabel(studyStartDate, firstLectureTime);
-  const subject = firstLectureSubjectForStudent(input.studentId, liveClassId);
+  const subject = firstLectureSubjectForStudent(input.studentId);
   const subjectLabel = subject.title ?? ATPL_PACKAGE_OPENING_SUBJECT_TITLE;
   try {
     await dispatchEmailEvent({
