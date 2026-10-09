@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
@@ -20,6 +23,16 @@ describe("programme terms", () => {
     expect(ACTION_LABELS.contactAdvisor).toBe("Contact an advisor");
     expect(ACTION_LABELS.enrolNow).toBe("Enrol now");
     expect(ACTION_LABELS.viewCourse).toBe("View course details");
+    expect(ACTION_LABELS.startLesson).toBe("Start lesson");
     expect(ACTION_LABELS.continueLesson).toBe("Continue lesson");
+  });
+
+  it("labels an unstarted My Courses card as Start lesson", () => {
+    const view = readFileSync(
+      path.join(process.cwd(), "features/learning/components/my-courses-view.tsx"),
+      "utf8",
+    );
+    expect(view).toContain("ACTION_LABELS.startLesson");
+    expect(view).toMatch(/started \? ACTION_LABELS\.continueLesson : ACTION_LABELS\.startLesson/);
   });
 });

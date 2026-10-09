@@ -217,6 +217,7 @@ function MyCoursesView() {
           {courses.map((course) => {
             const pct = Math.round(course.learning?.progressPercent ?? 0);
             const resumeId = course.learning?.lastLessonId;
+            const started = Boolean(resumeId) || pct > 0;
             const href = resumeId
               ? safePath(["student", "courses", course.id, "lessons", resumeId], "/student/courses")
               : safePath(["student", "courses", course.id], "/student/courses");
@@ -252,7 +253,7 @@ function MyCoursesView() {
                     <Button asChild size="sm">
                       <Link href={href}>
                         <PlayCircle className="size-4" />
-                        {ACTION_LABELS.continueLesson}
+                        {started ? ACTION_LABELS.continueLesson : ACTION_LABELS.startLesson}
                       </Link>
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => void toggleFavorite(course)}>
