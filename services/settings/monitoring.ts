@@ -2,7 +2,8 @@
  * Activity monitoring aggregates for Super Admin.
  */
 
-import { readAuthDb } from "@/services/auth/store";
+import { listAllActivityLogs, listAllAuditLogs } from "@/lib/data/auth-activity-store";
+import { listAllSessions, listAllUsers } from "@/lib/data/auth-identity-store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { existsSync, readdirSync, statSync } from "fs";
@@ -27,23 +28,19 @@ function dirSizeMb(dir: string): number {
 }
 
 export function getActivityMonitoring() {
-  const db = readAuthDb();
+  const activityLogs = listAllActivityLogs();
   const settings = getPlatformSettings();
   const now = Date.now();
   const dayAgo = now - 24 * 60 * 60 * 1000;
   const hourAgo = now - 60 * 60 * 1000;
 
-  const recentLogins = db.activityLogs
-    .filter((l) => l.action === ACTIVITY_ACTIONS.LOGIN)
-    .slice(0, 10);
+  const recentLogins = activityLogs.filter((l) => l.action === ACTIVITY_ACTIONS.LOGIN).slice(0, 10);
 
-  const failedLogins = db.activityLogs.filter(
-    (l) =>
-      l.action === ACTIVITY_ACTIONS.LOGIN_FAILED &&
-      new Date(l.createdAt).getTime() > dayAgo,
+  const failedLogins = activityLogs.filter(
+    (l) => l.action === ACTIVITY_ACTIONS.LOGIN_FAILED && new Date(l.createdAt).getTime() > dayAgo,
   );
 
-  const onlineUsers = db.sessions.filter((s) => {
+  const onlineUsers = listAllSessions().filter((s) => {
     if (s.revokedAt) return false;
     if (new Date(s.expiresAt).getTime() < now) return false;
     return new Date(s.lastActiveAt).getTime() > hourAgo;
@@ -91,10 +88,10 @@ export function getActivityMonitoring() {
     systemWarnings: warnings,
     databaseStatus: {
       provider: "local-json",
-      users: db.users.length,
-      sessions: db.sessions.filter((s) => !s.revokedAt).length,
-      activityLogs: db.activityLogs.length,
-      auditLogs: db.auditLogs.length,
+      users: listAllUsers().length,
+      sessions: listAllSessions().filter((s) => !s.revokedAt).length,
+      activityLogs: activityLogs.length,
+      auditLogs: listAllAuditLogs().length,
       healthy: true,
     },
     storageUsage: {

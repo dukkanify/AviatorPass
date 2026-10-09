@@ -9,7 +9,7 @@ import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
 import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { readAuthDb } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { majorToMinor } from "@/services/payments/money";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
@@ -174,10 +174,8 @@ export const JOURNEY_COURSES: JourneyCourseDef[] = [
 
 function primaryInstructorId(): string | null {
   ensureDemoUsersSeeded();
-  const users = readAuthDb().users;
-  const lead = users.find(
-    (u) => u.role === ROLES.INSTRUCTOR && u.email.toLowerCase() === PRIMARY_DEMO_EMAILS.instructor,
-  );
+  const users = listUsersByRole(ROLES.INSTRUCTOR);
+  const lead = users.find((u) => u.email.toLowerCase() === PRIMARY_DEMO_EMAILS.instructor);
   return (
     lead?.id ??
     users.find((u) => u.role === ROLES.INSTRUCTOR)?.id ??
@@ -287,7 +285,7 @@ export function ensureCustomerJourneyCourses(): void {
 
   ensureDemoUsersSeeded();
   const instructorId = primaryInstructorId();
-  const actor = readAuthDb().users.find((u) => u.role === ROLES.SUPER_ADMIN)?.id ?? instructorId;
+  const actor = listUsersByRole(ROLES.SUPER_ADMIN)[0]?.id ?? instructorId;
   const ts = nowIso();
 
   writeCoursesDb((d) => {

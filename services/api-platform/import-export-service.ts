@@ -8,18 +8,16 @@ import path from "path";
 import { generateId } from "@/lib/security/crypto";
 import { enqueueJob } from "@/services/api-platform/queue-service";
 import { ensureApiPlatformSeeded } from "@/services/api-platform/seed";
-import {
-  ensureApiPlatformStore,
-  writeApiPlatformStore,
-} from "@/services/api-platform/store";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { ensureApiPlatformStore, writeApiPlatformStore } from "@/services/api-platform/store";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { listCourses } from "@/services/courses/course-service";
 import { ApiError } from "@/lib/api/envelope";
 import type { ExportFormat, ImportExportKind } from "@/types/api-platform";
 import { ROLES } from "@/constants/roles";
 
 function listUsers() {
-  return readAuthDb().users.map(toUserProfile);
+  return listAllUsers().map(toUserProfile);
 }
 
 const EXPORT_DIR = path.join(process.cwd(), "public", "exports");
@@ -169,12 +167,16 @@ export function startExport(input: {
     body = JSON.stringify({ kind: input.kind, rows }, null, 2);
     ext = "json";
   } else if (input.format === "xlsx" || input.format === "pdf") {
-    body = JSON.stringify({
-      kind: input.kind,
-      format: input.format,
-      note: `${input.format.toUpperCase()} renderer reserved for production worker`,
-      rows,
-    }, null, 2);
+    body = JSON.stringify(
+      {
+        kind: input.kind,
+        format: input.format,
+        note: `${input.format.toUpperCase()} renderer reserved for production worker`,
+        rows,
+      },
+      null,
+      2,
+    );
     ext = `${input.format}.json`;
   } else {
     throw new ApiError(400, "invalid_format", "Unsupported export format");

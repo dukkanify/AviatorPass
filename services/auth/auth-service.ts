@@ -1,4 +1,6 @@
+import { listActivityForActor } from "@/lib/data/auth-activity-store";
 import { getSessionById, upsertSession } from "@/lib/data/auth-identity-store";
+import { getSecuritySettingsByUser, upsertSecuritySettings } from "@/lib/data/auth-settings-store";
 import { getServerEnv } from "@/config/env";
 import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-status";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
@@ -667,7 +669,7 @@ export async function verifyOtp(input: {
   });
 
   if (input.deviceFingerprint) {
-    const fingerprintSeen = readAuthDb().activityLogs.filter(
+    const fingerprintSeen = listActivityForActor(profile.id).filter(
       (l) =>
         l.actorId === profile.id &&
         l.action === ACTIVITY_ACTIONS.LOGIN &&
@@ -1020,7 +1022,7 @@ export async function passwordLogin(input: {
     return { success: false, data: null, error: "Account cannot sign in in its current status." };
   }
 
-  const security = readAuthDb().securitySettings.find((s) => s.userId === user.id);
+  const security = getSecuritySettingsByUser(user.id);
   if (security?.lockedUntil && new Date(security.lockedUntil).getTime() > Date.now()) {
     return {
       success: false,
@@ -1039,18 +1041,13 @@ export async function passwordLogin(input: {
 
   const ok = verifyPassword(input.password, user.passwordHash, user.passwordSalt);
   if (!ok) {
-    writeAuthDb((d) => {
-      let row = d.securitySettings.find((s) => s.userId === user.id);
-      if (!row) {
-        row = defaultSecuritySettings(user.id);
-        d.securitySettings.push(row);
-      }
-      row.failedLoginCount += 1;
-      row.updatedAt = nowIso();
-      if (row.failedLoginCount >= 5) {
-        row.lockedUntil = addMinutes(15);
-      }
-    });
+    const row = getSecuritySettingsByUser(user.id) ?? defaultSecuritySettings(user.id);
+    row.failedLoginCount += 1;
+    row.updatedAt = nowIso();
+    if (row.failedLoginCount >= 5) {
+      row.lockedUntil = addMinutes(15);
+    }
+    upsertSecuritySettings(row);
     await logActivity({
       actorId: user.id,
       action: ACTIVITY_ACTIONS.LOGIN_FAILED,
@@ -1062,14 +1059,13 @@ export async function passwordLogin(input: {
     return { success: false, data: null, error: "Invalid email or password." };
   }
 
-  writeAuthDb((d) => {
-    const row = d.securitySettings.find((s) => s.userId === user.id);
-    if (row) {
-      row.failedLoginCount = 0;
-      row.lockedUntil = null;
-      row.updatedAt = nowIso();
-    }
-  });
+  const unlocked = getSecuritySettingsByUser(user.id);
+  if (unlocked) {
+    unlocked.failedLoginCount = 0;
+    unlocked.lockedUntil = null;
+    unlocked.updatedAt = nowIso();
+    upsertSecuritySettings(unlocked);
+  }
 
   const { profile } = await issueSession(user, Boolean(input.rememberMe), {
     ...(input.ctx ?? {}),

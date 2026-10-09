@@ -18,10 +18,12 @@ import {
 } from "@/lib/data/auth-notification-store";
 import { listUsersByRole } from "@/lib/data/auth-identity-store";
 import {
+  getNotificationPreferencesByUser,
+  upsertNotificationPreferences,
+} from "@/lib/data/auth-settings-store";
+import {
   defaultNotificationPreferences,
   findUserById,
-  readAuthDb,
-  writeAuthDb,
   type NotificationPreferences,
 } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
@@ -87,7 +89,7 @@ export function normalizePreferences(
 }
 
 export function getNotificationPreferences(userId: string): NotificationPreferences {
-  const row = readAuthDb().notificationPreferences.find((p) => p.userId === userId);
+  const row = getNotificationPreferencesByUser(userId);
   if (row) return normalizePreferences(row);
   return defaultNotificationPreferences(userId, false);
 }
@@ -96,23 +98,17 @@ export function updateNotificationPreferences(
   userId: string,
   patch: Partial<Omit<NotificationPreferences, "userId" | "createdAt">>,
 ): NotificationPreferences {
-  let updated = defaultNotificationPreferences(userId, false);
-  writeAuthDb((db) => {
-    const idx = db.notificationPreferences.findIndex((p) => p.userId === userId);
-    const current =
-      idx >= 0
-        ? normalizePreferences(db.notificationPreferences[idx]!)
-        : defaultNotificationPreferences(userId, false);
-    updated = normalizePreferences({
-      ...current,
-      ...patch,
-      userId,
-      updatedAt: nowIso(),
-      createdAt: current.createdAt,
-    });
-    if (idx >= 0) db.notificationPreferences[idx] = updated;
-    else db.notificationPreferences.push(updated);
+  const current = normalizePreferences(
+    getNotificationPreferencesByUser(userId) ?? defaultNotificationPreferences(userId, false),
+  );
+  const updated = normalizePreferences({
+    ...current,
+    ...patch,
+    userId,
+    updatedAt: nowIso(),
+    createdAt: current.createdAt,
   });
+  upsertNotificationPreferences(updated);
   return updated;
 }
 

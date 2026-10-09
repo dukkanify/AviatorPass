@@ -5,7 +5,8 @@
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
 import { countUnreadNotifications } from "@/lib/data/auth-notification-store";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { getUserById, listAllSessions, listUsersByRole } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { listCertificates } from "@/services/certificates/certificate-service";
 import {
@@ -78,8 +79,7 @@ function kpi(id: string, label: string, value: number | string, extra?: Partial<
 
 export function buildExecutiveAnalytics(filters?: AnalyticsFilters): ExecutiveAnalytics {
   ensureAllSeeded();
-  const auth = readAuthDb();
-  const students = auth.users.filter((u) => u.role === ROLES.STUDENT);
+  const students = listUsersByRole(ROLES.STUDENT);
   const activeStudents = students.filter((u) => u.status === ACCOUNT_STATUS.ACTIVE);
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -87,15 +87,15 @@ export function buildExecutiveAnalytics(filters?: AnalyticsFilters): ExecutiveAn
   const newThisMonth = students.filter(
     (u) => new Date(u.createdAt).getTime() >= monthStart.getTime(),
   ).length;
-  const instructors = auth.users.filter(
-    (u) => u.role === ROLES.INSTRUCTOR && u.status === ACCOUNT_STATUS.ACTIVE,
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR).filter(
+    (u) => u.status === ACCOUNT_STATUS.ACTIVE,
   );
   const courseStats = getCourseStats();
   const classStats = getClassStats();
   const finance = getFinanceDashboard();
   const exec = getExecutiveReport();
   const learning = readLearningDb();
-  const sessions = auth.sessions.filter((s) => !s.revokedAt);
+  const sessions = listAllSessions().filter((s) => !s.revokedAt);
 
   const completionRate = exec.courseSuccessRate ?? 0;
   const progressRows = learning.progress ?? [];
@@ -311,7 +311,7 @@ export function buildInstructorAnalytics(
   filters?: AnalyticsFilters,
 ): InstructorAnalytics {
   ensureAllSeeded();
-  const user = readAuthDb().users.find((u) => u.id === instructorId);
+  const user = getUserById(instructorId);
   const name = user ? toUserProfile(user).fullName || user.email : "Instructor";
   const report = getInstructorReport(instructorId);
   const wallet = listWallets().find((w) => w.instructorId === instructorId);

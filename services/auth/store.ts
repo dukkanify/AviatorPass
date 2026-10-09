@@ -17,7 +17,19 @@ import {
   replaceAllSessions,
   replaceAllUsers,
 } from "@/lib/data/auth-identity-store";
+import {
+  listAllActivityLogs,
+  listAllAuditLogs,
+  replaceAllActivityLogs,
+  replaceAllAuditLogs,
+} from "@/lib/data/auth-activity-store";
 import { listAllNotifications, replaceAllNotifications } from "@/lib/data/auth-notification-store";
+import {
+  listAllNotificationPreferences,
+  listAllSecuritySettings,
+  replaceAllNotificationPreferences,
+  replaceAllSecuritySettings,
+} from "@/lib/data/auth-settings-store";
 import type {
   ActivityLogRecord,
   AuditLogRecord,
@@ -193,11 +205,11 @@ function catalogSnapshot(db: AuthDatabase): AuthDatabase {
     otps: db.otps,
     passwordSetupTokens: db.passwordSetupTokens,
     pendingRegistrations: db.pendingRegistrations,
-    notificationPreferences: db.notificationPreferences,
-    securitySettings: db.securitySettings,
+    notificationPreferences: [],
+    securitySettings: [],
     notifications: [],
-    activityLogs: db.activityLogs,
-    auditLogs: db.auditLogs,
+    activityLogs: [],
+    auditLogs: [],
     seeded: db.seeded,
   };
 }
@@ -208,8 +220,6 @@ function persistCatalog(db: AuthDatabase): void {
     catalogSnapshot({
       ...db,
       passwordSetupTokens: trimPasswordSetupTokens(db.passwordSetupTokens ?? []),
-      activityLogs: (db.activityLogs ?? []).slice(0, AUTH_LOG_CAP),
-      auditLogs: (db.auditLogs ?? []).slice(0, AUTH_LOG_CAP),
     }),
   );
 }
@@ -247,12 +257,58 @@ function extractEmbeddedNotifications(db: AuthDatabase): void {
   persistCatalog(db);
 }
 
+function extractEmbeddedLeftover(db: AuthDatabase): void {
+  const embeddedActivity = db.activityLogs ?? [];
+  const embeddedAudit = db.auditLogs ?? [];
+  const embeddedPrefs = db.notificationPreferences ?? [];
+  const embeddedSecurity = db.securitySettings ?? [];
+  if (
+    embeddedActivity.length === 0 &&
+    embeddedAudit.length === 0 &&
+    embeddedPrefs.length === 0 &&
+    embeddedSecurity.length === 0
+  ) {
+    return;
+  }
+  if (embeddedActivity.length > 0) {
+    const existing = listAllActivityLogs();
+    replaceAllActivityLogs(
+      existing.length > 0 ? [...existing, ...embeddedActivity] : embeddedActivity,
+    );
+    db.activityLogs = [];
+  }
+  if (embeddedAudit.length > 0) {
+    const existing = listAllAuditLogs();
+    replaceAllAuditLogs(existing.length > 0 ? [...existing, ...embeddedAudit] : embeddedAudit);
+    db.auditLogs = [];
+  }
+  if (embeddedPrefs.length > 0) {
+    const existing = listAllNotificationPreferences();
+    replaceAllNotificationPreferences(
+      existing.length > 0 ? [...existing, ...embeddedPrefs] : embeddedPrefs,
+    );
+    db.notificationPreferences = [];
+  }
+  if (embeddedSecurity.length > 0) {
+    const existing = listAllSecuritySettings();
+    replaceAllSecuritySettings(
+      existing.length > 0 ? [...existing, ...embeddedSecurity] : embeddedSecurity,
+    );
+    db.securitySettings = [];
+  }
+  persistCatalog(db);
+}
+
 function withNotificationView(db: AuthDatabase): AuthDatabase {
   return new Proxy(db, {
     get(target, prop, receiver) {
       if (prop === "notifications") return listAllNotifications();
       if (prop === "users") return listAllUsers();
       if (prop === "sessions") return listAllSessions();
+      if (prop === "activityLogs") return listAllActivityLogs();
+      if (prop === "auditLogs") return listAllAuditLogs();
+      if (prop === "notificationPreferences") return listAllNotificationPreferences();
+      if (prop === "securitySettings") return listAllSecuritySettings();
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -268,7 +324,24 @@ function withLazyNotificationWrites(catalog: AuthDatabase): {
   let users: StoredUser[] = [];
   let sessionsLoaded = false;
   let sessions: SessionRecord[] = [];
-  const working = { ...catalog, notifications: [], users: [], sessions: [] };
+  let activityLoaded = false;
+  let activityLogs: ActivityLogRecord[] = [];
+  let auditLoaded = false;
+  let auditLogs: AuditLogRecord[] = [];
+  let prefsLoaded = false;
+  let notificationPreferences: NotificationPreferences[] = [];
+  let securityLoaded = false;
+  let securitySettings: UserSecuritySettings[] = [];
+  const working = {
+    ...catalog,
+    notifications: [],
+    users: [],
+    sessions: [],
+    activityLogs: [],
+    auditLogs: [],
+    notificationPreferences: [],
+    securitySettings: [],
+  };
   Object.defineProperty(working, "notifications", {
     configurable: true,
     enumerable: true,
@@ -314,12 +387,76 @@ function withLazyNotificationWrites(catalog: AuthDatabase): {
       sessionsLoaded = true;
     },
   });
+  Object.defineProperty(working, "activityLogs", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!activityLoaded) {
+        activityLogs = listAllActivityLogs();
+        activityLoaded = true;
+      }
+      return activityLogs;
+    },
+    set(value: ActivityLogRecord[]) {
+      activityLogs = Array.isArray(value) ? value : [];
+      activityLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "auditLogs", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!auditLoaded) {
+        auditLogs = listAllAuditLogs();
+        auditLoaded = true;
+      }
+      return auditLogs;
+    },
+    set(value: AuditLogRecord[]) {
+      auditLogs = Array.isArray(value) ? value : [];
+      auditLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "notificationPreferences", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!prefsLoaded) {
+        notificationPreferences = listAllNotificationPreferences();
+        prefsLoaded = true;
+      }
+      return notificationPreferences;
+    },
+    set(value: NotificationPreferences[]) {
+      notificationPreferences = Array.isArray(value) ? value : [];
+      prefsLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "securitySettings", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!securityLoaded) {
+        securitySettings = listAllSecuritySettings();
+        securityLoaded = true;
+      }
+      return securitySettings;
+    },
+    set(value: UserSecuritySettings[]) {
+      securitySettings = Array.isArray(value) ? value : [];
+      securityLoaded = true;
+    },
+  });
   return {
     working,
     flushNotifications() {
       if (notificationsLoaded) replaceAllNotifications(notifications);
       if (usersLoaded) replaceAllUsers(users);
       if (sessionsLoaded) replaceAllSessions(sessions);
+      if (activityLoaded) replaceAllActivityLogs(activityLogs);
+      if (auditLoaded) replaceAllAuditLogs(auditLogs);
+      if (prefsLoaded) replaceAllNotificationPreferences(notificationPreferences);
+      if (securityLoaded) replaceAllSecuritySettings(securitySettings);
     },
   };
 }
@@ -340,25 +477,28 @@ function ensureStore(): AuthDatabase {
   parsed.notifications = parsed.notifications ?? [];
   parsed.activityLogs = parsed.activityLogs ?? [];
   parsed.auditLogs = parsed.auditLogs ?? [];
-  const trimmedLogs =
-    parsed.activityLogs.length > AUTH_LOG_CAP ||
-    parsed.auditLogs.length > AUTH_LOG_CAP ||
-    rawTokens.length !== parsed.passwordSetupTokens.length;
-  if (parsed.activityLogs.length > AUTH_LOG_CAP) {
-    parsed.activityLogs = parsed.activityLogs.slice(0, AUTH_LOG_CAP);
-  }
-  if (parsed.auditLogs.length > AUTH_LOG_CAP) {
-    parsed.auditLogs = parsed.auditLogs.slice(0, AUTH_LOG_CAP);
-  }
+  const trimmedTokens = rawTokens.length !== parsed.passwordSetupTokens.length;
   parsed.seeded = Boolean(parsed.seeded);
   const embeddedCount = parsed.notifications.length;
   const embeddedUsers = parsed.users.length;
+  const embeddedLeftover =
+    parsed.activityLogs.length +
+    parsed.auditLogs.length +
+    parsed.notificationPreferences.length +
+    parsed.securitySettings.length;
   extractEmbeddedIdentity(parsed);
   extractEmbeddedNotifications(parsed);
+  extractEmbeddedLeftover(parsed);
   parsed.users = [];
   parsed.sessions = [];
   parsed.notifications = [];
-  if (trimmedLogs && embeddedCount === 0 && embeddedUsers === 0) persistCatalog(parsed);
+  parsed.activityLogs = [];
+  parsed.auditLogs = [];
+  parsed.notificationPreferences = [];
+  parsed.securitySettings = [];
+  if (trimmedTokens && embeddedCount === 0 && embeddedUsers === 0 && embeddedLeftover === 0) {
+    persistCatalog(parsed);
+  }
   return parsed;
 }
 
@@ -427,11 +567,11 @@ export function writeAuthDb(mutator: (db: AuthDatabase) => void): AuthDatabase {
     otps: working.otps,
     passwordSetupTokens: working.passwordSetupTokens,
     pendingRegistrations: working.pendingRegistrations,
-    notificationPreferences: working.notificationPreferences,
-    securitySettings: working.securitySettings,
+    notificationPreferences: [],
+    securitySettings: [],
     notifications: [],
-    activityLogs: working.activityLogs,
-    auditLogs: working.auditLogs,
+    activityLogs: [],
+    auditLogs: [],
     seeded: working.seeded,
   });
 }

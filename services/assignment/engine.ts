@@ -14,7 +14,8 @@ import {
 } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
 import { appJoinUrl } from "@/lib/site-origin";
-import { findUserById, readAuthDb } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { findUserById } from "@/services/auth/store";
 import { assignInstructor, getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
@@ -91,14 +92,11 @@ async function alertUnableToSchedule(input: {
     .filter(Boolean)
     .join(" ");
 
-  const auth = readAuthDb();
-  const cgiIds = auth.users
-    .filter((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR && u.status === "active")
+  const cgiIds = listUsersByRole(ROLES.CHIEF_GROUND_INSTRUCTOR)
+    .filter((u) => u.status === "active")
     .map((u) => u.id);
-  const adminIds = auth.users
-    .filter(
-      (u) => (u.role === ROLES.SUPER_ADMIN || u.role === ROLES.ADMIN) && u.status === "active",
-    )
+  const adminIds = [...listUsersByRole(ROLES.SUPER_ADMIN), ...listUsersByRole(ROLES.ADMIN)]
+    .filter((u) => u.status === "active")
     .map((u) => u.id);
   const recipients = [...new Set([...cgiIds, ...adminIds])];
 
@@ -1165,7 +1163,7 @@ export function getInstructorCalendar(
 
 export function getAssignmentEngineSnapshot() {
   ensureCoursesSeeded();
-  const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR);
   const requests = listAssignmentRequests();
   return {
     settings: readAssignmentDb().settings,

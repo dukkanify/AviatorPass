@@ -4,7 +4,8 @@
 
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { listAllSessions, listAllUsers } from "@/lib/data/auth-identity-store";
-import { findUserById, readAuthDb, toUserProfile, type StoredUser } from "@/services/auth/store";
+import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
+import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getCourseStats } from "@/services/courses/course-service";
@@ -253,10 +254,7 @@ export function getDashboardCalendarEvents(user?: UserProfile | null): CalendarE
 
 export function getRecentActivityFeed(actorUserId?: string | null): ActivityItem[] {
   ensureDemoUsersSeeded();
-  const db = readAuthDb();
-  const logs = actorUserId
-    ? db.activityLogs.filter((log) => log.actorId === actorUserId)
-    : db.activityLogs;
+  const logs = actorUserId ? listActivityForActor(actorUserId) : listRecentActivityLogs(8);
   return logs.slice(0, 8).map((log) => ({
     id: log.id,
     title: log.action,

@@ -7,7 +7,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AUTH_LOG_CAP, writeAuthDb, type StoredUser } from "@/services/auth/store";
+import {
+  AUTH_LOG_CAP,
+  writeAuthDb,
+  type StoredUser,
+  type UserSecuritySettings,
+} from "@/services/auth/store";
 import {
   AUTH_NOTIFICATION_CAP,
   countUnreadForUser,
@@ -125,7 +130,21 @@ import {
   upsertSession,
   upsertUser,
 } from "@/lib/data/auth-identity-store";
-import type { NotificationRecord, SessionRecord } from "@/types";
+import {
+  listActivityForActor,
+  listAllActivityLogs,
+  prependActivityLog,
+  replaceAllActivityLogs,
+  resetAuthActivityStoreRuntime,
+} from "@/lib/data/auth-activity-store";
+import {
+  getSecuritySettingsByUser,
+  listAllSecuritySettings,
+  replaceAllSecuritySettings,
+  resetAuthSettingsStoreRuntime,
+  upsertSecuritySettings,
+} from "@/lib/data/auth-settings-store";
+import type { ActivityLogRecord, NotificationRecord, SessionRecord } from "@/types";
 
 function src(rel: string) {
   return readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -201,10 +220,13 @@ describe("lifetime store speed contracts", () => {
     const authStore = src("services/auth/store.ts");
     expect(authStore).toMatch(/extractEmbeddedNotifications/);
     expect(authStore).toMatch(/extractEmbeddedIdentity/);
+    expect(authStore).toMatch(/extractEmbeddedLeftover/);
     expect(authStore).toMatch(/withLazyNotificationWrites/);
     expect(authStore).toMatch(/notifications: \[\]/);
     expect(authStore).toMatch(/users: \[\]/);
     expect(authStore).toMatch(/sessions: \[\]/);
+    expect(authStore).toMatch(/activityLogs: \[\]/);
+    expect(authStore).toMatch(/securitySettings: \[\]/);
     expect(src("services/auth/store.ts")).toMatch(/getUserById\(/);
     expect(src("services/auth/store.ts")).toMatch(/getUserByEmail\(/);
     expect(src("services/auth/auth-service.ts")).toMatch(/getSessionById\(/);
@@ -290,12 +312,12 @@ describe("lifetime store speed contracts", () => {
 
   it("bounds auth activity and audit history for the lifetime of the store", () => {
     expect(AUTH_LOG_CAP).toBe(400);
-    const authStore = src("services/auth/store.ts");
-    expect(authStore).toMatch(/export const AUTH_LOG_CAP = 400/);
-    expect(authStore).toMatch(/activityLogs = parsed\.activityLogs\.slice\(0, AUTH_LOG_CAP\)/);
-    expect(authStore).toMatch(/auditLogs = parsed\.auditLogs\.slice\(0, AUTH_LOG_CAP\)/);
+    expect(src("lib/data/auth-activity-store.ts")).toMatch(/AUTH_LOG_CAP = 400/);
+    expect(src("services/auth/store.ts")).toMatch(/export const AUTH_LOG_CAP = 400/);
+    expect(src("services/auth/store.ts")).toMatch(/extractEmbeddedLeftover/);
     const activity = src("services/auth/activity-log.ts");
-    expect(activity).toMatch(/AUTH_LOG_CAP/);
+    expect(activity).toMatch(/prependActivityLog/);
+    expect(activity).toMatch(/prependAuditLog/);
     expect(activity).not.toMatch(/slice\(0,\s*5000\)/);
   });
 
@@ -370,6 +392,15 @@ describe("lifetime store speed contracts", () => {
     const refundRuntime = src("lib/data/lms-refund-store.ts");
     expect(refundRuntime).toContain('const TABLE = "aep_lms_refunds"');
     expect(refundRuntime).toMatch(/WHERE student_id = \$1/);
+    const leftoverMigration = src("database/migrations/044_auth_leftover_store.sql");
+    expect(leftoverMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_activity_logs/);
+    expect(leftoverMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_security_settings/);
+    const leftoverRuntime = src("lib/data/auth-activity-store.ts");
+    expect(leftoverRuntime).toContain('const ACTIVITY_TABLE = "aep_auth_activity_logs"');
+    expect(leftoverRuntime).toMatch(/WHERE actor_id = \$1/);
+    expect(src("lib/data/auth-settings-store.ts")).toContain(
+      'const SECURITY_TABLE = "aep_auth_security_settings"',
+    );
   });
 });
 
@@ -1141,5 +1172,77 @@ describe("indexed refund store", () => {
       readFileSync(path.join(process.cwd(), ".data", "aep-payments.json"), "utf8"),
     ) as { refunds?: unknown[] };
     expect(catalog.refunds ?? []).toEqual([]);
+  });
+});
+
+function testActivity(suffix: string): ActivityLogRecord {
+  return {
+    id: `act-lifetime-speed-${suffix}`,
+    actorId: `actor-lifetime-speed-${suffix}`,
+    action: "auth.login",
+    entityType: "session",
+    entityId: `sess-${suffix}`,
+    metadata: {},
+    ipAddress: "127.0.0.1",
+    userAgent: "test",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function testSecurity(suffix: string): UserSecuritySettings {
+  const now = new Date().toISOString();
+  return {
+    userId: `user-lifetime-speed-${suffix}`,
+    twoFactorEnabled: false,
+    loginAlertsEnabled: true,
+    failedLoginCount: 0,
+    lockedUntil: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+describe("indexed leftover auth catalog", () => {
+  afterEach(() => {
+    replaceAllActivityLogs(
+      listAllActivityLogs().filter((row) => !row.id.startsWith("act-lifetime-speed-")),
+    );
+    replaceAllSecuritySettings(
+      listAllSecuritySettings().filter((row) => !row.userId.startsWith("user-lifetime-speed-")),
+    );
+    resetAuthActivityStoreRuntime();
+    resetAuthSettingsStoreRuntime();
+  });
+
+  it("returns one actor log and one lockout row without the leftover catalog", () => {
+    const first = testActivity("alpha");
+    const second = testActivity("beta");
+    prependActivityLog(first);
+    prependActivityLog(second);
+    upsertSecuritySettings(testSecurity("alpha"));
+    resetAuthActivityStoreRuntime();
+    resetAuthSettingsStoreRuntime();
+    expect(listActivityForActor(first.actorId!)).toEqual([
+      expect.objectContaining({ id: first.id, actorId: first.actorId }),
+    ]);
+    expect(getSecuritySettingsByUser("user-lifetime-speed-alpha")?.loginAlertsEnabled).toBe(true);
+  });
+
+  it("extracts leftover logs and settings written through the auth catalog view", () => {
+    const log = testActivity("extract");
+    const security = testSecurity("extract");
+    writeAuthDb((db) => {
+      db.activityLogs.push(log);
+      db.securitySettings.push(security);
+    });
+    resetAuthActivityStoreRuntime();
+    resetAuthSettingsStoreRuntime();
+    expect(listActivityForActor(log.actorId!).some((row) => row.id === log.id)).toBe(true);
+    expect(getSecuritySettingsByUser(security.userId)?.userId).toBe(security.userId);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-auth.json"), "utf8"),
+    ) as { activityLogs?: unknown[]; securitySettings?: unknown[] };
+    expect(catalog.activityLogs ?? []).toEqual([]);
+    expect(catalog.securitySettings ?? []).toEqual([]);
   });
 });

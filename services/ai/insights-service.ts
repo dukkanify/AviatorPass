@@ -12,7 +12,8 @@ import {
   buildSupportAnalytics,
 } from "@/services/analytics/aggregator";
 import { getClassStats } from "@/services/classes/class-service";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
+import { toUserProfile } from "@/services/auth/store";
 import { ROLES } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getStudentProgressSnapshot } from "@/services/certificates/progress-service";
@@ -39,9 +40,7 @@ export function generateInsights(user: UserProfile): AiInsight[] {
 
   const insights: AiInsight[] = [];
 
-  const students = readAuthDb().users.filter(
-    (u) => u.role === ROLES.STUDENT && u.status === ACCOUNT_STATUS.ACTIVE,
-  );
+  const students = listUsersByRole(ROLES.STUDENT).filter((u) => u.status === ACCOUNT_STATUS.ACTIVE);
   let atRisk = 0;
   let inactive = 0;
   for (const s of students) {
@@ -123,7 +122,7 @@ export function generateInsights(user: UserProfile): AiInsight[] {
     id: generateId(),
     kind: "instructor_engagement",
     title: "Instructor engagement",
-    detail: `${readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR && u.status === ACCOUNT_STATUS.ACTIVE).length} active instructors · live now ${classStats.liveNow}.`,
+    detail: `${listUsersByRole(ROLES.INSTRUCTOR).filter((u) => u.status === ACCOUNT_STATUS.ACTIVE).length} active instructors · live now ${classStats.liveNow}.`,
     severity: "info",
     metric: classStats.liveNow,
   });

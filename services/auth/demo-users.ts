@@ -14,6 +14,7 @@ import {
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
 import { hashPassword, stableId } from "@/lib/security/crypto";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { ensureSuperAdminSeeded } from "@/services/auth/seed";
 import {
   isStudentProfileComplete,
@@ -132,7 +133,7 @@ export function ensureDemoUsersSeeded(): void {
   ensureSuperAdminSeeded();
   migrateLegacyClientIdentities();
   migrateLegacyDemoEmails();
-  const emails = new Set(readAuthDb().users.map((u) => u.email.toLowerCase()));
+  const emails = new Set(listAllUsers().map((u) => u.email.toLowerCase()));
   if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
     return;
   }
