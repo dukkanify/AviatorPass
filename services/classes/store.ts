@@ -1,11 +1,13 @@
 /**
  * Live classes durable store (.data/aep-classes.json).
- * Uses json-file-store so read-only hosts (Vercel) never 500 Server Components.
+ * Reminders live in the indexed class reminder store so dashboard class
+ * reads never hydrate tens of thousands of queue rows.
  */
 
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import { listAllReminders, replaceAllReminders } from "@/lib/data/lms-class-reminder-store";
 import type {
   AttendanceRecord,
   LiveClass,
@@ -59,18 +61,95 @@ function normalizeDb(raw: Partial<ClassesDatabase>): ClassesDatabase {
   };
 }
 
+function catalogSnapshot(db: ClassesDatabase): ClassesDatabase {
+  return {
+    classes: db.classes,
+    zoomMeetings: db.zoomMeetings,
+    recurringRules: db.recurringRules,
+    attendance: db.attendance,
+    participants: db.participants,
+    recordings: db.recordings,
+    reminders: [],
+    seeded: db.seeded,
+  };
+}
+
+function persistCatalog(db: ClassesDatabase): void {
+  writeJsonFile(dataFile(), catalogSnapshot(db));
+}
+
+function extractEmbeddedReminders(db: ClassesDatabase): void {
+  const embedded = db.reminders ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllReminders();
+  const merged = existing.length > 0 ? [...existing, ...embedded] : embedded;
+  replaceAllReminders(merged);
+  db.reminders = [];
+  persistCatalog(db);
+}
+
+function withReminderView(db: ClassesDatabase): ClassesDatabase {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "reminders") return listAllReminders();
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+function withLazyReminderWrites(catalog: ClassesDatabase): {
+  working: ClassesDatabase;
+  flushReminders: () => void;
+} {
+  let remindersLoaded = false;
+  let reminders: ReminderQueueItem[] = [];
+  const working = { ...catalog, reminders: [] };
+  Object.defineProperty(working, "reminders", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!remindersLoaded) {
+        reminders = listAllReminders();
+        remindersLoaded = true;
+      }
+      return reminders;
+    },
+    set(value: ReminderQueueItem[]) {
+      reminders = Array.isArray(value) ? value : [];
+      remindersLoaded = true;
+    },
+  });
+  return {
+    working,
+    flushReminders() {
+      if (remindersLoaded) replaceAllReminders(reminders);
+    },
+  };
+}
+
 export function ensureClassesStore(): ClassesDatabase {
-  const raw = readJsonFile<Partial<ClassesDatabase>>(dataFile(), emptyDb);
-  return normalizeDb(raw);
+  const db = normalizeDb(readJsonFile<Partial<ClassesDatabase>>(dataFile(), emptyDb));
+  extractEmbeddedReminders(db);
+  db.reminders = [];
+  return db;
 }
 
 export function readClassesDb(): ClassesDatabase {
-  return ensureClassesStore();
+  return withReminderView(ensureClassesStore());
 }
 
 export function writeClassesDb(mutator: (db: ClassesDatabase) => void): ClassesDatabase {
-  const db = ensureClassesStore();
-  mutator(db);
-  writeJsonFile(dataFile(), db);
-  return db;
+  const catalog = ensureClassesStore();
+  const { working, flushReminders } = withLazyReminderWrites(catalog);
+  mutator(working);
+  flushReminders();
+  const persisted = catalogSnapshot(working);
+  persistCatalog(persisted);
+  return withReminderView(persisted);
 }
+
+export {
+  listAllReminders,
+  listDueReminders,
+  listRemindersForClass,
+} from "@/lib/data/lms-class-reminder-store";

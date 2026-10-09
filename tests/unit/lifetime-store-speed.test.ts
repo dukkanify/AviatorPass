@@ -22,7 +22,17 @@ import {
 import { getCourseStats } from "@/services/courses/course-service";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
 import { getEnrollmentSeries } from "@/services/dashboard/metrics";
+import {
+  CLASS_REMINDER_DONE_CAP,
+  listDueReminders,
+  listRemindersForClass,
+  resetClassReminderStoreRuntime,
+  trimDoneReminders,
+  upsertReminder,
+} from "@/lib/data/lms-class-reminder-store";
+import { writeClassesDb } from "@/services/classes/store";
 import type { Enrollment } from "@/types/courses";
+import type { ReminderQueueItem } from "@/types/classes";
 
 function src(rel: string) {
   return readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -72,6 +82,15 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/cgi/journey-service.ts")).toMatch(/rebindEnrollmentsStudent\(/);
     expect(src("services/cgi/journey-service.ts")).toMatch(/upsertEnrollment\(/);
     expect(src("services/cgi/journey-service.ts")).not.toMatch(/writeCoursesDb\(/);
+
+    const reminders = src("services/classes/reminder-service.ts");
+    expect(reminders).toMatch(/listDueReminders\(/);
+    expect(reminders).toMatch(/replacePendingForClass\(/);
+    expect(reminders).toMatch(/upsertReminder\(/);
+    expect(reminders).not.toMatch(/writeClassesDb\(/);
+    const classesStore = src("services/classes/store.ts");
+    expect(classesStore).toMatch(/extractEmbeddedReminders/);
+    expect(classesStore).toMatch(/withLazyReminderWrites/);
   });
 
   it("serves admin course stats and enrollment charts from aggregates", () => {
@@ -116,6 +135,12 @@ describe("lifetime store speed contracts", () => {
     expect(runtime).toMatch(/COUNT\(\*\)::int AS n FROM \$\{TABLE\}/);
     expect(runtime).toMatch(/GROUP BY course_id/);
     expect(runtime).toMatch(/COUNT\(DISTINCT student_id\)/);
+    const reminderMigration = src("database/migrations/036_lms_class_reminder_store.sql");
+    expect(reminderMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_class_reminders/);
+    const reminderRuntime = src("lib/data/lms-class-reminder-store.ts");
+    expect(reminderRuntime).toContain('const TABLE = "aep_lms_class_reminders"');
+    expect(reminderRuntime).toMatch(/CLASS_REMINDER_DONE_CAP = 400/);
+    expect(reminderRuntime).toMatch(/status = 'pending' AND scheduled_for <= \$1/);
   });
 });
 
@@ -208,5 +233,70 @@ describe("indexed enrollment store", () => {
     expect(listEnrollmentsForStudent("student-lifetime-speed-agg-rebound")).toEqual([
       expect.objectContaining({ id: approved.id, courseId: approved.courseId }),
     ]);
+  });
+});
+
+function testReminder(
+  suffix: string,
+  status: ReminderQueueItem["status"] = "pending",
+): ReminderQueueItem {
+  const now = new Date().toISOString();
+  return {
+    id: `rem-lifetime-speed-${suffix}`,
+    liveClassId: `cls-lifetime-speed-${suffix}`,
+    userId: `user-lifetime-speed-${suffix}`,
+    kind: "15m",
+    channel: "in_app",
+    scheduledFor: now,
+    sentAt: status === "sent" ? now : null,
+    status,
+    payload: { title: "lifetime reminder" },
+    createdAt: now,
+  };
+}
+
+describe("indexed class reminder store", () => {
+  afterEach(() => {
+    resetClassReminderStoreRuntime();
+  });
+
+  it("returns due reminders for one class without scanning the catalog blob", () => {
+    const due = testReminder("due");
+    due.scheduledFor = new Date(Date.now() - 60_000).toISOString();
+    const later = testReminder("later");
+    later.scheduledFor = new Date(Date.now() + 60 * 60_000).toISOString();
+    upsertReminder(due);
+    upsertReminder(later);
+
+    expect(listRemindersForClass(due.liveClassId)).toEqual([
+      expect.objectContaining({ id: due.id }),
+    ]);
+    expect(listDueReminders().map((row) => row.id)).toContain(due.id);
+    expect(listDueReminders().map((row) => row.id)).not.toContain(later.id);
+  });
+
+  it("caps finished reminder history so the queue cannot grow forever", () => {
+    const pending = testReminder("keep-pending");
+    const done = Array.from({ length: CLASS_REMINDER_DONE_CAP + 25 }, (_, index) => {
+      const row = testReminder(`done-${index}`, "sent");
+      row.scheduledFor = new Date(Date.now() - index * 1000).toISOString();
+      return row;
+    });
+    const trimmed = trimDoneReminders([pending, ...done]);
+    expect(trimmed.filter((row) => row.status === "pending")).toHaveLength(1);
+    expect(trimmed.filter((row) => row.status === "sent")).toHaveLength(CLASS_REMINDER_DONE_CAP);
+  });
+
+  it("extracts reminders written through the classes database view", () => {
+    const row = testReminder("extract");
+    writeClassesDb((db) => {
+      db.reminders.push(row);
+    });
+    resetClassReminderStoreRuntime();
+    expect(listRemindersForClass(row.liveClassId).some((item) => item.id === row.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-classes.json"), "utf8"),
+    ) as { reminders?: unknown[] };
+    expect(catalog.reminders ?? []).toEqual([]);
   });
 });
