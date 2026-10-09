@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { requireAuth, requirePermission } from "@/services/auth/guards";
+import { listEnrollmentsForStudent } from "@/lib/data/lms-enrollment-store";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { createCertificate, listCertificates } from "@/services/certificates/certificate-service";
 import { certificateErrorResponse } from "@/app/api/certificates/_utils";
@@ -17,9 +18,12 @@ export async function GET(request: Request) {
 
     if (user.role === ROLES.STUDENT) {
       await requirePermission(PERMISSIONS.CERTIFICATES_OWN);
+      const hasCompleted = listEnrollmentsForStudent(user.id).some(
+        (row) => row.status === "completed",
+      );
       return NextResponse.json({
         success: true,
-        data: listCertificates({ studentId: user.id, status, courseId }),
+        data: hasCompleted ? listCertificates({ studentId: user.id, status, courseId }) : [],
         error: null,
       });
     }
