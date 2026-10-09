@@ -128,20 +128,15 @@ function migrateLegacyDemoEmails(): void {
   });
 }
 
-let demoUsersReady = false;
-
 export function ensureDemoUsersSeeded(): void {
-  if (demoUsersReady) return;
   ensureSuperAdminSeeded();
   migrateLegacyClientIdentities();
   migrateLegacyDemoEmails();
   const emails = new Set(readAuthDb().users.map((u) => u.email.toLowerCase()));
   if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
-    demoUsersReady = true;
     return;
   }
   upsertDemoCatalogUsers({ reactivatePermanent: false });
-  demoUsersReady = true;
 }
 
 /**

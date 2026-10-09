@@ -89,6 +89,6 @@ describe("production performance contracts", () => {
       'from "@/components/dashboard/charts"',
     );
     expect(src("services/auth/auth-service.ts")).toContain("getSessionById");
-    expect(src("services/auth/demo-users.ts")).toContain("demoUsersReady");
+    expect(src("services/auth/auth-service.ts")).toContain("sessionSeedReady");
   });
 });

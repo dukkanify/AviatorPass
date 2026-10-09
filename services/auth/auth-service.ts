@@ -206,13 +206,18 @@ async function issueSession(
   return { profile: toUserProfile(fresh), expiresAt };
 }
 
+let sessionSeedReady = false;
+
 export async function getCurrentSession(): Promise<{
   user: UserProfile | null;
   permissions: ReturnType<typeof getPermissionsForRole>;
 }> {
   // Seed catalog users so JWT subject ids resolve on a cold serverless isolate
   // (Vercel has no durable .data — each function has an empty in-memory store).
-  ensureDemoUsersSeeded();
+  if (!sessionSeedReady) {
+    ensureDemoUsersSeeded();
+    sessionSeedReady = true;
+  }
 
   const parsed = await readSessionCookie();
   if (!parsed) {
