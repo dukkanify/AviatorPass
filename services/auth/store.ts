@@ -169,6 +169,8 @@ const DATA_FILE = path.join(dataDir(), "aep-auth.json");
 
 /** Lifetime bound so activity/audit history cannot inflate the auth store. */
 export const AUTH_LOG_CAP = 400;
+/** Lifetime bound so used / expired setup tokens cannot inflate the catalog. */
+export const AUTH_TOKEN_CAP = 80;
 
 const emptyDb = (): AuthDatabase => ({
   users: [],
@@ -201,7 +203,22 @@ function catalogSnapshot(db: AuthDatabase): AuthDatabase {
 }
 
 function persistCatalog(db: AuthDatabase): void {
-  writeJsonFile(DATA_FILE, catalogSnapshot(db));
+  writeJsonFile(
+    DATA_FILE,
+    catalogSnapshot({
+      ...db,
+      passwordSetupTokens: trimPasswordSetupTokens(db.passwordSetupTokens ?? []),
+      activityLogs: (db.activityLogs ?? []).slice(0, AUTH_LOG_CAP),
+      auditLogs: (db.auditLogs ?? []).slice(0, AUTH_LOG_CAP),
+    }),
+  );
+}
+
+function trimPasswordSetupTokens(tokens: PasswordSetupToken[]): PasswordSetupToken[] {
+  const now = Date.now();
+  return tokens
+    .filter((token) => !token.consumedAt && Date.parse(token.expiresAt) > now)
+    .slice(0, AUTH_TOKEN_CAP);
 }
 
 function extractEmbeddedIdentity(db: AuthDatabase): void {
@@ -315,7 +332,8 @@ function ensureStore(): AuthDatabase {
   parsed.users = (parsed.users ?? []).map(normalizeStoredUser);
   parsed.sessions = (parsed.sessions ?? []).map(normalizeSession);
   parsed.otps = (parsed.otps ?? []).map(normalizeOtp);
-  parsed.passwordSetupTokens = parsed.passwordSetupTokens ?? [];
+  const rawTokens = parsed.passwordSetupTokens ?? [];
+  parsed.passwordSetupTokens = trimPasswordSetupTokens(rawTokens);
   parsed.pendingRegistrations = parsed.pendingRegistrations ?? [];
   parsed.notificationPreferences = parsed.notificationPreferences ?? [];
   parsed.securitySettings = parsed.securitySettings ?? [];
@@ -323,7 +341,9 @@ function ensureStore(): AuthDatabase {
   parsed.activityLogs = parsed.activityLogs ?? [];
   parsed.auditLogs = parsed.auditLogs ?? [];
   const trimmedLogs =
-    parsed.activityLogs.length > AUTH_LOG_CAP || parsed.auditLogs.length > AUTH_LOG_CAP;
+    parsed.activityLogs.length > AUTH_LOG_CAP ||
+    parsed.auditLogs.length > AUTH_LOG_CAP ||
+    rawTokens.length !== parsed.passwordSetupTokens.length;
   if (parsed.activityLogs.length > AUTH_LOG_CAP) {
     parsed.activityLogs = parsed.activityLogs.slice(0, AUTH_LOG_CAP);
   }

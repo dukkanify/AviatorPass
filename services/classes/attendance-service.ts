@@ -7,14 +7,14 @@ import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ATTENDANCE_STATUSES } from "@/constants/classes";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { getLiveClass } from "@/services/classes/class-service";
 import { listParticipantsForUser, readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { ClassValidationError } from "@/services/classes/validation";
 import type { AttendanceRecord, AttendanceStatus, AttendanceWithStudent } from "@/types/classes";
 
 function studentMeta(studentId: string) {
-  const u = readAuthDb().users.find((x) => x.id === studentId);
+  const u = findUserById(studentId);
   if (!u) return { studentName: null, studentEmail: null };
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return { studentName: name || u.email, studentEmail: u.email };

@@ -7,7 +7,7 @@ import { publicCourseRef, stableCourseId } from "@/lib/courses/public-course-pat
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_COURSE_PAGE_SIZE } from "@/constants/courses";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import {
   readCourseDetailCache,
   readCourseGraphCache,
@@ -53,7 +53,7 @@ import type {
 
 function userDisplayName(userId: string | null): string | null {
   if (!userId) return null;
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return null;
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
   return name || u.email;
@@ -500,7 +500,7 @@ function assertUniqueCode(code: string, excludeId?: string) {
 
 function assertInstructorExists(userId: string | null | undefined) {
   if (!userId) return;
-  const user = readAuthDb().users.find((u) => u.id === userId);
+  const user = findUserById(userId);
   if (!user) throw new CourseValidationError("Instructor not found");
   if (user.role !== "instructor" && user.role !== "admin" && user.role !== "super_admin") {
     throw new CourseValidationError("Assigned user must be an instructor or admin");

@@ -50,15 +50,19 @@ function normalizeDb(raw: Partial<ApiPlatformDatabase>): ApiPlatformDatabase {
 
 export function ensureApiPlatformStore(): ApiPlatformDatabase {
   const raw = readJsonFile<Partial<ApiPlatformDatabase>>(dataFile(), emptyDb);
-  return normalizeDb(raw);
+  const db = normalizeDb(raw);
+  const trimmed =
+    db.apiLogs.length > 400 || db.webhookDeliveries.length > 400 || db.queueJobs.length > 400;
+  if (trimmed) writeApiPlatformStore(db);
+  return db;
 }
 
 export function writeApiPlatformStore(db: ApiPlatformDatabase) {
   // Cap logs / deliveries
-  if (db.apiLogs.length > 5000) db.apiLogs = db.apiLogs.slice(0, 5000);
-  if (db.webhookDeliveries.length > 2000) {
-    db.webhookDeliveries = db.webhookDeliveries.slice(0, 2000);
+  if (db.apiLogs.length > 400) db.apiLogs = db.apiLogs.slice(0, 400);
+  if (db.webhookDeliveries.length > 400) {
+    db.webhookDeliveries = db.webhookDeliveries.slice(0, 400);
   }
-  if (db.queueJobs.length > 2000) db.queueJobs = db.queueJobs.slice(0, 2000);
+  if (db.queueJobs.length > 400) db.queueJobs = db.queueJobs.slice(0, 400);
   writeJsonFile(dataFile(), db);
 }

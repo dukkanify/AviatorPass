@@ -33,7 +33,8 @@ import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { publicAppOrigin } from "@/lib/site-origin";
-import { findUserByEmail, findUserById, readAuthDb } from "@/services/auth/store";
+import { listAllUsers } from "@/lib/data/auth-identity-store";
+import { findUserByEmail, findUserById } from "@/services/auth/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   listEnrollmentsForCourse,
@@ -57,7 +58,7 @@ import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
 import {
   getOrderById,
-  listAllOrders,
+  listOrdersByStatus,
   listOrdersForEmail,
   listOrdersForStudent,
 } from "@/lib/data/lms-payment-ledger-store";
@@ -1108,10 +1109,10 @@ function bindPaidOrderToStudent(
 /** Rebind paid ATPL orders/enrollments onto the live account for the billing email. */
 export function rebindPaidPackageOrdersToLiveUsers(): number {
   const usersByEmail = new Map(
-    readAuthDb().users.map((user) => [user.email.trim().toLowerCase(), user] as const),
+    listAllUsers().map((user) => [user.email.trim().toLowerCase(), user] as const),
   );
   const pending: Array<{ id: string; from: string; to: string; email: string; name: string }> = [];
-  for (const order of readPaymentsDb().orders) {
+  for (const order of listOrdersByStatus("paid")) {
     if (!isPaidAtplPackageOrder(order)) continue;
     const email = orderEmail(order);
     const user = email ? usersByEmail.get(email) : undefined;
@@ -2115,7 +2116,7 @@ export function listAtplStudents() {
       : courses.map((c) => c.id)) as string[],
   );
 
-  const auth = readAuthDb().users;
+  const auth = listAllUsers();
   const userById = new Map(auth.map((user) => [user.id, user]));
   const userByEmail = new Map(auth.map((user) => [user.email.trim().toLowerCase(), user]));
   const enrollments = [...courseIds]
@@ -2128,7 +2129,7 @@ export function listAtplStudents() {
     byStudent.set(e.studentId, list);
   }
 
-  const paidOrders = listAllOrders().filter((order) => isPaidAtplPackageOrder(order));
+  const paidOrders = listOrdersByStatus("paid").filter((order) => isPaidAtplPackageOrder(order));
   const latestByStudent = new Map<string, (typeof paidOrders)[number]>();
   const latestByEmail = new Map<string, (typeof paidOrders)[number]>();
   for (const order of paidOrders) {
@@ -2216,7 +2217,7 @@ export function listAtplStudents() {
 export function listAllInstructors() {
   ensureCoursesSeeded();
   ensureClassesSeeded();
-  const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+  const instructors = listAllUsers().filter((u) => u.role === ROLES.INSTRUCTOR);
   const db = readCoursesDb();
   const courses = db.courses.filter((c) => !c.deletedAt);
   const assignedByInstructor = new Map<string, typeof courses>();

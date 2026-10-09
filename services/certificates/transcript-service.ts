@@ -4,7 +4,7 @@
 
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { getCourseLearningState } from "@/services/learning/progress-service";
@@ -21,7 +21,7 @@ export async function generateTranscript(
   studentId: string,
 ): Promise<StudentTranscript> {
   ensureCertificatesSeeded();
-  const student = readAuthDb().users.find((u) => u.id === studentId);
+  const student = findUserById(studentId);
   if (!student) throw new CertificateError("Student not found", 404);
   const profile = toUserProfile(student);
   const performance = getAcademicPerformance(studentId);

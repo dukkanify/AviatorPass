@@ -16,6 +16,7 @@ import {
   listNotificationsForUser,
   upsertNotification,
 } from "@/lib/data/auth-notification-store";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
 import {
   defaultNotificationPreferences,
   findUserById,
@@ -590,7 +591,7 @@ export async function notifyRole(
     email?: boolean;
   },
 ) {
-  const users = readAuthDb().users.filter((u) => u.role === role && u.status === "active");
+  const users = listUsersByRole(role).filter((u) => u.status === "active");
   await notifyUsers(
     users.map((u) => u.id),
     input,

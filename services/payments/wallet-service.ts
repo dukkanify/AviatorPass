@@ -9,7 +9,7 @@ import { calcPlatformFee } from "@/services/payments/money";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import type { InstructorWallet, WalletTransaction, WalletTxnType } from "@/types/payments";
 import type { UserProfile } from "@/types";
-import { readAuthDb, toUserProfile } from "@/services/auth/store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 
 function nowIso() {
   return new Date().toISOString();
@@ -19,7 +19,7 @@ export function ensureWallet(instructorId: string): InstructorWallet {
   const existing = readPaymentsDb().wallets.find((w) => w.instructorId === instructorId);
   if (existing) return existing;
 
-  const user = readAuthDb().users.find((u) => u.id === instructorId);
+  const user = findUserById(instructorId);
   const stamp = nowIso();
   const wallet: InstructorWallet = {
     id: generateId(),

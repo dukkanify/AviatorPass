@@ -28,7 +28,7 @@ interface OpsLogDatabase {
 }
 
 const DATA_FILE = path.join(dataDir(), "aep-ops-logs.json");
-const MAX_ENTRIES = 5000;
+const MAX_ENTRIES = 400;
 
 function emptyDb(): OpsLogDatabase {
   return { entries: [] };
@@ -37,6 +37,10 @@ function emptyDb(): OpsLogDatabase {
 function readDb(): OpsLogDatabase {
   const db = readJsonFile<OpsLogDatabase>(DATA_FILE, emptyDb);
   if (!Array.isArray(db.entries)) return emptyDb();
+  if (db.entries.length > MAX_ENTRIES) {
+    db.entries = db.entries.slice(0, MAX_ENTRIES);
+    writeDb(db);
+  }
   return db;
 }
 

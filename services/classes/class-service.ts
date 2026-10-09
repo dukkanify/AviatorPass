@@ -12,7 +12,7 @@ import {
 } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
@@ -58,7 +58,7 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 
 function userName(userId: string | null): string | null {
   if (!userId) return null;
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return null;
   return [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email;
 }
@@ -263,7 +263,7 @@ export function getClassStats(
 }
 
 function assertInstructorUser(userId: string) {
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) throw new ClassValidationError("Instructor not found");
   if (u.role !== ROLES.INSTRUCTOR && u.role !== ROLES.ADMIN && u.role !== ROLES.SUPER_ADMIN) {
     throw new ClassValidationError("Assigned instructor must be an instructor or admin");
@@ -924,8 +924,8 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
   const isHost =
     cls.instructorId === userId ||
     cls.assistantInstructorId === userId ||
-    readAuthDb().users.find((u) => u.id === userId)?.role === ROLES.SUPER_ADMIN ||
-    readAuthDb().users.find((u) => u.id === userId)?.role === ROLES.ADMIN;
+    findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
+    findUserById(userId)?.role === ROLES.ADMIN;
 
   const participant = listParticipantsForClass(liveClassId).find((p) => p.userId === userId);
   if (!isHost && !participant) {

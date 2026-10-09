@@ -3,6 +3,7 @@
  */
 
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
+import { listAllSessions, listAllUsers } from "@/lib/data/auth-identity-store";
 import { findUserById, readAuthDb, toUserProfile, type StoredUser } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
@@ -54,12 +55,34 @@ function communicationOpsCounts() {
 }
 
 export function getPlatformOverview() {
-  const db = readAuthDb();
-  const students = countByRole(db.users, ROLES.STUDENT);
-  const instructors = countByRole(db.users, ROLES.INSTRUCTOR);
-  const admins = countByRole(db.users, ROLES.ADMIN) + countByRole(db.users, ROLES.SUPER_ADMIN);
+  const users = listAllUsers();
+  const students = countByRole(users, ROLES.STUDENT);
+  const instructors = countByRole(users, ROLES.INSTRUCTOR);
+  const admins = countByRole(users, ROLES.ADMIN) + countByRole(users, ROLES.SUPER_ADMIN);
   const courseStats = getCourseStats();
-  const classStats = getClassStats();
+  const now = Date.now();
+  const classes = readClassesDb().classes;
+  let liveNow = 0;
+  let upcoming = 0;
+  let cancelled = 0;
+  let today = 0;
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const dayStart = startOfDay.getTime();
+  const dayEnd = dayStart + 86_400_000;
+  for (const cls of classes) {
+    if (cls.status === "cancelled") {
+      cancelled += 1;
+      continue;
+    }
+    if (["draft", "completed"].includes(cls.status)) continue;
+    const start = Date.parse(cls.startsAt);
+    const end = Date.parse(cls.endsAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (now >= start && now <= end) liveNow += 1;
+    else if (start > now) upcoming += 1;
+    if (start >= dayStart && start < dayEnd) today += 1;
+  }
   const finance = getFinanceDashboard();
   const wallets = listWallets();
   const growth =
@@ -75,29 +98,29 @@ export function getPlatformOverview() {
     totalStudents: students,
     totalInstructors: instructors,
     totalAdmins: admins,
-    totalUsers: db.users.length,
+    totalUsers: users.length,
     totalCourses: courseStats.totalCourses,
     publishedCourses: courseStats.publishedCourses,
     draftCourses: courseStats.draftCourses,
     activeCourseStudents: courseStats.activeStudents,
-    activeClasses: classStats.liveNow + classStats.today,
-    upcomingClasses: classStats.upcoming,
-    cancelledClasses: classStats.cancelled,
-    attendanceRate: classStats.attendanceRate,
+    activeClasses: liveNow + today,
+    upcomingClasses: upcoming,
+    cancelledClasses: cancelled,
+    attendanceRate: 0,
     monthlyRevenue: finance.monthlyRevenue,
     instructorWalletBalance: wallets.reduce((s, w) => s + w.availableBalance, 0),
     pendingPayments: finance.pendingPayments,
     platformGrowth: growth,
-    pendingApprovals: db.users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
+    pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
     ...communicationOpsCounts(),
-    liveClasses: classStats.liveNow,
-    activeSessions: db.sessions.filter((s) => !s.revokedAt).length,
+    liveClasses: liveNow,
+    activeSessions: listAllSessions().filter((s) => !s.revokedAt).length,
   };
 }
 
 export function getGrowthSeries(): SeriesPoint[] {
   ensureDemoUsersSeeded();
-  const students = readAuthDb().users.filter((u) => u.role === ROLES.STUDENT);
+  const students = listAllUsers().filter((u) => u.role === ROLES.STUDENT);
   const map = new Map<string, number>();
   for (const u of students) {
     const key = u.createdAt.slice(0, 7);
@@ -248,8 +271,7 @@ export function listUsersByRole(
   options?: { page?: number; pageSize?: number; columns?: "profile" | "full" },
 ) {
   ensureDemoUsersSeeded();
-  const db = readAuthDb();
-  const users = role ? db.users.filter((u) => u.role === role) : db.users;
+  const users = role ? listAllUsers().filter((u) => u.role === role) : listAllUsers();
   const pageSize = Math.min(200, Math.max(1, options?.pageSize ?? users.length));
   const page = Math.max(1, options?.page ?? 1);
   const start = (page - 1) * pageSize;
@@ -300,11 +322,21 @@ export function getInstructorOverview(instructorUserId?: string | null) {
 export function getStudentOverview(studentUserId?: string | null) {
   ensureCoursesSeeded();
   ensureLearningSeeded();
-  const users = readAuthDb().users;
-  const student =
-    (studentUserId
-      ? users.find((u) => u.id === studentUserId && u.role === ROLES.STUDENT)
-      : null) ?? null;
+  const student = studentUserId ? findUserById(studentUserId) : null;
+  if (student && student.role !== ROLES.STUDENT) {
+    return {
+      currentCourses: 0,
+      nextLiveClass: "None scheduled",
+      progress: 0,
+      certificates: 0,
+      notifications: 0,
+      assignments: 0,
+      quizzes: 0,
+      weeklyProgress: 0,
+      attendance: 0,
+      learningHours: 0,
+    };
+  }
   if (student) {
     const learning = getLearningDashboard(toUserProfile(student));
     ensureCertificatesSeeded();
@@ -342,10 +374,10 @@ function listCoursesForMetrics(opts: {
   instructorId?: string | null;
 }): number {
   const db = readCoursesDb();
-  const users = readAuthDb().users;
+  const users = listAllUsers();
   if (opts.role === "instructor") {
     const instructor =
-      (opts.instructorId ? users.find((u) => u.id === opts.instructorId) : null) ??
+      (opts.instructorId ? findUserById(opts.instructorId) : null) ??
       users.find((u) => u.role === ROLES.INSTRUCTOR);
     if (!instructor) return 0;
     const ids = new Set(
@@ -384,7 +416,7 @@ export function getAdminOverview() {
   ensureDemoUsersSeeded();
   ensureCoursesSeeded();
   ensureClassesSeeded();
-  const users = readAuthDb().users;
+  const users = listAllUsers();
   const courseStats = getCourseStats();
   const now = Date.now();
   const liveClasses = readClassesDb().classes.filter((cls) => {

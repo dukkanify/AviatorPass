@@ -156,8 +156,8 @@ function markProcessed(input: {
       orderId: input.orderId,
       result: input.result,
     });
-    if (db.processedProviderEvents.length > 5000) {
-      db.processedProviderEvents = db.processedProviderEvents.slice(0, 5000);
+    if (db.processedProviderEvents.length > 400) {
+      db.processedProviderEvents = db.processedProviderEvents.slice(0, 400);
     }
   });
 }

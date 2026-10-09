@@ -9,7 +9,7 @@ import { generateId, generateToken } from "@/lib/security/crypto";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { ORDER_EXPIRY_MINUTES } from "@/constants/payments";
 import { logActivity } from "@/services/auth/activity-log";
-import { readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import { PaymentError } from "@/services/payments/access";
 import {
   countOrders,
@@ -148,10 +148,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     id: generateId(),
     orderNumber: nextOrderNumber(),
     studentId,
-    studentName:
-      readAuthDb().users.find((u) => u.id === studentId)?.email ||
-      input.customerName ||
-      "Aviator Pass student",
+    studentName: findUserById(studentId)?.email || input.customerName || "Aviator Pass student",
     studentEmail: email || `${studentId}@checkout.invalid`,
     status: "pending",
     currency: offer.currency,

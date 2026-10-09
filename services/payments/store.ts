@@ -20,6 +20,7 @@ import {
   replaceAllTransactionLogs,
   replaceAllWalletTransactions,
 } from "@/lib/data/lms-payment-activity-store";
+import { listAllRefunds, replaceAllRefunds } from "@/lib/data/lms-refund-store";
 import {
   listAllInvoices,
   listAllOrders,
@@ -154,7 +155,7 @@ function normalizeDb(raw: Partial<PaymentsDatabase>): PaymentsDatabase {
     installmentSchedule: raw.installmentSchedule ?? [],
     installmentReminders: raw.installmentReminders ?? [],
     kycDocuments: raw.kycDocuments ?? [],
-    processedProviderEvents: raw.processedProviderEvents ?? [],
+    processedProviderEvents: (raw.processedProviderEvents ?? []).slice(0, 400),
     seeded: Boolean(raw.seeded),
   };
 }
@@ -225,20 +226,29 @@ function catalogSnapshot(db: PaymentsDatabase): PaymentsDatabase {
     wallets: db.wallets,
     walletTransactions: [],
     payouts: db.payouts,
-    refunds: db.refunds,
+    refunds: [],
     transactionLogs: [],
     regionalRules: db.regionalRules,
     installmentPlans: [],
     installmentSchedule: [],
     installmentReminders: db.installmentReminders,
     kycDocuments: db.kycDocuments,
-    processedProviderEvents: db.processedProviderEvents,
+    processedProviderEvents: (db.processedProviderEvents ?? []).slice(0, 400),
     seeded: db.seeded,
   };
 }
 
 function persistCatalog(db: PaymentsDatabase): void {
   writeJsonFile(dataFile(), catalogSnapshot(db));
+}
+
+function extractEmbeddedRefunds(db: PaymentsDatabase): void {
+  const embedded = db.refunds ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllRefunds();
+  replaceAllRefunds(existing.length > 0 ? [...existing, ...embedded] : embedded);
+  db.refunds = [];
+  persistCatalog(db);
 }
 
 function extractEmbeddedActivity(db: PaymentsDatabase): void {
@@ -320,6 +330,7 @@ function withLedgerView(db: PaymentsDatabase): PaymentsDatabase {
       if (prop === "installmentSchedule") return listAllInstallmentSchedule();
       if (prop === "walletTransactions") return listAllWalletTransactions();
       if (prop === "transactionLogs") return listAllTransactionLogs();
+      if (prop === "refunds") return listAllRefunds();
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -343,6 +354,8 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
   let walletTransactions: WalletTransaction[] = [];
   let logsLoaded = false;
   let transactionLogs: TransactionLog[] = [];
+  let refundsLoaded = false;
+  let refunds: RefundRequest[] = [];
   const working = {
     ...catalog,
     orders: [],
@@ -352,6 +365,7 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
     installmentSchedule: [],
     walletTransactions: [],
     transactionLogs: [],
+    refunds: [],
   };
   Object.defineProperty(working, "orders", {
     configurable: true,
@@ -458,6 +472,21 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
       logsLoaded = true;
     },
   });
+  Object.defineProperty(working, "refunds", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!refundsLoaded) {
+        refunds = listAllRefunds();
+        refundsLoaded = true;
+      }
+      return refunds;
+    },
+    set(value: RefundRequest[]) {
+      refunds = Array.isArray(value) ? value : [];
+      refundsLoaded = true;
+    },
+  });
   return {
     working,
     flushLedger() {
@@ -468,12 +497,14 @@ function withLazyLedgerWrites(catalog: PaymentsDatabase): {
       if (scheduleLoaded) replaceAllInstallmentSchedule(installmentSchedule);
       if (walletLoaded) replaceAllWalletTransactions(walletTransactions);
       if (logsLoaded) replaceAllTransactionLogs(transactionLogs);
+      if (refundsLoaded) replaceAllRefunds(refunds);
     },
   };
 }
 
 export function ensurePaymentsStore(): PaymentsDatabase {
   const db = normalizeDb(readJsonFile<Partial<PaymentsDatabase>>(dataFile(), emptyDb));
+  extractEmbeddedRefunds(db);
   extractEmbeddedActivity(db);
   extractEmbeddedInstallments(db);
   extractEmbeddedLedger(db);
@@ -484,6 +515,7 @@ export function ensurePaymentsStore(): PaymentsDatabase {
   db.installmentSchedule = [];
   db.walletTransactions = [];
   db.transactionLogs = [];
+  db.refunds = [];
   return db;
 }
 

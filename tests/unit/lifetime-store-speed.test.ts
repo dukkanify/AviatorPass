@@ -82,6 +82,14 @@ import {
   upsertScheduleItem,
 } from "@/lib/data/lms-installment-store";
 import {
+  getRefundById,
+  listAllRefunds,
+  listRefundsForStudent,
+  replaceAllRefunds,
+  resetRefundStoreRuntime,
+  upsertRefund,
+} from "@/lib/data/lms-refund-store";
+import {
   listAllTransactionLogs,
   listAllWalletTransactions,
   listRecentTransactionLogs,
@@ -99,6 +107,7 @@ import type {
   Invoice,
   Order,
   PaymentRecord,
+  RefundRequest,
   TransactionLog,
   WalletTransaction,
 } from "@/types/payments";
@@ -229,6 +238,27 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/payments/checkout-service.ts")).not.toMatch(
       /readPaymentsDb\(\)\.transactionLogs/,
     );
+    expect(paymentsStore).toMatch(/extractEmbeddedRefunds/);
+    expect(paymentsStore).toMatch(/refunds: \[\]/);
+    expect(src("services/payments/refund-service.ts")).toMatch(/listRefundsForStudent\(/);
+    expect(src("services/payments/refund-service.ts")).not.toMatch(/readPaymentsDb\(\)\.refunds/);
+    expect(src("services/payments/report-service.ts")).toMatch(/listOrdersByStatus\("paid"\)/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/listOrdersByStatus\("paid"\)/);
+    const overview = src("services/dashboard/metrics.ts");
+    const overviewStart = overview.indexOf("export function getPlatformOverview");
+    const overviewEnd = overview.indexOf("export function getGrowthSeries");
+    expect(overview.slice(overviewStart, overviewEnd)).not.toMatch(/getClassStats\(/);
+    expect(src("services/email/outbox.ts")).toMatch(/EMAIL_OUTBOX_CAP = 400/);
+    expect(src("services/ops/logging-service.ts")).toMatch(/const MAX_ENTRIES = 400/);
+    expect(src("services/api-platform/store.ts")).toMatch(/apiLogs\.length > 400/);
+    expect(src("services/auth/store.ts")).toMatch(/AUTH_TOKEN_CAP = 80/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(
+      /for \(const order of listOrdersByStatus\("paid"\)\)/,
+    );
+    expect(src("services/courses/instructor-students.ts")).not.toMatch(/readAuthDb\(\)/);
+    expect(src("services/payments/store.ts")).toMatch(
+      /processedProviderEvents: \(db\.processedProviderEvents \?\? \[\]\)\.slice\(0, 400\)/,
+    );
     const installments = src("services/payments/installment-service.ts");
     expect(installments).toMatch(/listInstallmentPlansForStudent\(/);
     expect(installments).toMatch(/getInstallmentPlanById\(/);
@@ -335,6 +365,11 @@ describe("lifetime store speed contracts", () => {
     expect(identityRuntime).toContain('const SESSION_TABLE = "aep_auth_sessions"');
     expect(identityRuntime).toMatch(/WHERE id = \$1/);
     expect(identityRuntime).toMatch(/WHERE email = \$1/);
+    const refundMigration = src("database/migrations/043_lms_refund_store.sql");
+    expect(refundMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_refunds/);
+    const refundRuntime = src("lib/data/lms-refund-store.ts");
+    expect(refundRuntime).toContain('const TABLE = "aep_lms_refunds"');
+    expect(refundRuntime).toMatch(/WHERE student_id = \$1/);
   });
 });
 
@@ -1053,5 +1088,58 @@ describe("indexed auth identity store", () => {
     ) as { users?: unknown[]; sessions?: unknown[] };
     expect(catalog.users ?? []).toEqual([]);
     expect(catalog.sessions ?? []).toEqual([]);
+  });
+});
+
+function testRefund(suffix: string): RefundRequest {
+  const now = new Date().toISOString();
+  return {
+    id: `ref-lifetime-speed-${suffix}`,
+    refundNumber: `REF-TEST-${suffix}`,
+    orderId: `ord-ref-${suffix}`,
+    paymentId: `pay-ref-${suffix}`,
+    studentId: `student-ref-${suffix}`,
+    amount: 500,
+    currency: "KWD",
+    isPartial: false,
+    reason: "lifetime refund extract",
+    status: "requested",
+    adminNotes: null,
+    reviewedById: null,
+    processedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+describe("indexed refund store", () => {
+  afterEach(() => {
+    replaceAllRefunds(listAllRefunds().filter((row) => !row.id.startsWith("ref-lifetime-speed-")));
+    resetRefundStoreRuntime();
+  });
+
+  it("returns one student refund without scanning the catalog", () => {
+    const first = testRefund("alpha");
+    const second = testRefund("beta");
+    upsertRefund(first);
+    upsertRefund(second);
+    resetRefundStoreRuntime();
+    expect(listRefundsForStudent(first.studentId)).toEqual([
+      expect.objectContaining({ id: first.id, studentId: first.studentId }),
+    ]);
+    expect(getRefundById(first.id)?.orderId).toBe(first.orderId);
+  });
+
+  it("extracts refunds written through the payments catalog view", () => {
+    const refund = testRefund("extract");
+    writePaymentsDb((db) => {
+      db.refunds.push(refund);
+    });
+    resetRefundStoreRuntime();
+    expect(getRefundById(refund.id)?.studentId).toBe(refund.studentId);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-payments.json"), "utf8"),
+    ) as { refunds?: unknown[] };
+    expect(catalog.refunds ?? []).toEqual([]);
   });
 });

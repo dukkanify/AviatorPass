@@ -7,7 +7,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { generateId } from "@/lib/security/crypto";
 import { logActivity } from "@/services/auth/activity-log";
-import { findUserById, readAuthDb } from "@/services/auth/store";
+import { findUserById } from "@/services/auth/store";
 import {
   cancelLiveClass,
   canManageClass,
@@ -54,7 +54,7 @@ export class ScheduleError extends Error {
 
 function userName(userId: string | null): string | null {
   if (!userId) return null;
-  const u = readAuthDb().users.find((x) => x.id === userId);
+  const u = findUserById(userId);
   if (!u) return null;
   return [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email;
 }
