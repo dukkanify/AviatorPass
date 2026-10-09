@@ -4,6 +4,11 @@
  */
 
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import {
+  ATPL_PACKAGE_FIRST_LECTURE_TITLE,
+  type AtplPackageScheduleSnapshot,
+} from "@/constants/atpl-complete-package";
+import { DEFAULT_CLASS_DURATION_MINUTES } from "@/constants/classes";
 import { ROLES } from "@/constants/roles";
 import { generateId } from "@/lib/security/crypto";
 import { logActivity } from "@/services/auth/activity-log";
@@ -50,6 +55,98 @@ export class ScheduleError extends Error {
     this.name = "ScheduleError";
     this.status = status;
   }
+}
+
+function computedStatusFromWindow(
+  startsAt: string,
+  endsAt: string,
+): ScheduleSession["computedStatus"] {
+  const now = Date.now();
+  const start = Date.parse(startsAt);
+  const end = Date.parse(endsAt);
+  if (Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end) {
+    return "live_now";
+  }
+  if (Number.isFinite(end) && now > end) return "completed";
+  return "upcoming";
+}
+
+export function sessionFromAtplPackageSchedule(
+  schedule: AtplPackageScheduleSnapshot,
+): ScheduleSession | null {
+  if (schedule.scheduleProvisional || !schedule.confirmedFirstLectureAt) return null;
+  const startsAt = schedule.confirmedFirstLectureAt;
+  const durationMinutes = DEFAULT_CLASS_DURATION_MINUTES;
+  const endsAt = new Date(Date.parse(startsAt) + durationMinutes * 60_000).toISOString();
+  const title = schedule.firstLectureSubjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE;
+  return {
+    id: schedule.firstLectureLiveClassId ?? "first-lecture",
+    title,
+    description: schedule.scheduleNotice ?? "",
+    source: "atpl",
+    courseId: null,
+    courseTitle: title,
+    courseCode: schedule.firstLectureSubjectCode,
+    lessonId: null,
+    instructorId: "",
+    instructorName: schedule.assignedInstructorName ?? "Instructor",
+    startsAt,
+    endsAt,
+    durationMinutes,
+    timezone: "UTC",
+    status: "scheduled",
+    computedStatus: computedStatusFromWindow(startsAt, endsAt),
+    recurringRuleId: null,
+    isRecurring: false,
+    parentClassId: null,
+    lectureAssignmentId: null,
+    zoomJoinUrl: null,
+    attendance: { present: 0, late: 0, absent: 0, excused: 0, total: 0 },
+    enrolledCount: 1,
+  };
+}
+
+export function getPaidStudentScheduleOverview(
+  schedule: AtplPackageScheduleSnapshot,
+): ScheduleOverview {
+  const session = sessionFromAtplPackageSchedule(schedule);
+  const upcoming = session && session.computedStatus === "upcoming" ? [session] : [];
+  const liveNow = session && session.computedStatus === "live_now" ? [session] : [];
+  const startsInMinutes = session
+    ? Math.max(0, Math.round((Date.parse(session.startsAt) - Date.now()) / 60_000))
+    : null;
+  const timeline: TimelineEvent[] = session
+    ? [
+        {
+          id: `sess-${session.id}`,
+          at: session.startsAt,
+          kind: session.computedStatus === "live_now" ? "live" : "scheduled",
+          title: session.title,
+          detail: `ATPL · ${session.instructorName ?? "Instructor"} · ${session.computedStatus}`,
+          liveClassId: session.id,
+          source: "atpl",
+          status: session.computedStatus,
+        },
+      ]
+    : [];
+  return {
+    nextSession: {
+      session,
+      startsInMinutes: session ? startsInMinutes : null,
+      pendingStudentReminders: 0,
+      pendingInstructorReminders: 0,
+    },
+    upcoming,
+    timeline,
+    firstLectures: [],
+    stats: {
+      upcoming: upcoming.length,
+      liveNow: liveNow.length,
+      completed: session?.computedStatus === "completed" ? 1 : 0,
+      cancelled: 0,
+      recurringSeries: 0,
+    },
+  };
 }
 
 function userName(userId: string | null): string | null {

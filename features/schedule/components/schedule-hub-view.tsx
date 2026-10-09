@@ -78,8 +78,7 @@ export function ScheduleHubView({
 
   const load = React.useCallback(async () => {
     const q = source === "all" ? "?view=overview" : `?view=overview&source=${source}`;
-    const [data, schedule] = await Promise.all([
-      apiGet<ScheduleOverview>(q),
+    const schedulePromise =
       role === "student"
         ? fetch("/api/learning/atpl-schedule", { cache: "no-store" }).then(async (res) => {
             const json = (await res.json()) as {
@@ -88,9 +87,16 @@ export function ScheduleHubView({
             };
             return res.ok && json.success ? json.data : null;
           })
-        : Promise.resolve(null),
+        : Promise.resolve(null);
+    const [overviewResult, schedule] = await Promise.all([
+      apiGet<ScheduleOverview>(q).then(
+        (data) => ({ data, error: null as string | null }),
+        (err: Error) => ({ data: null, error: err.message }),
+      ),
+      schedulePromise,
     ]);
-    setOverview(data);
+    if (overviewResult.data) setOverview(overviewResult.data);
+    if (overviewResult.error) setError(overviewResult.error);
     if (schedule) setAtplSchedule(schedule);
   }, [role, source]);
 
