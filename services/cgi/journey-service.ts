@@ -55,6 +55,12 @@ import { notifyInstructorAssignmentPendingOps } from "@/services/email/instructo
 import { sendEmail } from "@/services/email/mailer";
 import { getPublicBrandConfig } from "@/services/settings/settings-service";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
+import {
+  getOrderById,
+  listAllOrders,
+  listOrdersForEmail,
+  listOrdersForStudent,
+} from "@/lib/data/lms-payment-ledger-store";
 import { readPaymentsDb, writePaymentsDb } from "@/services/payments/store";
 import {
   createLiveClass,
@@ -1149,15 +1155,13 @@ function resolveLivePaidStudent(studentId: string, email: string) {
 
 function latestPaidPackageOrder(studentId: string, email: string) {
   ensurePaymentsSeeded();
-  const needle = email.trim().toLowerCase();
-  const matches = readPaymentsDb().orders.filter((order) => {
-    const identity =
-      order.studentId === studentId ||
-      order.studentEmail?.trim().toLowerCase() === needle ||
-      order.billingEmail?.trim().toLowerCase() === needle;
-    if (!identity) return false;
-    return order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt);
-  });
+  const byId = new Map<string, ReturnType<typeof listOrdersForStudent>[number]>();
+  for (const order of [...listOrdersForStudent(studentId), ...listOrdersForEmail(email)]) {
+    byId.set(order.id, order);
+  }
+  const matches = [...byId.values()].filter(
+    (order) => order.status === "paid" || Boolean(order.metadata?.firstInstallmentPaidAt),
+  );
   const atpl = matches.filter((order) => isPaidAtplPackageOrder(order));
   return (
     (atpl.length ? atpl : matches)
@@ -1328,9 +1332,7 @@ export async function hydratePaidAtplStudentAccess(
 ) {
   ensurePaymentsSeeded();
   const live = resolveLivePaidStudent(studentId, email);
-  const pinned = orderId
-    ? (readPaymentsDb().orders.find((order) => order.id === orderId) ?? null)
-    : null;
+  const pinned = orderId ? (getOrderById(orderId) ?? null) : null;
   let order = pinned ?? latestPaidPackageOrder(live.studentId, live.email);
   if (order && order.studentId !== live.studentId) {
     const liveUser = findUserById(live.studentId);
@@ -1345,7 +1347,7 @@ export async function hydratePaidAtplStudentAccess(
       },
       order.studentId,
     );
-    order = readPaymentsDb().orders.find((row) => row.id === order!.id) ?? order;
+    order = getOrderById(order.id) ?? order;
   }
   if (order && studentHasOfficialPackageCoverage(live.studentId)) {
     await maybeSendPackageConfirmationFollowup(order, live.studentId);
@@ -2126,7 +2128,7 @@ export function listAtplStudents() {
     byStudent.set(e.studentId, list);
   }
 
-  const paidOrders = readPaymentsDb().orders.filter((order) => isPaidAtplPackageOrder(order));
+  const paidOrders = listAllOrders().filter((order) => isPaidAtplPackageOrder(order));
   const latestByStudent = new Map<string, (typeof paidOrders)[number]>();
   const latestByEmail = new Map<string, (typeof paidOrders)[number]>();
   for (const order of paidOrders) {

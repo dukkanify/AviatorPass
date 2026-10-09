@@ -21,7 +21,7 @@ import {
   stripeCheckoutMetadata,
 } from "@/services/stripe/price-data";
 import { normalizeCheckoutCurrency } from "@/services/stripe/currency";
-import { readPaymentsDb } from "@/services/payments/store";
+import { getOrderById } from "@/lib/data/lms-payment-ledger-store";
 import { publicAppOrigin } from "@/lib/site-origin";
 import { TamaraGateway } from "@/services/payments/tamara-gateway";
 import { TalyGateway } from "@/services/payments/taly-gateway";
@@ -191,7 +191,7 @@ class StripeGateway implements PaymentGateway {
       );
     }
 
-    const order = readPaymentsDb().orders.find((o) => o.id === input.orderId) ?? null;
+    const order = getOrderById(input.orderId);
     const item = order?.items[0];
     const courseId = input.courseId || item?.courseId || "";
     let offer = null as ReturnType<typeof resolveCourseOffer> | null;

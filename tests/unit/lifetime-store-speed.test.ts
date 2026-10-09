@@ -48,6 +48,28 @@ import {
   upsertParticipant,
 } from "@/lib/data/lms-class-participant-store";
 import { writeClassesDb } from "@/services/classes/store";
+import {
+  countOrders,
+  getInvoiceById,
+  getOrderById,
+  getPaymentById,
+  listAllInvoices,
+  listAllOrders,
+  listAllPayments,
+  listInvoicesForStudent,
+  listOrdersForEmail,
+  listOrdersForStudent,
+  listPaymentsForOrder,
+  replaceAllInvoices,
+  replaceAllOrders,
+  replaceAllPayments,
+  resetPaymentLedgerStoreRuntime,
+  upsertInvoice,
+  upsertOrder,
+  upsertPayment,
+} from "@/lib/data/lms-payment-ledger-store";
+import { writePaymentsDb } from "@/services/payments/store";
+import type { Invoice, Order, PaymentRecord } from "@/types/payments";
 import type { Enrollment } from "@/types/courses";
 import type { MeetingParticipant, ReminderQueueItem } from "@/types/classes";
 import type { NotificationRecord } from "@/types";
@@ -127,6 +149,21 @@ describe("lifetime store speed contracts", () => {
     expect(authStore).toMatch(/extractEmbeddedNotifications/);
     expect(authStore).toMatch(/withLazyNotificationWrites/);
     expect(authStore).toMatch(/notifications: \[\]/);
+
+    const checkout = src("services/payments/checkout-service.ts");
+    expect(checkout).toMatch(/listOrdersForStudent\(/);
+    expect(checkout).toMatch(/countOrders\(/);
+    expect(checkout).toMatch(/getOrderById\(/);
+    expect(checkout).not.toMatch(/readPaymentsDb\(\)\.orders/);
+    expect(src("services/payments/invoice-service.ts")).toMatch(/listInvoicesForStudent\(/);
+    expect(src("services/payments/invoice-service.ts")).toMatch(/countInvoices\(/);
+    expect(src("services/payments/purchase-first-service.ts")).toMatch(/listOrdersForStudent\(/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/listOrdersForStudent\(/);
+    expect(src("services/cgi/journey-service.ts")).toMatch(/listOrdersForEmail\(/);
+    const paymentsStore = src("services/payments/store.ts");
+    expect(paymentsStore).toMatch(/extractEmbeddedLedger/);
+    expect(paymentsStore).toMatch(/withLazyLedgerWrites/);
+    expect(paymentsStore).toMatch(/orders: \[\]/);
   });
 
   it("serves admin course stats and enrollment charts from aggregates", () => {
@@ -190,6 +227,15 @@ describe("lifetime store speed contracts", () => {
     expect(notificationRuntime).toMatch(/AUTH_NOTIFICATION_CAP = 400/);
     expect(notificationRuntime).toMatch(/WHERE user_id = \$1/);
     expect(notificationRuntime).toMatch(/WHERE user_id = \$1 AND status = 'unread'/);
+    const ledgerMigration = src("database/migrations/039_lms_payment_ledger_store.sql");
+    expect(ledgerMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_payment_orders/);
+    expect(ledgerMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_payment_invoices/);
+    expect(ledgerMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_payment_records/);
+    const ledgerRuntime = src("lib/data/lms-payment-ledger-store.ts");
+    expect(ledgerRuntime).toContain('const ORDER_TABLE = "aep_lms_payment_orders"');
+    expect(ledgerRuntime).toMatch(/WHERE student_id = \$1/);
+    expect(ledgerRuntime).toMatch(/WHERE student_email = \$1 OR billing_email = \$1/);
+    expect(ledgerRuntime).toMatch(/WHERE order_id = \$1/);
   });
 });
 
@@ -459,5 +505,165 @@ describe("indexed auth notification store", () => {
       readFileSync(path.join(process.cwd(), ".data", "aep-auth.json"), "utf8"),
     ) as { notifications?: unknown[] };
     expect(catalog.notifications ?? []).toEqual([]);
+  });
+});
+
+function testOrder(suffix: string): Order {
+  const now = new Date().toISOString();
+  return {
+    id: `ord-lifetime-speed-${suffix}`,
+    orderNumber: `ORD-2099-${suffix}`,
+    studentId: `student-lifetime-speed-${suffix}`,
+    studentName: "Lifetime Student",
+    studentEmail: `${suffix}@lifetime.test`,
+    status: "paid",
+    currency: "KWD",
+    subtotalAmount: 1000,
+    discountAmount: 0,
+    taxAmount: 0,
+    taxRatePercent: 0,
+    totalAmount: 1000,
+    couponId: null,
+    couponCode: null,
+    billingName: "Lifetime Student",
+    billingEmail: `${suffix}@lifetime.test`,
+    billingCountry: "KW",
+    billingAddress: "",
+    items: [],
+    paymentId: `pay-lifetime-speed-${suffix}`,
+    invoiceId: `inv-lifetime-speed-${suffix}`,
+    idempotencyKey: `idem-lifetime-speed-${suffix}`,
+    failureReason: null,
+    paidAt: now,
+    cancelledAt: null,
+    expiresAt: null,
+    metadata: {},
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function testInvoice(suffix: string): Invoice {
+  const now = new Date().toISOString();
+  return {
+    id: `inv-lifetime-speed-${suffix}`,
+    invoiceNumber: `INV-2099-${suffix}`,
+    orderId: `ord-lifetime-speed-${suffix}`,
+    paymentId: `pay-lifetime-speed-${suffix}`,
+    studentId: `student-lifetime-speed-${suffix}`,
+    studentName: "Lifetime Student",
+    studentEmail: `${suffix}@lifetime.test`,
+    status: "paid",
+    currency: "KWD",
+    subtotalAmount: 1000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1000,
+    paymentMethodSummary: "card",
+    items: [],
+    issuedAt: now,
+    paidAt: now,
+    pdfReady: true,
+    emailedAt: now,
+    metadata: { paymentId: `pay-lifetime-speed-${suffix}` },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function testPayment(suffix: string): PaymentRecord {
+  const now = new Date().toISOString();
+  return {
+    id: `pay-lifetime-speed-${suffix}`,
+    orderId: `ord-lifetime-speed-${suffix}`,
+    provider: "mock",
+    providerPaymentId: `prov-lifetime-speed-${suffix}`,
+    status: "succeeded",
+    methodBrand: "card",
+    paymentMethodSummary: "card",
+    amount: 1000,
+    currency: "KWD",
+    clientSecret: null,
+    checkoutUrl: null,
+    stripeCustomerId: null,
+    checkoutSessionId: `cs-lifetime-speed-${suffix}`,
+    paymentIntentId: null,
+    stripeInvoiceId: null,
+    receiptUrl: null,
+    stripeFeeMinor: null,
+    netAmountMinor: null,
+    country: "KW",
+    billingAddressSnapshot: null,
+    webhookVerified: true,
+    failureCode: null,
+    failureMessage: null,
+    rawProviderPayload: {},
+    studentId: `student-lifetime-speed-${suffix}`,
+    courseId: null,
+    stripeEventId: null,
+    invoiceNumber: `INV-2099-${suffix}`,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+describe("indexed payment ledger", () => {
+  afterEach(() => {
+    replaceAllOrders(listAllOrders().filter((row) => !row.id.startsWith("ord-lifetime-speed-")));
+    replaceAllInvoices(
+      listAllInvoices().filter((row) => !row.id.startsWith("inv-lifetime-speed-")),
+    );
+    replaceAllPayments(
+      listAllPayments().filter((row) => !row.id.startsWith("pay-lifetime-speed-")),
+    );
+    resetPaymentLedgerStoreRuntime();
+  });
+
+  it("returns one student ledger without scanning every order", () => {
+    const first = testOrder("alpha");
+    const second = testOrder("beta");
+    upsertOrder(first);
+    upsertOrder(second);
+    upsertInvoice(testInvoice("alpha"));
+    upsertPayment(testPayment("alpha"));
+    resetPaymentLedgerStoreRuntime();
+
+    expect(listOrdersForStudent(first.studentId)).toEqual([
+      expect.objectContaining({ id: first.id, studentId: first.studentId }),
+    ]);
+    expect(listOrdersForEmail(first.studentEmail)).toEqual([
+      expect.objectContaining({ id: first.id }),
+    ]);
+    expect(getOrderById(first.id)?.studentEmail).toBe(first.studentEmail);
+    expect(listInvoicesForStudent(first.studentId)).toEqual([
+      expect.objectContaining({ id: `inv-lifetime-speed-alpha` }),
+    ]);
+    expect(getInvoiceById(`inv-lifetime-speed-alpha`)?.orderId).toBe(first.id);
+    expect(listPaymentsForOrder(first.id)).toEqual([
+      expect.objectContaining({ id: `pay-lifetime-speed-alpha` }),
+    ]);
+    expect(getPaymentById(`pay-lifetime-speed-alpha`)?.orderId).toBe(first.id);
+    expect(countOrders()).toBeGreaterThanOrEqual(2);
+  });
+
+  it("extracts ledger rows written through the payments catalog view", () => {
+    const order = testOrder("extract");
+    const invoice = testInvoice("extract");
+    const payment = testPayment("extract");
+    writePaymentsDb((db) => {
+      db.orders.push(order);
+      db.invoices.push(invoice);
+      db.payments.push(payment);
+    });
+    resetPaymentLedgerStoreRuntime();
+    expect(getOrderById(order.id)?.studentId).toBe(order.studentId);
+    expect(listInvoicesForStudent(order.studentId).some((row) => row.id === invoice.id)).toBe(true);
+    expect(listPaymentsForOrder(order.id).some((row) => row.id === payment.id)).toBe(true);
+    const catalog = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".data", "aep-payments.json"), "utf8"),
+    ) as { orders?: unknown[]; invoices?: unknown[]; payments?: unknown[] };
+    expect(catalog.orders ?? []).toEqual([]);
+    expect(catalog.invoices ?? []).toEqual([]);
+    expect(catalog.payments ?? []).toEqual([]);
   });
 });

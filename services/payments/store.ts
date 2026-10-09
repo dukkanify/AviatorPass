@@ -1,11 +1,20 @@
 /**
  * Payments durable store (.data/aep-payments.json).
- * Uses json-file-store so read-only hosts (Vercel) never 500 marketing SSR.
+ * Orders, invoices, and payment records live in the indexed ledger so
+ * student billing never hydrates the whole catalog blob.
  */
 
 import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
+import {
+  listAllInvoices,
+  listAllOrders,
+  listAllPayments,
+  replaceAllInvoices,
+  replaceAllOrders,
+  replaceAllPayments,
+} from "@/lib/data/lms-payment-ledger-store";
 import type {
   CatalogProduct,
   Coupon,
@@ -190,18 +199,159 @@ function normalizePayment(raw: PaymentRecord): PaymentRecord {
   };
 }
 
+function catalogSnapshot(db: PaymentsDatabase): PaymentsDatabase {
+  return {
+    settings: db.settings,
+    products: db.products,
+    coupons: db.coupons,
+    couponUsages: db.couponUsages,
+    orders: [],
+    payments: [],
+    invoices: [],
+    subscriptions: db.subscriptions,
+    wallets: db.wallets,
+    walletTransactions: db.walletTransactions,
+    payouts: db.payouts,
+    refunds: db.refunds,
+    transactionLogs: db.transactionLogs,
+    regionalRules: db.regionalRules,
+    installmentPlans: db.installmentPlans,
+    installmentSchedule: db.installmentSchedule,
+    installmentReminders: db.installmentReminders,
+    kycDocuments: db.kycDocuments,
+    processedProviderEvents: db.processedProviderEvents,
+    seeded: db.seeded,
+  };
+}
+
+function persistCatalog(db: PaymentsDatabase): void {
+  writeJsonFile(dataFile(), catalogSnapshot(db));
+}
+
+function extractEmbeddedLedger(db: PaymentsDatabase): void {
+  const embeddedOrders = db.orders ?? [];
+  const embeddedInvoices = db.invoices ?? [];
+  const embeddedPayments = (db.payments ?? []).map(normalizePayment);
+  if (
+    embeddedOrders.length === 0 &&
+    embeddedInvoices.length === 0 &&
+    embeddedPayments.length === 0
+  ) {
+    return;
+  }
+  if (embeddedOrders.length > 0) {
+    const existing = listAllOrders();
+    replaceAllOrders(existing.length > 0 ? [...existing, ...embeddedOrders] : embeddedOrders);
+    db.orders = [];
+  }
+  if (embeddedInvoices.length > 0) {
+    const existing = listAllInvoices();
+    replaceAllInvoices(existing.length > 0 ? [...existing, ...embeddedInvoices] : embeddedInvoices);
+    db.invoices = [];
+  }
+  if (embeddedPayments.length > 0) {
+    const existing = listAllPayments();
+    replaceAllPayments(existing.length > 0 ? [...existing, ...embeddedPayments] : embeddedPayments);
+    db.payments = [];
+  }
+  persistCatalog(db);
+}
+
+function withLedgerView(db: PaymentsDatabase): PaymentsDatabase {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "orders") return listAllOrders();
+      if (prop === "invoices") return listAllInvoices();
+      if (prop === "payments") return listAllPayments();
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+function withLazyLedgerWrites(catalog: PaymentsDatabase): {
+  working: PaymentsDatabase;
+  flushLedger: () => void;
+} {
+  let ordersLoaded = false;
+  let orders: Order[] = [];
+  let invoicesLoaded = false;
+  let invoices: Invoice[] = [];
+  let paymentsLoaded = false;
+  let payments: PaymentRecord[] = [];
+  const working = { ...catalog, orders: [], invoices: [], payments: [] };
+  Object.defineProperty(working, "orders", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!ordersLoaded) {
+        orders = listAllOrders();
+        ordersLoaded = true;
+      }
+      return orders;
+    },
+    set(value: Order[]) {
+      orders = Array.isArray(value) ? value : [];
+      ordersLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "invoices", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!invoicesLoaded) {
+        invoices = listAllInvoices();
+        invoicesLoaded = true;
+      }
+      return invoices;
+    },
+    set(value: Invoice[]) {
+      invoices = Array.isArray(value) ? value : [];
+      invoicesLoaded = true;
+    },
+  });
+  Object.defineProperty(working, "payments", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!paymentsLoaded) {
+        payments = listAllPayments();
+        paymentsLoaded = true;
+      }
+      return payments;
+    },
+    set(value: PaymentRecord[]) {
+      payments = Array.isArray(value) ? value : [];
+      paymentsLoaded = true;
+    },
+  });
+  return {
+    working,
+    flushLedger() {
+      if (ordersLoaded) replaceAllOrders(orders);
+      if (invoicesLoaded) replaceAllInvoices(invoices);
+      if (paymentsLoaded) replaceAllPayments(payments.map(normalizePayment));
+    },
+  };
+}
+
 export function ensurePaymentsStore(): PaymentsDatabase {
-  const raw = readJsonFile<Partial<PaymentsDatabase>>(dataFile(), emptyDb);
-  return normalizeDb(raw);
+  const db = normalizeDb(readJsonFile<Partial<PaymentsDatabase>>(dataFile(), emptyDb));
+  extractEmbeddedLedger(db);
+  db.orders = [];
+  db.invoices = [];
+  db.payments = [];
+  return db;
 }
 
 export function readPaymentsDb(): PaymentsDatabase {
-  return ensurePaymentsStore();
+  return withLedgerView(ensurePaymentsStore());
 }
 
 export function writePaymentsDb(mutator: (db: PaymentsDatabase) => void): PaymentsDatabase {
-  const db = ensurePaymentsStore();
-  mutator(db);
-  writeJsonFile(dataFile(), db);
-  return db;
+  const catalog = ensurePaymentsStore();
+  const { working, flushLedger } = withLazyLedgerWrites(catalog);
+  mutator(working);
+  flushLedger();
+  persistCatalog(working);
+  return withLedgerView(ensurePaymentsStore());
 }

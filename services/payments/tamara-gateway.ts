@@ -10,7 +10,7 @@ import type {
   PaymentGateway,
 } from "@/services/payments/gateway";
 import { formatTamaraAmount } from "@/services/payments/money";
-import { readPaymentsDb } from "@/services/payments/store";
+import { getOrderById } from "@/lib/data/lms-payment-ledger-store";
 import { createTamaraCheckoutSession } from "@/services/payments/tamara-client";
 import {
   getTamaraBaseUrl,
@@ -54,7 +54,7 @@ export class TamaraGateway implements PaymentGateway {
       );
     }
 
-    const order = readPaymentsDb().orders.find((o) => o.id === input.orderId) ?? null;
+    const order = getOrderById(input.orderId);
     const item = order?.items[0];
     const country = (input.country || order?.billingCountry || "SA").toUpperCase();
     if (!isTamaraCountry(country)) {

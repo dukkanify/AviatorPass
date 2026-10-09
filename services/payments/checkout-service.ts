@@ -36,6 +36,19 @@ import { issueInvoiceForOrder, issueInvoiceForPayment } from "@/services/payment
 import { calcTax, formatMinor } from "@/services/payments/money";
 import { notifyPayment } from "@/services/payments/notify";
 import {
+  countOrders,
+  getOrderById,
+  getOrderByIdempotencyKey,
+  getPaymentById,
+  getPaymentByProviderRef,
+  listAllOrders,
+  listAllPayments,
+  listOrdersByStatus,
+  listOrdersForStudent,
+  listPaymentsForOrder,
+  upsertOrder,
+} from "@/lib/data/lms-payment-ledger-store";
+import {
   blankStripePaymentFields,
   readPaymentsDb,
   writePaymentsDb,
@@ -59,7 +72,7 @@ function nowIso() {
 
 function nextOrderNumber(): string {
   const y = new Date().getFullYear();
-  const n = readPaymentsDb().orders.length + 1;
+  const n = countOrders() + 1;
   return `ORD-${y}-${String(n).padStart(5, "0")}`;
 }
 
@@ -68,16 +81,15 @@ export function listOrders(filters?: {
   status?: Order["status"] | "all";
   provider?: PaymentProvider | "all";
 }) {
-  let rows = [...readPaymentsDb().orders];
-  if (filters?.studentId) rows = rows.filter((o) => o.studentId === filters.studentId);
+  let rows = filters?.studentId ? listOrdersForStudent(filters.studentId) : listAllOrders();
   if (filters?.status && filters.status !== "all") {
     rows = rows.filter((o) => o.status === filters.status);
   }
   if (filters?.provider && filters.provider !== "all") {
-    const payments = readPaymentsDb().payments;
     rows = rows.filter((o) => {
-      const payment =
-        payments.find((p) => p.id === o.paymentId) ?? payments.find((p) => p.orderId === o.id);
+      const payment = o.paymentId
+        ? getPaymentById(o.paymentId)
+        : (listPaymentsForOrder(o.id)[0] ?? null);
       return payment?.provider === filters.provider;
     });
   }
@@ -85,16 +97,15 @@ export function listOrders(filters?: {
 }
 
 export function getOrder(id: string): Order | null {
-  return readPaymentsDb().orders.find((o) => o.id === id) ?? null;
+  return getOrderById(id);
 }
 
 export function getPayment(id: string): PaymentRecord | null {
-  return readPaymentsDb().payments.find((p) => p.id === id) ?? null;
+  return getPaymentById(id);
 }
 
 export function listPayments(filters?: { orderId?: string }) {
-  let rows = [...readPaymentsDb().payments];
-  if (filters?.orderId) rows = rows.filter((p) => p.orderId === filters.orderId);
+  const rows = filters?.orderId ? listPaymentsForOrder(filters.orderId) : listAllPayments();
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -112,14 +123,11 @@ export function listTransactionLogs(limit = 100) {
 
 function expireStaleOrders() {
   const now = nowIso();
-  writePaymentsDb((db) => {
-    for (const o of db.orders) {
-      if (o.status === "pending" && o.expiresAt && o.expiresAt < now) {
-        o.status = "expired";
-        o.updatedAt = now;
-      }
+  for (const o of listOrdersByStatus("pending")) {
+    if (o.expiresAt && o.expiresAt < now) {
+      upsertOrder({ ...o, status: "expired", updatedAt: now });
     }
-  });
+  }
 }
 
 export async function createCheckoutOrder(input: {
@@ -139,15 +147,12 @@ export async function createCheckoutOrder(input: {
   if (!product || !product.active) throw new PaymentError("Product not available", 404);
 
   const idempotencyKey = input.idempotencyKey?.trim() || generateToken(16);
-  const existing = readPaymentsDb().orders.find(
-    (o) => o.idempotencyKey === idempotencyKey && o.studentId === input.user.id,
-  );
-  if (existing) return existing;
+  const existing = getOrderByIdempotencyKey(idempotencyKey);
+  if (existing && existing.studentId === input.user.id) return existing;
 
   // Duplicate paid guard for same product+student
-  const alreadyPaid = readPaymentsDb().orders.find(
+  const alreadyPaid = listOrdersForStudent(input.user.id).find(
     (o) =>
-      o.studentId === input.user.id &&
       o.status === "paid" &&
       o.items.some((i) => i.productId === product.id) &&
       product.pricingModel === "one_time",
@@ -872,9 +877,7 @@ export async function handleProviderWebhook(input: { payload: string; signature:
 
   const gateway = getPaymentGateway();
   const result = await gateway.confirmWebhook(input.payload, input.signature);
-  const payment = readPaymentsDb().payments.find(
-    (p) => p.providerPaymentId === result.providerPaymentId,
-  );
+  const payment = getPaymentByProviderRef(result.providerPaymentId);
   if (!payment) throw new PaymentError("Payment not found for webhook", 404);
 
   writePaymentsDb((db) => {
