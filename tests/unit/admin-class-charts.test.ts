@@ -103,6 +103,16 @@ describe("super admin class charts", () => {
     expect(src("features/dashboard/super-admin-dashboard-view.tsx")).toMatch(
       /Live sessions this week/,
     );
+    const charts = src("components/dashboard/charts.tsx");
+    const card = charts.slice(
+      charts.indexOf("export function ChartCard"),
+      charts.indexOf("export function AreaTrendChart"),
+    );
+    expect(card).not.toMatch(/ResponsiveContainer/);
+    expect(charts).toMatch(
+      /export function AreaTrendChart[\s\S]*ResponsiveContainer[\s\S]*AreaChart/,
+    );
+    expect(charts).toMatch(/export function BarsChart[\s\S]*ResponsiveContainer[\s\S]*BarChart/);
   });
 
   it("counts this week's sessions without scanning the classes blob", () => {
