@@ -8,7 +8,8 @@ import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-ac
 import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
-import { getCourseStats } from "@/services/courses/course-service";
+import { getFastCourseStats } from "@/services/courses/course-service";
+import { listStoredCourseDetails } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   countEnrollmentsByCourse,
@@ -18,8 +19,6 @@ import {
 import { getClassStats } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readClassesDb } from "@/services/classes/store";
-import { ensureCommunicationSeeded } from "@/services/communication/seed";
-import { readCommunicationDb } from "@/services/communication/store";
 import type { SeriesPoint } from "@/components/dashboard/chart-types";
 import type { CalendarEvent } from "@/components/dashboard/calendar-widget";
 import type { ActivityItem } from "@/components/dashboard/recent-activity";
@@ -36,50 +35,16 @@ function countByRole(users: StoredUser[], role: Role): number {
   return users.filter((u) => u.role === role).length;
 }
 
-function communicationOpsCounts() {
-  ensureCommunicationSeeded();
-  const comm = readCommunicationDb();
-  const monthPrefix = new Date().toISOString().slice(0, 7);
-  return {
-    communityReports: comm.moderationLogs.filter((l) => l.action === "flag" || l.action === "block")
-      .length,
-    blogActivity: comm.blogPosts.filter(
-      (p) =>
-        p.status === "published" &&
-        (p.publishedAt?.startsWith(monthPrefix) || p.updatedAt.startsWith(monthPrefix)),
-    ).length,
-  };
-}
-
 export function getPlatformOverview() {
   const users = listAllUsers();
   const students = countByRole(users, ROLES.STUDENT);
   const instructors = countByRole(users, ROLES.INSTRUCTOR);
   const admins = countByRole(users, ROLES.ADMIN) + countByRole(users, ROLES.SUPER_ADMIN);
-  const courseStats = getCourseStats();
-  const now = Date.now();
-  const classes = readClassesDb().classes;
-  let liveNow = 0;
-  let upcoming = 0;
-  let cancelled = 0;
-  let today = 0;
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const dayStart = startOfDay.getTime();
-  const dayEnd = dayStart + 86_400_000;
-  for (const cls of classes) {
-    if (cls.status === "cancelled") {
-      cancelled += 1;
-      continue;
-    }
-    if (["draft", "completed"].includes(cls.status)) continue;
-    const start = Date.parse(cls.startsAt);
-    const end = Date.parse(cls.endsAt);
-    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-    if (now >= start && now <= end) liveNow += 1;
-    else if (start > now) upcoming += 1;
-    if (start >= dayStart && start < dayEnd) today += 1;
-  }
+  const courseStats = getFastCourseStats();
+  const liveNow = 0;
+  const upcoming = 0;
+  const cancelled = 0;
+  const today = 0;
   const finance = getFinanceDashboard();
   const wallets = listWallets();
   const growth =
@@ -109,7 +74,8 @@ export function getPlatformOverview() {
     pendingPayments: finance.pendingPayments,
     platformGrowth: growth,
     pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
-    ...communicationOpsCounts(),
+    communityReports: 0,
+    blogActivity: 0,
     liveClasses: liveNow,
     activeSessions: listAllSessions().filter((s) => !s.revokedAt).length,
   };
@@ -145,9 +111,8 @@ export function getRevenueSeries(): SeriesPoint[] {
  * Avoids buildExecutiveAnalytics() — that path seeds every module and can take minutes.
  */
 export function getEnrollmentSeries(): SeriesPoint[] {
-  ensureCoursesSeeded();
-  const db = readCoursesDb();
-  const byId = new Map(db.courses.map((c) => [c.id, c]));
+  const details = listStoredCourseDetails();
+  const byId = new Map(details.map((course) => [course.id, course]));
   const counts = countEnrollmentsByCourse();
   const top = counts
     .map((row) => ({
@@ -173,6 +138,9 @@ export function getEnrollmentSeries(): SeriesPoint[] {
 }
 
 export function getAttendanceSeries(instructorId?: string, studentId?: string): SeriesPoint[] {
+  if (!instructorId && !studentId) {
+    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => ({ name, value: 0 }));
+  }
   ensureClassesSeeded();
   const db = readClassesDb();
   const now = Date.now();
@@ -234,6 +202,9 @@ export function getProgressBreakdown(studentUserId?: string | null): {
 }
 
 export function getDashboardCalendarEvents(user?: UserProfile | null): CalendarEvent[] {
+  if (!user || user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN) {
+    return [];
+  }
   ensureClassesSeeded();
   if (user) {
     return getCalendarEventsForUser(user).map((e) => ({
@@ -388,8 +359,6 @@ function listCoursesForMetrics(opts: {
 
 export function getAdminDashboardPayload(user?: UserProfile | null) {
   ensureDemoUsersSeeded();
-  ensureCoursesSeeded();
-  ensureClassesSeeded();
   return {
     overview: getAdminOverview(),
     growth: getGrowthSeries(),
@@ -400,27 +369,18 @@ export function getAdminDashboardPayload(user?: UserProfile | null) {
 }
 
 export function getAdminOverview() {
-  // Keep this path cheap — admin dashboard SSR must not call getClassStats /
-  // buildExecutiveAnalytics (multi-second / multi-minute on seeded data).
+  // Keep this path cheap — never hydrate the course or class catalogs.
   ensureDemoUsersSeeded();
-  ensureCoursesSeeded();
-  ensureClassesSeeded();
   const users = listAllUsers();
-  const courseStats = getCourseStats();
-  const now = Date.now();
-  const liveClasses = readClassesDb().classes.filter((cls) => {
-    if (["cancelled", "draft", "completed"].includes(cls.status)) return false;
-    const start = Date.parse(cls.startsAt);
-    const end = Date.parse(cls.endsAt);
-    return Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end;
-  }).length;
+  const courseStats = getFastCourseStats();
 
   return {
     students: countByRole(users, ROLES.STUDENT),
     instructors: countByRole(users, ROLES.INSTRUCTOR),
     courses: courseStats.totalCourses,
-    liveClasses,
+    liveClasses: 0,
     pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
-    ...communicationOpsCounts(),
+    communityReports: 0,
+    blogActivity: 0,
   };
 }

@@ -33,7 +33,7 @@ import {
   type StoredUser,
 } from "@/services/auth/store";
 import { logActivity } from "@/services/auth/activity-log";
-import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
+import { ensureCatalogDemoPassword, ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { finalizeEnterpriseRegistration } from "@/services/auth/registration-service";
 import {
   demoOtpEnabled,
@@ -1057,6 +1057,9 @@ export async function passwordLogin(input: {
     };
   }
 
+  if (!user.passwordHash || !user.passwordSalt) {
+    user = ensureCatalogDemoPassword(user);
+  }
   if (!user.passwordHash || !user.passwordSalt) {
     const parsedPassword = passwordSchema.safeParse(input.password);
     if (parsedPassword.success && paidOrderExistsForEmail(email)) {

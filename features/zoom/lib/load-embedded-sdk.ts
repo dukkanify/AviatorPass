@@ -1,10 +1,27 @@
+export type ZoomEmbeddedVideoSize = { width: number; height: number };
+
 export interface ZoomEmbeddedClient {
   init: (opts: {
     zoomAppRoot: HTMLElement;
     language?: string;
     patchJsMedia?: boolean;
     leaveOnPageUnload?: boolean;
+    customize?: {
+      video?: {
+        isResizable?: boolean;
+        viewSizes?: {
+          default?: ZoomEmbeddedVideoSize;
+          ribbon?: ZoomEmbeddedVideoSize;
+        };
+      };
+    };
   }) => Promise<void>;
+  updateVideoOptions?: (opts: {
+    viewSizes?: {
+      default?: ZoomEmbeddedVideoSize;
+      ribbon?: ZoomEmbeddedVideoSize;
+    };
+  }) => Promise<void> | void;
   join: (opts: {
     signature: string;
     meetingNumber: string;

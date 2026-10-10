@@ -13,6 +13,39 @@ import {
 } from "@/features/zoom/lib/load-embedded-sdk";
 import { cn } from "@/lib/utils";
 
+function stageVideoSize(el: HTMLElement): { width: number; height: number } {
+  const width = Math.max(el.clientWidth || 0, 720);
+  const height = Math.max(el.clientHeight || 0, Math.round((width * 9) / 16));
+  return { width, height };
+}
+
+function pinZoomWindowToStage(stage: HTMLElement) {
+  const rect = stage.getBoundingClientRect();
+  if (rect.width < 200 || rect.height < 160) return;
+  const nodes = document.querySelectorAll<HTMLElement>(
+    "[class*='suspension'], [class*='zoom-ui'], [class*='video-player'], [id*='zmmtg'], [id*='zoom-ui']",
+  );
+  for (const node of nodes) {
+    if (stage.contains(node)) {
+      node.style.width = "100%";
+      node.style.height = "100%";
+      node.style.maxWidth = "100%";
+      node.style.maxHeight = "100%";
+      continue;
+    }
+    if (node.offsetWidth < 80 || node.offsetHeight < 80) continue;
+    node.style.position = "fixed";
+    node.style.left = `${Math.round(rect.left)}px`;
+    node.style.top = `${Math.round(rect.top)}px`;
+    node.style.width = `${Math.round(rect.width)}px`;
+    node.style.height = `${Math.round(rect.height)}px`;
+    node.style.maxWidth = `${Math.round(rect.width)}px`;
+    node.style.maxHeight = `${Math.round(rect.height)}px`;
+    node.style.transform = "none";
+    node.style.zIndex = "6";
+  }
+}
+
 interface InAppZoomRoomProps {
   joinUrl: string;
   startUrl?: string | null;
@@ -144,6 +177,7 @@ function InAppZoomRoom({
     if (!session) return;
     const active = session;
     let cancelled = false;
+    let observer: ResizeObserver | null = null;
 
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
@@ -151,11 +185,24 @@ function InAppZoomRoom({
           const client = await loadZoomEmbeddedClient();
           if (cancelled) return;
           sdkRef.current = client;
+          const videoSize = stageVideoSize(stageRef.current);
           await client.init({
             zoomAppRoot: stageRef.current,
             language: "en-US",
             patchJsMedia: true,
             leaveOnPageUnload: true,
+            customize: {
+              video: {
+                isResizable: true,
+                viewSizes: {
+                  default: videoSize,
+                  ribbon: {
+                    width: Math.min(320, Math.round(videoSize.width / 4)),
+                    height: videoSize.height,
+                  },
+                },
+              },
+            },
           });
           const joinOpts = {
             signature: active.signature,
@@ -182,6 +229,17 @@ function InAppZoomRoom({
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
           console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
+          const fit = () => {
+            if (!stageRef.current) return;
+            const next = stageVideoSize(stageRef.current);
+            void client.updateVideoOptions?.({ viewSizes: { default: next } });
+            pinZoomWindowToStage(stageRef.current);
+          };
+          fit();
+          window.setTimeout(fit, 400);
+          window.setTimeout(fit, 1200);
+          observer = new ResizeObserver(fit);
+          observer.observe(stageRef.current);
           return;
         } catch (error) {
           if (cancelled) return;
@@ -214,6 +272,7 @@ function InAppZoomRoom({
     void enter();
     return () => {
       cancelled = true;
+      observer?.disconnect();
       void sdkRef.current?.leave?.().catch(() => undefined);
       sdkRef.current = null;
       stopLocalMedia();
@@ -259,7 +318,7 @@ function InAppZoomRoom({
   const showPreview = !liveZoom;
 
   return (
-    <div className={cn("classroom-stage text-white", className)}>
+    <div className={cn("classroom-stage text-white", liveZoom && "is-live", className)}>
       <header className="classroom-chrome">
         <div className="min-w-0">
           <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
@@ -298,51 +357,53 @@ function InAppZoomRoom({
         ) : null}
       </div>
 
-      {showPreview ? (
-        <div className="classroom-footer">
-          <div className="classroom-caption">
-            <Shield className="size-4 shrink-0 text-[#CCA04C]" />
-            <div className="min-w-0">
-              <p>{notice}</p>
-              {shownMeeting ? (
-                <p className="classroom-caption-meta">
-                  Meeting ID {shownMeeting}
-                  {shownPassword ? ` · Passcode ${shownPassword}` : ""}
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <div className="classroom-dock">
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!micOn || undefined}
-              aria-label={micOn ? "Mute" : "Unmute"}
-              onClick={toggleMic}
-            >
-              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!camOn || undefined}
-              aria-label={camOn ? "Camera off" : "Camera on"}
-              onClick={toggleCamera}
-            >
-              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-leave="true"
-              onClick={() => void leaveClassroom()}
-            >
-              <PhoneOff className="size-4" />
-              Leave classroom
-            </button>
+      <div className="classroom-footer">
+        <div className="classroom-caption">
+          <Shield className="size-4 shrink-0 text-[#CCA04C]" />
+          <div className="min-w-0">
+            <p>{notice}</p>
+            {shownMeeting ? (
+              <p className="classroom-caption-meta">
+                Meeting ID {shownMeeting}
+                {shownPassword ? ` · Passcode ${shownPassword}` : ""}
+              </p>
+            ) : null}
           </div>
         </div>
-      ) : null}
+        <div className="classroom-dock">
+          {showPreview ? (
+            <>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!micOn || undefined}
+                aria-label={micOn ? "Mute" : "Unmute"}
+                onClick={toggleMic}
+              >
+                {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+              </button>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!camOn || undefined}
+                aria-label={camOn ? "Camera off" : "Camera on"}
+                onClick={toggleCamera}
+              >
+                {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="classroom-dock-btn"
+            data-leave="true"
+            onClick={() => void leaveClassroom()}
+          >
+            <PhoneOff className="size-4" />
+            Leave classroom
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
