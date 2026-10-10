@@ -19,8 +19,11 @@ import type { LiveClass, ZoomMeetingRecord } from "@/types/classes";
 
 const CLASS_FILE = path.join(dataDir(), "aep-live-classes.json");
 const MEETING_FILE = path.join(dataDir(), "aep-zoom-meetings.json");
+const META_FILE = path.join(dataDir(), "aep-class-catalog-meta.json");
 const CLASS_TABLE = "aep_lms_live_classes";
 const MEETING_TABLE = "aep_lms_zoom_meetings";
+const META_TABLE = "aep_lms_class_catalog_meta";
+const SYNC_KEY = "synced";
 
 type ClassFile = { classes: LiveClass[] };
 type MeetingFile = { meetings: ZoomMeetingRecord[] };
@@ -77,6 +80,13 @@ function ensureSqlTables(): void {
   neonSql(
     `CREATE INDEX IF NOT EXISTS aep_lms_zoom_meetings_number_idx ON ${MEETING_TABLE} (zoom_meeting_id)`,
   );
+  neonSql(`
+    CREATE TABLE IF NOT EXISTS ${META_TABLE} (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
   tablesReady = true;
 }
 
@@ -144,6 +154,42 @@ export function countStoredLiveClasses(): number {
   return readClassRows().length;
 }
 
+export function listStoredLiveClasses(): LiveClass[] {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    return neonSql<{ payload: unknown }>(`SELECT payload FROM ${CLASS_TABLE}`)
+      .map((row) => asClass(row.payload))
+      .filter(Boolean) as LiveClass[];
+  }
+  return readClassRows();
+}
+
+export function isClassCatalogSynced(): boolean {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ value: string }>(
+      `SELECT value FROM ${META_TABLE} WHERE key = $1 LIMIT 1`,
+      [SYNC_KEY],
+    );
+    return rows[0]?.value === "1";
+  }
+  return Boolean(readJsonFile<{ synced?: boolean }>(META_FILE, () => ({ synced: false })).synced);
+}
+
+export function markClassCatalogSynced(): void {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    neonSql(
+      `INSERT INTO ${META_TABLE} (key, value, updated_at)
+       VALUES ($1, '1', NOW())
+       ON CONFLICT (key) DO UPDATE SET value = '1', updated_at = NOW()`,
+      [SYNC_KEY],
+    );
+    return;
+  }
+  writeJsonFile(META_FILE, { synced: true });
+}
+
 export function upsertLiveClass(item: LiveClass): void {
   if (!item?.id) return;
   if (sqlEnabled()) {
@@ -173,9 +219,11 @@ export function replaceAllLiveClasses(rows: LiveClass[]): void {
     ensureSqlTables();
     neonSql(`DELETE FROM ${CLASS_TABLE}`);
     for (const row of next) upsertLiveClass(row);
+    markClassCatalogSynced();
     return;
   }
   writeClassRows(next);
+  markClassCatalogSynced();
 }
 
 export function getStoredZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord | null {

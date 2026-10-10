@@ -64,9 +64,7 @@ export function ChartCard({
       <CardContent>
         <div className={cn("w-full min-w-0 min-h-[18rem]", heightClassName)}>
           {ready ? (
-            <ResponsiveContainer width="100%" height="100%" minHeight={288}>
-              {children as React.ReactElement}
-            </ResponsiveContainer>
+            children
           ) : (
             <div className="h-full w-full animate-pulse rounded-lg bg-muted/40" />
           )}
@@ -86,25 +84,27 @@ export function AreaTrendChart({
   gradientId?: string;
 }) {
   return (
-    <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor={color} stopOpacity={0.35} />
-          <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-        </linearGradient>
-      </defs>
-      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-      <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
-      <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
-      <Tooltip />
-      <Area
-        type="monotone"
-        dataKey="value"
-        stroke={color}
-        fill={`url(#${gradientId})`}
-        strokeWidth={2}
-      />
-    </AreaChart>
+    <ResponsiveContainer width="100%" height="100%" minHeight={288}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
+        <Tooltip />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          fill={`url(#${gradientId})`}
+          strokeWidth={2}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -116,56 +116,62 @@ export function LineTrendChart({
   keys?: string[];
 }) {
   return (
-    <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-      <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
-      <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
-      <Tooltip />
-      <Legend />
-      {keys.map((key, i) => (
-        <Line
-          key={key}
-          type="monotone"
-          dataKey={key}
-          stroke={CHART_COLORS[i % CHART_COLORS.length]}
-          strokeWidth={2}
-          dot={false}
-        />
-      ))}
-    </LineChart>
+    <ResponsiveContainer width="100%" height="100%" minHeight={288}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
+        <Tooltip />
+        <Legend />
+        {keys.map((key, i) => (
+          <Line
+            key={key}
+            type="monotone"
+            dataKey={key}
+            stroke={CHART_COLORS[i % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
 export function BarsChart({ data }: { data: SeriesPoint[] }) {
   return (
-    <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-      <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
-      <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
-      <Tooltip />
-      <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
-    </BarChart>
+    <ResponsiveContainer width="100%" height="100%" minHeight={288}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
+        <Tooltip />
+        <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
 export function DonutChart({ data }: { data: { name: string; value: number }[] }) {
   return (
-    <PieChart>
-      <Pie
-        data={data}
-        dataKey="value"
-        nameKey="name"
-        innerRadius={55}
-        outerRadius={90}
-        paddingAngle={3}
-      >
-        {data.map((_, index) => (
-          <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-        ))}
-      </Pie>
-      <Tooltip />
-      <Legend />
-    </PieChart>
+    <ResponsiveContainer width="100%" height="100%" minHeight={288}>
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={55}
+          outerRadius={90}
+          paddingAngle={3}
+        >
+          {data.map((_, index) => (
+            <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
   );
 }
 

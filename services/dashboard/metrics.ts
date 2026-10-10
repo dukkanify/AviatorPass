@@ -22,9 +22,9 @@ import {
   listEnrollmentsForStudent,
   readCoursesDb,
 } from "@/services/courses/store";
-import { getClassStats } from "@/services/classes/class-service";
+import { getClassStats, getPlatformClassCounts } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, lookupAllLiveClasses } from "@/services/classes/store";
 import type { SeriesPoint } from "@/components/dashboard/chart-types";
 import type { CalendarEvent } from "@/components/dashboard/calendar-widget";
 import type { ActivityItem } from "@/components/dashboard/recent-activity";
@@ -58,6 +58,7 @@ function buildPlatformOverview(
   const instructors = countUsersByRole(ROLES.INSTRUCTOR);
   const admins = countUsersByRole(ROLES.ADMIN) + countUsersByRole(ROLES.SUPER_ADMIN);
   const courseStats = getFastCourseStats();
+  const classCounts = getPlatformClassCounts();
   const growth =
     finance.monthlyGrowth.length > 1
       ? Math.round(
@@ -76,9 +77,9 @@ function buildPlatformOverview(
     publishedCourses: courseStats.publishedCourses,
     draftCourses: courseStats.draftCourses,
     activeCourseStudents: courseStats.activeStudents,
-    activeClasses: 0,
-    upcomingClasses: 0,
-    cancelledClasses: 0,
+    activeClasses: classCounts.activeClasses,
+    upcomingClasses: classCounts.upcomingClasses,
+    cancelledClasses: classCounts.cancelledClasses,
     attendanceRate: 0,
     monthlyRevenue: finance.monthlyRevenue,
     instructorWalletBalance: finance.revenueByInstructor.reduce(
@@ -108,12 +109,26 @@ export function getSuperAdminDashboardPayload() {
   return {
     overview: buildPlatformOverview(finance),
     calendar: [],
-    activity: [],
+    activity: getRecentActivityFeed(),
     charts: {
       growth: listStudentGrowthMonths(),
       revenue: finance.monthlyGrowth.length
         ? finance.monthlyGrowth
         : [{ name: "Now", value: finance.monthlyRevenue }],
+      enrollments: getEnrollmentSeries(),
+      attendance: getAttendanceSeries(),
+    },
+  };
+}
+
+export function getSuperAdminCountsPayload() {
+  return {
+    overview: getPlatformOverviewCounts(),
+    calendar: [],
+    activity: getRecentActivityFeed(),
+    charts: {
+      growth: listStudentGrowthMonths(),
+      revenue: [],
       enrollments: getEnrollmentSeries(),
       attendance: getAttendanceSeries(),
     },
@@ -164,33 +179,36 @@ export function getEnrollmentSeries(): SeriesPoint[] {
 }
 
 export function getAttendanceSeries(instructorId?: string, studentId?: string): SeriesPoint[] {
-  if (!instructorId && !studentId) {
-    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => ({ name, value: 0 }));
-  }
-  ensureClassesSeeded();
-  const db = readClassesDb();
   const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60_000;
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const counts = new Map<string, { present: number; total: number }>();
-  for (const cls of db.classes) {
-    const start = Date.parse(cls.startsAt);
-    if (!Number.isFinite(start) || start > now) continue;
-    if (instructorId && cls.instructorId !== instructorId) continue;
-    const day = days[new Date(start).getDay()] ?? "Mon";
-    const bucket = counts.get(day) ?? { present: 0, total: 0 };
-    const records = db.attendance?.filter((a) => a.liveClassId === cls.id) ?? [];
-    const scoped = studentId ? records.filter((a) => a.studentId === studentId) : records;
-    bucket.total += scoped.length || (studentId ? 0 : 1);
-    bucket.present += scoped.filter((a) => a.status === "present" || a.status === "late").length;
-    counts.set(day, bucket);
+  const counts = new Map<string, number>();
+  let allowed: Set<string> | null = null;
+  if (studentId) {
+    allowed = new Set(listParticipantsForUser(studentId).map((row) => row.liveClassId));
+    if (!allowed.size) {
+      return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => ({ name, value: 0 }));
+    }
   }
-  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => {
-    const bucket = counts.get(name);
-    return {
-      name,
-      value: bucket && bucket.total ? Math.round((bucket.present / bucket.total) * 100) : 0,
-    };
-  });
+  for (const cls of lookupAllLiveClasses()) {
+    if (cls.deletedAt) continue;
+    const start = Date.parse(cls.startsAt);
+    if (!Number.isFinite(start) || start > now || start < weekAgo) continue;
+    if (
+      instructorId &&
+      cls.instructorId !== instructorId &&
+      cls.assistantInstructorId !== instructorId
+    ) {
+      continue;
+    }
+    if (allowed && !allowed.has(cls.id)) continue;
+    const day = days[new Date(start).getDay()] ?? "Mon";
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => ({
+    name,
+    value: counts.get(name) ?? 0,
+  }));
 }
 
 export function getEarningsSeries(): SeriesPoint[] {

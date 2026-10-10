@@ -12,8 +12,13 @@ import {
   getStoredLiveClass,
   getStoredZoomMeetingByClassId,
   getStoredZoomMeetingByNumber,
+  isClassCatalogSynced,
+  listStoredLiveClasses,
+  markClassCatalogSynced,
   replaceAllLiveClasses,
   replaceAllZoomMeetings,
+  upsertLiveClass,
+  upsertZoomMeeting,
 } from "@/lib/data/lms-class-catalog-store";
 import {
   listAllParticipants,
@@ -169,12 +174,26 @@ function withLazyIndexedWrites(catalog: ClassesDatabase): {
 function syncClassCatalog(db: ClassesDatabase): void {
   replaceAllLiveClasses(db.classes ?? []);
   replaceAllZoomMeetings(db.zoomMeetings ?? []);
+  markClassCatalogSynced();
 }
 
-export function backfillClassCatalogFromBlob(): void {
-  if (countStoredLiveClasses() > 0) return;
+export function backfillClassCatalogFromBlob(force = false): void {
+  if (!force && (isClassCatalogSynced() || countStoredLiveClasses() > 0)) return;
   const db = ensureClassesStore();
+  if (force) {
+    for (const cls of db.classes ?? []) upsertLiveClass(cls);
+    for (const meeting of db.zoomMeetings ?? []) upsertZoomMeeting(meeting);
+    markClassCatalogSynced();
+    return;
+  }
   syncClassCatalog(db);
+}
+
+export function lookupAllLiveClasses(options?: { complete?: boolean }): LiveClass[] {
+  if (options?.complete && !isClassCatalogSynced()) {
+    backfillClassCatalogFromBlob(true);
+  }
+  return listStoredLiveClasses();
 }
 
 export function lookupLiveClass(id: string): LiveClass | null {
@@ -243,6 +262,7 @@ export {
   getStoredLiveClass,
   getStoredZoomMeetingByClassId,
   getStoredZoomMeetingByNumber,
+  listStoredLiveClasses,
   upsertLiveClass,
   upsertZoomMeeting,
 } from "@/lib/data/lms-class-catalog-store";

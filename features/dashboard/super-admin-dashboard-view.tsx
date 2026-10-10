@@ -160,7 +160,7 @@ function SuperAdminDashboardView() {
         <ChartCard title="Course enrollments" description="By program track">
           <BarsChart data={enrollments} />
         </ChartCard>
-        <ChartCard title="Attendance" description="Live session attendance this week">
+        <ChartCard title="Attendance" description="Live sessions this week">
           <BarsChart data={attendance} />
         </ChartCard>
       </div>

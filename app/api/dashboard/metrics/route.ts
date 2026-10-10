@@ -11,10 +11,10 @@ import {
   getEnrollmentSeries,
   getGrowthSeries,
   getInstructorOverview,
-  getPlatformOverviewCounts,
   getProgressBreakdown,
   getRecentActivityFeed,
   getStudentOverview,
+  getSuperAdminCountsPayload,
   getSuperAdminDashboardPayload,
 } from "@/services/dashboard/metrics";
 
@@ -45,17 +45,7 @@ export async function GET(request: Request) {
       if (part === "counts") {
         return NextResponse.json({
           success: true,
-          data: {
-            overview: getPlatformOverviewCounts(),
-            calendar: [],
-            activity: [],
-            charts: {
-              growth: [],
-              revenue: [],
-              enrollments: [],
-              attendance: [],
-            },
-          },
+          data: getSuperAdminCountsPayload(),
           error: null,
         });
       }

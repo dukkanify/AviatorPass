@@ -111,5 +111,11 @@ describe("production performance contracts", () => {
     expect(ensure).toContain("lookupZoomMeetingByClassId");
     expect(ensure).not.toContain("readClassesDb");
     expect(zoom).not.toMatch(/readClassesDb\(/);
+    const list = live.slice(
+      live.indexOf("export function listLiveClasses"),
+      live.indexOf("export function getPlatformClassCounts"),
+    );
+    expect(list).toContain("lookupAllLiveClasses");
+    expect(list).not.toContain("readClassesDb");
   });
 });
