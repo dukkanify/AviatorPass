@@ -397,6 +397,12 @@ describe("lifetime store speed contracts", () => {
     expect(leftoverMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_auth_security_settings/);
     const leftoverRuntime = src("lib/data/auth-activity-store.ts");
     expect(leftoverRuntime).toContain('const ACTIVITY_TABLE = "aep_auth_activity_logs"');
+    const courseDetailMigration = src("database/migrations/045_lms_course_detail_store.sql");
+    expect(courseDetailMigration).toMatch(/CREATE TABLE IF NOT EXISTS aep_lms_course_details/);
+    const courseDetailRuntime = src("lib/data/lms-course-detail-store.ts");
+    expect(courseDetailRuntime).toContain('const TABLE = "aep_lms_course_details"');
+    expect(courseDetailRuntime).toMatch(/WHERE id = \$1/);
+    expect(courseDetailRuntime).toMatch(/OR stable_id = \$1/);
     expect(leftoverRuntime).toMatch(/WHERE actor_id = \$1/);
     expect(src("lib/data/auth-settings-store.ts")).toContain(
       'const SECURITY_TABLE = "aep_auth_security_settings"',
