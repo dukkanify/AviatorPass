@@ -11,11 +11,11 @@ import {
   getEnrollmentSeries,
   getGrowthSeries,
   getInstructorOverview,
-  getPlatformOverview,
+  getPlatformOverviewCounts,
   getProgressBreakdown,
   getRecentActivityFeed,
-  getRevenueSeries,
   getStudentOverview,
+  getSuperAdminDashboardPayload,
 } from "@/services/dashboard/metrics";
 
 export async function GET(request: Request) {
@@ -41,19 +41,27 @@ export async function GET(request: Request) {
     }
 
     if (scope === ROLES.SUPER_ADMIN) {
+      const part = searchParams.get("part");
+      if (part === "counts") {
+        return NextResponse.json({
+          success: true,
+          data: {
+            overview: getPlatformOverviewCounts(),
+            calendar: [],
+            activity: [],
+            charts: {
+              growth: [],
+              revenue: [],
+              enrollments: [],
+              attendance: [],
+            },
+          },
+          error: null,
+        });
+      }
       return NextResponse.json({
         success: true,
-        data: {
-          overview: getPlatformOverview(),
-          calendar: [],
-          activity: [],
-          charts: {
-            growth: getGrowthSeries(),
-            revenue: getRevenueSeries(),
-            enrollments: getEnrollmentSeries(),
-            attendance: getAttendanceSeries(),
-          },
-        },
+        data: getSuperAdminDashboardPayload(),
         error: null,
       });
     }

@@ -380,6 +380,18 @@ export function countOrders(): number {
   return ensureOrderIndex().byId.size;
 }
 
+export function countOrdersByStatus(status: Order["status"]): number {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ n: number | string }>(
+      `SELECT COUNT(*)::int AS n FROM ${ORDER_TABLE} WHERE status = $1`,
+      [status],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+  return (ensureOrderIndex().byStatus.get(status) ?? []).length;
+}
+
 export function listAllOrders(): Order[] {
   if (sqlEnabled()) {
     ensureSqlTables();

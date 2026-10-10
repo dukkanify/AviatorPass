@@ -269,6 +269,80 @@ export function listAllUsers(): StoredUser[] {
   return [...readUserRows()];
 }
 
+export function countUsersByRole(role: string): number {
+  if (!role) return 0;
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ n: number | string }>(
+      `SELECT COUNT(*)::int AS n FROM ${USER_TABLE} WHERE role = $1`,
+      [role],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+  return (ensureUserIndex().byRole.get(role) ?? []).length;
+}
+
+export function countUsersByStatus(status: string): number {
+  if (!status) return 0;
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ n: number | string }>(
+      `SELECT COUNT(*)::int AS n FROM ${USER_TABLE} WHERE coalesce(payload->>'status', '') = $1`,
+      [status],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+  return readUserRows().filter((user) => user.status === status).length;
+}
+
+export function countActiveSessions(): number {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ n: number | string }>(
+      `SELECT COUNT(*)::int AS n FROM ${SESSION_TABLE}
+       WHERE payload->>'revokedAt' IS NULL OR payload->>'revokedAt' = ''`,
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+  return readSessionRows().filter((session) => !session.revokedAt).length;
+}
+
+export function listStudentGrowthMonths(): Array<{ name: string; value: number }> {
+  if (sqlEnabled()) {
+    ensureSqlTables();
+    const rows = neonSql<{ name: string; n: number | string }>(
+      `SELECT left(coalesce(payload->>'createdAt', ''), 7) AS name, COUNT(*)::int AS n
+       FROM ${USER_TABLE}
+       WHERE role = $1
+       GROUP BY 1
+       ORDER BY 1`,
+      ["student"],
+    );
+    let running = 0;
+    const series = rows
+      .filter((row) => row.name)
+      .map((row) => {
+        running += Number(row.n ?? 0);
+        return { name: row.name, value: running };
+      });
+    return series.length ? series : [{ name: "Now", value: 0 }];
+  }
+  const students = listUsersByRole("student");
+  const map = new Map<string, number>();
+  for (const user of students) {
+    const key = user.createdAt.slice(0, 7);
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  let running = 0;
+  const series = [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, count]) => {
+      running += count;
+      return { name, value: running };
+    });
+  return series.length ? series : [{ name: "Now", value: students.length }];
+}
+
 export function upsertUser(item: StoredUser): void {
   const row = asUser(item);
   if (!row) return;
