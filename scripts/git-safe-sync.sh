@@ -11,7 +11,7 @@ if [ "$BRANCH" = "HEAD" ] || [ -z "$BRANCH" ]; then
   exit 1
 fi
 
-echo "git-safe-sync: fetching $REMOTE…"
+echo "git-safe-sync: fetching ${REMOTE}..."
 git fetch "$REMOTE" --prune --tags
 
 UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
