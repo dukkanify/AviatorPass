@@ -25,6 +25,17 @@ import type { LiveClass, MeetingType, ZoomMeetingRecord } from "@/types/classes"
 
 const START_URL_REFRESH_MS = 90 * 60_000;
 
+/** Meeting SDK cannot join a Zoom registration meeting (error 3099). */
+export const IN_APP_ZOOM_MEETING_SETTINGS = {
+  approval_type: 2,
+  join_before_host: true,
+  meeting_authentication: false,
+} as const;
+
+export function isZoomRegistrationJoinUrl(url: string | null | undefined): boolean {
+  return /\/(?:meeting|webinar)\/register/i.test(url ?? "");
+}
+
 export function isZoomConfigured(): boolean {
   return zoomCredsPresent();
 }
@@ -217,14 +228,10 @@ async function createZoomApiMeeting(
     password: opts.passcode ? undefined : "",
     settings: {
       waiting_room: opts.waitingRoom,
-      // true so Meeting SDK participants can enter before a host ZAK is available (error 3008).
-      join_before_host: true,
       mute_upon_entry: true,
       host_video: true,
       participant_video: true,
-      // 2 = no registration. 0/1 require registration and Meeting SDK returns 3099.
-      approval_type: 2,
-      meeting_authentication: false,
+      ...IN_APP_ZOOM_MEETING_SETTINGS,
       who_can_share_screen: "all",
     },
   };
@@ -383,9 +390,121 @@ export async function ensureLiveMeetingForClass(
   }
   const existing =
     readClassesDb().zoomMeetings.find((item) => item.liveClassId === liveClassId) ?? null;
-  if (existing && !isPlaceholderZoomMeeting(existing)) return existing;
+  if (existing && !isPlaceholderZoomMeeting(existing)) {
+    return ensureInAppJoinSettings(existing);
+  }
   if (!zoomCredsPresent() && existing) return existing;
   return createMeetingForClass({ liveClass, actorId });
+}
+
+type ZoomMeetingDetails = {
+  startUrl: string | null;
+  joinUrl: string | null;
+  password: string | null;
+  approvalType: number | null;
+  joinBeforeHost: boolean | null;
+  meetingAuthentication: boolean | null;
+};
+
+async function fetchZoomMeetingDetails(
+  accessToken: string,
+  meetingId: string,
+): Promise<ZoomMeetingDetails | null> {
+  const id = String(meetingId).replace(/\D/g, "");
+  if (!id) return null;
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      start_url?: string;
+      join_url?: string;
+      password?: string;
+      settings?: {
+        approval_type?: number;
+        join_before_host?: boolean;
+        meeting_authentication?: boolean;
+      };
+    };
+    return {
+      startUrl: json.start_url?.trim() || null,
+      joinUrl: json.join_url?.trim() || null,
+      password: json.password?.trim() || null,
+      approvalType:
+        typeof json.settings?.approval_type === "number" ? json.settings.approval_type : null,
+      joinBeforeHost:
+        typeof json.settings?.join_before_host === "boolean"
+          ? json.settings.join_before_host
+          : null,
+      meetingAuthentication:
+        typeof json.settings?.meeting_authentication === "boolean"
+          ? json.settings.meeting_authentication
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Turn off Zoom registration on an existing meeting so students join inside AviatorPass. */
+export async function ensureInAppJoinSettings(
+  meeting: ZoomMeetingRecord,
+): Promise<ZoomMeetingRecord> {
+  if (meeting.providerMode !== "zoom" || !zoomCredsPresent()) return meeting;
+  const token = await getZoomAccessToken();
+  if (!token) return meeting;
+
+  const current = await fetchZoomMeetingDetails(token, meeting.zoomMeetingId);
+  const needsPatch =
+    !current ||
+    current.approvalType !== 2 ||
+    current.joinBeforeHost === false ||
+    current.meetingAuthentication === true ||
+    isZoomRegistrationJoinUrl(current.joinUrl) ||
+    isZoomRegistrationJoinUrl(meeting.joinUrl);
+
+  if (needsPatch) {
+    await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(meeting.zoomMeetingId)}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ settings: { ...IN_APP_ZOOM_MEETING_SETTINGS } }),
+    }).catch((error) => console.error("Zoom in-app join settings failed", error));
+  }
+
+  const refreshed = needsPatch
+    ? await fetchZoomMeetingDetails(token, meeting.zoomMeetingId)
+    : current;
+  if (!refreshed) return meeting;
+
+  const nextJoin =
+    refreshed.joinUrl && !isZoomRegistrationJoinUrl(refreshed.joinUrl)
+      ? refreshed.joinUrl
+      : meeting.joinUrl;
+  const next: ZoomMeetingRecord = {
+    ...meeting,
+    joinUrl: nextJoin,
+    startUrl: refreshed.startUrl || meeting.startUrl,
+    password: refreshed.password || meeting.password,
+    updatedAt: new Date().toISOString(),
+  };
+  if (
+    next.joinUrl === meeting.joinUrl &&
+    next.startUrl === meeting.startUrl &&
+    next.password === meeting.password &&
+    !needsPatch
+  ) {
+    return meeting;
+  }
+
+  writeClassesDb((db) => {
+    const idx = db.zoomMeetings.findIndex((row) => row.id === meeting.id);
+    if (idx >= 0) db.zoomMeetings[idx] = next;
+  });
+  return next;
 }
 
 export async function updateMeetingForClass(input: {
@@ -433,6 +552,7 @@ export async function updateMeetingForClass(input: {
           duration: input.liveClass.durationMinutes,
           timezone: input.liveClass.timezone,
           agenda: input.liveClass.description,
+          settings: { ...IN_APP_ZOOM_MEETING_SETTINGS },
         }),
       }).catch((err) => console.error("Zoom update failed", err));
       const refreshed = await fetchZoomMeetingStartUrl(token, existing.zoomMeetingId);
@@ -792,18 +912,8 @@ async function fetchZoomMeetingStartUrl(
   accessToken: string,
   meetingId: string,
 ): Promise<string | null> {
-  const id = String(meetingId).replace(/\D/g, "");
-  if (!id) return null;
-  try {
-    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { start_url?: string };
-    return json.start_url?.trim() || null;
-  } catch {
-    return null;
-  }
+  const details = await fetchZoomMeetingDetails(accessToken, meetingId);
+  return details?.startUrl ?? null;
 }
 
 export async function refreshStoredZoomStartUrl(

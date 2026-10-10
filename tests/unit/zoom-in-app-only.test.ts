@@ -23,6 +23,7 @@ import {
 const JOIN_SURFACES = [
   "features/zoom/components/in-app-zoom-room.tsx",
   "features/classes/components/join-class-client.tsx",
+  "features/learning/components/course-player-view.tsx",
   "features/bookings/components/booking-join-lobby.tsx",
   "features/classes/components/class-detail-view.tsx",
   "features/mock-exams/components/mock-exam-examiner-view.tsx",

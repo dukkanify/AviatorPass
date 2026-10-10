@@ -22,6 +22,7 @@ interface InAppZoomRoomProps {
   providerMode?: string | null;
   title?: string;
   leaveHref?: string;
+  onLeave?: () => void;
   className?: string;
 }
 
@@ -45,6 +46,7 @@ function InAppZoomRoom({
   providerMode = null,
   title = "Live class",
   leaveHref = routes.dashboard,
+  onLeave,
   className,
 }: InAppZoomRoomProps) {
   const router = useRouter();
@@ -194,7 +196,9 @@ function InAppZoomRoom({
             setNotice(
               /3712|invalid sdk|sdk key/i.test(detail)
                 ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
-                : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+                : /3099|registration/i.test(detail)
+                  ? "Zoom still asked for registration. AviatorPass is turning that off — open the classroom again."
+                  : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
             );
           }
           return;
@@ -235,6 +239,10 @@ function InAppZoomRoom({
   async function leaveClassroom() {
     await sdkRef.current?.leave?.().catch(() => undefined);
     stopLocalMedia();
+    if (onLeave) {
+      onLeave();
+      return;
+    }
     if (leaveHref) {
       router.push(leaveHref);
       return;

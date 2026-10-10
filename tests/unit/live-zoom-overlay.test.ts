@@ -19,7 +19,9 @@ describe("live Zoom lesson overlay", () => {
     const player = src("features/learning/components/course-player-view.tsx");
     expect(player).toMatch(/deterScreenRecording: liveCourse \? false/);
     expect(player).toMatch(/Join live Zoom/);
-    expect(player).toMatch(/liveClassroom\.href/);
+    expect(player).toMatch(/InAppZoomRoom/);
+    expect(player).toMatch(/\/api\/classes\/\$\{live\.id\}\/join/);
+    expect(player).not.toMatch(/href=\{liveClassroom\.href\}/);
     expect(src("app/api/learning/courses/[courseId]/lessons/[lessonId]/route.ts")).toMatch(
       /getLiveClassroomForStudentCourse/,
     );
