@@ -29,6 +29,7 @@ import {
   INSTRUCTOR_ASSIGNMENT_OPS_RECIPIENTS,
   instructorAssignmentOpsSubject,
   renderInstructorAssignmentPendingOpsEmail,
+  renderStudentAtplPurchaseEmail,
 } from "@/services/email/instructor-assignment-ops-email";
 import { listOutboundEmails } from "@/services/email/outbox";
 import { PROJECT_SUPPORT_EMAIL } from "@/lib/branding/legacy-client-identity";
@@ -120,13 +121,43 @@ describe("purchase password and package confirmation journey", () => {
     expect(rendered.subject).toBe(
       "Action Required | New Student Registration – Instructor Assignment Pending | ABDULAZIZ ALSHOAIL",
     );
-    expect(rendered.html).toContain("This email is for Support and CEO");
+    expect(rendered.html).toContain("Dear Team");
+    expect(rendered.html).toContain("through Aviator Pass");
+    expect(rendered.html).toContain("Aviator Pass Admin Dashboard");
+    expect(rendered.html).not.toContain("This email is for Support and CEO");
     expect(rendered.html).toContain("redarrow_@yahoo.com");
     expect(rendered.html).toContain("+96595555030");
     expect(rendered.html).toContain("Pending Instructor Assignment");
     expect(rendered.html).toContain("https://www.aviatorpass.com/cgi/dashboard");
     expect(rendered.html).toContain(PROJECT_SUPPORT_EMAIL);
     expect(AVIATORPASS_CEO_EMAIL).toBe("ceo@aviatorpass.com");
+  });
+
+  it("renders the student purchase letter in the approved format", () => {
+    const rendered = renderStudentAtplPurchaseEmail({
+      studentName: "ABDULAZIZ ALSHOAIL",
+      studentEmail: "redarrow_@yahoo.com",
+      phone: "+96595555030",
+      country: "Kuwait",
+      registrationDate: "8 Oct 2026",
+      packageName: "ATPL Complete Package",
+      preferredStartDate: "18 Oct 2026",
+      preferredTrainingTime: "18:00",
+      paymentMethod: "Credit Card",
+      amountLabel: "KWD 1.000",
+      adminDashboardUrl: "https://www.aviatorpass.com/cgi/dashboard",
+    });
+    expect(rendered.subject).toBe("Welcome to Aviator Pass");
+    expect(rendered.html).toContain("Dear ABDULAZIZ ALSHOAIL");
+    expect(rendered.html).toContain("Welcome to Aviator Pass!");
+    expect(rendered.html).toContain("ATPL Complete Package");
+    expect(rendered.html).toContain("Registration Status");
+    expect(rendered.html).toContain("Pending Instructor Assignment");
+    expect(rendered.html).toContain("Amount Paid");
+    expect(rendered.html).toContain("KWD 1.000");
+    expect(rendered.html).toContain("Credit Card");
+    expect(rendered.html).toContain("support@aviatorpass.com");
+    expect(rendered.html).not.toContain("This email is for Support and CEO");
   });
 
   it("renders package confirmed and pending instructor copy in purchase emails", () => {

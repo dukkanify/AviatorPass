@@ -159,12 +159,40 @@ function LearningDashboardView() {
   const firstName = firstNameOf(user?.firstName || user?.fullName, "Aviator");
   const greeting = greetingForHour(new Date(now).getHours());
   const resume = overview?.resume ?? null;
-  const resumeHref = resume
-    ? safePath(
-        ["student", "courses", resume.courseId, "lessons", resume.lessonId],
-        "/student/courses",
-      )
-    : "/student/courses";
+  const packageJourney = Boolean(atplSchedule?.packageOwned && atplSchedule.subjects.length);
+  const nextLectureBooked = Boolean(atplSchedule?.nextLectureLiveClassId);
+  const classroomHref = nextLectureBooked
+    ? `/join/${atplSchedule?.nextLectureLiveClassId}`
+    : atplSchedule?.firstLectureLiveClassId
+      ? `/join/${atplSchedule.firstLectureLiveClassId}`
+      : null;
+  const lectureName = (
+    nextLectureBooked
+      ? [atplSchedule?.nextSubjectCode, atplSchedule?.nextSubjectTitle]
+      : [atplSchedule?.firstLectureSubjectCode, atplSchedule?.firstLectureSubjectTitle]
+  )
+    .filter(Boolean)
+    .join(" ");
+  const lectureWhen = nextLectureBooked
+    ? atplSchedule?.nextLectureLabel || null
+    : atplSchedule?.scheduleProvisional
+      ? atplSchedule.requestedFirstLectureLabel || "First lecture time is still being confirmed"
+      : atplSchedule?.confirmedFirstLectureLabel || null;
+  const openingComplete = Boolean(
+    atplSchedule?.subjects.some(
+      (subject) =>
+        (subject.opening || subject.code === atplSchedule.firstLectureSubjectCode) &&
+        subject.status === "completed",
+    ),
+  );
+  const resumeHref = packageJourney
+    ? (classroomHref ?? "/student/courses")
+    : resume
+      ? safePath(
+          ["student", "courses", resume.courseId, "lessons", resume.lessonId],
+          "/student/courses",
+        )
+      : "/student/courses";
 
   const currentCourse =
     courses.find((course) => course.id === resume?.courseId) ??
@@ -419,11 +447,10 @@ function LearningDashboardView() {
           <Image
             src={HERO_IMAGE}
             alt=""
-            width={1200}
-            height={900}
+            fill
             priority
             fetchPriority="high"
-            sizes="(max-width: 768px) 100vw, 42vw"
+            sizes="(max-width: 960px) 100vw, 42vw"
           />
         </div>
         <div className="sl-hero-overlay" aria-hidden />
@@ -441,25 +468,46 @@ function LearningDashboardView() {
           <h1>
             {greeting}, {firstName} 👋
           </h1>
-          <p>Keep going. You&apos;re one step closer to your cockpit.</p>
-          <blockquote className="sl-hero-quote">
-            <p>“{quote}”</p>
-            <cite>— Unknown</cite>
-          </blockquote>
+          <p>
+            {packageJourney && lectureName
+              ? `${lectureName}${lectureWhen ? ` · ${lectureWhen}` : ""}`
+              : "Keep going. You're one step closer to your cockpit."}
+          </p>
+          {packageJourney ? null : (
+            <blockquote className="sl-hero-quote">
+              <p>“{quote}”</p>
+              <cite>— Unknown</cite>
+            </blockquote>
+          )}
           <div className="sl-hero-actions">
-            <Link className="sl-btn-gold" href={resumeHref}>
-              <PlayCircle className="h-4 w-4" aria-hidden />
-              Continue Learning
-            </Link>
-            <Link className="sl-btn-ghost" href="/student/planner">
-              Open Planner
-            </Link>
+            {packageJourney ? (
+              <Link className="sl-btn-gold" href={resumeHref}>
+                <PlayCircle className="h-4 w-4" aria-hidden />
+                {classroomHref ? "Join Zoom" : "Your package"}
+              </Link>
+            ) : (
+              <Link className="sl-btn-gold" href={resumeHref}>
+                <PlayCircle className="h-4 w-4" aria-hidden />
+                Continue Learning
+              </Link>
+            )}
+            {packageJourney ? (
+              <Link className="sl-btn-ghost" href="/student/courses">
+                My Courses
+              </Link>
+            ) : (
+              <Link className="sl-btn-ghost" href="/student/planner">
+                Open Planner
+              </Link>
+            )}
             <Link className="sl-btn-ghost" href="/student/schedule">
               View Schedule
             </Link>
-            <Link className="sl-btn-ghost" href="/student/courses">
-              Explore Courses
-            </Link>
+            {packageJourney ? null : (
+              <Link className="sl-btn-ghost" href="/student/courses">
+                Explore Courses
+              </Link>
+            )}
           </div>
         </div>
         <p className="sl-hero-brandline">
@@ -551,13 +599,15 @@ function LearningDashboardView() {
                 <p className="sl-kicker" style={{ color: "var(--sl-gold-deep)" }}>
                   {hasEnrolledCourses ? "In progress" : "Get started"}
                 </p>
-                <h3>{continueTitle}</h3>
+                <h3>{packageJourney && lectureName ? lectureName : continueTitle}</h3>
                 <p className="sl-muted">
-                  {hasEnrolledCourses
-                    ? continueLesson
-                    : "Browse available courses and enrol to unlock lessons here."}
+                  {packageJourney
+                    ? (lectureWhen ?? "Your instructor books the next session after this lecture.")
+                    : hasEnrolledCourses
+                      ? continueLesson
+                      : "Browse available courses and enrol to unlock lessons here."}
                 </p>
-                {hasEnrolledCourses ? (
+                {hasEnrolledCourses && !packageJourney ? (
                   <>
                     <div className="sl-progress" aria-hidden>
                       <i style={{ width: `${continueProgress}%` }} />
@@ -566,13 +616,20 @@ function LearningDashboardView() {
                   </>
                 ) : null}
               </div>
-              <Link className="sl-btn-navy" href={hasEnrolledCourses ? resumeHref : "/courses"}>
+              <Link
+                className="sl-btn-navy"
+                href={packageJourney || hasEnrolledCourses ? resumeHref : "/courses"}
+              >
                 <PlayCircle className="h-4 w-4" aria-hidden />
-                {hasEnrolledCourses
-                  ? continueProgress > 0
-                    ? ACTION_LABELS.continueLesson
-                    : ACTION_LABELS.startLesson
-                  : ACTION_LABELS.browseCourses}
+                {packageJourney
+                  ? classroomHref
+                    ? "Join Zoom"
+                    : "Your package"
+                  : hasEnrolledCourses
+                    ? continueProgress > 0
+                      ? ACTION_LABELS.continueLesson
+                      : ACTION_LABELS.startLesson
+                    : ACTION_LABELS.browseCourses}
               </Link>
             </div>
           </section>
@@ -665,7 +722,9 @@ function LearningDashboardView() {
               (atplSchedule.firstLectureOnTimetable || atplSchedule.firstLectureLiveClassId) ? (
                 <p className="sl-muted">It is now on your timetable.</p>
               ) : null}
-              {atplSchedule.firstLectureLiveClassId ? (
+              {openingComplete ? (
+                <p className="sl-muted">Complete</p>
+              ) : atplSchedule.firstLectureLiveClassId ? (
                 <button
                   type="button"
                   className="sl-btn-gold"
@@ -680,38 +739,30 @@ function LearningDashboardView() {
                 <div className="mt-3">
                   <p className="sl-muted">Next subject</p>
                   <p>
-                    <strong>{atplSchedule.nextSubjectTitle}</strong>
-                    {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+                    <strong>
+                      {atplSchedule.nextSubjectCode} {atplSchedule.nextSubjectTitle}
+                    </strong>
                   </p>
-                  <p className="sl-muted">
-                    {atplSchedule.nextSubjectStatus === "locked"
-                      ? "Waiting for TKI 1 to open the next subject."
-                      : atplSchedule.nextLectureLiveClassId
-                        ? "The next lecture is on your timetable."
-                        : "Opened by TKI 1."}
-                  </p>
+                  {atplSchedule.nextLectureLiveClassId ? (
+                    <>
+                      <p className="sl-muted">{atplSchedule.nextLectureLabel}</p>
+                      <button
+                        type="button"
+                        className="sl-btn-gold"
+                        style={{ marginTop: 12 }}
+                        onClick={() => void joinLive(atplSchedule.nextLectureLiveClassId)}
+                        disabled={joining}
+                      >
+                        {joining ? "Opening…" : "Open classroom"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="sl-muted">
+                      Your instructor sets this date after the current lecture.
+                    </p>
+                  )}
+                  <Link href="/student/courses">All 13 subjects</Link>
                 </div>
-              ) : null}
-              {atplSchedule.subjects.length > 0 ? (
-                <ol className="sl-today-list" style={{ marginTop: 12 }}>
-                  {atplSchedule.subjects.map((subject) => (
-                    <li key={subject.code} className="sl-today-item">
-                      <span className="sl-muted">{subject.code}</span>
-                      <div>
-                        <strong>{subject.title}</strong>
-                        <p className="sl-muted">
-                          {subject.opening
-                            ? "First lecture"
-                            : subject.status === "completed"
-                              ? "Completed"
-                              : subject.status === "locked"
-                                ? "Follows TKI 1"
-                                : "Open"}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
               ) : null}
             </section>
           ) : atplSchedule?.packageOwned && atplSchedule.subjects.length > 0 ? (
@@ -720,25 +771,12 @@ function LearningDashboardView() {
                 <h2 id="package-subjects-title">{ATPL_COMPLETE_PACKAGE_NAME}</h2>
                 <Link href="/student/courses">Open</Link>
               </div>
-              <ol className="sl-today-list">
-                {atplSchedule.subjects.map((subject) => (
-                  <li key={subject.code} className="sl-today-item">
-                    <span className="sl-muted">{subject.code}</span>
-                    <div>
-                      <strong>{subject.title}</strong>
-                      <p className="sl-muted">
-                        {subject.opening
-                          ? "First lecture"
-                          : subject.status === "completed"
-                            ? "Completed"
-                            : subject.status === "locked"
-                              ? "Follows TKI 1"
-                              : "Open"}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+              <p>
+                <strong>{lectureName || ATPL_COMPLETE_PACKAGE_NAME}</strong>
+              </p>
+              <p className="sl-muted">
+                {lectureWhen ?? "Your instructor sets the next date after the current lecture."}
+              </p>
             </section>
           ) : null}
           <section className="sl-card" aria-labelledby="today-learning-title">

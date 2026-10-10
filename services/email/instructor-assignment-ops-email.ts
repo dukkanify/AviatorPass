@@ -90,15 +90,77 @@ export function instructorAssignmentOpsSubject(studentName: string): string {
   return `Action Required | New Student Registration – Instructor Assignment Pending | ${studentName.trim() || "Student"}`;
 }
 
+export function studentAtplPurchaseSubject(): string {
+  return "Welcome to Aviator Pass";
+}
+
+/** Student letter sent once the ATPL Complete Package payment succeeds. */
+export function renderStudentAtplPurchaseEmail(input: InstructorAssignmentOpsEmailInput): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = studentAtplPurchaseSubject();
+  const bodyHtml = `
+    <p>Dear ${escapeHtml(input.studentName)},</p>
+    <p>Welcome to Aviator Pass!</p>
+    <p>We are pleased to confirm that your registration for the <strong>${escapeHtml(input.packageName)}</strong> has been successfully completed, and your payment has been received.</p>
+    <p>Thank you for choosing Aviator Pass as your partner in your aviation training journey.</p>
+    <p><strong>Registration Details</strong></p>
+    <ul>
+      ${listItem("Student Name", input.studentName)}
+      ${listItem("Selected Package", input.packageName)}
+      ${listItem("Registration Date", input.registrationDate)}
+      ${listItem("Registration Status", ATPL_PENDING_INSTRUCTOR_ASSIGNMENT, true)}
+    </ul>
+    <p><strong>Payment Confirmation</strong></p>
+    <ul>
+      ${listItem("Amount Paid", input.amountLabel)}
+      ${listItem("Payment Method", input.paymentMethod)}
+      ${listItem("Payment Date", input.registrationDate)}
+    </ul>
+    <p>Your payment receipt and invoice are attached to this email for your records.</p>
+    <p><strong>Need Assistance?</strong></p>
+    <p>If you have any questions regarding your registration, payment, or training arrangements, please contact our support team at:</p>
+    <p><strong>${escapeHtml(PROJECT_SUPPORT_EMAIL)}</strong></p>
+    <p>We look forward to supporting you throughout your ATPL studies.</p>
+  `;
+  const rendered = renderBrandedEmail({
+    title: "Welcome to Aviator Pass",
+    preheader: `Your ${input.packageName} registration is confirmed.`,
+    bodyHtml,
+  });
+  return { subject, html: rendered.html, text: rendered.text };
+}
+
+export async function sendStudentAtplPurchaseEmail(order: Order): Promise<boolean> {
+  const to = order.studentEmail?.trim();
+  if (!to) return false;
+  const input = opsEmailInputFromOrder(order);
+  const rendered = renderStudentAtplPurchaseEmail(input);
+  const mail = await sendEmail({
+    to,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    meta: {
+      kind: "student_atpl_purchase",
+      orderId: order.id,
+      studentEmail: to,
+    },
+  });
+  return mail.success;
+}
+
 export function renderInstructorAssignmentPendingOpsEmail(
   input: InstructorAssignmentOpsEmailInput,
 ): { subject: string; html: string; text: string } {
   const subject = instructorAssignmentOpsSubject(input.studentName);
   const dashboard = escapeHtml(input.adminDashboardUrl);
   const bodyHtml = `
-    <p>This email is for Support and CEO.</p>
     <p>Dear Team,</p>
-    <p>A new student has successfully registered for the <strong>${escapeHtml(input.packageName)}</strong> through AviatorPass, and their payment has been confirmed. The registration is now awaiting instructor assignment.</p>
+    <p>A new student has successfully registered for the <strong>${escapeHtml(input.packageName)}</strong> through Aviator Pass, and their payment has been confirmed.</p>
+    <p>The registration is now awaiting instructor assignment.</p>
     <p><strong>Student Information</strong></p>
     <ul>
       ${listItem("Full Name", input.studentName)}
@@ -122,8 +184,8 @@ export function renderInstructorAssignmentPendingOpsEmail(
       ${listItem("Amount Received", input.amountLabel)}
     </ul>
     <p><strong>Action Required – Instructor Assignment</strong></p>
-    <p>Please access the <a href="${dashboard}">AviatorPass Admin Dashboard</a> and assign an available Theoretical Knowledge Instructor (TKI).</p>
-    <p>Best regards,<br/>AviatorPass Automated Notification System<br/>${escapeHtml(PROJECT_SUPPORT_EMAIL)}</p>
+    <p>Please access the <a href="${dashboard}">Aviator Pass Admin Dashboard</a> and assign an available Theoretical Knowledge Instructor (TKI).</p>
+    <p>Best regards,<br/>Aviator Pass Automated Notification System<br/>${escapeHtml(PROJECT_SUPPORT_EMAIL)}</p>
     <p>This is an automated notification. No reply is required. Please complete the instructor assignment through the Admin Dashboard.</p>
   `;
   const rendered = renderBrandedEmail({

@@ -418,8 +418,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Open next official subject</h2>
         <p className="text-sm text-muted-foreground">
-          After Instrumentation is confirmed, TKI 1 opens General Navigation. After a subject is
-          marked complete, TKI 1 opens the next official subject and books that lecture.
+          After Instrumentation is confirmed, TKI 1 books the next official subject. Booking that
+          lecture marks the previous subject complete.
         </p>
         <ul className="space-y-2 text-sm">
           {data.readyForNextSubject.length === 0 ? (
@@ -449,8 +449,8 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Complete current subject</h2>
         <p className="text-sm text-muted-foreground">
-          Mark the opened official subject complete before opening the following one. Completing
-          General Navigation unlocks Radio Navigation, then the rest of the 13-subject list.
+          Booking the next lecture already marks the previous subject complete. Use this only when a
+          subject should be complete before its next lecture is booked.
         </p>
         <ul className="space-y-2 text-sm">
           {(data.readyToCompleteSubject ?? []).length === 0 ? (
@@ -585,7 +585,27 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Change instructor</h2>
+        <p className="text-sm text-muted-foreground">
+          The next lecture is agreed from the instructor&apos;s availability. If that instructor is
+          not available, assign another instructor for this student. Future lectures move to the new
+          instructor.
+        </p>
         <div className="form-row-responsive">
+          <div className="min-w-0 w-full sm:w-auto sm:min-w-[180px] space-y-1.5">
+            <Label>Student</Label>
+            <Select value={studentId} onValueChange={setStudentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Student" />
+              </SelectTrigger>
+              <SelectContent>
+                {data.students.map((s) => (
+                  <SelectItem key={s.studentId} value={s.studentId}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="min-w-0 w-full sm:w-auto sm:min-w-[180px] space-y-1.5">
             <Label>Subject</Label>
             <Select value={changeCourseId} onValueChange={setChangeCourseId}>
@@ -624,6 +644,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                   action: "change_instructor",
                   courseId: changeCourseId,
                   instructorId: changeInstructorId,
+                  studentId: studentId || undefined,
                 }),
               )
             }

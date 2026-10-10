@@ -268,7 +268,9 @@ export async function notifyAtplInstructorAssigned(
       body: staffDetail,
       type: "admin.instructor_assigned",
       email: false,
-      actionUrl: "/super-admin",
+      actionUrl: input.liveClassId
+        ? `/super-admin/classes/${input.liveClassId}`
+        : "/super-admin/dashboard",
       data: {
         instructorId: input.instructorId,
         studentId: input.studentId,

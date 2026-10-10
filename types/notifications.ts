@@ -396,6 +396,16 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     defaultBody: "Your next lecture date, time, and join link are ready.",
     audiences: ["student"],
   },
+  "class.instructor_waiting": {
+    type: "class.instructor_waiting",
+    category: "booking",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: false,
+    defaultTitle: "Your instructor is waiting",
+    defaultBody: "Your instructor has joined the classroom and is waiting for you.",
+    audiences: ["student"],
+  },
   "class.updated": {
     type: "class.updated",
     category: "booking",
@@ -768,6 +778,17 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     defaultTitle: "Unable to Schedule",
     defaultBody: "A student needs a new lecture time (Scheduling Required).",
     audiences: ["cgi"],
+  },
+  "instructor.unable_to_schedule": {
+    type: "instructor.unable_to_schedule",
+    category: "booking",
+    priority: "high",
+    delivery: "immediate",
+    emailDefault: true,
+    defaultTitle: "Unable to Schedule",
+    defaultBody:
+      "This lecture could not be booked. TKI 1 will assign another instructor if needed.",
+    audiences: ["instructor"],
   },
 
   // Admin / Super Admin / system

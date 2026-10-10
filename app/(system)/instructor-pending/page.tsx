@@ -1,6 +1,8 @@
 import Link from "@/components/ui/app-link";
 import type { Metadata } from "next";
 
+import "@/styles/landing.css";
+
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";

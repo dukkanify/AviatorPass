@@ -212,7 +212,8 @@ function listOfficialPackageSubjectProgress(): AtplPackageSubjectProgress[] {
 }
 
 function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectProgress[] {
-  const plan = studentId ? listStudentSubjectPlan(studentId) : [];
+  if (!studentId) return listOfficialPackageSubjectProgress();
+  const plan = listStudentSubjectPlan(studentId);
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
   return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
     const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
@@ -1207,6 +1208,23 @@ function liveClassIdFromOrder(
     : null;
 }
 
+function openingLectureAssignment(studentId?: string) {
+  if (!studentId) return null;
+  const openingCourseId = stableCourseId(
+    atplPackageLmsCourseCode(ATPL_PACKAGE_OPENING_SUBJECT_CODE),
+  );
+  return (
+    readCgiDb().lectureAssignments.find(
+      (row) =>
+        row.studentId === studentId &&
+        row.status !== "cancelled" &&
+        (row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID ||
+          row.courseId === openingCourseId ||
+          row.courseId === "atpl-022"),
+    ) ?? null
+  );
+}
+
 function firstLectureSubjectForStudent(studentId?: string): {
   code: string | null;
   title: string | null;
@@ -1263,24 +1281,36 @@ function nextOfficialSubjectState(studentId?: string): {
   return empty;
 }
 
+function scheduleMetaText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const text = value.trim();
+  if (!text || text === "undefined" || text === "null") return "";
+  return text;
+}
+
 function packageScheduleFromOrder(
   order: NonNullable<ReturnType<typeof latestPaidPackageOrder>>,
   studentId?: string,
 ): AtplPackageScheduleSnapshot {
-  const requestedDate = String(
-    order.metadata.requestedStudyStartDate ?? order.metadata.studyStartDate,
-  );
-  const requestedTime = String(
-    order.metadata.requestedFirstLectureTime ?? order.metadata.firstLectureTime ?? "",
-  );
-  const currentDate = String(order.metadata.studyStartDate);
-  const currentTime = String(order.metadata.firstLectureTime ?? "");
-  const provisional = order.metadata.scheduleProvisional !== false;
-  const liveClassId = liveClassIdFromOrder(order);
+  const requestedDate =
+    scheduleMetaText(order.metadata.requestedStudyStartDate) ||
+    scheduleMetaText(order.metadata.studyStartDate);
+  const requestedTime =
+    scheduleMetaText(order.metadata.requestedFirstLectureTime) ||
+    scheduleMetaText(order.metadata.firstLectureTime);
+  const currentDate = scheduleMetaText(order.metadata.studyStartDate);
+  const currentTime = scheduleMetaText(order.metadata.firstLectureTime);
+  const openingLecture = openingLectureAssignment(studentId);
+  const classroom =
+    usableLiveClass(liveClassIdFromOrder(order)) ?? usableLiveClass(openingLecture?.liveClassId);
+  const bookedAt = classroom?.startsAt ?? openingLecture?.scheduledAt ?? null;
+  const bookedLabel = bookedAt ? formatAtplPackageInstant(bookedAt) : null;
+  const provisional = order.metadata.scheduleProvisional !== false && !bookedAt;
+  const liveClassId = classroom?.id ?? null;
   const confirmedAt =
     !provisional && typeof order.metadata.firstLectureAt === "string"
       ? order.metadata.firstLectureAt
-      : null;
+      : bookedAt;
   const subject = firstLectureSubjectForStudent(studentId);
   const next = nextOfficialSubjectState(studentId);
   return {
@@ -1295,10 +1325,11 @@ function packageScheduleFromOrder(
       typeof order.metadata.firstLectureAt === "string" ? order.metadata.firstLectureAt : null,
     confirmedStudyStartDate: provisional ? null : currentDate,
     confirmedFirstLectureTime: provisional ? null : currentTime || null,
-    confirmedFirstLectureLabel:
-      !provisional && currentDate && currentTime
+    confirmedFirstLectureLabel: provisional
+      ? null
+      : currentDate && currentTime
         ? formatAtplPackageScheduleLabel(currentDate, currentTime)
-        : null,
+        : bookedLabel,
     confirmedFirstLectureAt: confirmedAt,
     scheduleProvisional: provisional,
     scheduleNotice:
@@ -1464,6 +1495,36 @@ async function ensureAtplPackageSubjectCoverage(
   }
 }
 
+/** Book the Zoom classroom for a scheduled opening lecture that has no live class yet. */
+async function attachMissingOpeningClassroom(studentId: string): Promise<void> {
+  const lecture = openingLectureAssignment(studentId);
+  if (!lecture?.instructorId) return;
+  if (usableLiveClass(lecture.liveClassId)) {
+    enrollStudentsInLiveClass(lecture.liveClassId as string, [studentId]);
+    rememberFirstLectureLiveClass(studentId, lecture.liveClassId as string);
+    return;
+  }
+  const liveClassId = await ensureAssignedSubjectLiveClass({
+    courseId: lecture.courseId,
+    lessonId: lecture.lessonId,
+    lessonTitle: lecture.lessonTitle,
+    instructorId: lecture.instructorId,
+    studentId,
+    scheduledAt: lecture.scheduledAt,
+    notes: lecture.notes,
+    actorId: lecture.assignedById || lecture.instructorId,
+  });
+  if (!liveClassId) return;
+  writeCgiDb((db) => {
+    const row = db.lectureAssignments.find((item) => item.id === lecture.id);
+    if (!row) return;
+    row.liveClassId = liveClassId;
+    row.status = "scheduled";
+    row.updatedAt = nowIso();
+  });
+  rememberFirstLectureLiveClass(studentId, liveClassId);
+}
+
 /** Recreate or re-enrol the confirmed first lecture if the live class row disappeared. */
 export async function ensureConfirmedFirstLectureOnTimetable(
   studentId: string,
@@ -1473,14 +1534,19 @@ export async function ensureConfirmedFirstLectureOnTimetable(
   const liveId = live?.id ?? studentId;
   const liveEmail = live?.email ?? email;
   await hydratePaidAtplStudentAccess(liveId, liveEmail);
+  try {
+    await attachMissingOpeningClassroom(liveId);
+  } catch {
+    // The schedule still loads when Zoom booking needs another attempt.
+  }
   const order = latestPaidPackageOrder(liveId, liveEmail);
   const owned = Boolean(order) || studentHasAtplEnrollment(liveId);
-  const subjects = owned ? listOfficialPackageSubjectProgress() : [];
+  const subjects = owned ? listAtplPackageSubjectProgress(liveId) : [];
   if (!order) {
     return { ...EMPTY_ATPL_PACKAGE_SCHEDULE, packageOwned: owned, subjects };
   }
   return {
-    ...packageScheduleFromOrder(order),
+    ...packageScheduleFromOrder(order, liveId),
     packageOwned: true,
     subjects,
   };
@@ -1755,6 +1821,63 @@ export async function confirmAtplPackageSchedule(input: {
   return latestPaidPackageSchedule(input.studentId, student.email);
 }
 
+/** Booking the next official lecture completes the subject that comes before it. */
+async function completeSubjectBeforeNextBooking(input: {
+  studentId: string;
+  actorId: string;
+  nextSubjectCode: string;
+}): Promise<{ code: string; title: string } | null> {
+  const index = ATPL_COMPLETE_PACKAGE_SUBJECTS.findIndex(
+    (subject) => subject.code === input.nextSubjectCode,
+  );
+  if (index <= 0) return null;
+  const previous = ATPL_COMPLETE_PACKAGE_SUBJECTS[index - 1];
+  if (!previous) return null;
+  const courseId = stableCourseId(atplPackageLmsCourseCode(previous.code));
+  const stamp = nowIso();
+  let changed = false;
+  let completedCourseId = courseId;
+  writeCgiDb((db) => {
+    const row = db.subjectAssignments.find((item) => {
+      if (item.studentId !== input.studentId) return false;
+      if (courseId && item.courseId === courseId) return true;
+      return easaCodeFromAtplCourseCode(item.subjectCode) === previous.code;
+    });
+    if (!row || row.status === "completed") return;
+    completedCourseId = row.courseId;
+    row.status = "completed";
+    row.completedAt = stamp;
+    row.updatedAt = stamp;
+    changed = true;
+  });
+  if (!completedCourseId) return null;
+
+  const enrollment = listStudentEnrollments(input.studentId).find(
+    (row) =>
+      row.courseId === completedCourseId &&
+      !["dropped", "rejected", "completed"].includes(row.status),
+  );
+  if (enrollment && (enrollment.status === "approved" || enrollment.status === "suspended")) {
+    await updateEnrollmentStatus({
+      id: enrollment.id,
+      status: "completed",
+      actorId: input.actorId,
+    });
+    changed = true;
+  }
+
+  if (changed) {
+    audit(
+      "cgi.schedule.complete_subject",
+      input.actorId,
+      "student",
+      input.studentId,
+      `Completed ${previous.title} when booking ${input.nextSubjectCode}`,
+    );
+  }
+  return { code: previous.code, title: previous.title };
+}
+
 export async function openNextAtplPackageSubject(input: {
   studentId: string;
   actorId: string;
@@ -1771,7 +1894,17 @@ export async function openNextAtplPackageSubject(input: {
   }
 
   ensureStudentSubjectPlan(input.studentId, input.actorId);
-  const next = nextOfficialSubjectState(input.studentId);
+  let next = nextOfficialSubjectState(input.studentId);
+  if (
+    next.courseId &&
+    (next.nextSubjectStatus === "available" || next.nextSubjectStatus === "in_progress")
+  ) {
+    await completeAtplPackageSubject({
+      studentId: input.studentId,
+      actorId: input.actorId,
+    });
+    next = nextOfficialSubjectState(input.studentId);
+  }
   if (!next.courseId || !next.nextSubjectCode || !next.nextSubjectTitle) {
     throw new CgiError("Every official ATPL subject is already open");
   }
@@ -1842,6 +1975,12 @@ export async function openNextAtplPackageSubject(input: {
     actorId: input.actorId,
   });
 
+  const previous = await completeSubjectBeforeNextBooking({
+    studentId: input.studentId,
+    actorId: input.actorId,
+    nextSubjectCode: next.nextSubjectCode,
+  });
+
   audit(
     "cgi.schedule.open_next_subject",
     input.actorId,
@@ -1862,7 +2001,9 @@ export async function openNextAtplPackageSubject(input: {
         recipientName:
           [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
         title: `${next.nextSubjectTitle} is open`,
-        detail: `The Chief Theoretical Knowledge Instructor (TKI 1) opened ${next.nextSubjectTitle} and booked the next lecture for ${label}. It is now on your timetable.`,
+        detail: previous
+          ? `The Chief Theoretical Knowledge Instructor (TKI 1) booked ${next.nextSubjectTitle} for ${label}. ${previous.title} is complete. The new lecture is on your timetable.`
+          : `The Chief Theoretical Knowledge Instructor (TKI 1) opened ${next.nextSubjectTitle} and booked the next lecture for ${label}. It is now on your timetable.`,
         supportEmail: brand.supportEmail,
         reference: order.orderNumber,
       },

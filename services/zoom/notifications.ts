@@ -76,6 +76,7 @@ export async function sendZoomMeetingNotifications(input: {
     body: copy.body,
     type: copy.type,
     data: { liveClassId: input.liveClassId, kind: input.kind },
+    actionUrl: `/join/${input.liveClassId}`,
   });
   if (copy.emailEvent) {
     const meeting = getZoomMeetingByClassId(input.liveClassId);

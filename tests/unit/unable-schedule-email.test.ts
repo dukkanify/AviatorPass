@@ -1,6 +1,6 @@
 /**
- * Official ATPL journey: Unable to Schedule emails TKI 1 and Super Admin
- * and sets the student to Scheduling Required.
+ * Official ATPL journey: Unable to Schedule emails the instructor, TKI 1,
+ * and Super Admin, and sets the student to Scheduling Required.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -92,7 +92,7 @@ describe("unable to schedule next lecture", () => {
     expect(result.request.unableReason).toBe("No matching slot this week");
     expect(result.studentId).toBe(student.id);
     expect(result.notifiedUserIds).toEqual(
-      expect.arrayContaining([cgi.id, superAdmin.id]),
+      expect.arrayContaining([cgi.id, superAdmin.id, instructor.id]),
     );
     expect(
       listAssignmentRequests({ courseId: course.id }).some(
@@ -103,17 +103,20 @@ describe("unable to schedule next lecture", () => {
     const sent = newEmails(beforeIds);
     const toCgi = sent.filter((m) => m.to.toLowerCase() === cgi.email.toLowerCase());
     const toSa = sent.filter((m) => m.to.toLowerCase() === superAdmin.email.toLowerCase());
+    const toInstructor = sent.filter((m) => m.to.toLowerCase() === instructor.email.toLowerCase());
     expect(toCgi.length).toBeGreaterThan(0);
     expect(toSa.length).toBeGreaterThan(0);
-    expect(
-      [...toCgi, ...toSa].some((m) => /unable to schedule/i.test(m.subject)),
-    ).toBe(true);
+    expect(toInstructor.length).toBeGreaterThan(0);
+    expect([...toCgi, ...toSa].some((m) => /unable to schedule/i.test(m.subject))).toBe(true);
     const adminCopy = sent.filter((m) => /unable to schedule/i.test(m.subject));
-    expect(adminCopy.length).toBeGreaterThanOrEqual(2);
-
+    expect(adminCopy.length).toBeGreaterThanOrEqual(3);
     expect(
-      listNotifications(cgi.id).data.some((n) => n.type === "cgi.unable_to_schedule"),
+      listNotifications(instructor.id).data.some((n) => n.type === "instructor.unable_to_schedule"),
     ).toBe(true);
+
+    expect(listNotifications(cgi.id).data.some((n) => n.type === "cgi.unable_to_schedule")).toBe(
+      true,
+    );
     expect(
       listNotifications(superAdmin.id).data.some((n) => n.type === "admin.unable_to_schedule"),
     ).toBe(true);

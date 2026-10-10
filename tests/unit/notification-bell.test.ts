@@ -29,6 +29,7 @@ describe("notification bell alerts", () => {
     expect(bell).toContain("routes.api.notificationUnreadCount");
     expect(bell).toContain("void pollUnread()");
     expect(bell).toContain("if (open) void load()");
+    expect(bell).toContain("notificationTargetHref");
   });
 
   it("rings the gold bell when there are unread alerts", () => {

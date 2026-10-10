@@ -590,7 +590,7 @@ describe("ATPL Complete Package journey", () => {
     expect(dash).toContain("instructorAssignmentStatus");
     expect(dash).toContain("firstLectureSubjectTitle");
     expect(dash).toContain("atplSchedule.subjects");
-    expect(dash).toContain("Follows TKI 1");
+    expect(dash).toContain("Your instructor sets this date after the current lecture.");
     expect(scheduleHub).toContain("atplSchedule.subjects");
     expect(getCgiDashboardSnapshot()).toHaveProperty("confirmedFirstLectures");
     expect(getCgiDashboardSnapshot()).toHaveProperty("pendingInstructorAssignments");
@@ -655,6 +655,7 @@ describe("ATPL Complete Package journey", () => {
     expect(opened.nextSubjectCode).toBe("061");
     expect(opened.nextSubjectTitle).toBe("General Navigation");
     expect(opened.nextSubjectStatus).toBe("available");
+    expect(opened.subjects.find((subject) => subject.code === "022")?.status).toBe("completed");
     expect(opened.nextLectureLiveClassId).toBeTruthy();
     expect(opened.nextLectureLabel).toBeTruthy();
     expect(formatAtplLectureTitle("General Navigation")).toBe(
@@ -679,14 +680,15 @@ describe("ATPL Complete Package journey", () => {
       ),
     ).toBe(false);
 
-    await expect(
-      openNextAtplPackageSubject({
-        studentId: student!.studentId,
-        actorId: cgi.id,
-        studyStartDate: nextWhen.studyStartDate,
-        lectureTime: "17:00",
-      }),
-    ).rejects.toThrow(/already open/);
+    const following = await openNextAtplPackageSubject({
+      studentId: student!.studentId,
+      actorId: cgi.id,
+      studyStartDate: nextWhen.studyStartDate,
+      lectureTime: "17:00",
+    });
+    expect(following.subjects.find((subject) => subject.code === "061")?.status).toBe("completed");
+    expect(following.nextSubjectCode).toBe("062");
+    expect(following.nextSubjectStatus).toBe("available");
   });
 
   it(
@@ -808,7 +810,8 @@ describe("ATPL Complete Package journey", () => {
     expect(ACTION_LABELS.openNextSubject).toBe("Open next subject");
     expect(ACTION_LABELS.completeCurrentSubject).toBe("Mark subject complete");
     expect(dash).toContain("nextSubjectTitle");
-    expect(dash).toContain("Waiting for TKI 1 to open the next subject.");
+    expect(dash).toContain("Your instructor sets this date after the current lecture.");
+    expect(cgiView).toContain("marks the previous subject complete");
     expect(scheduleHub).toContain("nextSubjectTitle");
     expect(getCgiDashboardSnapshot()).toHaveProperty("readyForNextSubject");
     expect(getCgiDashboardSnapshot()).toHaveProperty("readyToCompleteSubject");

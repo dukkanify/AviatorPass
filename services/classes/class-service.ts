@@ -339,7 +339,15 @@ async function notifyUsers(
 ) {
   const { notifyUsers: emitToUsers } =
     await import("@/services/notifications/notification-service");
-  await emitToUsers(userIds, { title, body, type, data, email });
+  const liveClassId = typeof data.liveClassId === "string" ? data.liveClassId.trim() : "";
+  await emitToUsers(userIds, {
+    title,
+    body,
+    type,
+    data,
+    email,
+    actionUrl: liveClassId ? `/join/${liveClassId}` : undefined,
+  });
 }
 
 export type CreatedLiveClassDetail = NonNullable<ReturnType<typeof getLiveClassDetail>> & {

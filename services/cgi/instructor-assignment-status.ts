@@ -4,6 +4,7 @@
  */
 
 import { ATPL_PENDING_INSTRUCTOR_ASSIGNMENT } from "@/constants/atpl-complete-package";
+import { findUserById } from "@/services/auth/store";
 import { readCgiDb } from "@/services/cgi/store";
 import { writePaymentsDb } from "@/services/payments/store";
 import type { Order } from "@/types/payments";
@@ -73,51 +74,68 @@ export function markAtplInstructorAssignmentAssigned(input: {
   });
 }
 
+function storedAssignment(
+  order: Pick<Order, "metadata"> | null | undefined,
+  status: "assigned" | "pending",
+): InstructorAssignmentSnapshot {
+  const tkLabel =
+    typeof order?.metadata.assignedTkLabel === "string" ? order.metadata.assignedTkLabel : null;
+  const name =
+    typeof order?.metadata.assignedInstructorName === "string"
+      ? order.metadata.assignedInstructorName
+      : null;
+  return {
+    instructorAssignmentStatus: status,
+    instructorAssignmentLabel:
+      typeof order?.metadata.instructorAssignmentLabel === "string"
+        ? order.metadata.instructorAssignmentLabel
+        : status === "assigned"
+          ? tkLabel
+            ? `${tkLabel} has been assigned to you.`
+            : "Instructor assigned"
+          : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+    assignedTkLabel: tkLabel,
+    assignedInstructorName: name,
+    instructorAssignedAt:
+      typeof order?.metadata.instructorAssignedAt === "string"
+        ? order.metadata.instructorAssignedAt
+        : null,
+  };
+}
+
+/** A booked lecture means TKI 1 already placed an instructor, even if the order flag is still pending. */
+function assignmentFromBookedLecture(studentId: string): InstructorAssignmentSnapshot | null {
+  const lecture = readCgiDb().lectureAssignments.find(
+    (row) => row.studentId === studentId && row.status !== "cancelled" && row.instructorId,
+  );
+  if (!lecture) return null;
+  const instructor = findUserById(lecture.instructorId);
+  const name = instructor
+    ? [instructor.firstName, instructor.lastName].filter(Boolean).join(" ").trim() ||
+      instructor.email
+    : null;
+  return {
+    instructorAssignmentStatus: "assigned",
+    instructorAssignmentLabel: name ? `${name} has been assigned to you.` : "Instructor assigned",
+    assignedTkLabel: null,
+    assignedInstructorName: name,
+    instructorAssignedAt: lecture.createdAt ?? lecture.updatedAt ?? null,
+  };
+}
+
 export function instructorAssignmentFromOrder(
   order: Pick<Order, "metadata"> | null | undefined,
   studentId?: string | null,
 ): InstructorAssignmentSnapshot {
   const status = order?.metadata?.instructorAssignmentStatus;
-  if (status === "assigned" || status === "pending") {
-    const tkLabel =
-      typeof order?.metadata.assignedTkLabel === "string" ? order.metadata.assignedTkLabel : null;
-    const name =
-      typeof order?.metadata.assignedInstructorName === "string"
-        ? order.metadata.assignedInstructorName
-        : null;
-    return {
-      instructorAssignmentStatus: status,
-      instructorAssignmentLabel:
-        typeof order?.metadata.instructorAssignmentLabel === "string"
-          ? order.metadata.instructorAssignmentLabel
-          : status === "assigned"
-            ? tkLabel
-              ? `${tkLabel} has been assigned to you.`
-              : "Instructor assigned"
-            : ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
-      assignedTkLabel: tkLabel,
-      assignedInstructorName: name,
-      instructorAssignedAt:
-        typeof order?.metadata.instructorAssignedAt === "string"
-          ? order.metadata.instructorAssignedAt
-          : null,
-    };
-  }
+  if (status === "assigned") return storedAssignment(order, "assigned");
 
   if (studentId) {
-    const lectures = readCgiDb().lectureAssignments.filter(
-      (row) => row.studentId === studentId && row.status !== "cancelled",
-    );
-    if (lectures.length > 0) {
-      return {
-        instructorAssignmentStatus: "assigned",
-        instructorAssignmentLabel: "Instructor assigned",
-        assignedTkLabel: null,
-        assignedInstructorName: null,
-        instructorAssignedAt: lectures[0]?.createdAt ?? null,
-      };
-    }
+    const booked = assignmentFromBookedLecture(studentId);
+    if (booked) return booked;
   }
+
+  if (status === "pending") return storedAssignment(order, "pending");
 
   return {
     instructorAssignmentStatus: "pending",
