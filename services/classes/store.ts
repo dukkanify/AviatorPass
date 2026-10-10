@@ -8,6 +8,14 @@ import path from "path";
 
 import { dataDir, readJsonFile, writeJsonFile } from "@/lib/data/json-file-store";
 import {
+  countStoredLiveClasses,
+  getStoredLiveClass,
+  getStoredZoomMeetingByClassId,
+  getStoredZoomMeetingByNumber,
+  replaceAllLiveClasses,
+  replaceAllZoomMeetings,
+} from "@/lib/data/lms-class-catalog-store";
+import {
   listAllParticipants,
   replaceAllParticipants,
 } from "@/lib/data/lms-class-participant-store";
@@ -158,6 +166,42 @@ function withLazyIndexedWrites(catalog: ClassesDatabase): {
   };
 }
 
+function syncClassCatalog(db: ClassesDatabase): void {
+  replaceAllLiveClasses(db.classes ?? []);
+  replaceAllZoomMeetings(db.zoomMeetings ?? []);
+}
+
+export function backfillClassCatalogFromBlob(): void {
+  if (countStoredLiveClasses() > 0) return;
+  const db = ensureClassesStore();
+  syncClassCatalog(db);
+}
+
+export function lookupLiveClass(id: string): LiveClass | null {
+  if (!id) return null;
+  const indexed = getStoredLiveClass(id);
+  if (indexed) return indexed;
+  backfillClassCatalogFromBlob();
+  return getStoredLiveClass(id);
+}
+
+export function lookupZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord | null {
+  if (!liveClassId) return null;
+  const indexed = getStoredZoomMeetingByClassId(liveClassId);
+  if (indexed) return indexed;
+  backfillClassCatalogFromBlob();
+  return getStoredZoomMeetingByClassId(liveClassId);
+}
+
+export function lookupZoomMeetingByNumber(
+  meetingNumber: string | null | undefined,
+): ZoomMeetingRecord | null {
+  const indexed = getStoredZoomMeetingByNumber(meetingNumber);
+  if (indexed) return indexed;
+  backfillClassCatalogFromBlob();
+  return getStoredZoomMeetingByNumber(meetingNumber);
+}
+
 export function ensureClassesStore(): ClassesDatabase {
   const db = normalizeDb(readJsonFile<Partial<ClassesDatabase>>(dataFile(), emptyDb));
   extractEmbeddedReminders(db);
@@ -178,6 +222,7 @@ export function writeClassesDb(mutator: (db: ClassesDatabase) => void): ClassesD
   flushIndexed();
   const persisted = catalogSnapshot(working);
   persistCatalog(persisted);
+  syncClassCatalog(persisted);
   return withIndexedView(persisted);
 }
 
@@ -193,3 +238,11 @@ export {
   listParticipantsForClass,
   listParticipantsForUser,
 } from "@/lib/data/lms-class-participant-store";
+
+export {
+  getStoredLiveClass,
+  getStoredZoomMeetingByClassId,
+  getStoredZoomMeetingByNumber,
+  upsertLiveClass,
+  upsertZoomMeeting,
+} from "@/lib/data/lms-class-catalog-store";

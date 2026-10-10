@@ -20,7 +20,9 @@ import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
   listParticipantsForClass,
   listParticipantsForUser,
+  lookupLiveClass,
   readClassesDb,
+  upsertLiveClass,
   writeClassesDb,
 } from "@/services/classes/store";
 import {
@@ -94,9 +96,12 @@ function toListItem(cls: LiveClass): LiveClassListItem {
 }
 
 export function getLiveClass(id: string): LiveClass | null {
+  const indexed = lookupLiveClass(id);
+  if (indexed) return indexed.deletedAt ? null : indexed;
   ensureClassesSeeded();
   const cls = readClassesDb().classes.find((c) => c.id === id);
   if (!cls || cls.deletedAt) return null;
+  upsertLiveClass(cls);
   return cls;
 }
 
