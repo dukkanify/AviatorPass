@@ -33,6 +33,7 @@ describe("super admin password and wrapped classroom", () => {
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/stageVideoSize\(/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/viewSizes/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/ResizeObserver/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/pinZoomWindowToStage\(/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(
       /classroom-stage[\s\S]*is-live/,
     );

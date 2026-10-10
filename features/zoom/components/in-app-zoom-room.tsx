@@ -19,6 +19,33 @@ function stageVideoSize(el: HTMLElement): { width: number; height: number } {
   return { width, height };
 }
 
+function pinZoomWindowToStage(stage: HTMLElement) {
+  const rect = stage.getBoundingClientRect();
+  if (rect.width < 200 || rect.height < 160) return;
+  const nodes = document.querySelectorAll<HTMLElement>(
+    "[class*='suspension'], [class*='zoom-ui'], [class*='video-player'], [id*='zmmtg'], [id*='zoom-ui']",
+  );
+  for (const node of nodes) {
+    if (stage.contains(node)) {
+      node.style.width = "100%";
+      node.style.height = "100%";
+      node.style.maxWidth = "100%";
+      node.style.maxHeight = "100%";
+      continue;
+    }
+    if (node.offsetWidth < 80 || node.offsetHeight < 80) continue;
+    node.style.position = "fixed";
+    node.style.left = `${Math.round(rect.left)}px`;
+    node.style.top = `${Math.round(rect.top)}px`;
+    node.style.width = `${Math.round(rect.width)}px`;
+    node.style.height = `${Math.round(rect.height)}px`;
+    node.style.maxWidth = `${Math.round(rect.width)}px`;
+    node.style.maxHeight = `${Math.round(rect.height)}px`;
+    node.style.transform = "none";
+    node.style.zIndex = "6";
+  }
+}
+
 interface InAppZoomRoomProps {
   joinUrl: string;
   startUrl?: string | null;
@@ -206,8 +233,11 @@ function InAppZoomRoom({
             if (!stageRef.current) return;
             const next = stageVideoSize(stageRef.current);
             void client.updateVideoOptions?.({ viewSizes: { default: next } });
+            pinZoomWindowToStage(stageRef.current);
           };
           fit();
+          window.setTimeout(fit, 400);
+          window.setTimeout(fit, 1200);
           observer = new ResizeObserver(fit);
           observer.observe(stageRef.current);
           return;
