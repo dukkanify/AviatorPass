@@ -9,7 +9,7 @@ import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/st
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getFastCourseStats } from "@/services/courses/course-service";
-import { listStoredCourseDetails } from "@/lib/data/lms-course-detail-store";
+import { listStoredCourseSummaries } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   countEnrollmentsByCourse,
@@ -111,7 +111,7 @@ export function getRevenueSeries(): SeriesPoint[] {
  * Avoids buildExecutiveAnalytics() — that path seeds every module and can take minutes.
  */
 export function getEnrollmentSeries(): SeriesPoint[] {
-  const details = listStoredCourseDetails();
+  const details = listStoredCourseSummaries();
   const byId = new Map(details.map((course) => [course.id, course]));
   const counts = countEnrollmentsByCourse();
   const top = counts

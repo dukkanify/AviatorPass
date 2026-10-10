@@ -13,6 +13,11 @@ export interface ZoomEmbeddedClient {
           default?: ZoomEmbeddedVideoSize;
           ribbon?: ZoomEmbeddedVideoSize;
         };
+        popper?: {
+          disableDraggable?: boolean;
+          anchorElement?: HTMLElement;
+          placement?: string;
+        };
       };
     };
   }) => Promise<void>;
@@ -20,6 +25,11 @@ export interface ZoomEmbeddedClient {
     viewSizes?: {
       default?: ZoomEmbeddedVideoSize;
       ribbon?: ZoomEmbeddedVideoSize;
+    };
+    popper?: {
+      disableDraggable?: boolean;
+      anchorElement?: HTMLElement;
+      placement?: string;
     };
   }) => Promise<void> | void;
   join: (opts: {

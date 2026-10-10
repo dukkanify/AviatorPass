@@ -122,6 +122,23 @@
   transform: none !important;
 }
 
+/* Zoom Component View often teleports a floating popper onto document.body */
+body:has(.classroom-sdk-root.is-live) [class*="suspension"],
+body:has(.classroom-sdk-root.is-live) [class*="zoom-ui"],
+body:has(.classroom-sdk-root.is-live) [id*="zmmtg"],
+body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
+  max-width: none !important;
+}
+
+.classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
+.classroom-sdk-root.is-live [class*="zoom-MuiBox"] {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
 .classroom-preview {
   position: absolute;
   inset: 0;

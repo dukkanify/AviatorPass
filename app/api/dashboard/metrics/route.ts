@@ -40,32 +40,30 @@ export async function GET(request: Request) {
       });
     }
 
+    if (scope === ROLES.SUPER_ADMIN) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          overview: getPlatformOverview(),
+          calendar: [],
+          activity: [],
+          charts: {
+            growth: getGrowthSeries(),
+            revenue: getRevenueSeries(),
+            enrollments: getEnrollmentSeries(),
+            attendance: getAttendanceSeries(),
+          },
+        },
+        error: null,
+      });
+    }
+
     const activity =
       scope === ROLES.INSTRUCTOR || scope === ROLES.CHIEF_GROUND_INSTRUCTOR
         ? getRecentActivityFeed(user.id)
         : getRecentActivityFeed();
 
     const calendar = getDashboardCalendarEvents(user);
-
-    if (scope === ROLES.SUPER_ADMIN) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          overview: getPlatformOverview(),
-          calendar,
-          activity,
-          charts: {
-            growth: getGrowthSeries(),
-            revenue: getRevenueSeries(),
-            enrollments: getEnrollmentSeries(),
-            attendance: getAttendanceSeries(),
-            earnings: getEarningsSeries(),
-            progress: getProgressBreakdown(),
-          },
-        },
-        error: null,
-      });
-    }
 
     if (scope === ROLES.ADMIN) {
       return NextResponse.json({

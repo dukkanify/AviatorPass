@@ -55,6 +55,9 @@ describe("production performance contracts", () => {
     expect(marketing).toContain("landing.css");
     expect(marketing).toContain("atpl-pass-home.css");
     expect(join).toContain("classroom.css");
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain("classroom.css");
+    expect(src("features/learning/components/course-player-view.tsx")).toContain("classroom.css");
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/MutationObserver/);
     expect(config).toContain("max-age=31536000");
     expect(config).toContain("image/avif");
     expect(config).toContain("image/webp");
