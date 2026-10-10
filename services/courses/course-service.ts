@@ -15,7 +15,7 @@ import {
   writeCourseGraphCache,
 } from "@/services/courses/detail-cache";
 import { syncCourseDetailsFromDatabase } from "@/services/courses/detail-sync";
-import { getStoredCourseDetail } from "@/lib/data/lms-course-detail-store";
+import { getStoredCourseDetail, listStoredCourseDetails } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   countDistinctStudents,
@@ -495,7 +495,34 @@ export function listCourses(filters: CourseFilters = {}): {
   };
 }
 
+/** Dashboard counts from the indexed syllabus — never hydrate the catalog blob. */
+export function getFastCourseStats(): Pick<
+  CourseStats,
+  "totalCourses" | "publishedCourses" | "draftCourses" | "activeStudents" | "totalEnrollments"
+> {
+  const details = listStoredCourseDetails();
+  return {
+    totalCourses: details.length,
+    publishedCourses: details.filter((course) => course.status === "published").length,
+    draftCourses: details.filter((course) => course.status === "draft").length,
+    activeStudents: countDistinctStudents({ statuses: ["approved"] }),
+    totalEnrollments: countEnrollments(),
+  };
+}
+
 export function getCourseStats(): CourseStats {
+  const cached = listStoredCourseDetails();
+  if (cached.length > 0) {
+    const fast = getFastCourseStats();
+    return {
+      ...fast,
+      archivedCourses: cached.filter((course) => course.status === "archived").length,
+      privateCourses: cached.filter((course) => course.status === "private").length,
+      scheduledCourses: cached.filter((course) => course.status === "scheduled").length,
+      totalCategories: new Set(cached.map((course) => course.categoryId).filter(Boolean)).size,
+      recentlyUpdated: [],
+    };
+  }
   ensureCoursesSeeded();
   const courses = readCoursesDb().courses.filter((c) => !c.deletedAt);
   const activeStudents = countDistinctStudents({ statuses: ["approved"] });

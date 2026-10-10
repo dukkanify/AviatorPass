@@ -42,4 +42,16 @@ describe("super admin password and wrapped classroom", () => {
       /classroom\?\.join && "hidden"/,
     );
   });
+
+  it("loads the Super Admin dashboard without the course or class blobs", () => {
+    const metrics = src("services/dashboard/metrics.ts");
+    const overview = metrics.slice(
+      metrics.indexOf("export function getPlatformOverview"),
+      metrics.indexOf("export function getGrowthSeries"),
+    );
+    expect(overview).toMatch(/getFastCourseStats\(/);
+    expect(overview).not.toMatch(/readClassesDb\(/);
+    expect(overview).not.toMatch(/getCourseStats\(/);
+    expect(src("services/courses/course-service.ts")).toMatch(/export function getFastCourseStats/);
+  });
 });

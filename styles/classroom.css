@@ -102,11 +102,24 @@
 .classroom-sdk-root.is-live > *,
 .classroom-sdk-root.is-live iframe,
 .classroom-sdk-root.is-live canvas,
-.classroom-sdk-root.is-live video {
+.classroom-sdk-root.is-live video,
+.classroom-sdk-root.is-live [class*="video"],
+.classroom-sdk-root.is-live [class*="player"],
+.classroom-sdk-root.is-live [class*="gallery"],
+.classroom-sdk-root.is-live [class*="speaker"] {
+  box-sizing: border-box !important;
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+}
+
+.classroom-sdk-root.is-live > div {
+  position: absolute !important;
+  inset: 0 !important;
+  left: 0 !important;
+  top: 0 !important;
+  transform: none !important;
 }
 
 .classroom-preview {
