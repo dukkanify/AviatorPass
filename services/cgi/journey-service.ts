@@ -77,7 +77,8 @@ import {
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { listAllParticipants, readClassesDb } from "@/services/classes/store";
+import { hasParticipant } from "@/lib/data/lms-class-participant-store";
+import { readClassesDb } from "@/services/classes/store";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import type {
   AtplLectureAssignment,
@@ -725,9 +726,11 @@ async function bindLiveClassToAssignedSubject(input: {
         actorId: input.actorId,
       });
     } catch {
-      // Classroom is still open for this student on the existing meeting.
+      // A classroom for another subject cannot stand in for this assignment.
     }
   }
+  const bound = getLiveClass(input.liveClassId);
+  if (bound?.courseId !== input.courseId) return null;
   return input.liveClassId;
 }
 
@@ -775,8 +778,10 @@ async function ensureAssignedSubjectLiveClass(input: {
         notes,
         actorId: input.actorId,
       });
-      if (selectedFirst) rememberFirstLectureLiveClass(input.studentId, liveClassId);
-      return liveClassId;
+      if (liveClassId) {
+        if (selectedFirst) rememberFirstLectureLiveClass(input.studentId, liveClassId);
+        return liveClassId;
+      }
     }
 
     if (selectedFirst) {
@@ -794,8 +799,10 @@ async function ensureAssignedSubjectLiveClass(input: {
           notes,
           actorId: input.actorId,
         });
-        rememberFirstLectureLiveClass(input.studentId, liveClassId);
-        return liveClassId;
+        if (liveClassId) {
+          rememberFirstLectureLiveClass(input.studentId, liveClassId);
+          return liveClassId;
+        }
       }
     }
   }
@@ -820,8 +827,10 @@ async function ensureAssignedSubjectLiveClass(input: {
         notes,
         actorId: input.actorId,
       });
-      rememberFirstLectureLiveClass(input.studentId, liveClassId);
-      return liveClassId;
+      if (liveClassId) {
+        rememberFirstLectureLiveClass(input.studentId, liveClassId);
+        return liveClassId;
+      }
     }
   }
 
@@ -2142,7 +2151,6 @@ function slimDashboardSchedule(
     plan: AtplSubjectAssignment[];
     scheduledLectures: AtplLectureAssignment[];
     classById: Map<string, ReturnType<typeof readClassesDb>["classes"][number]>;
-    participants: Set<string>;
   },
 ): AtplPackageScheduleSnapshot {
   const requestedDate = String(
@@ -2170,7 +2178,7 @@ function slimDashboardSchedule(
     liveClassId &&
     live &&
     live.status !== "cancelled" &&
-    index.participants.has(`${liveClassId}:${studentId}`),
+    hasParticipant(liveClassId, studentId, "participant"),
   );
   return {
     orderId: order.id,
@@ -2276,11 +2284,6 @@ export function listAtplStudents() {
   );
   const classesDb = readClassesDb();
   const classById = new Map(classesDb.classes.map((cls) => [cls.id, cls]));
-  const participants = new Set(
-    listAllParticipants()
-      .filter((row) => row.role === "participant")
-      .map((row) => `${row.liveClassId}:${row.userId}`),
-  );
 
   return [...byStudent.entries()]
     .map(([studentId, rows]) => {
@@ -2300,7 +2303,6 @@ export function listAtplStudents() {
             plan,
             scheduledLectures,
             classById,
-            participants,
           })
         : { ...EMPTY_ATPL_PACKAGE_SCHEDULE, subjects: [] };
       return {
