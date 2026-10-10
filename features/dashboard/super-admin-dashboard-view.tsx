@@ -50,6 +50,7 @@ function SuperAdminDashboardView() {
   const [attendance, setAttendance] = React.useState<SeriesPoint[]>([]);
   const [activity, setActivity] = React.useState<ActivityItem[]>([]);
   const [calendar, setCalendar] = React.useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -71,14 +72,17 @@ function SuperAdminDashboardView() {
           };
         };
       };
-      if (cancelled || !json.success || !json.data) return;
-      setOverview({ ...EMPTY_OVERVIEW, ...(json.data.overview ?? {}) });
-      setGrowth(json.data.charts?.growth ?? []);
-      setRevenue(json.data.charts?.revenue ?? []);
-      setEnrollments(json.data.charts?.enrollments ?? []);
-      setAttendance(json.data.charts?.attendance ?? []);
-      setActivity(json.data.activity ?? []);
-      setCalendar(json.data.calendar ?? []);
+      if (cancelled) return;
+      if (json.success && json.data) {
+        setOverview({ ...EMPTY_OVERVIEW, ...(json.data.overview ?? {}) });
+        setGrowth(json.data.charts?.growth ?? []);
+        setRevenue(json.data.charts?.revenue ?? []);
+        setEnrollments(json.data.charts?.enrollments ?? []);
+        setAttendance(json.data.charts?.attendance ?? []);
+        setActivity(json.data.activity ?? []);
+        setCalendar(json.data.calendar ?? []);
+      }
+      setLoading(false);
     }
     void load();
     return () => {
@@ -90,7 +94,11 @@ function SuperAdminDashboardView() {
     <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Students, instructors, courses, and revenue across Aviator Pass."
+        description={
+          loading
+            ? "Loading live counts…"
+            : "Students, instructors, courses, and revenue across Aviator Pass."
+        }
         breadcrumbs={[{ label: "Super Admin" }, { label: "Dashboard" }]}
       />
 

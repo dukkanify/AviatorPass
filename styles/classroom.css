@@ -122,6 +122,14 @@
   transform: none !important;
 }
 
+/* Zoom Component View often teleports a floating popper onto document.body */
+body:has(.classroom-sdk-root.is-live) [class*="suspension"],
+body:has(.classroom-sdk-root.is-live) [class*="zoom-ui"],
+body:has(.classroom-sdk-root.is-live) [id*="zmmtg"],
+body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
+  max-width: none !important;
+}
+
 .classroom-preview {
   position: absolute;
   inset: 0;

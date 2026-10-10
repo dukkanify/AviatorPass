@@ -21,21 +21,32 @@ function stageVideoSize(el: HTMLElement): { width: number; height: number } {
   return { width, height };
 }
 
+const ZOOM_FLOAT_SELECTOR = [
+  "[class*='suspension']",
+  "[class*='zoom-ui']",
+  "[class*='video-player']",
+  "[class*='zm-video']",
+  "[id*='zmmtg']",
+  "[id*='zoom-ui']",
+  "iframe[src*='zoom']",
+].join(", ");
+
 function pinZoomWindowToStage(stage: HTMLElement) {
   const rect = stage.getBoundingClientRect();
-  if (rect.width < 200 || rect.height < 160) return;
-  const nodes = document.querySelectorAll<HTMLElement>(
-    "[class*='suspension'], [class*='zoom-ui'], [class*='video-player'], [id*='zmmtg'], [id*='zoom-ui']",
-  );
+  if (rect.width < 120 || rect.height < 90) return;
+  const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
   for (const node of nodes) {
     if (stage.contains(node)) {
+      node.style.position = "absolute";
+      node.style.inset = "0";
       node.style.width = "100%";
       node.style.height = "100%";
       node.style.maxWidth = "100%";
       node.style.maxHeight = "100%";
+      node.style.transform = "none";
       continue;
     }
-    if (node.offsetWidth < 80 || node.offsetHeight < 80) continue;
+    if (node.offsetWidth < 64 || node.offsetHeight < 64) continue;
     node.style.position = "fixed";
     node.style.left = `${Math.round(rect.left)}px`;
     node.style.top = `${Math.round(rect.top)}px`;
@@ -179,7 +190,9 @@ function InAppZoomRoom({
     if (!session) return;
     const active = session;
     let cancelled = false;
-    let observer: ResizeObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+    let pinTimer: number | null = null;
 
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
@@ -195,13 +208,18 @@ function InAppZoomRoom({
             leaveOnPageUnload: true,
             customize: {
               video: {
-                isResizable: true,
+                isResizable: false,
                 viewSizes: {
                   default: videoSize,
                   ribbon: {
                     width: Math.min(320, Math.round(videoSize.width / 4)),
                     height: videoSize.height,
                   },
+                },
+                popper: {
+                  disableDraggable: true,
+                  anchorElement: stageRef.current,
+                  placement: "innerCenter",
                 },
               },
             },
@@ -234,14 +252,32 @@ function InAppZoomRoom({
           const fit = () => {
             if (!stageRef.current) return;
             const next = stageVideoSize(stageRef.current);
-            void client.updateVideoOptions?.({ viewSizes: { default: next } });
+            void client.updateVideoOptions?.({
+              viewSizes: { default: next },
+              popper: {
+                disableDraggable: true,
+                anchorElement: stageRef.current,
+                placement: "innerCenter",
+              },
+            });
             pinZoomWindowToStage(stageRef.current);
           };
           fit();
-          window.setTimeout(fit, 400);
-          window.setTimeout(fit, 1200);
-          observer = new ResizeObserver(fit);
-          observer.observe(stageRef.current);
+          window.setTimeout(fit, 200);
+          window.setTimeout(fit, 800);
+          window.setTimeout(fit, 2000);
+          resizeObserver = new ResizeObserver(fit);
+          resizeObserver.observe(stageRef.current);
+          mutationObserver = new MutationObserver(fit);
+          mutationObserver.observe(document.body, { childList: true, subtree: true });
+          const until = Date.now() + 15000;
+          pinTimer = window.setInterval(() => {
+            fit();
+            if (Date.now() > until && pinTimer != null) {
+              window.clearInterval(pinTimer);
+              pinTimer = null;
+            }
+          }, 300);
           return;
         } catch (error) {
           if (cancelled) return;
@@ -274,7 +310,9 @@ function InAppZoomRoom({
     void enter();
     return () => {
       cancelled = true;
-      observer?.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      if (pinTimer != null) window.clearInterval(pinTimer);
       void sdkRef.current?.leave?.().catch(() => undefined);
       sdkRef.current = null;
       stopLocalMedia();
@@ -320,7 +358,10 @@ function InAppZoomRoom({
   const showPreview = !liveZoom;
 
   return (
-    <div className={cn("classroom-stage text-white", liveZoom && "is-live", className)}>
+    <div
+      className={cn("classroom-stage text-white", liveZoom && "is-live", className)}
+      style={{ width: "100%", minHeight: "min(72vh, 820px)", background: "#050b11" }}
+    >
       <header className="classroom-chrome">
         <div className="min-w-0">
           <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
@@ -334,11 +375,21 @@ function InAppZoomRoom({
         </span>
       </header>
 
-      <div className="classroom-viewport">
+      <div
+        className="classroom-viewport"
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "16 / 9",
+          minHeight: "min(58vh, 680px)",
+          overflow: "hidden",
+        }}
+      >
         <div
           ref={stageRef}
           className={cn("classroom-sdk-root", liveZoom && "is-live")}
           aria-hidden={!liveZoom}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         />
         {showPreview ? (
           <>

@@ -33,7 +33,10 @@ describe("super admin password and wrapped classroom", () => {
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/stageVideoSize\(/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/viewSizes/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/ResizeObserver/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/MutationObserver/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/pinZoomWindowToStage\(/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/innerCenter/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/min\(72vh, 820px\)/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain(
       'import "@/styles/classroom.css"',
     );
@@ -68,5 +71,7 @@ describe("super admin password and wrapped classroom", () => {
     expect(src("app/(super-admin)/super-admin/dashboard/page.tsx")).not.toMatch(
       /getPlatformOverview/,
     );
+    expect(src("app/(super-admin)/super-admin/loading.tsx")).toMatch(/Platform overview/);
+    expect(src("app/(super-admin)/super-admin/loading.tsx")).not.toMatch(/PageSkeleton/);
   });
 });
