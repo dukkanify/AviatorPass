@@ -1,5 +1,7 @@
 "use client";
 
+import "@/styles/classroom.css";
+
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-react";

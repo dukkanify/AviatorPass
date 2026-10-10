@@ -52,15 +52,13 @@ export async function GET(request: Request) {
         success: true,
         data: {
           overview: getPlatformOverview(),
-          calendar,
+          calendar: [],
           activity,
           charts: {
             growth: getGrowthSeries(),
             revenue: getRevenueSeries(),
             enrollments: getEnrollmentSeries(),
             attendance: getAttendanceSeries(),
-            earnings: getEarningsSeries(),
-            progress: getProgressBreakdown(),
           },
         },
         error: null,

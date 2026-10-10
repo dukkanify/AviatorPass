@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   BookOpen,
   CreditCard,
@@ -30,34 +31,61 @@ import {
 } from "@/components/dashboard";
 import { formatCurrency } from "@/utils/format";
 
-interface SuperAdminDashboardViewProps {
-  overview: {
-    totalStudents: number;
-    totalInstructors: number;
-    totalCourses: number;
-    activeClasses: number;
-    monthlyRevenue: number;
-    instructorWalletBalance: number;
-    pendingPayments: number;
-    platformGrowth: number;
-  };
-  growth: SeriesPoint[];
-  revenue: SeriesPoint[];
-  enrollments: SeriesPoint[];
-  attendance: SeriesPoint[];
-  activity: ActivityItem[];
-  calendar: CalendarEvent[];
-}
+const EMPTY_OVERVIEW = {
+  totalStudents: 0,
+  totalInstructors: 0,
+  totalCourses: 0,
+  activeClasses: 0,
+  monthlyRevenue: 0,
+  instructorWalletBalance: 0,
+  pendingPayments: 0,
+  platformGrowth: 0,
+};
 
-function SuperAdminDashboardView({
-  overview,
-  growth,
-  revenue,
-  enrollments,
-  attendance,
-  activity,
-  calendar,
-}: SuperAdminDashboardViewProps) {
+function SuperAdminDashboardView() {
+  const [overview, setOverview] = React.useState(EMPTY_OVERVIEW);
+  const [growth, setGrowth] = React.useState<SeriesPoint[]>([]);
+  const [revenue, setRevenue] = React.useState<SeriesPoint[]>([]);
+  const [enrollments, setEnrollments] = React.useState<SeriesPoint[]>([]);
+  const [attendance, setAttendance] = React.useState<SeriesPoint[]>([]);
+  const [activity, setActivity] = React.useState<ActivityItem[]>([]);
+  const [calendar, setCalendar] = React.useState<CalendarEvent[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const response = await fetch("/api/dashboard/metrics?scope=super_admin", {
+        cache: "no-store",
+      });
+      const json = (await response.json()) as {
+        success?: boolean;
+        data?: {
+          overview?: typeof EMPTY_OVERVIEW;
+          calendar?: CalendarEvent[];
+          activity?: ActivityItem[];
+          charts?: {
+            growth?: SeriesPoint[];
+            revenue?: SeriesPoint[];
+            enrollments?: SeriesPoint[];
+            attendance?: SeriesPoint[];
+          };
+        };
+      };
+      if (cancelled || !json.success || !json.data) return;
+      setOverview({ ...EMPTY_OVERVIEW, ...(json.data.overview ?? {}) });
+      setGrowth(json.data.charts?.growth ?? []);
+      setRevenue(json.data.charts?.revenue ?? []);
+      setEnrollments(json.data.charts?.enrollments ?? []);
+      setAttendance(json.data.charts?.attendance ?? []);
+      setActivity(json.data.activity ?? []);
+      setCalendar(json.data.calendar ?? []);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <PageHeader

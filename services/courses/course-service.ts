@@ -15,7 +15,7 @@ import {
   writeCourseGraphCache,
 } from "@/services/courses/detail-cache";
 import { syncCourseDetailsFromDatabase } from "@/services/courses/detail-sync";
-import { getStoredCourseDetail, listStoredCourseDetails } from "@/lib/data/lms-course-detail-store";
+import { countStoredCourses, getStoredCourseDetail } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   countDistinctStudents,
@@ -495,31 +495,31 @@ export function listCourses(filters: CourseFilters = {}): {
   };
 }
 
-/** Dashboard counts from the indexed syllabus — never hydrate the catalog blob. */
+/** Dashboard counts — COUNT/status only, never the full syllabus payloads. */
 export function getFastCourseStats(): Pick<
   CourseStats,
   "totalCourses" | "publishedCourses" | "draftCourses" | "activeStudents" | "totalEnrollments"
 > {
-  const details = listStoredCourseDetails();
+  const counts = countStoredCourses();
   return {
-    totalCourses: details.length,
-    publishedCourses: details.filter((course) => course.status === "published").length,
-    draftCourses: details.filter((course) => course.status === "draft").length,
+    totalCourses: counts.total,
+    publishedCourses: counts.byStatus.published ?? 0,
+    draftCourses: counts.byStatus.draft ?? 0,
     activeStudents: countDistinctStudents({ statuses: ["approved"] }),
     totalEnrollments: countEnrollments(),
   };
 }
 
 export function getCourseStats(): CourseStats {
-  const cached = listStoredCourseDetails();
-  if (cached.length > 0) {
+  const counts = countStoredCourses();
+  if (counts.total > 0) {
     const fast = getFastCourseStats();
     return {
       ...fast,
-      archivedCourses: cached.filter((course) => course.status === "archived").length,
-      privateCourses: cached.filter((course) => course.status === "private").length,
-      scheduledCourses: cached.filter((course) => course.status === "scheduled").length,
-      totalCategories: new Set(cached.map((course) => course.categoryId).filter(Boolean)).size,
+      archivedCourses: counts.byStatus.archived ?? 0,
+      privateCourses: counts.byStatus.private ?? 0,
+      scheduledCourses: counts.byStatus.scheduled ?? 0,
+      totalCategories: 0,
       recentlyUpdated: [],
     };
   }

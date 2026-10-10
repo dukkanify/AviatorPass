@@ -163,6 +163,52 @@ export function listStoredCourseDetails(): CourseDetail[] {
   return [...readRows()];
 }
 
+export function countStoredCourses(): { total: number; byStatus: Record<string, number> } {
+  if (sqlEnabled()) {
+    ensureSqlTable();
+    const totalRows = neonSql<{ n: number | string }>(`SELECT COUNT(*)::int AS n FROM ${TABLE}`);
+    const statusRows = neonSql<{ status: string; n: number | string }>(
+      `SELECT coalesce(payload->>'status', '') AS status, COUNT(*)::int AS n
+       FROM ${TABLE}
+       GROUP BY 1`,
+    );
+    const byStatus: Record<string, number> = {};
+    for (const row of statusRows) {
+      byStatus[row.status || "unknown"] = Number(row.n ?? 0);
+    }
+    return { total: Number(totalRows[0]?.n ?? 0), byStatus };
+  }
+  const rows = readRows();
+  const byStatus: Record<string, number> = {};
+  for (const row of rows) {
+    const status = row.status || "unknown";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+  }
+  return { total: rows.length, byStatus };
+}
+
+export function listStoredCourseSummaries(): Array<{
+  id: string;
+  code: string | null;
+  status: string;
+}> {
+  if (sqlEnabled()) {
+    ensureSqlTable();
+    return neonSql<{ id: string; code: string | null; status: string }>(
+      `SELECT id, code, coalesce(payload->>'status', '') AS status FROM ${TABLE}`,
+    ).map((row) => ({
+      id: row.id,
+      code: row.code,
+      status: row.status,
+    }));
+  }
+  return readRows().map((row) => ({
+    id: row.id,
+    code: row.code ?? null,
+    status: row.status,
+  }));
+}
+
 export function resetCourseDetailStoreRuntime(): void {
   tableReady = false;
   fileIndex = null;

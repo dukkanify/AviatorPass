@@ -34,6 +34,12 @@ describe("super admin password and wrapped classroom", () => {
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/viewSizes/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/ResizeObserver/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/pinZoomWindowToStage\(/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain(
+      'import "@/styles/classroom.css"',
+    );
+    expect(src("features/learning/components/course-player-view.tsx")).toContain(
+      'import "@/styles/classroom.css"',
+    );
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(
       /classroom-stage[\s\S]*is-live/,
     );
@@ -54,5 +60,13 @@ describe("super admin password and wrapped classroom", () => {
     expect(overview).not.toMatch(/readClassesDb\(/);
     expect(overview).not.toMatch(/getCourseStats\(/);
     expect(src("services/courses/course-service.ts")).toMatch(/export function getFastCourseStats/);
+    expect(src("lib/data/lms-course-detail-store.ts")).toMatch(
+      /export function countStoredCourses/,
+    );
+    expect(src("services/dashboard/metrics.ts")).toMatch(/listStoredCourseSummaries\(/);
+    expect(src("services/dashboard/metrics.ts")).not.toMatch(/listStoredCourseDetails\(/);
+    expect(src("app/(super-admin)/super-admin/dashboard/page.tsx")).not.toMatch(
+      /getPlatformOverview/,
+    );
   });
 });
