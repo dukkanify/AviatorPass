@@ -111,6 +111,9 @@ describe("paid student lesson load", () => {
       /getCourseDetail[\s\S]*getStoredCourseDetail\(id\)/,
     );
     expect(src("services/learning/access.ts")).not.toMatch(/ensureCoursesSeeded/);
+    expect(src("app/api/learning/courses/[courseId]/lessons/[lessonId]/route.ts")).toMatch(
+      /if \(!existingProgress\)/,
+    );
     expect(src("services/courses/store.ts")).toMatch(/syncCourseDetailsFromDatabase\(working\)/);
     expect(src("lib/data/lms-course-detail-store.ts")).toContain(
       'const TABLE = "aep_lms_course_details"',
