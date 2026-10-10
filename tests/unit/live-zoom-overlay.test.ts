@@ -25,9 +25,9 @@ describe("live Zoom lesson overlay", () => {
     expect(src("app/api/learning/courses/[courseId]/lessons/[lessonId]/route.ts")).toMatch(
       /getLiveClassroomForStudentCourse/,
     );
-    expect(src("services/learning/learning-service.ts")).toMatch(/href: `\/join\/\$\{match\.id\}`/);
-    expect(src("services/learning/learning-service.ts")).toMatch(
-      /getLiveClassroomForStudentCourse[\s\S]*listParticipantsForUser\(studentId\)/,
+    expect(src("services/learning/learning-service.ts")).toMatch(/firstLectureMatchesCourse\(/);
+    expect(src("services/learning/learning-service.ts")).not.toMatch(
+      /getLiveClassroomForStudentCourse[\s\S]*ensureClassesSeeded\(\)/,
     );
   });
 });

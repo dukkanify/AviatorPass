@@ -10,6 +10,7 @@ import {
   upsertCourseDetail,
 } from "@/lib/data/lms-course-detail-store";
 import { getCourseById, getCourseDetail } from "@/services/courses/course-service";
+import { firstLectureMatchesCourse } from "@/services/learning/learning-service";
 import type { CourseDetail } from "@/types/courses";
 
 function src(rel: string) {
@@ -126,5 +127,14 @@ describe("paid student lesson load", () => {
     const detail = getCourseDetail("ATPL-022");
     expect(detail?.modules[0]?.lessons[0]?.id).toBe("c272ff046b70564504ae59b5b31afadf");
     expect(detail?.title).toMatch(/Instrumentation/i);
+  });
+
+  it("matches the official first-lecture subject code 022 to Instrumentation", () => {
+    expect(firstLectureMatchesCourse("course-atpl-022", "022")).toBe(true);
+    expect(firstLectureMatchesCourse("course-atpl-022", "ATPL-022")).toBe(true);
+    expect(firstLectureMatchesCourse("course-atpl-061", "022")).toBe(false);
+    expect(src("services/learning/learning-service.ts")).not.toMatch(
+      /getLiveClassroomForStudentCourse[\s\S]*ensureClassesSeeded\(\)/,
+    );
   });
 });

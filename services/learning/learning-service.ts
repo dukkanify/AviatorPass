@@ -4,14 +4,18 @@
 
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById, getCourseDetail } from "@/services/courses/course-service";
-import { ATPL_PACKAGE_LMS_COURSE_CODES } from "@/constants/atpl-complete-package";
+import {
+  ATPL_PACKAGE_LMS_COURSE_CODES,
+  atplPackageLmsCourseCode,
+  easaCodeFromAtplCourseCode,
+} from "@/constants/atpl-complete-package";
 import { officialCourseDisplayTitle } from "@/lib/courses/display-title";
 import { stableCourseId } from "@/lib/courses/public-course-path";
 import { findUserById } from "@/services/auth/store";
 import { getStudentAtplPackageSchedule } from "@/services/cgi/journey-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
-import { computeRuntimeStatus, listLiveClasses } from "@/services/classes/class-service";
+import { listLiveClasses } from "@/services/classes/class-service";
 import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
@@ -551,6 +555,18 @@ export function getLearningCalendar(studentId: string): LearningCalendarItem[] {
   return items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+export function firstLectureMatchesCourse(
+  courseId: string,
+  subjectCode: string | null | undefined,
+): boolean {
+  const easa = easaCodeFromAtplCourseCode(subjectCode);
+  if (!easa) return false;
+  return (
+    courseId === stableCourseId(atplPackageLmsCourseCode(easa)) ||
+    easaCodeFromAtplCourseCode(courseId) === easa
+  );
+}
+
 function liveClassroomFromPaidFirstLecture(
   studentId: string,
   courseId: string,
@@ -566,8 +582,7 @@ function liveClassroomFromPaidFirstLecture(
   if (!user?.email) return null;
   const schedule = getStudentAtplPackageSchedule(studentId, user.email);
   if (!schedule.firstLectureLiveClassId) return null;
-  const subjectCode = schedule.firstLectureSubjectCode;
-  if (!subjectCode || (stableCourseId(subjectCode) !== courseId && courseId !== subjectCode)) {
+  if (!firstLectureMatchesCourse(courseId, schedule.firstLectureSubjectCode)) {
     return null;
   }
   const startsAt = schedule.confirmedFirstLectureAt || schedule.requestedFirstLectureAt;
@@ -599,30 +614,7 @@ export function getLiveClassroomForStudentCourse(
   href: string;
 } | null {
   if (!studentId || !courseId) return null;
-  const fromOrder = liveClassroomFromPaidFirstLecture(studentId, courseId);
-  if (fromOrder) return fromOrder;
-  ensureClassesSeeded();
-  const allowed = new Set(listParticipantsForUser(studentId).map((p) => p.liveClassId));
-  const now = Date.now();
-  const rows = listLiveClasses({ courseId, pageSize: 80 }).data.filter((cls) => {
-    if (!allowed.has(cls.id)) return false;
-    if (["cancelled", "draft", "completed"].includes(cls.status)) return false;
-    return Number.isFinite(Date.parse(cls.startsAt));
-  });
-  const live = rows.find((cls) => computeRuntimeStatus(cls) === "live_now");
-  const upcoming = rows
-    .filter((cls) => Date.parse(cls.startsAt) >= now)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
-  const match = live ?? upcoming ?? null;
-  if (!match) return null;
-  return {
-    id: match.id,
-    title: match.title,
-    startsAt: match.startsAt,
-    endsAt: match.endsAt,
-    status: live ? "live" : "upcoming",
-    href: `/join/${match.id}`,
-  };
+  return liveClassroomFromPaidFirstLecture(studentId, courseId);
 }
 
 export function searchLearning(
