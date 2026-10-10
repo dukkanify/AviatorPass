@@ -47,12 +47,18 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  width: 100%;
+  min-height: min(72vh, 820px);
   border-radius: 1.75rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: #050b11;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.classroom-stage.is-live {
+  min-height: min(78vh, 900px);
 }
 
 .classroom-chrome {
@@ -68,7 +74,10 @@
 .classroom-viewport {
   position: relative;
   isolation: isolate;
-  min-height: min(56vh, 620px);
+  flex: 1 1 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: min(58vh, 680px);
   margin: 0.75rem 0.85rem;
   overflow: hidden;
   border-radius: 1.15rem;
@@ -81,10 +90,23 @@
   position: absolute;
   inset: 0;
   z-index: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .classroom-sdk-root.is-live {
   z-index: 3;
+}
+
+.classroom-sdk-root.is-live,
+.classroom-sdk-root.is-live > *,
+.classroom-sdk-root.is-live iframe,
+.classroom-sdk-root.is-live canvas,
+.classroom-sdk-root.is-live video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 .classroom-preview {

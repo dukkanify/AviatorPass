@@ -133,11 +133,45 @@ export function ensureDemoUsersSeeded(): void {
   ensureSuperAdminSeeded();
   migrateLegacyClientIdentities();
   migrateLegacyDemoEmails();
-  const emails = new Set(listAllUsers().map((u) => u.email.toLowerCase()));
-  if (DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()))) {
+  const users = listAllUsers();
+  const emails = new Set(users.map((u) => u.email.toLowerCase()));
+  const catalogReady = DEMO_ACCOUNTS.every((d) => emails.has(d.email.toLowerCase()));
+  const missingPassword = users.some(
+    (user) =>
+      (!user.passwordHash || !user.passwordSalt) &&
+      (user.role === ROLES.SUPER_ADMIN ||
+        DEMO_ACCOUNTS.some((d) => d.email === user.email.toLowerCase())),
+  );
+  if (catalogReady && !missingPassword) {
     return;
   }
   upsertDemoCatalogUsers({ reactivatePermanent: false });
+}
+
+/** Restore DemoPass123! on catalog / Super Admin rows that were seeded without a hash. */
+export function ensureCatalogDemoPassword(user: StoredUser): StoredUser {
+  if (user.passwordHash && user.passwordSalt) return user;
+  const catalog = DEMO_ACCOUNTS.some((d) => d.email === user.email.toLowerCase());
+  if (!catalog && user.role !== ROLES.SUPER_ADMIN) return user;
+  const { hash, salt } = hashPassword(DEMO_ACCOUNT_PASSWORD);
+  const next: StoredUser = {
+    ...user,
+    passwordHash: hash,
+    passwordSalt: salt,
+    mustChangePassword: false,
+    emailVerified: true,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAuthDb((db) => {
+    const row = db.users.find((item) => item.id === next.id);
+    if (!row) return;
+    row.passwordHash = next.passwordHash;
+    row.passwordSalt = next.passwordSalt;
+    row.mustChangePassword = false;
+    row.emailVerified = true;
+    row.updatedAt = next.updatedAt;
+  });
+  return next;
 }
 
 /**

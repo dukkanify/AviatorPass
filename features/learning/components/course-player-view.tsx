@@ -297,7 +297,14 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,300px)]">
+      <div
+        className={cn(
+          "grid gap-4",
+          classroom?.join
+            ? "lg:grid-cols-[minmax(0,200px)_minmax(0,1fr)]"
+            : "lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,300px)]",
+        )}
+      >
         <aside
           className={cn(
             "rounded-2xl border border-border bg-card p-3",
@@ -411,7 +418,7 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
               </div>
             )}
 
-            {data.lesson.contentHtml ? (
+            {data.lesson.contentHtml && !classroom?.join ? (
               <Card className="mt-4">
                 <CardHeader>
                   <CardTitle className="text-base">Lesson content</CardTitle>
@@ -495,7 +502,7 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
           </div>
         </section>
 
-        <aside className="space-y-4">
+        <aside className={cn("space-y-4", classroom?.join && "hidden")}>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
