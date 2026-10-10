@@ -54,35 +54,46 @@ function SuperAdminDashboardView() {
 
   React.useEffect(() => {
     let cancelled = false;
-    async function load() {
-      const response = await fetch("/api/dashboard/metrics?scope=super_admin", {
-        cache: "no-store",
-      });
-      const json = (await response.json()) as {
-        success?: boolean;
-        data?: {
-          overview?: typeof EMPTY_OVERVIEW;
-          calendar?: CalendarEvent[];
-          activity?: ActivityItem[];
-          charts?: {
-            growth?: SeriesPoint[];
-            revenue?: SeriesPoint[];
-            enrollments?: SeriesPoint[];
-            attendance?: SeriesPoint[];
-          };
+    type MetricsJson = {
+      success?: boolean;
+      data?: {
+        overview?: typeof EMPTY_OVERVIEW;
+        calendar?: CalendarEvent[];
+        activity?: ActivityItem[];
+        charts?: {
+          growth?: SeriesPoint[];
+          revenue?: SeriesPoint[];
+          enrollments?: SeriesPoint[];
+          attendance?: SeriesPoint[];
         };
       };
-      if (cancelled) return;
-      if (json.success && json.data) {
-        setOverview({ ...EMPTY_OVERVIEW, ...(json.data.overview ?? {}) });
-        setGrowth(json.data.charts?.growth ?? []);
-        setRevenue(json.data.charts?.revenue ?? []);
-        setEnrollments(json.data.charts?.enrollments ?? []);
-        setAttendance(json.data.charts?.attendance ?? []);
-        setActivity(json.data.activity ?? []);
-        setCalendar(json.data.calendar ?? []);
+    };
+    function apply(json: MetricsJson) {
+      if (!json.success || !json.data) return;
+      setOverview((current) => ({ ...current, ...(json.data?.overview ?? {}) }));
+      if (json.data.charts) {
+        setGrowth(json.data.charts.growth ?? []);
+        setRevenue(json.data.charts.revenue ?? []);
+        setEnrollments(json.data.charts.enrollments ?? []);
+        setAttendance(json.data.charts.attendance ?? []);
       }
+      setActivity(json.data.activity ?? []);
+      setCalendar(json.data.calendar ?? []);
+    }
+    async function load() {
+      const counts = (await (
+        await fetch("/api/dashboard/metrics?scope=super_admin&part=counts", {
+          cache: "no-store",
+        })
+      ).json()) as MetricsJson;
+      if (cancelled) return;
+      apply(counts);
       setLoading(false);
+      const full = (await (
+        await fetch("/api/dashboard/metrics?scope=super_admin", { cache: "no-store" })
+      ).json()) as MetricsJson;
+      if (cancelled) return;
+      apply(full);
     }
     void load();
     return () => {

@@ -3,7 +3,13 @@
  */
 
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { listAllSessions, listAllUsers } from "@/lib/data/auth-identity-store";
+import {
+  countActiveSessions,
+  countUsersByRole,
+  countUsersByStatus,
+  listAllUsers,
+  listStudentGrowthMonths,
+} from "@/lib/data/auth-identity-store";
 import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
 import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
@@ -35,18 +41,23 @@ function countByRole(users: StoredUser[], role: Role): number {
   return users.filter((u) => u.role === role).length;
 }
 
-export function getPlatformOverview() {
-  const users = listAllUsers();
-  const students = countByRole(users, ROLES.STUDENT);
-  const instructors = countByRole(users, ROLES.INSTRUCTOR);
-  const admins = countByRole(users, ROLES.ADMIN) + countByRole(users, ROLES.SUPER_ADMIN);
+function emptyFinance() {
+  return {
+    monthlyRevenue: 0,
+    pendingPayments: 0,
+    monthlyGrowth: [] as Array<{ name: string; value: number }>,
+    revenueByInstructor: [] as Array<{ available: number }>,
+  };
+}
+
+function buildPlatformOverview(
+  finance:
+    ReturnType<typeof getFinanceDashboard> | ReturnType<typeof emptyFinance> = emptyFinance(),
+) {
+  const students = countUsersByRole(ROLES.STUDENT);
+  const instructors = countUsersByRole(ROLES.INSTRUCTOR);
+  const admins = countUsersByRole(ROLES.ADMIN) + countUsersByRole(ROLES.SUPER_ADMIN);
   const courseStats = getFastCourseStats();
-  const liveNow = 0;
-  const upcoming = 0;
-  const cancelled = 0;
-  const today = 0;
-  const finance = getFinanceDashboard();
-  const wallets = listWallets();
   const growth =
     finance.monthlyGrowth.length > 1
       ? Math.round(
@@ -60,43 +71,58 @@ export function getPlatformOverview() {
     totalStudents: students,
     totalInstructors: instructors,
     totalAdmins: admins,
-    totalUsers: users.length,
+    totalUsers: students + instructors + admins,
     totalCourses: courseStats.totalCourses,
     publishedCourses: courseStats.publishedCourses,
     draftCourses: courseStats.draftCourses,
     activeCourseStudents: courseStats.activeStudents,
-    activeClasses: liveNow + today,
-    upcomingClasses: upcoming,
-    cancelledClasses: cancelled,
+    activeClasses: 0,
+    upcomingClasses: 0,
+    cancelledClasses: 0,
     attendanceRate: 0,
     monthlyRevenue: finance.monthlyRevenue,
-    instructorWalletBalance: wallets.reduce((s, w) => s + w.availableBalance, 0),
+    instructorWalletBalance: finance.revenueByInstructor.reduce(
+      (sum, row) => sum + row.available,
+      0,
+    ),
     pendingPayments: finance.pendingPayments,
     platformGrowth: growth,
-    pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
+    pendingApprovals: countUsersByStatus(ACCOUNT_STATUS.PENDING),
     communityReports: 0,
     blogActivity: 0,
-    liveClasses: liveNow,
-    activeSessions: listAllSessions().filter((s) => !s.revokedAt).length,
+    liveClasses: 0,
+    activeSessions: countActiveSessions(),
+  };
+}
+
+export function getPlatformOverviewCounts() {
+  return buildPlatformOverview();
+}
+
+export function getPlatformOverview() {
+  return buildPlatformOverview(getFinanceDashboard());
+}
+
+export function getSuperAdminDashboardPayload() {
+  const finance = getFinanceDashboard();
+  return {
+    overview: buildPlatformOverview(finance),
+    calendar: [],
+    activity: [],
+    charts: {
+      growth: listStudentGrowthMonths(),
+      revenue: finance.monthlyGrowth.length
+        ? finance.monthlyGrowth
+        : [{ name: "Now", value: finance.monthlyRevenue }],
+      enrollments: getEnrollmentSeries(),
+      attendance: getAttendanceSeries(),
+    },
   };
 }
 
 export function getGrowthSeries(): SeriesPoint[] {
   ensureDemoUsersSeeded();
-  const students = listAllUsers().filter((u) => u.role === ROLES.STUDENT);
-  const map = new Map<string, number>();
-  for (const u of students) {
-    const key = u.createdAt.slice(0, 7);
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-  let running = 0;
-  const series = [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([name, count]) => {
-      running += count;
-      return { name, value: running };
-    });
-  return series.length ? series : [{ name: "Now", value: students.length }];
+  return listStudentGrowthMonths();
 }
 
 export function getRevenueSeries(): SeriesPoint[] {

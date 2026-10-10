@@ -5,7 +5,8 @@
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { assertCanManageFinance } from "@/services/payments/access";
-import { listOrdersByStatus } from "@/lib/data/lms-payment-ledger-store";
+import { countOrdersByStatus, listOrdersByStatus } from "@/lib/data/lms-payment-ledger-store";
+import { countRefundsByStatus, listRefundsByStatus } from "@/lib/data/lms-refund-store";
 import {
   listOrders,
   listPayments,
@@ -20,12 +21,10 @@ import type { UserProfile } from "@/types";
 
 export function getFinanceDashboard() {
   const paid = listOrdersByStatus("paid");
-  const pending = listOrdersByStatus("pending");
-  const failed = listOrdersByStatus("failed");
   const revenue = paid.reduce((s, o) => s + o.totalAmount, 0);
-  const refunded = listRefunds({ status: "processed" });
+  const refunded = listRefundsByStatus("processed");
   const refundTotal = refunded.reduce((s, r) => s + r.amount, 0);
-  const pendingPayments = pending.length + failed.length;
+  const pendingPayments = countOrdersByStatus("pending") + countOrdersByStatus("failed");
   const wallets = listWallets();
   const instructorEarnings = wallets.reduce((s, w) => s + w.lifetimeEarned, 0);
 
@@ -60,7 +59,7 @@ export function getFinanceDashboard() {
     dailyRevenue: daily[daily.length - 1]?.value ?? 0,
     pendingPayments,
     instructorEarnings,
-    refundRequests: listRefunds({ status: "requested" }).length,
+    refundRequests: countRefundsByStatus("requested"),
     refundTotal,
     topSellingCourses: [...byCourse.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8),
     revenueByInstructor: byInstructor,

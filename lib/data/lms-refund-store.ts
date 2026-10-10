@@ -154,6 +154,18 @@ export function countRefunds(): number {
   return ensureIndex().byId.size;
 }
 
+export function countRefundsByStatus(status: RefundRequest["status"]): number {
+  if (sqlEnabled()) {
+    ensureSqlTable();
+    const rows = neonSql<{ n: number | string }>(
+      `SELECT COUNT(*)::int AS n FROM ${TABLE} WHERE status = $1`,
+      [status],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+  return (ensureIndex().byStatus.get(status) ?? []).length;
+}
+
 export function upsertRefund(item: RefundRequest): void {
   if (sqlEnabled()) {
     ensureSqlTable();
