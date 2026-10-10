@@ -5,7 +5,6 @@
 import { ROLES } from "@/constants/roles";
 import { listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById, getCourseDetail } from "@/services/courses/course-service";
-import { ensureCoursesSeeded } from "@/services/courses/seed";
 import type { UserProfile } from "@/types";
 
 export class LearningAccessError extends Error {
@@ -20,15 +19,12 @@ export class LearningAccessError extends Error {
 export function getActiveEnrollment(studentId: string, courseId: string) {
   return (
     listStudentEnrollments(studentId).find(
-      (e) =>
-        e.courseId === courseId &&
-        ["approved", "completed", "pending"].includes(e.status),
+      (e) => e.courseId === courseId && ["approved", "completed", "pending"].includes(e.status),
     ) ?? null
   );
 }
 
 export function assertStudentEnrolled(user: UserProfile, courseId: string) {
-  ensureCoursesSeeded();
   const course = getCourseById(courseId);
   if (!course || course.deletedAt) {
     throw new LearningAccessError("Course not found", 404);

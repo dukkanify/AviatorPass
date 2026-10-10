@@ -18,6 +18,7 @@ import {
   replaceAllEnrollments,
 } from "@/lib/data/lms-enrollment-store";
 import { clearCourseDetailCache } from "@/services/courses/detail-cache";
+import { syncCourseDetailsFromDatabase } from "@/services/courses/detail-sync";
 import type {
   Course,
   CourseCategory,
@@ -201,6 +202,7 @@ export function writeCoursesDb(mutator: (db: CoursesDatabase) => void): CoursesD
   flushEnrollments();
   const persisted = catalogSnapshot(working);
   persistCatalog(persisted);
+  syncCourseDetailsFromDatabase(working);
   clearCourseDetailCache();
   return withEnrollmentView(persisted);
 }
@@ -208,6 +210,7 @@ export function writeCoursesDb(mutator: (db: CoursesDatabase) => void): CoursesD
 export function replaceCoursesDb(db: CoursesDatabase): void {
   replaceAllEnrollments(db.enrollments ?? []);
   persistCatalog(db);
+  syncCourseDetailsFromDatabase(db);
   clearCourseDetailCache();
 }
 

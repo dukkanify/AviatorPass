@@ -28,15 +28,18 @@ export async function GET(_request: Request, context: Ctx) {
       throw new LearningAccessError("Lesson not found", 404);
     }
 
-    await touchLessonProgress({
-      user,
-      courseId,
-      lessonId,
-      markStarted: true,
-      deltaSeconds: 5,
-    });
+    const existingProgress = getLessonProgress(user.id, lessonId);
+    if (!existingProgress) {
+      await touchLessonProgress({
+        user,
+        courseId,
+        lessonId,
+        markStarted: true,
+        deltaSeconds: 0,
+      });
+    }
 
-    const progress = getLessonProgress(user.id, lessonId);
+    const progress = existingProgress ?? getLessonProgress(user.id, lessonId);
     const learning = getCourseLearningState(user.id, courseId);
     const notes = listNotes(user.id, { courseId }).filter(
       (n) => !n.lessonId || n.lessonId === lessonId,

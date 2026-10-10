@@ -14,6 +14,8 @@ import {
   writeCourseDetailCache,
   writeCourseGraphCache,
 } from "@/services/courses/detail-cache";
+import { syncCourseDetailsFromDatabase } from "@/services/courses/detail-sync";
+import { getStoredCourseDetail } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   countDistinctStudents,
@@ -64,6 +66,21 @@ function presentCourse<T extends Course>(course: T): T {
   return title === course.title ? course : { ...course, title };
 }
 
+function presentCourseDetail(detail: CourseDetail): CourseDetail {
+  const presented = presentCourse(detail);
+  return {
+    ...presented,
+    modules: detail.modules.map((mod) => ({
+      ...mod,
+      title: displayModuleHeading(mod.title),
+      lessons: mod.lessons.map((lesson) => ({
+        ...lesson,
+        title: displayLessonHeading(lesson.title, presented),
+      })),
+    })),
+  };
+}
+
 function toListItem(course: Course): CourseListItem {
   const db = readCoursesDb();
   const presented = presentCourse(course);
@@ -107,9 +124,14 @@ function normalizeCoursePrice(input: { priceAmount?: number | null; currency?: s
 }
 
 export function getCourseById(id: string, includeDeleted = false): Course | null {
-  ensureCoursesSeeded();
   const ref = decodeURIComponent(id || "").trim();
   if (!ref) return null;
+  const stored = getStoredCourseDetail(ref);
+  if (stored) {
+    if (stored.deletedAt && !includeDeleted) return null;
+    return presentCourse(stored);
+  }
+  ensureCoursesSeeded();
   const courses = readCoursesDb().courses;
   const lower = ref.toLowerCase();
   const course =
@@ -346,6 +368,10 @@ function courseGraph(): CourseGraph {
 }
 
 export function getCourseDetail(id: string): CourseDetail | null {
+  const stored = getStoredCourseDetail(id);
+  if (stored && !stored.deletedAt) {
+    return writeCourseDetailCache(stored.id, presentCourseDetail(stored));
+  }
   const course = getCourseById(id);
   if (!course) return null;
   const courseId = course.id;
@@ -368,11 +394,13 @@ export function getCourseDetail(id: string): CourseDetail | null {
         })),
     }));
 
-  return writeCourseDetailCache(courseId, {
+  const detail = writeCourseDetailCache(courseId, {
     ...toListItem(course),
     modules,
     instructors: graph.instructorsByCourse.get(courseId) ?? [],
   });
+  syncCourseDetailsFromDatabase(readCoursesDb());
+  return detail;
 }
 
 export function listCourses(filters: CourseFilters = {}): {
