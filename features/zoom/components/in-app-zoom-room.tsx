@@ -263,9 +263,9 @@ function InAppZoomRoom({
             pinZoomWindowToStage(stageRef.current);
           };
           fit();
+          window.setTimeout(fit, 50);
           window.setTimeout(fit, 200);
-          window.setTimeout(fit, 800);
-          window.setTimeout(fit, 2000);
+          window.setTimeout(fit, 600);
           resizeObserver = new ResizeObserver(fit);
           resizeObserver.observe(stageRef.current);
           mutationObserver = new MutationObserver(fit);
@@ -277,7 +277,7 @@ function InAppZoomRoom({
               window.clearInterval(pinTimer);
               pinTimer = null;
             }
-          }, 300);
+          }, 80);
           return;
         } catch (error) {
           if (cancelled) return;

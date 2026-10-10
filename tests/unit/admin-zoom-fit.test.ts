@@ -48,6 +48,10 @@ describe("super admin password and wrapped classroom", () => {
     );
     expect(src("styles/classroom.css")).toMatch(/classroom-sdk-root\.is-live/);
     expect(src("styles/classroom.css")).toMatch(/width: 100% !important/);
+    expect(src("styles/classroom.css")).toMatch(/suspension-view-tabpanel/);
+    expect(src("app/api/dashboard/metrics/route.ts")).toMatch(
+      /scope === ROLES.SUPER_ADMIN[\s\S]*activity: \[\]/,
+    );
     expect(src("features/learning/components/course-player-view.tsx")).toMatch(
       /classroom\?\.join && "hidden"/,
     );

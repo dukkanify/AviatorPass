@@ -40,20 +40,13 @@ export async function GET(request: Request) {
       });
     }
 
-    const activity =
-      scope === ROLES.INSTRUCTOR || scope === ROLES.CHIEF_GROUND_INSTRUCTOR
-        ? getRecentActivityFeed(user.id)
-        : getRecentActivityFeed();
-
-    const calendar = getDashboardCalendarEvents(user);
-
     if (scope === ROLES.SUPER_ADMIN) {
       return NextResponse.json({
         success: true,
         data: {
           overview: getPlatformOverview(),
           calendar: [],
-          activity,
+          activity: [],
           charts: {
             growth: getGrowthSeries(),
             revenue: getRevenueSeries(),
@@ -64,6 +57,13 @@ export async function GET(request: Request) {
         error: null,
       });
     }
+
+    const activity =
+      scope === ROLES.INSTRUCTOR || scope === ROLES.CHIEF_GROUND_INSTRUCTOR
+        ? getRecentActivityFeed(user.id)
+        : getRecentActivityFeed();
+
+    const calendar = getDashboardCalendarEvents(user);
 
     if (scope === ROLES.ADMIN) {
       return NextResponse.json({
