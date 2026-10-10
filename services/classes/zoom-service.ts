@@ -20,6 +20,7 @@ import {
   lookupLiveClass,
   lookupZoomMeetingByClassId,
   lookupZoomMeetingByNumber,
+  upsertZoomMeeting,
   writeClassesDb,
 } from "@/services/classes/store";
 import { readMockExamsDb, writeMockExamsDb } from "@/services/mock-exams/store";
@@ -502,10 +503,7 @@ export async function ensureInAppJoinSettings(
     return meeting;
   }
 
-  writeClassesDb((db) => {
-    const idx = db.zoomMeetings.findIndex((row) => row.id === meeting.id);
-    if (idx >= 0) db.zoomMeetings[idx] = next;
-  });
+  upsertZoomMeeting(next);
   return next;
 }
 

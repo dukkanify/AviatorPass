@@ -139,7 +139,13 @@ describe("class join speed contracts", () => {
     expect(byNumber).not.toMatch(/readClassesDb\(/);
 
     expect(zoom).not.toMatch(/readClassesDb\(/);
-    expect(src("app/api/classes/[id]/join/route.ts")).toMatch(/ensureLiveMeetingForClass/);
+    const join = src("app/api/classes/[id]/join/route.ts");
+    expect(join).toMatch(/ensureLiveMeetingForClass/);
+    expect(join).toMatch(/void markJoin\(/);
+    expect(join).not.toMatch(/await markJoin\(/);
+    expect(src("services/classes/zoom-service.ts")).toMatch(
+      /export async function ensureInAppJoinSettings[\s\S]*upsertZoomMeeting\(next\)/,
+    );
     expect(src("lib/data/lms-class-catalog-store.ts")).toMatch(/aep_lms_live_classes/);
     expect(src("lib/data/lms-class-catalog-store.ts")).toMatch(/aep_lms_zoom_meetings/);
     expect(src("services/classes/store.ts")).toMatch(/syncClassCatalog/);

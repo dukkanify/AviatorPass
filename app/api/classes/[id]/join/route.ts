@@ -38,11 +38,9 @@ export async function POST(_request: Request, { params }: Params) {
     await ensureLiveMeetingForClass(id, user.id);
     const info = getJoinInfoForUser(id, user.id);
     if (user.role === ROLES.STUDENT) {
-      try {
-        await markJoin({ liveClassId: id, studentId: user.id, actorId: user.id });
-      } catch (error) {
+      void markJoin({ liveClassId: id, studentId: user.id, actorId: user.id }).catch((error) => {
         console.error("[classes] markJoin failed; student can still enter the classroom", error);
-      }
+      });
     }
     return NextResponse.json({ success: true, data: info, error: null });
   } catch (error) {
