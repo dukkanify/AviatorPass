@@ -197,7 +197,7 @@ describe("paid student dashboard load", () => {
       journey.indexOf("export async function ensureConfirmedFirstLectureOnTimetable"),
       journey.indexOf("const FIRST_LECTURE_LESSON_ID"),
     );
-    expect(timetable).toContain("listOfficialPackageSubjectProgress");
+    expect(timetable).toContain("listAtplPackageSubjectProgress");
     expect(timetable).not.toContain("latestPaidPackageSchedule");
     expect(timetable).not.toContain("resolveLivePaidStudent");
   });

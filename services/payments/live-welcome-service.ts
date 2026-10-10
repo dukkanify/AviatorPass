@@ -210,7 +210,7 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
       body: staffDetail,
       type: "admin.purchase",
       email: false,
-      actionUrl: "/super-admin",
+      actionUrl: "/super-admin/dashboard",
       data: { orderId: order.id },
     });
     await dispatchEmailEvent({

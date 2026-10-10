@@ -11,6 +11,7 @@ import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { getStudentAtplPackageSchedule } from "@/services/cgi/journey-service";
+import { writeCgiDb } from "@/services/cgi/store";
 import {
   officialAtplEurInstallmentAmounts,
   officialAtplEurTotalMinor,
@@ -197,5 +198,51 @@ describe("official ATPL delivery", () => {
     const after = getStudentAtplPackageSchedule(user.id, user.email);
     expect(after.instructorAssignmentStatus).toBe("assigned");
     expect(after.instructorAssignmentLabel).toMatch(/has been assigned to you/);
+  });
+
+  it("treats a booked first lecture as assigned even when the order flag is still pending", async () => {
+    const user = studentUser();
+    const instructor = readAuthDb().users.find(
+      (u) => u.role === ROLES.INSTRUCTOR && u.status === "active",
+    );
+    expect(instructor).toBeTruthy();
+    const order = await createCheckoutOrder({
+      user,
+      productId: atplProduct().id,
+      billingName: user.fullName || user.email,
+      billingEmail: user.email,
+      billingCountry: "AE",
+      idempotencyKey: `lecture-assigned-${Date.now()}`,
+    });
+    await payOrder({
+      user,
+      orderId: order.id,
+      methodBrand: "visa",
+      paymentToken: "tok_ok",
+      paymentMode: "full",
+      agreementAccepted: true,
+    });
+    const stamp = new Date().toISOString();
+    writeCgiDb((db) => {
+      db.lectureAssignments.unshift({
+        id: generateId(),
+        courseId: "atpl-022",
+        lessonId: "atpl-first-lecture",
+        lessonTitle: "Instrumentation",
+        instructorId: instructor!.id,
+        studentId: user.id,
+        status: "scheduled",
+        scheduledAt: stamp,
+        liveClassId: null,
+        notes: null,
+        assignedById: instructor!.id,
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
+    });
+    const schedule = getStudentAtplPackageSchedule(user.id, user.email);
+    expect(schedule.instructorAssignmentStatus).toBe("assigned");
+    expect(schedule.instructorAssignmentLabel).not.toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
+    expect(schedule.instructorAssignmentLabel).toMatch(/has been assigned to you/);
   }, 90_000);
 });

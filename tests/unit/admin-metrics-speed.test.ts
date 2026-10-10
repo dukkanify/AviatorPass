@@ -28,8 +28,12 @@ describe("super admin metrics speed", () => {
       /listOrdersByStatus\("pending"\)/,
     );
     expect(src("app/api/dashboard/metrics/route.ts")).toMatch(/getSuperAdminDashboardPayload\(/);
+    expect(src("app/api/dashboard/metrics/route.ts")).toMatch(/getSuperAdminCountsPayload\(/);
     expect(src("app/api/dashboard/metrics/route.ts")).toMatch(/part === "counts"/);
     expect(src("features/dashboard/super-admin-dashboard-view.tsx")).toMatch(/part=counts/);
+    expect(src("services/dashboard/metrics.ts")).toMatch(/getPlatformClassCounts\(/);
+    expect(src("services/dashboard/metrics.ts")).toMatch(/lookupAllLiveClasses\(/);
+    expect(src("services/dashboard/metrics.ts")).not.toMatch(/readClassesDb\(/);
     const counts = getPlatformOverviewCounts();
     expect(counts.totalStudents).toBeGreaterThanOrEqual(0);
     expect(counts.totalCourses).toBeGreaterThanOrEqual(0);

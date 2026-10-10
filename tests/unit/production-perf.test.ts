@@ -94,4 +94,28 @@ describe("production performance contracts", () => {
     expect(src("services/auth/auth-service.ts")).toContain("getSessionById");
     expect(src("services/auth/auth-service.ts")).toContain("sessionSeedReady");
   });
+
+  it("opens one classroom from the indexed class catalog", () => {
+    const live = src("services/classes/class-service.ts");
+    const getLive = live.slice(
+      live.indexOf("export function getLiveClass"),
+      live.indexOf("export function meetingAudienceStatus"),
+    );
+    expect(getLive).toContain("lookupLiveClass");
+    const zoom = src("services/classes/zoom-service.ts");
+    const ensure = zoom.slice(
+      zoom.indexOf("export async function ensureLiveMeetingForClass"),
+      zoom.indexOf("type ZoomMeetingDetails"),
+    );
+    expect(ensure).toContain("lookupLiveClass");
+    expect(ensure).toContain("lookupZoomMeetingByClassId");
+    expect(ensure).not.toContain("readClassesDb");
+    expect(zoom).not.toMatch(/readClassesDb\(/);
+    const list = live.slice(
+      live.indexOf("export function listLiveClasses"),
+      live.indexOf("export function getPlatformClassCounts"),
+    );
+    expect(list).toContain("lookupAllLiveClasses");
+    expect(list).not.toContain("readClassesDb");
+  });
 });

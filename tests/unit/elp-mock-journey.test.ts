@@ -4,7 +4,11 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { formatMockExamMeetingTopic, zonedWallTimeToUtc } from "@/lib/datetime/zoned";
+import {
+  formatMockExamMeetingTopic,
+  weekdayOfLocalDate,
+  zonedWallTimeToUtc,
+} from "@/lib/datetime/zoned";
 import { ROLES } from "@/constants/roles";
 import { ELP_PAGE, ONLINE_COURSE_PROGRAMMES } from "@/features/marketing/content/online-courses";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
@@ -28,6 +32,21 @@ import {
   resetMockExamsDbCache,
   writeMockExamsDb,
 } from "@/services/mock-exams/store";
+
+function upcomingKuwaitWeekday(weekday: number): string {
+  const timeZone = "Asia/Kuwait";
+  const start = Date.now();
+  for (let add = 2; add <= 16; add += 1) {
+    const ymd = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(start + add * 24 * 60 * 60 * 1000));
+    if (weekdayOfLocalDate(ymd, timeZone) === weekday) return ymd;
+  }
+  throw new Error("No upcoming Kuwait weekday");
+}
 
 describe("ELP mock exam customer journey", () => {
   beforeEach(() => {
@@ -58,8 +77,8 @@ describe("ELP mock exam customer journey", () => {
   });
 
   it("keeps Mon–Fri 17–20 and Sat–Sun 09–18 in Kuwait time", () => {
-    const tuesday = "2026-10-06"; // Tuesday
-    const saturday = "2026-10-10";
+    const tuesday = upcomingKuwaitWeekday(2);
+    const saturday = upcomingKuwaitWeekday(6);
     const examiner = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
     const elp = readMockExamsDb().examTypes.find((t) => t.code === "ELP-MOCK")!;
     const week = getMockExamSlots({
@@ -106,7 +125,7 @@ describe("ELP mock exam customer journey", () => {
     const examiner = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
     const elp = readMockExamsDb().examTypes.find((t) => t.code === "ELP-MOCK")!;
     const slots = getMockExamSlots({
-      date: "2026-10-10",
+      date: upcomingKuwaitWeekday(6),
       examinerId: examiner.id,
       examTypeId: elp.id,
     }).filter((s) => s.available);
@@ -140,7 +159,7 @@ describe("ELP mock exam customer journey", () => {
     const examiner = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
     const elp = readMockExamsDb().examTypes.find((t) => t.code === "ELP-MOCK")!;
     const slots = getMockExamSlots({
-      date: "2026-10-10",
+      date: upcomingKuwaitWeekday(6),
       examinerId: examiner.id,
       examTypeId: elp.id,
     }).filter((s) => s.available);

@@ -105,7 +105,7 @@ describe("upcoming Zoom placeholder upgrade", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    const result = await upgradeUpcomingPlaceholderMeetings({ limit: 4 });
+    const result = await upgradeUpcomingPlaceholderMeetings({ limit: 200 });
     expect(result.upgraded).toBeGreaterThanOrEqual(1);
     const meeting = (await import("@/services/classes/store"))
       .readClassesDb()

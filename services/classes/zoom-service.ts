@@ -16,7 +16,13 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
-import { readClassesDb, writeClassesDb } from "@/services/classes/store";
+import {
+  lookupLiveClass,
+  lookupZoomMeetingByClassId,
+  lookupZoomMeetingByNumber,
+  upsertZoomMeeting,
+  writeClassesDb,
+} from "@/services/classes/store";
 import { readMockExamsDb, writeMockExamsDb } from "@/services/mock-exams/store";
 import { sanitizeJoinInfoForViewer } from "@/services/zoom/policy";
 import { getIntegrationByUserId } from "@/services/zoom/store";
@@ -382,14 +388,11 @@ export async function ensureLiveMeetingForClass(
   liveClassId: string,
   actorId?: string | null,
 ): Promise<ZoomMeetingRecord | null> {
-  const liveClass = readClassesDb().classes.find(
-    (item) => item.id === liveClassId && !item.deletedAt,
-  );
-  if (!liveClass || liveClass.status === "cancelled") {
-    return readClassesDb().zoomMeetings.find((item) => item.liveClassId === liveClassId) ?? null;
+  const liveClass = lookupLiveClass(liveClassId);
+  if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
+    return lookupZoomMeetingByClassId(liveClassId);
   }
-  const existing =
-    readClassesDb().zoomMeetings.find((item) => item.liveClassId === liveClassId) ?? null;
+  const existing = lookupZoomMeetingByClassId(liveClassId);
   if (existing && !isPlaceholderZoomMeeting(existing)) {
     return ensureInAppJoinSettings(existing);
   }
@@ -500,10 +503,7 @@ export async function ensureInAppJoinSettings(
     return meeting;
   }
 
-  writeClassesDb((db) => {
-    const idx = db.zoomMeetings.findIndex((row) => row.id === meeting.id);
-    if (idx >= 0) db.zoomMeetings[idx] = next;
-  });
+  upsertZoomMeeting(next);
   return next;
 }
 
@@ -511,7 +511,7 @@ export async function updateMeetingForClass(input: {
   liveClass: LiveClass;
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord | null> {
-  const existing = readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClass.id);
+  const existing = lookupZoomMeetingByClassId(input.liveClass.id);
   if (!existing)
     return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
 
@@ -527,9 +527,7 @@ export async function updateMeetingForClass(input: {
         actorId: input.actorId,
       });
       if (updated) {
-        return (
-          readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClass.id) ?? existing
-        );
+        return lookupZoomMeetingByClassId(input.liveClass.id) ?? existing;
       }
     }
   } catch (error) {
@@ -592,15 +590,13 @@ export async function cancelMeetingForClass(input: {
   liveClassId: string;
   actorId?: string | null;
 }): Promise<void> {
-  const existing = readClassesDb().zoomMeetings.find((z) => z.liveClassId === input.liveClassId);
+  const existing = lookupZoomMeetingByClassId(input.liveClassId);
   if (!existing) return;
 
   try {
     const { deleteInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
     const instructorId =
-      existing.oauthUserId ||
-      readClassesDb().classes.find((c) => c.id === input.liveClassId)?.instructorId ||
-      "";
+      existing.oauthUserId || lookupLiveClass(input.liveClassId)?.instructorId || "";
     if (existing.oauthUserId || (instructorId && getIntegrationByUserId(instructorId))) {
       const deleted = await deleteInstructorZoomMeeting({
         liveClassId: input.liveClassId,
@@ -643,7 +639,7 @@ export async function cancelMeetingForClass(input: {
 }
 
 export function getZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord | null {
-  const meeting = readClassesDb().zoomMeetings.find((z) => z.liveClassId === liveClassId) ?? null;
+  const meeting = lookupZoomMeetingByClassId(liveClassId);
   if (!meeting) return null;
   return {
     ...meeting,
@@ -659,9 +655,7 @@ export function getZoomMeetingByClassId(liveClassId: string): ZoomMeetingRecord 
 export function getZoomMeetingByNumber(
   meetingNumber: string | null | undefined,
 ): ZoomMeetingRecord | null {
-  const id = String(meetingNumber ?? "").replace(/\D/g, "");
-  if (!id) return null;
-  return readClassesDb().zoomMeetings.find((z) => z.zoomMeetingId === id) ?? null;
+  return lookupZoomMeetingByNumber(meetingNumber);
 }
 
 export type StoredZoomSession = {

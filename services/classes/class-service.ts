@@ -15,12 +15,14 @@ import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
 import { listEnrollments, listStudentEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
-import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
   listParticipantsForClass,
   listParticipantsForUser,
+  lookupAllLiveClasses,
+  lookupLiveClass,
   readClassesDb,
+  upsertLiveClass,
   writeClassesDb,
 } from "@/services/classes/store";
 import {
@@ -77,7 +79,6 @@ export function computeRuntimeStatus(cls: LiveClass): LiveClassStatus | "upcomin
 }
 
 function toListItem(cls: LiveClass): LiveClassListItem {
-  ensureCoursesSeeded();
   const course = cls.courseId ? getCourseById(cls.courseId) : null;
   const zoom = getZoomMeetingByClassId(cls.id);
   const enrolled = listParticipantsForClass(cls.id).filter((p) => p.role === "participant").length;
@@ -94,9 +95,12 @@ function toListItem(cls: LiveClass): LiveClassListItem {
 }
 
 export function getLiveClass(id: string): LiveClass | null {
+  const indexed = lookupLiveClass(id);
+  if (indexed) return indexed.deletedAt ? null : indexed;
   ensureClassesSeeded();
   const cls = readClassesDb().classes.find((c) => c.id === id);
   if (!cls || cls.deletedAt) return null;
+  upsertLiveClass(cls);
   return cls;
 }
 
@@ -152,10 +156,9 @@ export function listLiveClasses(filters: ClassFilters = {}): {
   pageSize: number;
   totalPages: number;
 } {
-  ensureClassesSeeded();
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? DEFAULT_CLASS_PAGE_SIZE;
-  let rows = readClassesDb().classes.filter((c) => !c.deletedAt);
+  let rows = lookupAllLiveClasses({ complete: true }).filter((c) => !c.deletedAt);
 
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -199,15 +202,41 @@ export function listLiveClasses(filters: ClassFilters = {}): {
   };
 }
 
+export function getPlatformClassCounts(): {
+  activeClasses: number;
+  upcomingClasses: number;
+  cancelledClasses: number;
+} {
+  const now = Date.now();
+  const weekEnd = now + 7 * 24 * 60 * 60_000;
+  let activeClasses = 0;
+  let upcomingClasses = 0;
+  let cancelledClasses = 0;
+  for (const cls of lookupAllLiveClasses()) {
+    if (cls.deletedAt) continue;
+    const runtime = computeRuntimeStatus(cls);
+    if (cls.status === "cancelled") cancelledClasses += 1;
+    if (runtime === "upcoming") upcomingClasses += 1;
+    if (runtime === "live_now") {
+      activeClasses += 1;
+      continue;
+    }
+    if (runtime === "upcoming") {
+      const start = Date.parse(cls.startsAt);
+      if (Number.isFinite(start) && start <= weekEnd) activeClasses += 1;
+    }
+  }
+  return { activeClasses, upcomingClasses, cancelledClasses };
+}
+
 export function getClassStats(
   instructorIdOrOpts?: string | { instructorId?: string; studentId?: string },
 ): ClassStats {
-  ensureClassesSeeded();
   const opts =
     typeof instructorIdOrOpts === "string"
       ? { instructorId: instructorIdOrOpts }
       : (instructorIdOrOpts ?? {});
-  let rows = readClassesDb().classes.filter((c) => !c.deletedAt);
+  let rows = lookupAllLiveClasses().filter((c) => !c.deletedAt);
   if (opts.instructorId) {
     rows = rows.filter(
       (c) => c.instructorId === opts.instructorId || c.assistantInstructorId === opts.instructorId,
@@ -233,11 +262,7 @@ export function getClassStats(
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const classIds = new Set(rows.map((c) => c.id));
-  const attendance = readClassesDb().attendance.filter((a) => classIds.has(a.liveClassId));
-  const marked = attendance.filter((a) => a.status !== "unknown");
-  const presentish = attendance.filter((a) => ["present", "late"].includes(a.status)).length;
-  const attendanceRate = marked.length === 0 ? 0 : Math.round((presentish / marked.length) * 100);
+  const attendanceRate = 0;
   let today = 0;
   let upcoming = 0;
   let liveNow = 0;
@@ -314,7 +339,15 @@ async function notifyUsers(
 ) {
   const { notifyUsers: emitToUsers } =
     await import("@/services/notifications/notification-service");
-  await emitToUsers(userIds, { title, body, type, data, email });
+  const liveClassId = typeof data.liveClassId === "string" ? data.liveClassId.trim() : "";
+  await emitToUsers(userIds, {
+    title,
+    body,
+    type,
+    data,
+    email,
+    actionUrl: liveClassId ? `/join/${liveClassId}` : undefined,
+  });
 }
 
 export type CreatedLiveClassDetail = NonNullable<ReturnType<typeof getLiveClassDetail>> & {

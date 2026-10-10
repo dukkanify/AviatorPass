@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { authFetch } from "@/features/auth/services/auth-api";
 import { routes } from "@/constants/routes";
 import type { NotificationRecord, PaginatedResponse } from "@/types";
+import { notificationTargetHref } from "@/lib/notifications/notification-href";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -68,10 +69,6 @@ function categoryColor(category?: string): string {
   }
 }
 
-function isSafeAppPath(href: string): boolean {
-  return href.startsWith("/") && !href.startsWith("//") && !href.startsWith("/\\");
-}
-
 function NotificationBell() {
   const { user } = useAuth();
   const router = useRouter();
@@ -83,9 +80,14 @@ function NotificationBell() {
   const [ringKey, setRingKey] = React.useState(0);
   const prevUnread = React.useRef(0);
 
-  const notificationsHref = user
-    ? `/${user.role === "super_admin" ? "super-admin" : user.role === "chief_ground_instructor" ? "cgi" : user.role}/notifications`
-    : routes.login;
+  const roleSegment = user
+    ? user.role === "super_admin"
+      ? "super-admin"
+      : user.role === "chief_ground_instructor"
+        ? "cgi"
+        : user.role
+    : "student";
+  const notificationsHref = user ? `/${roleSegment}/notifications` : routes.login;
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -137,11 +139,10 @@ function NotificationBell() {
 
   const openItem = (record: NotificationRecord) => {
     void markRead(record.id);
-    const href = record.actionUrl?.trim();
-    if (href && isSafeAppPath(href)) {
-      setOpen(false);
-      router.push(href);
-    }
+    const href = notificationTargetHref(record, roleSegment);
+    if (!href) return;
+    setOpen(false);
+    window.setTimeout(() => router.push(href), 0);
   };
 
   const groups = payload?.groups ?? [];

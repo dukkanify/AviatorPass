@@ -500,10 +500,11 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 <div>
                   <p className="font-medium">Next lecture</p>
                   <p className="text-sm text-muted-foreground">
-                    Agree a date and time with the student, then press Schedule Next Session. The
-                    student is emailed the subject, date, time, and join link. If you cannot book
-                    the next session, press Unable to Schedule. TKI 1 and Super Admin are emailed
-                    and the student status becomes Scheduling Required.
+                    Agree a date and time with the student from your availability, then press
+                    Schedule Next Session. The student is emailed the subject, date, time, and join
+                    link. If you are not available, press Unable to Schedule. You, TKI 1, and Super
+                    Admin are notified, the student status becomes Scheduling Required, and TKI 1
+                    can assign another instructor.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">

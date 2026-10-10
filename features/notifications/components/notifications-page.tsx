@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Archive, Bell, CheckCheck, Search, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { authFetch } from "@/features/auth/services/auth-api";
+import { notificationTargetHref } from "@/lib/notifications/notification-href";
 import { routes } from "@/constants/routes";
 import type { NotificationRecord, PaginatedResponse } from "@/types";
 import { cn } from "@/lib/utils";
@@ -65,6 +67,7 @@ function relativeTime(iso: string): string {
 }
 
 function NotificationsPageView({ roleSegment }: NotificationsPageViewProps) {
+  const router = useRouter();
   const [items, setItems] = React.useState<NotificationRecord[]>([]);
   const [groups, setGroups] = React.useState<ListPayload["groups"]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -312,13 +315,21 @@ function NotificationsPageView({ roleSegment }: NotificationsPageViewProps) {
         <div className="space-y-3">
           {display.map((g) => {
             const n = g.latest;
+            const href = notificationTargetHref(n, roleSegment);
             return (
               <Card
                 key={n.id}
                 className={cn("transition-opacity", n.readAt ? "opacity-75" : "border-accent/30")}
               >
                 <CardContent className="flex items-start justify-between gap-4 p-4">
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => {
+                      if (!n.readAt) act(n.id, "read");
+                      if (href) router.push(href);
+                    }}
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium">{g.title}</p>
                       {!n.readAt ? <Badge variant="accent">New</Badge> : null}
@@ -334,7 +345,7 @@ function NotificationsPageView({ roleSegment }: NotificationsPageViewProps) {
                     <p className="mt-2 text-xs text-muted-foreground">
                       {relativeTime(n.createdAt)} · {new Date(n.createdAt).toLocaleString()}
                     </p>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 flex-col gap-1">
                     {!n.readAt ? (
                       <Button

@@ -98,7 +98,8 @@ async function alertUnableToSchedule(input: {
   const adminIds = [...listUsersByRole(ROLES.SUPER_ADMIN), ...listUsersByRole(ROLES.ADMIN)]
     .filter((u) => u.status === "active")
     .map((u) => u.id);
-  const recipients = [...new Set([...cgiIds, ...adminIds])];
+  const instructorIds = instructor?.status === "active" ? [instructor.id] : [];
+  const recipients = [...new Set([...cgiIds, ...adminIds, ...instructorIds])];
 
   if (cgiIds.length) {
     await notifyUsers(cgiIds, {
@@ -121,7 +122,24 @@ async function alertUnableToSchedule(input: {
       body,
       type: "admin.unable_to_schedule",
       email: false,
-      actionUrl: "/super-admin",
+      actionUrl: input.request.liveClassId
+        ? `/super-admin/classes/${input.request.liveClassId}`
+        : "/super-admin/dashboard",
+      data: {
+        assignmentRequestId: input.request.id,
+        studentId: input.request.studentId,
+        liveClassId: input.request.liveClassId,
+        reason: input.reason,
+      },
+    });
+  }
+  if (instructorIds.length) {
+    await notifyUsers(instructorIds, {
+      title,
+      body,
+      type: "instructor.unable_to_schedule",
+      email: false,
+      actionUrl: "/instructor/schedule",
       data: {
         assignmentRequestId: input.request.id,
         studentId: input.request.studentId,
