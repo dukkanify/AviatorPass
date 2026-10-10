@@ -703,7 +703,7 @@ async function bindLiveClassToAssignedSubject(input: {
   lessonId: string;
   notes: string;
   actorId: string;
-}): Promise<string> {
+}): Promise<string | null> {
   enrollStudentsInLiveClass(input.liveClassId, [input.studentId]);
   const live = getLiveClass(input.liveClassId);
   if (
