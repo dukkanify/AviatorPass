@@ -55,7 +55,7 @@ function StudentCertificatesView() {
         <EmptyState
           icon={<Award className="h-6 w-6" />}
           title="No certificates yet"
-          description="Completed courses can generate certificates automatically or via instructor approval."
+          description="The academy issues your certificate here. It is not created automatically when a subject ends."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

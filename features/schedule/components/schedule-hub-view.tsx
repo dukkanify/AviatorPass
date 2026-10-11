@@ -23,6 +23,7 @@ import {
   ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+  activeAtplLecture,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
 
@@ -163,7 +164,11 @@ export function ScheduleHubView({
     <div className="space-y-8">
       <PageHeader
         title="Schedule"
-        description="Dynamic schedule for Live Courses and ATPL — builder, next session, reminders, attendance, and timeline."
+        description={
+          role === "student"
+            ? "Your ATPL lectures. Join Zoom opens the classroom for the current subject."
+            : "Dynamic schedule for Live Courses and ATPL — builder, next session, reminders, attendance, and timeline."
+        }
         breadcrumbs={breadcrumbs}
         actions={
           calendarHref ? (
@@ -178,55 +183,76 @@ export function ScheduleHubView({
 
       {role === "student" && (atplSchedule?.orderId || atplSchedule?.packageOwned) ? (
         <section className="rounded-xl border border-border bg-card px-4 py-3">
-          {atplSchedule.orderId ? (
-            <>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                {atplSchedule.instructorAssignmentStatus === "pending"
-                  ? atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
-                  : atplSchedule.scheduleProvisional
-                    ? "Provisional first lecture"
-                    : "Confirmed first lecture"}
-              </p>
-              <p className="mt-1 font-medium">
-                {atplSchedule.scheduleProvisional
-                  ? atplSchedule.requestedFirstLectureLabel
-                  : atplSchedule.confirmedFirstLectureLabel}
-                {atplSchedule.firstLectureSubjectTitle
-                  ? ` · ${atplSchedule.firstLectureSubjectTitle}`
-                  : ""}
-              </p>
-              {atplSchedule.instructorAssignmentStatus === "pending" ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {ATPL_INSTRUCTOR_CONFIRM_NOTICE}
+          {(() => {
+            const active = activeAtplLecture(atplSchedule);
+            const activeName = [active.code, active.title].filter(Boolean).join(" ");
+            return (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                  {atplSchedule.instructorAssignmentStatus === "pending"
+                    ? atplSchedule.instructorAssignmentLabel || ATPL_PENDING_INSTRUCTOR_ASSIGNMENT
+                    : "Current lecture"}
                 </p>
-              ) : null}
-              <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
-              {atplSchedule.nextSubjectTitle ? (
-                <p className="mt-2 text-sm">
-                  Next subject: <span className="font-medium">{atplSchedule.nextSubjectTitle}</span>
-                  {atplSchedule.nextLectureLabel ? ` · ${atplSchedule.nextLectureLabel}` : ""}
+                <p className="mt-1 font-medium">
+                  {activeName || ATPL_COMPLETE_PACKAGE_NAME}
+                  {active.when ? ` · ${active.when}` : ""}
                 </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-              {ATPL_COMPLETE_PACKAGE_NAME}
-            </p>
-          )}
+                {atplSchedule.instructorAssignmentStatus === "pending" ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {ATPL_INSTRUCTOR_CONFIRM_NOTICE}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
+                {active.liveClassId ? (
+                  <p className="mt-2">
+                    <Link
+                      className="text-sm font-medium text-accent"
+                      href={`/join/${active.liveClassId}`}
+                    >
+                      Join Zoom
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Your instructor sets this date after the current lecture.
+                  </p>
+                )}
+                {atplSchedule.nextSubjectTitle && active.code !== atplSchedule.nextSubjectCode ? (
+                  <p className="mt-2 text-sm">
+                    Next subject:{" "}
+                    <span className="font-medium">{atplSchedule.nextSubjectTitle}</span>
+                  </p>
+                ) : null}
+              </>
+            );
+          })()}
           {atplSchedule.subjects.length > 0 ? (
             <ol className="mt-3 space-y-1 text-sm">
-              {atplSchedule.subjects.map((subject) => (
-                <li key={subject.code}>
-                  <span className="text-muted-foreground">{subject.code}</span>
-                  {" · "}
-                  {subject.title}
-                  {subject.opening ? (
-                    <span className="ml-2 text-xs uppercase tracking-wide text-accent">
-                      First lecture
+              {atplSchedule.subjects.map((subject) => {
+                const active = activeAtplLecture(atplSchedule);
+                const isCurrent = active.code === subject.code && subject.status !== "completed";
+                return (
+                  <li key={subject.code} className="flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground">{subject.code}</span>
+                    <span>{subject.title}</span>
+                    <span className="text-xs uppercase tracking-wide text-accent">
+                      {subject.status === "completed"
+                        ? "Complete"
+                        : isCurrent
+                          ? "Current"
+                          : "Queued"}
                     </span>
-                  ) : null}
-                </li>
-              ))}
+                    {isCurrent && active.liveClassId ? (
+                      <Link
+                        className="text-sm font-medium text-accent"
+                        href={`/join/${active.liveClassId}`}
+                      >
+                        Join Zoom
+                      </Link>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ol>
           ) : null}
         </section>
@@ -312,31 +338,36 @@ export function ScheduleHubView({
             </div>
             <p>
               <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
-                Open classroom
+                Join Zoom
               </Link>
             </p>
           </div>
-        ) : atplSchedule &&
-          !atplSchedule.scheduleProvisional &&
-          atplSchedule.confirmedFirstLectureLabel ? (
-          <div className="space-y-2">
-            <p className="text-2xl font-semibold tracking-tight">
-              {atplSchedule.firstLectureSubjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {atplSchedule.confirmedFirstLectureLabel} · upcoming · ATPL
-            </p>
-            {atplSchedule.firstLectureLiveClassId ? (
-              <p>
-                <Link
-                  className="text-sm font-medium text-accent"
-                  href={`/join/${atplSchedule.firstLectureLiveClassId}`}
-                >
-                  Open classroom
-                </Link>
-              </p>
-            ) : null}
-          </div>
+        ) : atplSchedule?.packageOwned ? (
+          (() => {
+            const active = activeAtplLecture(atplSchedule);
+            const activeName = [active.code, active.title].filter(Boolean).join(" ");
+            return (
+              <div className="space-y-2">
+                <p className="text-2xl font-semibold tracking-tight">
+                  {activeName || ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {active.when ?? "Your instructor sets this date after the current lecture."} ·
+                  ATPL
+                </p>
+                {active.liveClassId ? (
+                  <p>
+                    <Link
+                      className="text-sm font-medium text-accent"
+                      href={`/join/${active.liveClassId}`}
+                    >
+                      Join Zoom
+                    </Link>
+                  </p>
+                ) : null}
+              </div>
+            );
+          })()
         ) : (
           <p className="text-sm text-muted-foreground">No upcoming session.</p>
         )}

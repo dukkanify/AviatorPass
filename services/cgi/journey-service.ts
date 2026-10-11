@@ -216,11 +216,27 @@ function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectP
   if (!studentId) return listOfficialPackageSubjectProgress();
   const plan = listStudentSubjectPlan(studentId);
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
+  let currentSeen = false;
   return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
     const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
     const row = (courseId ? byCourse.get(courseId) : null) ?? null;
     const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
-    const status = row?.status ?? (opening ? "available" : "locked");
+    let status = row?.status ?? (opening ? "available" : "locked");
+    // One subject is current. A later row stays queued until the one before it is complete.
+    if (status === "completed") {
+      return {
+        code: subject.code,
+        title: subject.title,
+        shortDescription: subject.shortDescription,
+        status,
+        opening,
+      };
+    }
+    if (!currentSeen && (status === "available" || status === "in_progress")) {
+      currentSeen = true;
+    } else if (status === "available" || status === "in_progress") {
+      status = "locked";
+    }
     return {
       code: subject.code,
       title: subject.title,

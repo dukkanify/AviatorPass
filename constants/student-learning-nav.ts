@@ -27,7 +27,7 @@ const COMMUNICATION_HREFS = [
   "/student/support",
 ] as const;
 
-const ACCOUNT_HREFS = ["/student/profile"] as const;
+const ACCOUNT_HREFS = ["/student/profile", "/student/settings"] as const;
 
 const PRIORITY_HREFS = new Set<string>([
   ...MAIN_HREFS,
@@ -50,6 +50,7 @@ const LABEL_OVERRIDES: Record<string, string> = {
   "/student/announcements": "Announcements",
   "/student/support": "Support",
   "/student/profile": "Profile",
+  "/student/settings": "Settings",
 };
 
 function itemByHref(href: string): DashboardNavItem {
@@ -101,14 +102,7 @@ export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
   {
     id: "account",
     label: "Account",
-    items: [
-      ...ACCOUNT_HREFS.map(itemByHref),
-      {
-        label: "Settings",
-        href: "/student/profile#settings",
-        icon: "settings",
-      },
-    ],
+    items: ACCOUNT_HREFS.map(itemByHref),
   },
   {
     id: "more",
