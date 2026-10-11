@@ -32,6 +32,7 @@ const EMPTY_CGI_SNAPSHOT: CgiSnapshot = {
   confirmedFirstLectures: [],
   readyForNextSubject: [],
   readyToCompleteSubject: [],
+  schedulingRequired: [],
   instructors: [],
 };
 
