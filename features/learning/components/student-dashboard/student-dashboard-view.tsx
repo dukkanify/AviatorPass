@@ -649,7 +649,7 @@ function LearningDashboardView() {
             <section className="sl-card" aria-labelledby="recent-activity-title">
               <div className="sl-card-head">
                 <h2 id="recent-activity-title">Recent Activity</h2>
-                <Link href="/student/history">History</Link>
+                {packageJourney ? null : <Link href="/student/history">History</Link>}
               </div>
               {overview.recentActivity.length === 0 ? (
                 <div className="sl-empty">
@@ -671,30 +671,32 @@ function LearningDashboardView() {
               )}
             </section>
 
-            <section className="sl-card" aria-labelledby="achievements-title">
-              <div className="sl-card-head">
-                <h2 id="achievements-title">Achievements</h2>
-                <Link href="/student/certificates#achievements">View all</Link>
-              </div>
-              <div className="sl-hex-grid">
-                {achievements.map((item) => (
-                  <article
-                    key={item.id}
-                    className="sl-hex"
-                    data-locked={item.unlocked ? "false" : "true"}
-                  >
-                    <span className="sl-hex-shape" aria-hidden>
-                      {item.unlocked ? (
-                        <Hexagon className="h-6 w-6" />
-                      ) : (
-                        <Lock className="h-5 w-5" />
-                      )}
-                    </span>
-                    <strong>{item.title}</strong>
-                  </article>
-                ))}
-              </div>
-            </section>
+            {packageJourney ? null : (
+              <section className="sl-card" aria-labelledby="achievements-title">
+                <div className="sl-card-head">
+                  <h2 id="achievements-title">Achievements</h2>
+                  <Link href="/student/certificates#achievements">View all</Link>
+                </div>
+                <div className="sl-hex-grid">
+                  {achievements.map((item) => (
+                    <article
+                      key={item.id}
+                      className="sl-hex"
+                      data-locked={item.unlocked ? "false" : "true"}
+                    >
+                      <span className="sl-hex-shape" aria-hidden>
+                        {item.unlocked ? (
+                          <Hexagon className="h-6 w-6" />
+                        ) : (
+                          <Lock className="h-5 w-5" />
+                        )}
+                      </span>
+                      <strong>{item.title}</strong>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         </div>
 
@@ -896,7 +898,9 @@ function LearningDashboardView() {
             </span>
             <h2>Need Help?</h2>
             <p className="sl-muted">
-              Our academy team can unblock your next lesson, booking, or exam attempt.
+              {packageJourney
+                ? "Our academy team can help with your current lecture."
+                : "Our academy team can unblock your next lesson, booking, or exam attempt."}
             </p>
             <Link href="/student/support">
               Contact Support

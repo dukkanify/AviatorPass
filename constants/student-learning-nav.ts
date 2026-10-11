@@ -11,23 +11,17 @@ export type StudentNavGroup = {
 
 const MAIN_HREFS = ["/student/dashboard"] as const;
 
-const LEARNING_HREFS = [
-  "/student/courses",
-  "/student/calendar",
-  "/student/planner",
-  "/student/mock-exams",
-  "/student/resources",
-] as const;
+const LEARNING_HREFS = ["/student/courses", "/student/schedule"] as const;
 
-const PROGRESS_HREFS = ["/student/progress", "/student/certificates"] as const;
+const PROGRESS_HREFS = ["/student/performance-reports", "/student/certificates"] as const;
 
 const COMMUNICATION_HREFS = [
   "/student/messages",
-  "/student/announcements",
+  "/student/notifications",
   "/student/support",
 ] as const;
 
-const ACCOUNT_HREFS = ["/student/profile", "/student/settings"] as const;
+const ACCOUNT_HREFS = ["/student/billing", "/student/profile", "/student/settings"] as const;
 
 const PRIORITY_HREFS = new Set<string>([
   ...MAIN_HREFS,
@@ -40,15 +34,13 @@ const PRIORITY_HREFS = new Set<string>([
 const LABEL_OVERRIDES: Record<string, string> = {
   "/student/dashboard": "Dashboard",
   "/student/courses": "My Courses",
-  "/student/calendar": "Live Sessions",
-  "/student/planner": "Study Planner",
-  "/student/mock-exams": "Mock Exams",
-  "/student/resources": "Resources",
-  "/student/progress": "Progress",
+  "/student/schedule": "Schedule",
+  "/student/performance-reports": "Performance reports",
   "/student/certificates": "Certificates",
   "/student/messages": "Messages",
-  "/student/announcements": "Announcements",
+  "/student/notifications": "Notifications",
   "/student/support": "Support",
+  "/student/billing": "Billing",
   "/student/profile": "Profile",
   "/student/settings": "Settings",
 };
@@ -62,13 +54,6 @@ function itemByHref(href: string): DashboardNavItem {
     ...found,
     label: LABEL_OVERRIDES[href] ?? found.label,
   };
-}
-
-function remainingItems(): DashboardNavItem[] {
-  return STUDENT_NAV.filter((item) => !PRIORITY_HREFS.has(item.href)).map((item) => ({
-    ...item,
-    label: LABEL_OVERRIDES[item.href] ?? item.label,
-  }));
 }
 
 export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
@@ -85,14 +70,7 @@ export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
   {
     id: "progress",
     label: "Progress",
-    items: [
-      ...PROGRESS_HREFS.map(itemByHref),
-      {
-        label: "Achievements",
-        href: "/student/certificates#achievements",
-        icon: "certificates",
-      },
-    ],
+    items: [...PROGRESS_HREFS.map(itemByHref)],
   },
   {
     id: "communication",
@@ -104,18 +82,30 @@ export const STUDENT_LEARNING_NAV_GROUPS: StudentNavGroup[] = [
     label: "Account",
     items: ACCOUNT_HREFS.map(itemByHref),
   },
-  {
-    id: "more",
-    label: "More",
-    items: remainingItems(),
-  },
 ];
 
 export const STUDENT_LEARNING_NAV_ITEMS: DashboardNavItem[] = STUDENT_LEARNING_NAV_GROUPS.flatMap(
   (group) => group.items,
 );
 
+const HIDDEN_FROM_PACKAGE_STUDENT = [
+  "/student/bookings",
+  "/student/checkout",
+  "/student/mock-exams",
+  "/student/ai",
+  "/student/community",
+  "/student/calendar",
+  "/student/planner",
+  "/student/resources",
+] as const;
+
+/** The package student menu is the approved ATPL journey, not every student route. */
 export function studentNavCoversAllRoutes(): boolean {
-  const grouped = new Set(STUDENT_LEARNING_NAV_ITEMS.map((item) => item.href));
-  return STUDENT_NAV.every((item) => grouped.has(item.href));
+  const grouped = STUDENT_LEARNING_NAV_ITEMS.map((item) => item.href);
+  const approved = [...PRIORITY_HREFS];
+  return (
+    grouped.length === approved.length &&
+    approved.every((href) => grouped.includes(href)) &&
+    HIDDEN_FROM_PACKAGE_STUDENT.every((href) => !grouped.includes(href))
+  );
 }

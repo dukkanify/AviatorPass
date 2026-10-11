@@ -28,11 +28,18 @@ import {
 const root = process.cwd();
 
 describe("student learning navigation", () => {
-  it("keeps every existing student route reachable", () => {
+  it("shows only the approved ATPL student journey", () => {
     expect(studentNavCoversAllRoutes()).toBe(true);
     const grouped = new Set(STUDENT_LEARNING_NAV_ITEMS.map((item) => item.href));
-    for (const item of STUDENT_NAV) {
-      expect(grouped.has(item.href)).toBe(true);
+    for (const href of [
+      "/student/bookings",
+      "/student/checkout",
+      "/student/mock-exams",
+      "/student/ai",
+      "/student/community",
+    ]) {
+      expect(grouped.has(href)).toBe(false);
+      expect(STUDENT_NAV.some((item) => item.href === href)).toBe(true);
     }
   });
 
@@ -42,10 +49,7 @@ describe("student learning navigation", () => {
     expect(main?.items.map((item) => item.href)).toEqual(["/student/dashboard"]);
     expect(learning?.items.map((item) => item.href)).toEqual([
       "/student/courses",
-      "/student/calendar",
-      "/student/planner",
-      "/student/mock-exams",
-      "/student/resources",
+      "/student/schedule",
     ]);
   });
 });

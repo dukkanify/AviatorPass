@@ -281,7 +281,7 @@ function MyCoursesView() {
       ) : (
         <>
           {showPackage && schedule ? <PaidPackageSteps schedule={schedule} /> : null}
-          {otherCourses.length > 0 ? (
+          {!showPackage && otherCourses.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
               {otherCourses.map((course) => {
                 const pct = Math.round(course.learning?.progressPercent ?? 0);

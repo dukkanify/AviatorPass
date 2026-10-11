@@ -391,7 +391,7 @@ function RoleShell({ role, navItems, children }: RoleShellProps) {
           </div>
         </main>
       </div>
-      <FloatingAiAssistant />
+      {role === ROLES.INSTRUCTOR ? null : <FloatingAiAssistant />}
     </div>
   );
 }
