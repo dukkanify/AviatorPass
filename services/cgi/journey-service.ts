@@ -216,11 +216,27 @@ function listAtplPackageSubjectProgress(studentId?: string): AtplPackageSubjectP
   if (!studentId) return listOfficialPackageSubjectProgress();
   const plan = listStudentSubjectPlan(studentId);
   const byCourse = new Map(plan.map((row) => [row.courseId, row]));
+  let currentSeen = false;
   return ATPL_COMPLETE_PACKAGE_SUBJECTS.map((subject, index) => {
     const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
     const row = (courseId ? byCourse.get(courseId) : null) ?? null;
     const opening = subject.code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || index === 0;
-    const status = row?.status ?? (opening ? "available" : "locked");
+    let status = row?.status ?? (opening ? "available" : "locked");
+    // One subject is current. A later row stays queued until the one before it is complete.
+    if (status === "completed") {
+      return {
+        code: subject.code,
+        title: subject.title,
+        shortDescription: subject.shortDescription,
+        status,
+        opening,
+      };
+    }
+    if (!currentSeen && (status === "available" || status === "in_progress")) {
+      currentSeen = true;
+    } else if (status === "available" || status === "in_progress") {
+      status = "locked";
+    }
     return {
       code: subject.code,
       title: subject.title,
@@ -1014,13 +1030,15 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
   subjectCode: string | null;
   subjectTitle: string;
 }> {
+  const officialCourseIds = new Set(listAtplCourses().map((course) => course.id));
   return listLectureAssignments({ instructorId: options?.instructorId })
-    .filter(
-      (row) =>
-        Boolean(row.studentId) &&
-        row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID &&
-        row.status === "scheduled",
-    )
+    .filter((row) => {
+      if (!row.studentId || row.status !== "scheduled") return false;
+      if (row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID) return true;
+      // A booked ATPL lecture still belongs on the instructor timetable when the
+      // lesson id is the subject lesson rather than the opening sentinel.
+      return officialCourseIds.has(row.courseId);
+    })
     .map((row) => {
       const studentId = row.studentId as string;
       const student = findUserById(studentId);

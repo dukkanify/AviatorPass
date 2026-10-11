@@ -93,6 +93,13 @@ describe("production performance contracts", () => {
     );
     expect(src("services/auth/auth-service.ts")).toContain("getSessionById");
     expect(src("services/auth/auth-service.ts")).toContain("sessionSeedReady");
+    const sessionFn = src("services/auth/auth-service.ts");
+    const sessionBody = sessionFn.slice(
+      sessionFn.indexOf("export async function getCurrentSession"),
+    );
+    expect(sessionBody.indexOf("getSessionById")).toBeLessThan(
+      sessionBody.indexOf("ensureDemoUsersSeeded"),
+    );
   });
 
   it("opens one classroom from the indexed class catalog", () => {

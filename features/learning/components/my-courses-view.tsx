@@ -8,6 +8,7 @@ import { ACTION_LABELS } from "@/constants/programme-terms";
 import {
   ATPL_COMPLETE_PACKAGE_NAME,
   ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+  activeAtplLecture,
   easaCodeFromAtplCourseCode,
   type AtplPackageScheduleSnapshot,
   type AtplPackageSubjectProgress,
@@ -99,14 +100,9 @@ function PaidPackageSteps({ schedule }: { schedule: AtplPackageScheduleSnapshot 
       cleanLabel(schedule.assignedInstructorName) ||
       cleanLabel(schedule.instructorAssignmentLabel) ||
       "Instructor assigned";
-  const lecture =
-    cleanLabel(
-      schedule.scheduleProvisional
-        ? schedule.requestedFirstLectureLabel
-        : schedule.confirmedFirstLectureLabel,
-    ) ||
-    schedule.firstLectureSubjectTitle ||
-    "Instrumentation";
+  const active = activeAtplLecture(schedule);
+  const lecture = [active.code, active.title].filter(Boolean).join(" ") || "Instrumentation";
+  const lectureWhen = cleanLabel(active.when);
 
   return (
     <section className="sl-package" aria-labelledby="atpl-next-steps-title">
@@ -134,15 +130,16 @@ function PaidPackageSteps({ schedule }: { schedule: AtplPackageScheduleSnapshot 
         <article>
           <p className="sl-package-kicker">Current lecture</p>
           <strong>{lecture}</strong>
-          {schedule.firstLectureLiveClassId ? (
-            <Link className="sl-btn-gold" href={`/join/${schedule.firstLectureLiveClassId}`}>
+          {lectureWhen ? <p className="sl-muted">{lectureWhen}</p> : null}
+          {active.liveClassId ? (
+            <Link className="sl-btn-gold" href={`/join/${active.liveClassId}`}>
               Join Zoom
             </Link>
           ) : (
             <p className="sl-muted">
               {schedule.scheduleProvisional
                 ? "Waiting for TKI 1 to confirm the time."
-                : "On your timetable."}
+                : "Your instructor sets this date after the current lecture."}
             </p>
           )}
         </article>
@@ -157,10 +154,9 @@ function PaidPackageSteps({ schedule }: { schedule: AtplPackageScheduleSnapshot 
       <ol className="sl-package-list">
         {schedule.subjects.map((subject, index) => {
           const state = subjectState(subject, schedule.subjects);
-          const previous = index > 0 ? schedule.subjects[index - 1] : null;
           const detail =
             lectureLabel(subject, state, schedule) ??
-            (state === "later" && previous ? `Follows ${previous.title}` : null);
+            (state === "later" ? "Queued until the instructor books it." : null);
           const href =
             state === "current" || state === "next" ? classroomHref(subject, schedule) : null;
           return (

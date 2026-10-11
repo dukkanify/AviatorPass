@@ -254,13 +254,6 @@ export async function getCurrentSession(): Promise<{
   user: UserProfile | null;
   permissions: ReturnType<typeof getPermissionsForRole>;
 }> {
-  // Seed catalog users so JWT subject ids resolve on a cold serverless isolate
-  // (Vercel has no durable .data — each function has an empty in-memory store).
-  if (!sessionSeedReady) {
-    ensureDemoUsersSeeded();
-    sessionSeedReady = true;
-  }
-
   const parsed = await readSessionCookie();
   if (!parsed) {
     return { user: null, permissions: [] };
@@ -271,7 +264,7 @@ export async function getCurrentSession(): Promise<{
     return { user: null, permissions: [] };
   }
 
-  const session = getSessionById(parsed.payload.sid);
+  let session = getSessionById(parsed.payload.sid);
 
   if (session) {
     if (session.revokedAt) {
@@ -284,10 +277,6 @@ export async function getCurrentSession(): Promise<{
     if (session.tokenHash !== tokenHash) {
       return { user: null, permissions: [] };
     }
-    const lastActiveMs = Date.parse(session.lastActiveAt);
-    if (!Number.isFinite(lastActiveMs) || Date.now() - lastActiveMs > 60_000) {
-      upsertSession({ ...session, lastActiveAt: nowIso() });
-    }
   }
 
   // Do not call cookies().set() here. Next.js throws
@@ -295,8 +284,25 @@ export async function getCurrentSession(): Promise<{
   // during RSC render — that was production digest 889204058 on
   // /student/dashboard when middleware accepted the JWT but this isolate
   // had no session row in the in-memory JSON store.
-  const userId = session?.userId ?? parsed.payload.uid;
-  const user = findUserById(userId);
+  // Seed the catalog only when this account is missing. Loading every user
+  // before the session lookup kept the page skeleton on screen.
+  let userId = session?.userId ?? parsed.payload.uid;
+  let user = userId ? findUserById(userId) : null;
+  if (!user && !sessionSeedReady) {
+    ensureDemoUsersSeeded();
+    sessionSeedReady = true;
+    if (!session) session = getSessionById(parsed.payload.sid);
+    userId = session?.userId ?? parsed.payload.uid;
+    user = userId ? findUserById(userId) : null;
+  }
+
+  if (session) {
+    const lastActiveMs = Date.parse(session.lastActiveAt);
+    if (!Number.isFinite(lastActiveMs) || Date.now() - lastActiveMs > 60_000) {
+      upsertSession({ ...session, lastActiveAt: nowIso() });
+    }
+  }
+
   if (!user) {
     return { user: null, permissions: [] };
   }

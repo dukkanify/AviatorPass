@@ -314,3 +314,43 @@ export function formatAtplPackageScheduleLabel(
   if (Number.isNaN(when.getTime())) return `${studyStartDate} · ${firstLectureTime}`;
   return formatAtplPackageInstant(when);
 }
+
+/** The lecture the student can join now. A booked next subject replaces the opening classroom. */
+export function activeAtplLecture(schedule: AtplPackageScheduleSnapshot): {
+  code: string | null;
+  title: string | null;
+  when: string | null;
+  liveClassId: string | null;
+} {
+  const openingDone = schedule.subjects.some(
+    (row) =>
+      (row.opening || row.code === schedule.firstLectureSubjectCode) && row.status === "completed",
+  );
+  if (schedule.nextLectureLiveClassId) {
+    return {
+      code: schedule.nextSubjectCode,
+      title: schedule.nextSubjectTitle,
+      when: schedule.nextLectureLabel,
+      liveClassId: schedule.nextLectureLiveClassId,
+    };
+  }
+  if (!openingDone && schedule.firstLectureLiveClassId) {
+    return {
+      code: schedule.firstLectureSubjectCode,
+      title: schedule.firstLectureSubjectTitle,
+      when: schedule.scheduleProvisional
+        ? schedule.requestedFirstLectureLabel
+        : schedule.confirmedFirstLectureLabel,
+      liveClassId: schedule.firstLectureLiveClassId,
+    };
+  }
+  const active = schedule.subjects.find(
+    (row) => row.status === "available" || row.status === "in_progress",
+  );
+  return {
+    code: active?.code ?? schedule.nextSubjectCode,
+    title: active?.title ?? schedule.nextSubjectTitle ?? schedule.firstLectureSubjectTitle,
+    when: null,
+    liveClassId: null,
+  };
+}

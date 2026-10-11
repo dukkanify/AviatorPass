@@ -24,6 +24,7 @@ import {
   ATPL_INSTRUCTOR_CONFIRM_NOTICE,
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
+  activeAtplLecture,
   type AtplPackageScheduleSnapshot,
 } from "@/constants/atpl-complete-package";
 import { learningFetch } from "@/features/learning/lib/api";
@@ -105,10 +106,10 @@ function LearningDashboardView() {
   const { user } = useAuth();
   const [overview, setOverview] = React.useState<LearningDashboardOverview | null>(null);
   const [courses, setCourses] = React.useState<CourseRow[]>([]);
-  const [calendar, setCalendar] = React.useState<LearningCalendarItem[]>([]);
   const [sessions, setSessions] = React.useState<StudySession[]>([]);
   const [certificates, setCertificates] = React.useState<Certificate[]>([]);
   const [atplSchedule, setAtplSchedule] = React.useState<AtplPackageScheduleSnapshot | null>(null);
+  const [coursesLoaded, setCoursesLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
@@ -126,7 +127,6 @@ function LearningDashboardView() {
       const dashPromise = learningFetch<LearningDashboardOverview>("/api/learning/dashboard");
       const widgetsPromise = Promise.all([
         learningFetch<CourseRow[]>("/api/learning/courses?sort=recent"),
-        learningFetch<LearningCalendarItem[]>("/api/learning/calendar"),
         learningFetch<StudySession[]>("/api/learning/planner/sessions"),
         learningFetch<Certificate[]>("/api/certificates"),
         learningFetch<AtplPackageScheduleSnapshot>("/api/learning/atpl-schedule"),
@@ -136,19 +136,19 @@ function LearningDashboardView() {
       if (!dash.success || !dash.data) {
         setError(dash.error ?? "Unable to load dashboard");
         setOverview(null);
-      } else {
-        setOverview(dash.data);
-        setError(null);
+        setLoading(false);
+        return;
       }
+      setOverview(dash.data);
+      setError(null);
       setLoading(false);
-
-      const [courseRes, calRes, sessionRes, certRes, scheduleRes] = await widgetsPromise;
+      const [courseRes, sessionRes, certRes, scheduleRes] = await widgetsPromise;
       if (cancelled) return;
       setCourses(courseRes.data ?? []);
-      setCalendar(calRes.data ?? []);
       setSessions(sessionRes.data ?? []);
       setCertificates(certRes.data ?? []);
       setAtplSchedule(scheduleRes.data ?? null);
+      setCoursesLoaded(true);
     }
     void load();
     return () => {
@@ -160,24 +160,28 @@ function LearningDashboardView() {
   const greeting = greetingForHour(new Date(now).getHours());
   const resume = overview?.resume ?? null;
   const packageJourney = Boolean(atplSchedule?.packageOwned && atplSchedule.subjects.length);
-  const nextLectureBooked = Boolean(atplSchedule?.nextLectureLiveClassId);
-  const classroomHref = nextLectureBooked
-    ? `/join/${atplSchedule?.nextLectureLiveClassId}`
-    : atplSchedule?.firstLectureLiveClassId
-      ? `/join/${atplSchedule.firstLectureLiveClassId}`
-      : null;
-  const lectureName = (
-    nextLectureBooked
-      ? [atplSchedule?.nextSubjectCode, atplSchedule?.nextSubjectTitle]
-      : [atplSchedule?.firstLectureSubjectCode, atplSchedule?.firstLectureSubjectTitle]
-  )
-    .filter(Boolean)
-    .join(" ");
-  const lectureWhen = nextLectureBooked
-    ? atplSchedule?.nextLectureLabel || null
-    : atplSchedule?.scheduleProvisional
-      ? atplSchedule.requestedFirstLectureLabel || "First lecture time is still being confirmed"
-      : atplSchedule?.confirmedFirstLectureLabel || null;
+  const activeLecture = atplSchedule ? activeAtplLecture(atplSchedule) : null;
+  const classroomHref = activeLecture?.liveClassId ? `/join/${activeLecture.liveClassId}` : null;
+  const lectureName = [activeLecture?.code, activeLecture?.title].filter(Boolean).join(" ");
+  const lectureWhen = activeLecture?.when ?? null;
+  const calendar: LearningCalendarItem[] =
+    atplSchedule?.confirmedFirstLectureAt &&
+    !atplSchedule.scheduleProvisional &&
+    activeLecture?.liveClassId &&
+    activeLecture.liveClassId === atplSchedule.firstLectureLiveClassId
+      ? [
+          {
+            id: `class-${atplSchedule.firstLectureLiveClassId}`,
+            title: atplSchedule.firstLectureSubjectTitle ?? "First lecture",
+            type: "live_class",
+            startsAt: atplSchedule.confirmedFirstLectureAt,
+            endsAt: null,
+            status: "upcoming",
+            href: classroomHref ?? "/student/schedule",
+            courseId: null,
+          },
+        ]
+      : [];
   const openingComplete = Boolean(
     atplSchedule?.subjects.some(
       (subject) =>
@@ -216,6 +220,7 @@ function LearningDashboardView() {
     : [];
   const todayItems = plannerItems.filter((item) => sameDay(item.startsAt, now));
   const assignedClassId =
+    activeLecture?.liveClassId ||
     atplSchedule?.nextLectureLiveClassId ||
     atplSchedule?.firstLectureLiveClassId ||
     overview?.upcomingLiveClassId ||
@@ -236,9 +241,11 @@ function LearningDashboardView() {
     atplSchedule?.nextSubjectTitle && atplSchedule.nextLectureLiveClassId
       ? atplSchedule.nextSubjectTitle
       : (atplSchedule?.firstLectureSubjectTitle ?? null);
-  const instructorName = hasEnrolledCourses
-    ? (currentCourse?.primaryInstructorName ?? "Instructor")
-    : "Academy team";
+  const instructorName = packageJourney
+    ? atplSchedule?.assignedInstructorName || atplSchedule?.assignedTkLabel || "Instructor"
+    : hasEnrolledCourses
+      ? (currentCourse?.primaryInstructorName ?? "Instructor")
+      : "Academy team";
   const activityDates = [
     ...(overview?.recentActivity.map((event) => event.createdAt) ?? []),
     ...sessions.map((session) => session.scheduledStart),
@@ -294,9 +301,7 @@ function LearningDashboardView() {
       action:
         item.type === "live_class"
           ? assignedClassId
-            ? live
-              ? "Join"
-              : "Open classroom"
+            ? "Join Zoom"
             : ACTION_LABELS.viewTimetable
           : item.type === "deadline"
             ? "Start"
@@ -314,11 +319,7 @@ function LearningDashboardView() {
             detail: liveItem.title,
             href: assignedClassId ? `/join/${assignedClassId}` : "/student/schedule",
             live: liveNow,
-            action: assignedClassId
-              ? liveNow
-                ? "Join"
-                : "Open classroom"
-              : ACTION_LABELS.viewTimetable,
+            action: assignedClassId ? "Join Zoom" : ACTION_LABELS.viewTimetable,
           },
         ]
       : !liveItem && confirmedStartsAt && !sameDay(confirmedStartsAt, now)
@@ -330,7 +331,7 @@ function LearningDashboardView() {
               detail: assignedSubjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE,
               href: assignedClassId ? `/join/${assignedClassId}` : "/student/schedule",
               live: false,
-              action: assignedClassId ? "Open classroom" : ACTION_LABELS.viewTimetable,
+              action: assignedClassId ? "Join Zoom" : ACTION_LABELS.viewTimetable,
             },
           ]
         : [];
@@ -418,7 +419,7 @@ function LearningDashboardView() {
 
   return (
     <div className="sl-dashboard">
-      {!hasEnrolledCourses ? (
+      {coursesLoaded && !hasEnrolledCourses && !packageJourney ? (
         <section
           className="sl-card"
           aria-label="Welcome to Aviator Pass"
@@ -521,14 +522,14 @@ function LearningDashboardView() {
           value={String(overview.activeCourses)}
           hint="Active courses"
           icon={<BookOpen className="h-4 w-4" />}
-          trend={overview.activeCourses > 0 ? "+2" : "—"}
+          trend="—"
         />
         <StatCard
           label="Overall Progress"
           value={`${clampPercent(overview.progressPercent)}%`}
           hint="Across all courses"
           icon={<TrendingUp className="h-4 w-4" />}
-          trend="+5%"
+          trend="—"
           bar={overview.progressPercent}
         />
         <StatCard
@@ -536,14 +537,18 @@ function LearningDashboardView() {
           value={formatHoursMinutes(overview.learningHours)}
           hint="Logged this term"
           icon={<Clock3 className="h-4 w-4" />}
-          trend="+12%"
+          trend="—"
         />
         <StatCard
           label="Completed Lessons"
           value={String(completedLessons)}
-          hint={`Out of ${totalLessons || 32} lessons`}
+          hint={
+            totalLessons > 0
+              ? `Out of ${totalLessons} lessons`
+              : "No recorded lessons in this package"
+          }
           icon={<GraduationCap className="h-4 w-4" />}
-          trend={completedLessons > 0 ? "+33%" : "—"}
+          trend="—"
         />
         <StatCard
           label="Certificates"
@@ -554,10 +559,16 @@ function LearningDashboardView() {
         />
         <StatCard
           label="Current GPA"
-          value={gpa.toFixed(1)}
-          hint={gpa >= 3.7 ? "Excellent" : "Building"}
+          value={completedLessons > 0 || overview.progressPercent > 0 ? gpa.toFixed(1) : "—"}
+          hint={
+            completedLessons > 0 || overview.progressPercent > 0
+              ? gpa >= 3.7
+                ? "Excellent"
+                : "Building"
+              : "Not graded yet"
+          }
           icon={<Trophy className="h-4 w-4" />}
-          trend={overview.progressPercent > 0 ? "+0.3" : "—"}
+          trend="—"
         />
         <StatCard
           label="Learning Streak"
@@ -724,15 +735,16 @@ function LearningDashboardView() {
               ) : null}
               {openingComplete ? (
                 <p className="sl-muted">Complete</p>
-              ) : atplSchedule.firstLectureLiveClassId ? (
+              ) : activeLecture?.liveClassId &&
+                activeLecture.liveClassId === atplSchedule.firstLectureLiveClassId ? (
                 <button
                   type="button"
                   className="sl-btn-gold"
                   style={{ marginTop: 12 }}
-                  onClick={() => void joinLive(atplSchedule.firstLectureLiveClassId)}
+                  onClick={() => void joinLive(activeLecture.liveClassId)}
                   disabled={joining}
                 >
-                  {joining ? "Opening…" : "Open classroom"}
+                  {joining ? "Opening…" : "Join Zoom"}
                 </button>
               ) : null}
               {atplSchedule.nextSubjectTitle ? (
@@ -743,17 +755,19 @@ function LearningDashboardView() {
                       {atplSchedule.nextSubjectCode} {atplSchedule.nextSubjectTitle}
                     </strong>
                   </p>
-                  {atplSchedule.nextLectureLiveClassId ? (
+                  {activeLecture?.liveClassId &&
+                  activeLecture.liveClassId === atplSchedule.nextLectureLiveClassId &&
+                  activeLecture.liveClassId !== atplSchedule.firstLectureLiveClassId ? (
                     <>
                       <p className="sl-muted">{atplSchedule.nextLectureLabel}</p>
                       <button
                         type="button"
                         className="sl-btn-gold"
                         style={{ marginTop: 12 }}
-                        onClick={() => void joinLive(atplSchedule.nextLectureLiveClassId)}
+                        onClick={() => void joinLive(activeLecture.liveClassId)}
                         disabled={joining}
                       >
-                        {joining ? "Opening…" : "Open classroom"}
+                        {joining ? "Opening…" : "Join Zoom"}
                       </button>
                     </>
                   ) : (
@@ -862,7 +876,7 @@ function LearningDashboardView() {
                   onClick={() => void joinLive()}
                   disabled={joining}
                 >
-                  {joining ? "Opening…" : liveNow ? "Join Live Session" : "Open classroom"}
+                  {joining ? "Opening…" : liveNow ? "Join Live Session" : "Join Zoom"}
                 </button>
               ) : (
                 <Link className="sl-btn-gold" href="/student/schedule">

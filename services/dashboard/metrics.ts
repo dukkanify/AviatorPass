@@ -11,7 +11,7 @@ import {
   listStudentGrowthMonths,
 } from "@/lib/data/auth-identity-store";
 import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
-import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { getFastCourseStats } from "@/services/courses/course-service";
@@ -36,10 +36,6 @@ import { listInstructorStudents } from "@/services/courses/instructor-students";
 import type { UserProfile } from "@/types";
 
 export { ensureDemoUsersSeeded };
-
-function countByRole(users: StoredUser[], role: Role): number {
-  return users.filter((u) => u.role === role).length;
-}
 
 function emptyFinance() {
   return {
@@ -136,7 +132,6 @@ export function getSuperAdminCountsPayload() {
 }
 
 export function getGrowthSeries(): SeriesPoint[] {
-  ensureDemoUsersSeeded();
   return listStudentGrowthMonths();
 }
 
@@ -263,7 +258,6 @@ export function getDashboardCalendarEvents(user?: UserProfile | null): CalendarE
 }
 
 export function getRecentActivityFeed(actorUserId?: string | null): ActivityItem[] {
-  ensureDemoUsersSeeded();
   const logs = actorUserId ? listActivityForActor(actorUserId) : listRecentActivityLogs(8);
   return logs.slice(0, 8).map((log) => ({
     id: log.id,
@@ -402,7 +396,6 @@ function listCoursesForMetrics(opts: {
 }
 
 export function getAdminDashboardPayload(user?: UserProfile | null) {
-  ensureDemoUsersSeeded();
   return {
     overview: getAdminOverview(),
     growth: getGrowthSeries(),
@@ -413,17 +406,15 @@ export function getAdminDashboardPayload(user?: UserProfile | null) {
 }
 
 export function getAdminOverview() {
-  // Keep this path cheap — never hydrate the course or class catalogs.
-  ensureDemoUsersSeeded();
-  const users = listAllUsers();
+  // Counts only. Do not load every user or the course catalog before paint.
   const courseStats = getFastCourseStats();
 
   return {
-    students: countByRole(users, ROLES.STUDENT),
-    instructors: countByRole(users, ROLES.INSTRUCTOR),
+    students: countUsersByRole(ROLES.STUDENT),
+    instructors: countUsersByRole(ROLES.INSTRUCTOR),
     courses: courseStats.totalCourses,
     liveClasses: 0,
-    pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
+    pendingApprovals: countUsersByStatus(ACCOUNT_STATUS.PENDING),
     communityReports: 0,
     blogActivity: 0,
   };
