@@ -1179,10 +1179,19 @@ export function getInstructorCalendar(
   };
 }
 
+function isFixtureAccount(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase().endsWith(".test");
+}
+
 export function getAssignmentEngineSnapshot() {
   ensureCoursesSeeded();
-  const instructors = listUsersByRole(ROLES.INSTRUCTOR);
-  const requests = listAssignmentRequests();
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR).filter(
+    (user) => !isFixtureAccount(user.email),
+  );
+  const requests = listAssignmentRequests().filter((request) => {
+    const student = request.studentId ? findUserById(request.studentId) : null;
+    return !isFixtureAccount(student?.email);
+  });
   return {
     settings: readAssignmentDb().settings,
     counts: {

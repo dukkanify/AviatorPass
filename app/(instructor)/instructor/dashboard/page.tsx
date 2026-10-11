@@ -68,7 +68,10 @@ export default async function InstructorDashboardPage() {
         ...base,
         label: "listAssignedFirstLectures",
         fallback: [],
-        run: () => listAssignedFirstLectures({ instructorId: user.id }),
+        run: () =>
+          listAssignedFirstLectures({ instructorId: user.id }).filter(
+            (lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"),
+          ),
       })}
     />
   );

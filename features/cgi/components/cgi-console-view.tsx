@@ -78,6 +78,15 @@ type Snapshot = {
     nextSubjectTitle: string | null;
     nextLectureLabel: string | null;
   }>;
+  schedulingRequired: Array<{
+    id: string;
+    studentId: string;
+    studentName: string;
+    studentEmail: string;
+    subject: string;
+    instructorName: string;
+    reason: string | null;
+  }>;
   instructors: Array<{
     instructorId: string;
     name: string;
@@ -87,6 +96,10 @@ type Snapshot = {
   }>;
   recentAudit: Array<{ id: string; action: string; detail: string; createdAt: string }>;
 };
+
+function liveJourneyEmail(email: string | null | undefined): boolean {
+  return Boolean(email) && !email.trim().toLowerCase().endsWith(".test");
+}
 
 async function cgiFetch<T>(query = ""): Promise<T> {
   const res = await fetch(`/api/cgi${query}`, { cache: "no-store" });
@@ -178,10 +191,8 @@ function NextSubjectCard({
   busy: boolean;
   onOpen: (date: string, time: string) => void;
 }) {
-  const soon = new Date();
-  soon.setDate(soon.getDate() + 5);
-  const [date, setDate] = React.useState(soon.toISOString().slice(0, 10));
-  const [time, setTime] = React.useState("18:00");
+  const [date, setDate] = React.useState("");
+  const [time, setTime] = React.useState("");
 
   return (
     <li className="rounded-xl border border-border bg-card px-4 py-3">
@@ -265,12 +276,12 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
   );
   const [changeCourseId, setChangeCourseId] = React.useState(initial.subjects[0]?.id ?? "");
   const [changeInstructorId, setChangeInstructorId] = React.useState(
-    initial.instructors[0]?.instructorId ?? "",
+    initial.instructors.find((row) => liveJourneyEmail(row.email))?.instructorId ?? "",
   );
   const [lectureTitle, setLectureTitle] = React.useState("ATPL briefing");
   const [lectureCourseId, setLectureCourseId] = React.useState(initial.subjects[0]?.id ?? "");
   const [lectureInstructorId, setLectureInstructorId] = React.useState(
-    initial.instructors[0]?.instructorId ?? "",
+    initial.instructors.find((row) => liveJourneyEmail(row.email))?.instructorId ?? "",
   );
   const [noteTarget, setNoteTarget] = React.useState(initial.students[0]?.studentId ?? "");
   const [noteBody, setNoteBody] = React.useState("");
@@ -286,6 +297,24 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       setLectureCourseId(selected);
     }
   }, [studentId, data.students, data.subjects]);
+
+  const pendingInstructorAssignments = (data.pendingInstructorAssignments ?? []).filter((row) =>
+    liveJourneyEmail(row.email),
+  );
+  const pendingFirstLectures = data.pendingFirstLectures.filter((row) =>
+    liveJourneyEmail(row.email),
+  );
+  const confirmedFirstLectures = data.confirmedFirstLectures.filter((row) =>
+    liveJourneyEmail(row.email),
+  );
+  const schedulingRequired = (data.schedulingRequired ?? []).filter((row) =>
+    liveJourneyEmail(row.studentEmail),
+  );
+  const readyForNextSubject = data.readyForNextSubject.filter((row) => liveJourneyEmail(row.email));
+  const readyToCompleteSubject = data.readyToCompleteSubject.filter((row) =>
+    liveJourneyEmail(row.email),
+  );
+  const instructors = data.instructors.filter((row) => liveJourneyEmail(row.email));
 
   async function refresh() {
     const next = await cgiFetch<Snapshot>("?view=dashboard");
@@ -333,10 +362,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           instructor.
         </p>
         <ul className="space-y-2 text-sm">
-          {(data.pendingInstructorAssignments ?? []).length === 0 ? (
+          {pendingInstructorAssignments.length === 0 ? (
             <li className="text-muted-foreground">No students are waiting for an instructor.</li>
           ) : (
-            (data.pendingInstructorAssignments ?? []).map((s) => (
+            pendingInstructorAssignments.map((s) => (
               <li key={s.studentId} className="rounded-xl border border-border bg-card px-4 py-3">
                 <p className="font-medium">{s.name}</p>
                 <p className="text-muted-foreground">{s.email}</p>
@@ -357,10 +386,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           notifies them.
         </p>
         <ul className="space-y-2 text-sm">
-          {data.pendingFirstLectures.length === 0 ? (
+          {pendingFirstLectures.length === 0 ? (
             <li className="text-muted-foreground">No requested first-lecture times yet.</li>
           ) : (
-            data.pendingFirstLectures.map((s) => (
+            pendingFirstLectures.map((s) => (
               <ProvisionalFirstLectureCard
                 key={s.studentId}
                 student={s}
@@ -395,10 +424,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           TKI 1 has confirmed these times. They are booked on the student timetable.
         </p>
         <ul className="space-y-2 text-sm">
-          {data.confirmedFirstLectures.length === 0 ? (
+          {confirmedFirstLectures.length === 0 ? (
             <li className="text-muted-foreground">No confirmed first lectures yet.</li>
           ) : (
-            data.confirmedFirstLectures.map((s) => (
+            confirmedFirstLectures.map((s) => (
               <li key={s.studentId} className="rounded-xl border border-border bg-card px-4 py-3">
                 <p className="font-medium">{s.name}</p>
                 <p className="text-muted-foreground">{s.email}</p>
@@ -416,16 +445,40 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Scheduling Required</h2>
+        <p className="text-sm text-muted-foreground">
+          The instructor could not agree the next lecture time. Assign another instructor below.
+          Super Admin sees the same queue.
+        </p>
+        <ul className="space-y-2 text-sm">
+          {schedulingRequired.length === 0 ? (
+            <li className="text-muted-foreground">No student is waiting for a new instructor.</li>
+          ) : (
+            schedulingRequired.map((row) => (
+              <li key={row.id} className="rounded-xl border border-border bg-card px-4 py-3">
+                <p className="font-medium">{row.studentName}</p>
+                <p className="text-muted-foreground">{row.studentEmail}</p>
+                <p className="mt-1">
+                  {row.subject} · {row.instructorName}
+                  {row.reason ? ` · ${row.reason}` : ""}
+                </p>
+              </li>
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Open next official subject</h2>
         <p className="text-sm text-muted-foreground">
           After Instrumentation is confirmed, TKI 1 books the next official subject. Booking that
           lecture marks the previous subject complete.
         </p>
         <ul className="space-y-2 text-sm">
-          {data.readyForNextSubject.length === 0 ? (
+          {readyForNextSubject.length === 0 ? (
             <li className="text-muted-foreground">No student is waiting for the next subject.</li>
           ) : (
-            data.readyForNextSubject.map((s) => (
+            readyForNextSubject.map((s) => (
               <NextSubjectCard
                 key={s.studentId}
                 student={s}
@@ -453,10 +506,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
           subject should be complete before its next lecture is booked.
         </p>
         <ul className="space-y-2 text-sm">
-          {(data.readyToCompleteSubject ?? []).length === 0 ? (
+          {readyToCompleteSubject.length === 0 ? (
             <li className="text-muted-foreground">No open subject is waiting to be completed.</li>
           ) : (
-            data.readyToCompleteSubject.map((s) => (
+            readyToCompleteSubject.map((s) => (
               <CompleteSubjectCard
                 key={s.studentId}
                 student={s}
@@ -628,7 +681,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                 <SelectValue placeholder="Instructor" />
               </SelectTrigger>
               <SelectContent>
-                {data.instructors.map((i) => (
+                {instructors.map((i) => (
                   <SelectItem key={i.instructorId} value={i.instructorId}>
                     {i.name}
                   </SelectItem>
@@ -683,7 +736,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                 <SelectValue placeholder="Instructor" />
               </SelectTrigger>
               <SelectContent>
-                {data.instructors.map((i) => (
+                {instructors.map((i) => (
                   <SelectItem key={i.instructorId} value={i.instructorId}>
                     {i.name}
                   </SelectItem>
@@ -739,7 +792,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">Instructors</h2>
           <ul className="space-y-2 text-sm">
-            {data.instructors.map((i) => (
+            {instructors.map((i) => (
               <li key={i.instructorId} className="border-b border-border/60 pb-2">
                 <span className="font-medium">{i.name}</span>
                 <div className="text-muted-foreground">

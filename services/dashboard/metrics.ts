@@ -33,6 +33,7 @@ import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
 import { getOverallProgress } from "@/services/learning/progress-service";
 import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
+import { getCgiDashboardSnapshot } from "@/services/cgi/journey-service";
 import type { UserProfile } from "@/types";
 
 export { ensureDemoUsersSeeded };
@@ -102,7 +103,9 @@ export function getPlatformOverview() {
 
 export function getSuperAdminDashboardPayload() {
   const finance = getFinanceDashboard();
+  const journey = atplControlRoomCounts();
   return {
+    journey,
     overview: buildPlatformOverview(finance),
     calendar: [],
     activity: getRecentActivityFeed(),
@@ -117,8 +120,21 @@ export function getSuperAdminDashboardPayload() {
   };
 }
 
-export function getSuperAdminCountsPayload() {
+function atplControlRoomCounts() {
+  const journey = getCgiDashboardSnapshot();
+  const live = (email: string | null | undefined) =>
+    Boolean(email) && !email.trim().toLowerCase().endsWith(".test");
   return {
+    pendingInstructor: journey.pendingInstructorAssignments.filter((row) => live(row.email)).length,
+    schedulingRequired: journey.schedulingRequired.filter((row) => live(row.studentEmail)).length,
+    confirmedLectures: journey.confirmedFirstLectures.filter((row) => live(row.email)).length,
+  };
+}
+
+export function getSuperAdminCountsPayload() {
+  const journey = atplControlRoomCounts();
+  return {
+    journey,
     overview: getPlatformOverviewCounts(),
     calendar: [],
     activity: getRecentActivityFeed(),
