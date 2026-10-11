@@ -1,7 +1,8 @@
 import { generateId } from "@/lib/security/crypto";
 import { getUserById } from "@/lib/data/auth-identity-store";
+import { readCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
-import { listEnrollmentsForCourse, readCoursesDb } from "@/services/courses/store";
+import { readCoursesDb } from "@/services/courses/store";
 
 export type InstructorStudentRow = {
   id: string;
@@ -15,43 +16,44 @@ export type InstructorStudentRow = {
   enrolledAt: string;
 };
 
-/** Students enrolled in courses assigned to this instructor. */
+function isFixtureEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(".test");
+}
+
+/** Students TKI assigned to this instructor for a live ATPL lecture. */
 export function listInstructorStudents(instructorUserId: string): InstructorStudentRow[] {
   ensureCoursesSeeded();
   const coursesDb = readCoursesDb();
-  const courseIds = new Set(
-    coursesDb.instructors
-      .filter((row) => row.userId === instructorUserId)
-      .map((row) => row.courseId),
-  );
-  // Also include courses where primaryInstructorId matches
-  for (const course of coursesDb.courses) {
-    if (!course.deletedAt && course.primaryInstructorId === instructorUserId) {
-      courseIds.add(course.id);
-    }
-  }
-
   const courseTitle = (id: string) => coursesDb.courses.find((c) => c.id === id)?.title ?? "Course";
+  const seen = new Set<string>();
 
-  return [...courseIds]
-    .flatMap((id) => listEnrollmentsForCourse(id))
-    .filter((e) => !["dropped", "rejected"].includes(e.status))
-    .flatMap((e) => {
-      const student = getUserById(e.studentId);
-      if (!student) return [];
+  return readCgiDb()
+    .lectureAssignments.filter(
+      (row) =>
+        row.instructorId === instructorUserId &&
+        Boolean(row.studentId) &&
+        row.status !== "cancelled",
+    )
+    .flatMap((row) => {
+      const studentId = row.studentId as string;
+      const key = `${studentId}:${row.courseId}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const student = getUserById(studentId);
+      if (!student || isFixtureEmail(student.email)) return [];
       const name =
         [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email;
       return [
         {
-          id: e.id || generateId(),
-          studentId: e.studentId,
+          id: row.id || generateId(),
+          studentId,
           studentName: name,
-          studentEmail: student?.email ?? "",
-          courseId: e.courseId,
-          courseTitle: courseTitle(e.courseId),
-          status: e.status,
+          studentEmail: student.email,
+          courseId: row.courseId,
+          courseTitle: courseTitle(row.courseId),
+          status: row.status,
           progressPercent: 0,
-          enrolledAt: e.enrolledAt,
+          enrolledAt: row.scheduledAt ?? row.createdAt,
         },
       ];
     })
