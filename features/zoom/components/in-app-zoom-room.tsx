@@ -111,7 +111,7 @@ function pinZoomWindowToStage(stage: HTMLElement) {
     )
     .forEach((node) => {
       if (!isZoomInfoPanel(node)) return;
-      const parent = node.parentElement?.closest(
+      const parent = node.parentElement?.closest<HTMLElement>(
         "[class*='meeting-info'], [class*='meetingInfo'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='MuiDialog']",
       );
       if (parent && parent !== node && isZoomInfoPanel(parent)) return;
