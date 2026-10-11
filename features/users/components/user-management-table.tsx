@@ -102,6 +102,10 @@ function UserManagementTable({
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status && Object.values(ACCOUNT_STATUS).includes(status as AccountStatus)) {
+      setStatusFilter(status);
+    }
     if (params.get("create") === "1" && canCreate) {
       setCreateOpen(true);
       params.delete("create");
