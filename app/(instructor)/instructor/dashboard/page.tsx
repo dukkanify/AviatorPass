@@ -12,9 +12,7 @@ import { ensureDemoOpeningLecture } from "@/services/demo/platform-demo-seed";
 import {
   getAttendanceSeries,
   getDashboardCalendarEvents,
-  getEarningsSeries,
   getInstructorOverview,
-  getProgressBreakdown,
 } from "@/services/dashboard/metrics";
 
 export const metadata: Metadata = { title: "Instructor Dashboard" };
@@ -54,23 +52,11 @@ export default async function InstructorDashboardPage() {
   return (
     <InstructorDashboardView
       overview={overview}
-      earnings={safeDashboardQuery({
-        ...base,
-        label: "getEarningsSeries",
-        fallback: [],
-        run: () => getEarningsSeries(),
-      })}
       attendance={safeDashboardQuery({
         ...base,
         label: "getAttendanceSeries",
         fallback: [],
         run: () => getAttendanceSeries(),
-      })}
-      progress={safeDashboardQuery({
-        ...base,
-        label: "getProgressBreakdown",
-        fallback: [],
-        run: () => getProgressBreakdown(),
       })}
       calendar={safeDashboardQuery({
         ...base,

@@ -1,5 +1,6 @@
 import { generateId } from "@/lib/security/crypto";
 import { getUserById } from "@/lib/data/auth-identity-store";
+import { readCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listEnrollmentsForCourse, readCoursesDb } from "@/services/courses/store";
 
@@ -15,45 +16,49 @@ export type InstructorStudentRow = {
   enrolledAt: string;
 };
 
-/** Students enrolled in courses assigned to this instructor. */
+function isFixtureEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(".test");
+}
+
+/** Students TKI assigned to this instructor for a live ATPL lecture. */
 export function listInstructorStudents(instructorUserId: string): InstructorStudentRow[] {
   ensureCoursesSeeded();
   const coursesDb = readCoursesDb();
-  const courseIds = new Set(
-    coursesDb.instructors
-      .filter((row) => row.userId === instructorUserId)
-      .map((row) => row.courseId),
-  );
-  // Also include courses where primaryInstructorId matches
-  for (const course of coursesDb.courses) {
-    if (!course.deletedAt && course.primaryInstructorId === instructorUserId) {
-      courseIds.add(course.id);
+  const courseTitle = (id: string) => coursesDb.courses.find((c) => c.id === id)?.title ?? "Course";
+  const studentsByCourse = new Map<string, Set<string>>();
+  for (const row of readCgiDb().lectureAssignments) {
+    if (row.instructorId !== instructorUserId || !row.studentId || row.status === "cancelled") {
+      continue;
     }
+    const students = studentsByCourse.get(row.courseId) ?? new Set<string>();
+    students.add(row.studentId);
+    studentsByCourse.set(row.courseId, students);
   }
 
-  const courseTitle = (id: string) => coursesDb.courses.find((c) => c.id === id)?.title ?? "Course";
-
-  return [...courseIds]
-    .flatMap((id) => listEnrollmentsForCourse(id))
-    .filter((e) => !["dropped", "rejected"].includes(e.status))
-    .flatMap((e) => {
-      const student = getUserById(e.studentId);
-      if (!student) return [];
-      const name =
-        [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email;
-      return [
-        {
-          id: e.id || generateId(),
-          studentId: e.studentId,
-          studentName: name,
-          studentEmail: student?.email ?? "",
-          courseId: e.courseId,
-          courseTitle: courseTitle(e.courseId),
-          status: e.status,
-          progressPercent: 0,
-          enrolledAt: e.enrolledAt,
-        },
-      ];
-    })
+  return [...studentsByCourse.entries()]
+    .flatMap(([courseId, studentIds]) =>
+      listEnrollmentsForCourse(courseId)
+        .filter((enrollment) => studentIds.has(enrollment.studentId))
+        .filter((enrollment) => !["dropped", "rejected"].includes(enrollment.status))
+        .flatMap((enrollment) => {
+          const student = getUserById(enrollment.studentId);
+          if (!student || isFixtureEmail(student.email)) return [];
+          const name =
+            [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email;
+          return [
+            {
+              id: enrollment.id || generateId(),
+              studentId: enrollment.studentId,
+              studentName: name,
+              studentEmail: student.email,
+              courseId: enrollment.courseId,
+              courseTitle: courseTitle(courseId),
+              status: enrollment.status,
+              progressPercent: 0,
+              enrolledAt: enrollment.enrolledAt,
+            },
+          ];
+        }),
+    )
     .sort((a, b) => b.enrolledAt.localeCompare(a.enrolledAt));
 }

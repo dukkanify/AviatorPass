@@ -1,33 +1,19 @@
 "use client";
 
-import { Suspense } from "react";
-import {
-  BookOpen,
-  CalendarPlus,
-  ClipboardList,
-  FileUp,
-  HelpCircle,
-  Users,
-  Video,
-  Wallet,
-} from "lucide-react";
+import { CalendarPlus, Users, Video } from "lucide-react";
 
-import { InstructorZoomPanel } from "@/features/zoom/components/instructor-zoom-panel";
 import Link from "@/components/ui/app-link";
 
 import { PageHeader } from "@/components/shared/page-header";
 import {
   StatCard,
   ChartCard,
-  LineTrendChart,
   BarsChart,
-  DonutChart,
   QuickActions,
   CalendarWidget,
   type SeriesPoint,
   type CalendarEvent,
 } from "@/components/dashboard";
-import { formatCurrency } from "@/utils/format";
 
 interface InstructorDashboardViewProps {
   overview: {
@@ -40,9 +26,7 @@ interface InstructorDashboardViewProps {
     earnings: number;
     walletBalance: number;
   };
-  earnings: SeriesPoint[];
   attendance: SeriesPoint[];
-  progress: { name: string; value: number }[];
   calendar: CalendarEvent[];
   firstLectures?: Array<{
     id: string;
@@ -57,9 +41,7 @@ interface InstructorDashboardViewProps {
 
 function InstructorDashboardView({
   overview,
-  earnings,
   attendance,
-  progress,
   calendar,
   firstLectures = [],
 }: InstructorDashboardViewProps) {
@@ -67,26 +49,14 @@ function InstructorDashboardView({
     <div className="space-y-6">
       <PageHeader
         title="Instructor dashboard"
-        description="Your courses, live sessions, students, and earnings."
+        description="Your live ATPL lectures, timetable, and assigned students."
         breadcrumbs={[{ label: "Instructor" }, { label: "Dashboard" }]}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="My courses" value={overview.myCourses} icon={BookOpen} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard label="Today's classes" value={overview.todaysClasses} icon={Video} />
         <StatCard label="Upcoming classes" value={overview.upcomingClasses} icon={CalendarPlus} />
         <StatCard label="Students" value={overview.students} icon={Users} />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Assignments" value={overview.assignments} icon={ClipboardList} />
-        <StatCard label="Quizzes" value={overview.quizzes} icon={HelpCircle} />
-        <StatCard label="Earnings" value={formatCurrency(overview.earnings)} icon={Wallet} />
-        <StatCard
-          label="Wallet balance"
-          value={formatCurrency(overview.walletBalance)}
-          icon={Wallet}
-        />
       </div>
 
       {firstLectures.length > 0 ? (
@@ -130,18 +100,8 @@ function InstructorDashboardView({
         </section>
       ) : null}
 
-      <Suspense fallback={null}>
-        <InstructorZoomPanel />
-      </Suspense>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <ChartCard title="Monthly earnings" className="xl:col-span-2">
-          <LineTrendChart data={earnings} />
-        </ChartCard>
-        <ChartCard title="Student progress" heightClassName="h-72">
-          <DonutChart data={progress} />
-        </ChartCard>
-        <ChartCard title="Attendance" className="xl:col-span-2">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ChartCard title="Attendance">
           <BarsChart data={attendance} />
         </ChartCard>
         <CalendarWidget events={calendar} title="My schedule" />
@@ -149,10 +109,9 @@ function InstructorDashboardView({
 
       <QuickActions
         actions={[
-          { label: "Manage courses", href: "/instructor/courses", icon: BookOpen },
-          { label: "Open timetable", href: "/instructor/schedule", icon: Video },
-          { label: "Upload material", href: "/instructor/courses", icon: FileUp },
-          { label: "Mock exams", href: "/instructor/mock-exams", icon: HelpCircle },
+          { label: "Live classes", href: "/instructor/classes", icon: Video },
+          { label: "Open timetable", href: "/instructor/schedule", icon: CalendarPlus },
+          { label: "Students", href: "/instructor/students", icon: Users },
         ]}
       />
     </div>
