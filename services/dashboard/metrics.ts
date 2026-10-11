@@ -8,13 +8,14 @@ import {
   countUsersByRole,
   countUsersByStatus,
   listAllUsers,
+  listUsersByRole,
   listStudentGrowthMonths,
 } from "@/lib/data/auth-identity-store";
 import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
 import { findUserById, toUserProfile } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
-import { getFastCourseStats } from "@/services/courses/course-service";
+import { getCourseStats, getFastCourseStats } from "@/services/courses/course-service";
 import { listStoredCourseSummaries } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
@@ -415,6 +416,7 @@ function listCoursesForMetrics(opts: {
 
 export function getAdminDashboardPayload(user?: UserProfile | null) {
   return {
+    journey: atplControlRoomCounts(),
     overview: getAdminOverview(),
     growth: getGrowthSeries(),
     enrollments: getEnrollmentSeries(),
@@ -423,15 +425,21 @@ export function getAdminDashboardPayload(user?: UserProfile | null) {
   };
 }
 
+function countLiveRole(role: string): number {
+  return listUsersByRole(role).filter((user) => !user.email.trim().toLowerCase().endsWith(".test"))
+    .length;
+}
+
 export function getAdminOverview() {
-  // Counts only. Do not load every user or the course catalog before paint.
-  const courseStats = getFastCourseStats();
+  // Live accounts only. The course catalog is counted from the fast index, then the course store if that index is empty.
+  const fastCourses = getFastCourseStats();
+  const courses = fastCourses.totalCourses || getCourseStats().totalCourses;
 
   return {
-    students: countUsersByRole(ROLES.STUDENT),
-    instructors: countUsersByRole(ROLES.INSTRUCTOR),
-    courses: courseStats.totalCourses,
-    liveClasses: 0,
+    students: countLiveRole(ROLES.STUDENT),
+    instructors: countLiveRole(ROLES.INSTRUCTOR),
+    courses,
+    liveClasses: getPlatformClassCounts().activeClasses,
     pendingApprovals: countUsersByStatus(ACCOUNT_STATUS.PENDING),
     communityReports: 0,
     blogActivity: 0,

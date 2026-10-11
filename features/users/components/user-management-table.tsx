@@ -110,7 +110,9 @@ function UserManagementTable({
     }
   }, [canCreate]);
 
-  const filtered = statusFilter === "all" ? users : users.filter((u) => u.status === statusFilter);
+  const liveUsers = users.filter((user) => !user.email.trim().toLowerCase().endsWith(".test"));
+  const filtered =
+    statusFilter === "all" ? liveUsers : liveUsers.filter((user) => user.status === statusFilter);
 
   async function changeStatus(target: UserProfile, status: AccountStatus) {
     const result = await authFetch<UserProfile>(`${routes.api.users}/${target.id}`, {

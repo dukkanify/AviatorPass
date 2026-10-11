@@ -36,6 +36,11 @@ const CalendarWidget = dynamic(
 );
 
 interface AdminDashboardViewProps {
+  journey: {
+    pendingInstructor: number;
+    schedulingRequired: number;
+    confirmedLectures: number;
+  };
   overview: {
     students: number;
     instructors: number;
@@ -52,6 +57,7 @@ interface AdminDashboardViewProps {
 }
 
 function AdminDashboardView({
+  journey,
   overview,
   growth,
   enrollments,
@@ -62,9 +68,30 @@ function AdminDashboardView({
     <div className="space-y-6">
       <PageHeader
         title="Admin dashboard"
-        description="Students, instructors, classes, and academy content."
+        description="The same ATPL lecture queue as TKI 1 and Super Admin, plus academy operations."
         breadcrumbs={[{ label: "Admin" }, { label: "Dashboard" }]}
       />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Pending instructor"
+          value={journey.pendingInstructor}
+          icon={Users}
+          hint="Paid students waiting for TKI 1"
+        />
+        <StatCard
+          label="Scheduling Required"
+          value={journey.schedulingRequired}
+          icon={GraduationCap}
+          hint="Instructor could not book the next lecture"
+        />
+        <StatCard
+          label="Confirmed lectures"
+          value={journey.confirmedLectures}
+          icon={Layers}
+          hint="On the student timetable"
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Students" value={overview.students} icon={Users} />
