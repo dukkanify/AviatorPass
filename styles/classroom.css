@@ -27,12 +27,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  max-width: 100%;
+  height: auto;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   padding: 0.4rem 0.75rem;
   font-size: 0.75rem;
-  line-height: 1;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
   backdrop-filter: blur(16px);
 }
 
@@ -59,6 +63,11 @@
 
 .classroom-stage.is-live {
   min-height: min(78vh, 900px);
+  overflow: visible;
+}
+
+.classroom-stage.is-live .classroom-viewport {
+  overflow: visible;
 }
 
 .classroom-chrome {
@@ -131,12 +140,37 @@ body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
 }
 
 .classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
-.classroom-sdk-root.is-live [class*="zoom-MuiBox"] {
+.classroom-sdk-root.is-live [class*="video-player"] {
   box-sizing: border-box !important;
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+}
+
+body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
+  position: fixed !important;
+  z-index: 90 !important;
+  top: 72px !important;
+  left: max(16px, calc(50vw - 220px)) !important;
+  box-sizing: border-box !important;
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-width: min(440px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  max-height: min(80vh, 680px) !important;
+  overflow: auto !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  transform: none !important;
+}
+
+body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] * {
+  max-width: 100% !important;
+  height: auto !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .classroom-preview {
@@ -189,7 +223,10 @@ body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
   margin-top: 0.2rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.7rem;
+  line-height: 1.45;
   color: rgba(255, 255, 255, 0.48);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .classroom-stage-skeleton {
