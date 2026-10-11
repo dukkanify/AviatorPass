@@ -51,6 +51,7 @@ interface InstructorDashboardViewProps {
     label: string | null;
     onTimetable: boolean;
     subjectTitle?: string;
+    liveClassId?: string | null;
   }>;
 }
 
@@ -107,6 +108,22 @@ function InstructorDashboardView({
                   {lecture.label ?? "Time confirmed"}
                   {lecture.onTimetable ? " · on timetable" : ""}
                 </p>
+                {lecture.liveClassId ? (
+                  <p className="mt-1 flex flex-wrap gap-3">
+                    <Link
+                      href={`/join/${lecture.liveClassId}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Join Zoom
+                    </Link>
+                    <Link
+                      href={`/instructor/classes/${lecture.liveClassId}`}
+                      className="text-primary hover:underline"
+                    >
+                      Performance and next session
+                    </Link>
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

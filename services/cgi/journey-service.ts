@@ -1030,13 +1030,15 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
   subjectCode: string | null;
   subjectTitle: string;
 }> {
+  const officialCourseIds = new Set(listAtplCourses().map((course) => course.id));
   return listLectureAssignments({ instructorId: options?.instructorId })
-    .filter(
-      (row) =>
-        Boolean(row.studentId) &&
-        row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID &&
-        row.status === "scheduled",
-    )
+    .filter((row) => {
+      if (!row.studentId || row.status !== "scheduled") return false;
+      if (row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID) return true;
+      // A booked ATPL lecture still belongs on the instructor timetable when the
+      // lesson id is the subject lesson rather than the opening sentinel.
+      return officialCourseIds.has(row.courseId);
+    })
     .map((row) => {
       const studentId = row.studentId as string;
       const student = findUserById(studentId);

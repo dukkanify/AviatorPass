@@ -144,7 +144,10 @@ export function getLiveClassDetail(id: string, viewer?: { id: string; role: stri
           participantCount: isHost ? (zoom.participantCount ?? null) : null,
         }
       : null,
-    participants: listParticipantsForClass(id),
+    participants: listParticipantsForClass(id).map((participant) => ({
+      ...participant,
+      displayName: userName(participant.userId),
+    })),
     recordings: readClassesDb().recordings.filter((r) => r.liveClassId === id),
   };
 }

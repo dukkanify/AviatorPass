@@ -51,7 +51,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
           participantCount?: number | null;
         } | null;
         audienceStatus?: "Upcoming" | "Live" | "Finished" | "Cancelled";
-        participants: Array<{ userId: string; role: string }>;
+        participants: Array<{ userId: string; role: string; displayName?: string | null }>;
         recordings: Array<{ id: string; title: string; url: string }>;
       })
     | null
@@ -362,7 +362,9 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                       className="flex flex-col gap-2 rounded-xl border border-border/70 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
-                        <p className="font-medium">{row?.studentName ?? p.userId.slice(0, 8)}</p>
+                        <p className="font-medium">
+                          {p.displayName ?? row?.studentName ?? "Student"}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {row
                             ? `${ATTENDANCE_STATUS_LABELS[row.status]} · ${row.attendancePercent}%`
@@ -413,7 +415,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                       const existing = reports.find((r) => r.studentId === p.userId);
                       return (
                         <SelectItem key={p.userId} value={p.userId}>
-                          {(row?.studentName ?? p.userId.slice(0, 8)) +
+                          {(p.displayName ?? row?.studentName ?? "Student") +
                             (existing ? " · report on file" : "")}
                         </SelectItem>
                       );
