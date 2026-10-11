@@ -72,54 +72,92 @@ function AdminDashboardView({
         breadcrumbs={[{ label: "Admin" }, { label: "Dashboard" }]}
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Pending instructor"
-          value={journey.pendingInstructor}
-          icon={Users}
-          hint="Paid students waiting for TKI 1"
-        />
-        <StatCard
-          label="Scheduling Required"
-          value={journey.schedulingRequired}
-          icon={GraduationCap}
-          hint="Instructor could not book the next lecture"
-        />
-        <StatCard
-          label="Confirmed lectures"
-          value={journey.confirmedLectures}
-          icon={Layers}
-          hint="On the student timetable"
-        />
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground">
+          ATPL lecture queue
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Pending instructor"
+            value={journey.pendingInstructor}
+            icon={Users}
+            hint="Paid students waiting for TKI 1"
+            href="/admin/students"
+          />
+          <StatCard
+            label="Scheduling Required"
+            value={journey.schedulingRequired}
+            icon={GraduationCap}
+            hint="Instructor could not book the next lecture"
+            href="/admin/schedule"
+          />
+          <StatCard
+            label="Confirmed lectures"
+            value={journey.confirmedLectures}
+            icon={Layers}
+            hint="On the student timetable"
+            href="/admin/schedule"
+          />
+        </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Students" value={overview.students} icon={Users} />
-        <StatCard label="Instructors" value={overview.instructors} icon={GraduationCap} />
-        <StatCard label="Courses" value={overview.courses} icon={BookOpen} />
-        <StatCard label="Live classes" value={overview.liveClasses} icon={Layers} />
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground">Academy</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Students"
+            value={overview.students}
+            icon={Users}
+            href="/admin/students"
+          />
+          <StatCard
+            label="Instructors"
+            value={overview.instructors}
+            icon={GraduationCap}
+            href="/admin/instructors"
+          />
+          <StatCard
+            label="Courses"
+            value={overview.courses}
+            icon={BookOpen}
+            href="/admin/courses"
+          />
+          <StatCard
+            label="Live now"
+            value={overview.liveClasses}
+            icon={Layers}
+            hint="In session right now"
+            href="/admin/classes"
+          />
+        </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          label="Pending approvals"
-          value={overview.pendingApprovals}
-          icon={ClipboardList}
-          hint="Accounts awaiting review"
-        />
-        <StatCard
-          label="Moderation queue"
-          value={overview.communityReports}
-          icon={Megaphone}
-          hint="Flagged or blocked items"
-        />
-        <StatCard
-          label="Published posts"
-          value={overview.blogActivity}
-          icon={BookOpen}
-          hint="Updated this month"
-        />
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground">Needs attention</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Pending approvals"
+            value={overview.pendingApprovals}
+            icon={ClipboardList}
+            hint="Accounts awaiting review"
+            href="/admin/users?status=pending"
+          />
+          <StatCard
+            label="Moderation log"
+            value={overview.communityReports}
+            icon={Megaphone}
+            hint="Recent flagged items"
+            href="/admin/moderation"
+          />
+          <StatCard
+            label="Published posts"
+            value={overview.blogActivity}
+            icon={BookOpen}
+            hint="Live on the blog"
+            href="/admin/blog"
+          />
+        </div>
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard title="Student growth">

@@ -24,6 +24,8 @@ import {
   readCoursesDb,
 } from "@/services/courses/store";
 import { getClassStats, getPlatformClassCounts } from "@/services/classes/class-service";
+import { listBlogPosts } from "@/services/communication/blog-service";
+import { listModerationLogs } from "@/services/communication/moderation-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { listParticipantsForUser, lookupAllLiveClasses } from "@/services/classes/store";
 import type { SeriesPoint } from "@/components/dashboard/chart-types";
@@ -431,18 +433,30 @@ function countLiveRole(role: Role): number {
   ).length;
 }
 
+function countLivePending(): number {
+  return [ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.ADMIN].reduce(
+    (total, role) =>
+      total +
+      listStoredUsersByRole(role).filter(
+        (user) =>
+          user.status === ACCOUNT_STATUS.PENDING &&
+          !user.email.trim().toLowerCase().endsWith(".test"),
+      ).length,
+    0,
+  );
+}
+
 export function getAdminOverview() {
-  // Live accounts only. The course catalog is counted from the fast index, then the course store if that index is empty.
-  const fastCourses = getFastCourseStats();
-  const courses = fastCourses.totalCourses || getCourseStats().totalCourses;
+  const courseStats = getCourseStats();
+  const classes = getClassStats();
 
   return {
     students: countLiveRole(ROLES.STUDENT),
     instructors: countLiveRole(ROLES.INSTRUCTOR),
-    courses,
-    liveClasses: getPlatformClassCounts().activeClasses,
-    pendingApprovals: countUsersByStatus(ACCOUNT_STATUS.PENDING),
-    communityReports: 0,
-    blogActivity: 0,
+    courses: courseStats.totalCourses,
+    liveClasses: classes.liveNow,
+    pendingApprovals: countLivePending(),
+    communityReports: listModerationLogs(100).length,
+    blogActivity: listBlogPosts({ status: "published" }).length,
   };
 }
