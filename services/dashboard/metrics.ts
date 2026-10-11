@@ -8,7 +8,7 @@ import {
   countUsersByRole,
   countUsersByStatus,
   listAllUsers,
-  listUsersByRole,
+  listUsersByRole as listStoredUsersByRole,
   listStudentGrowthMonths,
 } from "@/lib/data/auth-identity-store";
 import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
@@ -425,9 +425,10 @@ export function getAdminDashboardPayload(user?: UserProfile | null) {
   };
 }
 
-function countLiveRole(role: string): number {
-  return listUsersByRole(role).filter((user) => !user.email.trim().toLowerCase().endsWith(".test"))
-    .length;
+function countLiveRole(role: Role): number {
+  return listStoredUsersByRole(role).filter(
+    (user) => !user.email.trim().toLowerCase().endsWith(".test"),
+  ).length;
 }
 
 export function getAdminOverview() {
