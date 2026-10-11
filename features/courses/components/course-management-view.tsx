@@ -423,7 +423,7 @@ function CourseManagementView({
       {canManagePublishing ? <EasyAtplPrices /> : null}
       {canManagePublishing ? <AtplSubjectsEasyPanel /> : null}
 
-      <CourseStatsWidgets stats={stats} loading={loading} />
+      <CourseStatsWidgets stats={stats} loading={loading} categoryHref={`${basePath}/categories`} />
 
       <Card className="rounded-2xl shadow-soft">
         <CardHeader className="pb-3">

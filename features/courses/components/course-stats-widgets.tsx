@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Archive,
-  BookOpen,
-  FileEdit,
-  FolderTree,
-  Users,
-} from "lucide-react";
+import { Archive, BookOpen, FileEdit, FolderTree, Users } from "lucide-react";
 
 import { StatCard } from "@/components/dashboard";
 import type { CourseStats } from "@/types/courses";
@@ -14,9 +8,10 @@ import type { CourseStats } from "@/types/courses";
 interface CourseStatsWidgetsProps {
   stats: CourseStats | null;
   loading?: boolean;
+  categoryHref?: string;
 }
 
-function CourseStatsWidgets({ stats, loading }: CourseStatsWidgetsProps) {
+function CourseStatsWidgets({ stats, loading, categoryHref }: CourseStatsWidgetsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       <StatCard
@@ -30,11 +25,7 @@ function CourseStatsWidgets({ stats, loading }: CourseStatsWidgetsProps) {
         icon={BookOpen}
         hint="Live in catalog"
       />
-      <StatCard
-        label="Drafts"
-        value={loading ? "—" : (stats?.draftCourses ?? 0)}
-        icon={FileEdit}
-      />
+      <StatCard label="Drafts" value={loading ? "—" : (stats?.draftCourses ?? 0)} icon={FileEdit} />
       <StatCard
         label="Archived"
         value={loading ? "—" : (stats?.archivedCourses ?? 0)}
@@ -50,6 +41,7 @@ function CourseStatsWidgets({ stats, loading }: CourseStatsWidgetsProps) {
         label="Categories"
         value={loading ? "—" : (stats?.totalCategories ?? 0)}
         icon={FolderTree}
+        href={categoryHref}
       />
     </div>
   );

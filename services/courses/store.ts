@@ -12,6 +12,7 @@ import {
   countEnrollments,
   countEnrollmentsByCourse,
   listAllEnrollments,
+  listDistinctStudentIds,
   listEnrollmentsForCourse,
   listEnrollmentsForStudent,
   rebindEnrollmentsStudent,
@@ -217,6 +218,7 @@ export function replaceCoursesDb(db: CoursesDatabase): void {
 export {
   countDistinctStudents,
   countEnrollments,
+  listDistinctStudentIds,
   countEnrollmentsByCourse,
   listAllEnrollments,
   listEnrollmentsForCourse,
