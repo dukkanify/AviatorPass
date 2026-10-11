@@ -36,7 +36,7 @@ describe("production performance contracts", () => {
     const admin = src("features/dashboard/admin-dashboard-view.tsx");
     const join = src("features/classes/components/join-class-client.tsx");
     expect(studentShell).toContain("next/dynamic");
-    expect(studentShell).toContain("FloatingAiAssistant");
+    expect(studentShell).not.toContain("FloatingAiAssistant");
     expect(studentShell).toContain("CommandPalette");
     expect(admin).toContain("next/dynamic");
     expect(admin).toContain("calendar-widget");
