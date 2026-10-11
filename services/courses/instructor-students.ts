@@ -36,22 +36,24 @@ export function listInstructorStudents(instructorUserId: string): InstructorStud
   return [...courseIds]
     .flatMap((id) => listEnrollmentsForCourse(id))
     .filter((e) => !["dropped", "rejected"].includes(e.status))
-    .map((e) => {
+    .flatMap((e) => {
       const student = getUserById(e.studentId);
-      const name = student
-        ? [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email
-        : "Unknown student";
-      return {
-        id: e.id || generateId(),
-        studentId: e.studentId,
-        studentName: name,
-        studentEmail: student?.email ?? "",
-        courseId: e.courseId,
-        courseTitle: courseTitle(e.courseId),
-        status: e.status,
-        progressPercent: 0,
-        enrolledAt: e.enrolledAt,
-      };
+      if (!student) return [];
+      const name =
+        [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email;
+      return [
+        {
+          id: e.id || generateId(),
+          studentId: e.studentId,
+          studentName: name,
+          studentEmail: student?.email ?? "",
+          courseId: e.courseId,
+          courseTitle: courseTitle(e.courseId),
+          status: e.status,
+          progressPercent: 0,
+          enrolledAt: e.enrolledAt,
+        },
+      ];
     })
     .sort((a, b) => b.enrolledAt.localeCompare(a.enrolledAt));
 }
