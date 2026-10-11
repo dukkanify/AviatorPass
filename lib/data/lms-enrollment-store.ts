@@ -273,6 +273,22 @@ export function countEnrollments(filter?: EnrollmentAggregateFilter): number {
   return total;
 }
 
+export function listDistinctStudentIds(filter?: EnrollmentAggregateFilter): string[] {
+  if (sqlEnabled()) {
+    ensureSqlTable();
+    const { sql, params } = sqlWhere(filter);
+    return neonSql<{ student_id: string }>(
+      `SELECT DISTINCT student_id FROM ${TABLE} ${sql}`,
+      params,
+    ).map((row) => row.student_id);
+  }
+  const students = new Set<string>();
+  for (const row of ensureFileIndex().byId.values()) {
+    if (rowMatchesFilter(row, filter)) students.add(row.studentId);
+  }
+  return [...students];
+}
+
 export function countDistinctStudents(filter?: EnrollmentAggregateFilter): number {
   if (sqlEnabled()) {
     ensureSqlTable();
@@ -283,11 +299,7 @@ export function countDistinctStudents(filter?: EnrollmentAggregateFilter): numbe
     );
     return Number(rows[0]?.n ?? 0);
   }
-  const students = new Set<string>();
-  for (const row of ensureFileIndex().byId.values()) {
-    if (rowMatchesFilter(row, filter)) students.add(row.studentId);
-  }
-  return students.size;
+  return listDistinctStudentIds(filter).length;
 }
 
 export function countEnrollmentsByCourse(

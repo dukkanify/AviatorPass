@@ -31,11 +31,59 @@ const ZOOM_FLOAT_SELECTOR = [
   "iframe[src*='zoom']",
 ].join(", ");
 
+function isZoomInfoPanel(node: HTMLElement) {
+  const label = `${node.id} ${typeof node.className === "string" ? node.className : ""}`;
+  if (/meeting-info-icon|MeetingInfoIcon/i.test(label) && node.offsetWidth < 72) return false;
+  if (/meeting-info|meetingInfo|MeetingInfo/i.test(label)) {
+    return node.offsetWidth > 96 || node.offsetHeight > 72;
+  }
+  if (/MuiPopover|MuiModal|MuiDrawer|MuiDialog/i.test(label)) {
+    return /Meeting ID|Passcode|Participant ID|Invite Link/i.test(node.innerText || "");
+  }
+  return false;
+}
+
+function revealZoomInfoPanel(node: HTMLElement) {
+  if (node.parentElement && node.parentElement !== document.body) {
+    document.body.appendChild(node);
+  }
+  const margin = 16;
+  const width = Math.min(440, Math.max(280, window.innerWidth - margin * 2));
+  const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
+  set("position", "fixed");
+  set("z-index", "90");
+  set("box-sizing", "border-box");
+  set("width", `${width}px`);
+  set("max-width", `min(440px, calc(100vw - 32px))`);
+  set("height", "auto");
+  set("max-height", "min(80vh, 680px)");
+  set("overflow", "auto");
+  set("inset", "auto");
+  set("left", `${Math.max(margin, Math.round((window.innerWidth - width) / 2))}px`);
+  set("top", "72px");
+  set("right", "auto");
+  set("bottom", "auto");
+  set("transform", "none");
+  set("white-space", "normal");
+  set("overflow-wrap", "anywhere");
+  set("word-break", "break-word");
+  node.setAttribute("data-aviator-zoom-info", "true");
+  node.querySelectorAll<HTMLElement>("*").forEach((child) => {
+    child.style.setProperty("max-width", "100%", "important");
+    child.style.setProperty("height", "auto", "important");
+    child.style.setProperty("max-height", "none", "important");
+    child.style.setProperty("white-space", "normal", "important");
+    child.style.setProperty("overflow-wrap", "anywhere", "important");
+    child.style.setProperty("word-break", "break-word", "important");
+  });
+}
+
 function pinZoomWindowToStage(stage: HTMLElement) {
   const rect = stage.getBoundingClientRect();
   if (rect.width < 120 || rect.height < 90) return;
   const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
   for (const node of nodes) {
+    if (isZoomInfoPanel(node)) continue;
     if (stage.contains(node)) {
       node.style.position = "absolute";
       node.style.inset = "0";
@@ -57,6 +105,18 @@ function pinZoomWindowToStage(stage: HTMLElement) {
     node.style.transform = "none";
     node.style.zIndex = "6";
   }
+  document
+    .querySelectorAll<HTMLElement>(
+      "[class*='meeting-info'], [class*='meetingInfo'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='MuiDialog']",
+    )
+    .forEach((node) => {
+      if (!isZoomInfoPanel(node)) return;
+      const parent = node.parentElement?.closest<HTMLElement>(
+        "[class*='meeting-info'], [class*='meetingInfo'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='MuiDialog']",
+      );
+      if (parent && parent !== node && isZoomInfoPanel(parent)) return;
+      revealZoomInfoPanel(node);
+    });
 }
 
 interface InAppZoomRoomProps {
@@ -382,7 +442,7 @@ function InAppZoomRoom({
           width: "100%",
           aspectRatio: "16 / 9",
           minHeight: "min(58vh, 680px)",
-          overflow: "hidden",
+          overflow: liveZoom ? "visible" : "hidden",
         }}
       >
         <div

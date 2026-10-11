@@ -61,6 +61,7 @@ export async function GET(request: Request) {
       pageSize: p.pageSize,
       sortBy: (p.sortBy as CourseFilters["sortBy"]) ?? "updatedAt",
       sortDir: p.sortDir,
+      excludeFixtures: true,
     };
 
     // Admins manage the full catalog; instructors only list courses they own.

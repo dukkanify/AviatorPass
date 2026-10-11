@@ -7,6 +7,8 @@ import { publicCourseRef, stableCourseId } from "@/lib/courses/public-course-pat
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_COURSE_PAGE_SIZE } from "@/constants/courses";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
+import { ROLES } from "@/constants/roles";
+import { listUsersByRole } from "@/lib/data/auth-identity-store";
 import { findUserById } from "@/services/auth/store";
 import {
   readCourseDetailCache,
@@ -15,11 +17,15 @@ import {
   writeCourseGraphCache,
 } from "@/services/courses/detail-cache";
 import { syncCourseDetailsFromDatabase } from "@/services/courses/detail-sync";
-import { countStoredCourses, getStoredCourseDetail } from "@/lib/data/lms-course-detail-store";
+import {
+  getStoredCourseDetail,
+  listStoredCourseSummaries,
+} from "@/lib/data/lms-course-detail-store";
+import { listCategories } from "@/services/courses/category-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
-  countDistinctStudents,
   countEnrollments,
+  listDistinctStudentIds,
   listEnrollmentsForCourse,
   readCoursesDb,
   writeCoursesDb,
@@ -414,6 +420,9 @@ export function listCourses(filters: CourseFilters = {}): {
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? DEFAULT_COURSE_PAGE_SIZE;
   let rows = readCoursesDb().courses.filter((c) => (filters.includeDeleted ? true : !c.deletedAt));
+  if (filters.excludeFixtures) {
+    rows = rows.filter((course) => !isPublicCatalogFixture(course));
+  }
 
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -495,23 +504,50 @@ export function listCourses(filters: CourseFilters = {}): {
   };
 }
 
-/** Dashboard counts — COUNT/status only, never the full syllabus payloads. */
+function liveCatalogCounts() {
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const row of listStoredCourseSummaries()) {
+    if (isPublicCatalogFixture({ code: row.code ?? "", title: "" })) continue;
+    total += 1;
+    const status = row.status || "unknown";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+  }
+  return { total, byStatus };
+}
+
+/** Approved enrollments that still belong to a live student account. */
+function countLiveApprovedStudents(): number {
+  const live = new Set(
+    listUsersByRole(ROLES.STUDENT)
+      .filter((user) => user.email && !user.email.trim().toLowerCase().endsWith(".test"))
+      .map((user) => user.id),
+  );
+  if (live.size === 0) return 0;
+  let total = 0;
+  for (const studentId of listDistinctStudentIds({ statuses: ["approved"] })) {
+    if (live.has(studentId)) total += 1;
+  }
+  return total;
+}
+
+/** Dashboard counts — status and code only, never the full syllabus payloads. */
 export function getFastCourseStats(): Pick<
   CourseStats,
   "totalCourses" | "publishedCourses" | "draftCourses" | "activeStudents" | "totalEnrollments"
 > {
-  const counts = countStoredCourses();
+  const counts = liveCatalogCounts();
   return {
     totalCourses: counts.total,
     publishedCourses: counts.byStatus.published ?? 0,
     draftCourses: counts.byStatus.draft ?? 0,
-    activeStudents: countDistinctStudents({ statuses: ["approved"] }),
+    activeStudents: countLiveApprovedStudents(),
     totalEnrollments: countEnrollments(),
   };
 }
 
 export function getCourseStats(): CourseStats {
-  const counts = countStoredCourses();
+  const counts = liveCatalogCounts();
   if (counts.total > 0) {
     const fast = getFastCourseStats();
     return {
@@ -519,13 +555,15 @@ export function getCourseStats(): CourseStats {
       archivedCourses: counts.byStatus.archived ?? 0,
       privateCourses: counts.byStatus.private ?? 0,
       scheduledCourses: counts.byStatus.scheduled ?? 0,
-      totalCategories: 0,
+      totalCategories: listCategories().length,
       recentlyUpdated: [],
     };
   }
   ensureCoursesSeeded();
-  const courses = readCoursesDb().courses.filter((c) => !c.deletedAt);
-  const activeStudents = countDistinctStudents({ statuses: ["approved"] });
+  const courses = readCoursesDb().courses.filter(
+    (course) => !course.deletedAt && !isPublicCatalogFixture(course),
+  );
+  const activeStudents = countLiveApprovedStudents();
   const totalEnrollments = countEnrollments();
   const recentlyUpdated = [...courses]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -539,7 +577,7 @@ export function getCourseStats(): CourseStats {
     archivedCourses: courses.filter((c) => c.status === "archived").length,
     privateCourses: courses.filter((c) => c.status === "private").length,
     scheduledCourses: courses.filter((c) => c.status === "scheduled").length,
-    totalCategories: readCoursesDb().categories.filter((c) => c.visible).length,
+    totalCategories: listCategories().length,
     activeStudents,
     totalEnrollments,
     recentlyUpdated,

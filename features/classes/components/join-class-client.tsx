@@ -8,7 +8,9 @@ import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
+import { ROLE_DASHBOARD, type Role } from "@/constants/roles";
 import { routes } from "@/constants/routes";
+import { useAuth } from "@/providers/auth-provider";
 import { classFetch } from "@/features/classes/lib/api";
 import { prefetchZoomEmbeddedSdk } from "@/features/zoom/lib/load-embedded-sdk";
 import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
@@ -28,6 +30,11 @@ interface JoinClassClientProps {
 }
 
 function JoinClassClient({ classId }: JoinClassClientProps) {
+  const { user } = useAuth();
+  const leaveHref =
+    user && user.role in ROLE_DASHBOARD
+      ? ROLE_DASHBOARD[user.role as Role]
+      : routes.studentDashboard;
   const [data, setData] = React.useState<{
     class: LiveClassListItem;
     join: {
@@ -114,7 +121,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const finished = audience === "Finished" || audience === "Cancelled";
 
   return (
-    <div className="classroom-shell relative overflow-hidden">
+    <div className="classroom-shell relative">
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
         <header className="flex items-center justify-between gap-3">
           <BrandLogo variant="dark" href="/" priority />
@@ -183,7 +190,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               isHost={data.isHost}
               providerMode={join.providerMode}
               title={cls.title}
-              leaveHref={routes.studentDashboard}
+              leaveHref={leaveHref}
             />
           ) : (
             <p className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center text-sm text-white/65">
