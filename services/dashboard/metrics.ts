@@ -122,8 +122,10 @@ export function getSuperAdminDashboardPayload() {
 
 function atplControlRoomCounts() {
   const journey = getCgiDashboardSnapshot();
-  const live = (email: string | null | undefined) =>
-    Boolean(email) && !email.trim().toLowerCase().endsWith(".test");
+  const live = (email: string | null | undefined) => {
+    if (!email) return false;
+    return !email.trim().toLowerCase().endsWith(".test");
+  };
   return {
     pendingInstructor: journey.pendingInstructorAssignments.filter((row) => live(row.email)).length,
     schedulingRequired: journey.schedulingRequired.filter((row) => live(row.studentEmail)).length,

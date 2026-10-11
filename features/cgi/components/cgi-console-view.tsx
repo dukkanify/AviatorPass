@@ -98,7 +98,8 @@ type Snapshot = {
 };
 
 function liveJourneyEmail(email: string | null | undefined): boolean {
-  return Boolean(email) && !email.trim().toLowerCase().endsWith(".test");
+  if (!email) return false;
+  return !email.trim().toLowerCase().endsWith(".test");
 }
 
 async function cgiFetch<T>(query = ""): Promise<T> {
