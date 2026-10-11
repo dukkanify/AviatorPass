@@ -38,6 +38,7 @@ import type { AppointmentBooking } from "@/types/bookings";
 import type { NotificationRecord } from "@/types/index";
 import type { AtplSubjectAssignment, AtplLectureAssignment, CgiOversightNote } from "@/types/cgi";
 import type { PerformanceReport } from "@/types/performance-reports";
+import type { Enrollment } from "@/types/courses";
 import type { LiveClass, MeetingParticipant, ZoomMeetingRecord } from "@/types/classes";
 
 let seededInProcess = false;
