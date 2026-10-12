@@ -36,6 +36,7 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   approval_type: 2,
   join_before_host: true,
   meeting_authentication: false,
+  who_can_share_screen: "all",
 } as const;
 
 export function isZoomRegistrationJoinUrl(url: string | null | undefined): boolean {
@@ -407,6 +408,7 @@ type ZoomMeetingDetails = {
   approvalType: number | null;
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
+  whoCanShareScreen: string | null;
 };
 
 async function fetchZoomMeetingDetails(
@@ -428,6 +430,7 @@ async function fetchZoomMeetingDetails(
         approval_type?: number;
         join_before_host?: boolean;
         meeting_authentication?: boolean;
+        who_can_share_screen?: string;
       };
     };
     return {
@@ -444,6 +447,7 @@ async function fetchZoomMeetingDetails(
         typeof json.settings?.meeting_authentication === "boolean"
           ? json.settings.meeting_authentication
           : null,
+      whoCanShareScreen: json.settings?.who_can_share_screen?.trim() || null,
     };
   } catch {
     return null;
@@ -464,6 +468,7 @@ export async function ensureInAppJoinSettings(
     current.approvalType !== 2 ||
     current.joinBeforeHost === false ||
     current.meetingAuthentication === true ||
+    current.whoCanShareScreen !== "all" ||
     isZoomRegistrationJoinUrl(current.joinUrl) ||
     isZoomRegistrationJoinUrl(meeting.joinUrl);
 

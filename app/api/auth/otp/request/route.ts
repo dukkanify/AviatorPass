@@ -5,7 +5,8 @@ import { startEnterpriseRegistration } from "@/services/auth/registration-servic
 import { getRequestContext } from "@/services/auth/guards";
 import { ensureCsrfToken } from "@/lib/security/cookies";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
-import { loginSchema, registerSchema, forgotPasswordSchema } from "@/utils/validation";
+import { loginSchema, createRegisterSchema, forgotPasswordSchema } from "@/utils/validation";
+import { getPlatformSettings } from "@/services/settings/settings-service";
 import { writeOpsLog } from "@/services/ops/logging-service";
 
 export async function POST(request: Request) {
@@ -48,7 +49,10 @@ export async function POST(request: Request) {
   }
 
   if (purpose === "register") {
-    const parsed = registerSchema.safeParse(body);
+    const auth = getPlatformSettings().authentication;
+    const parsed = createRegisterSchema({
+      requireSpecialChar: Boolean(auth.passwordPolicyEnabled && auth.requireSpecialChar),
+    }).safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, data: null, error: parsed.error.issues[0]?.message ?? "Invalid input" },

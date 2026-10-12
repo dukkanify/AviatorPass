@@ -661,13 +661,30 @@ export async function updateLiveClass(input: {
   await queueClassReminders(next.id);
 
   const participantIds = listParticipantsForClass(next.id).map((p) => p.userId);
+  const dateChanged = existing.startsAt !== next.startsAt;
   await notifyUsers(
     participantIds,
-    "Live class updated",
-    `${next.title} schedule or details changed`,
-    "class.updated",
+    dateChanged ? "Live class rescheduled" : "Live class updated",
+    dateChanged
+      ? `${next.title} moved to ${new Date(next.startsAt).toLocaleString()}`
+      : `${next.title} schedule or details changed`,
+    dateChanged ? "class.rescheduled" : "class.updated",
     { liveClassId: next.id },
+    false,
   );
+  if (dateChanged) {
+    const meeting = getZoomMeetingByClassId(next.id);
+    await emailScheduleLifecycle({
+      event: "reschedule",
+      userIds: participantIds,
+      title: next.title,
+      when: new Date(next.startsAt).toLocaleString(),
+      detail: "The lecture date was updated. Join from AviatorPass at the new time.",
+      liveClassId: next.id,
+      actorId: input.actorId,
+      joinUrl: meeting ? appJoinUrl(next.id, meeting.zoomMeetingId) : undefined,
+    });
+  }
 
   await logActivity({
     actorId: input.actorId,

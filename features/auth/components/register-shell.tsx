@@ -21,7 +21,13 @@ import {
 } from "@/features/auth/components/register-form";
 import { useAuth } from "@/providers/auth-provider";
 
-function RegisterShell({ initialRole = "student" }: { initialRole?: RegisterRole }) {
+function RegisterShell({
+  initialRole = "student",
+  requireSpecialChar = false,
+}: {
+  initialRole?: RegisterRole;
+  requireSpecialChar?: boolean;
+}) {
   const instructorDeepLink = initialRole === "instructor";
   const [role, setRole] = React.useState<RegisterRole>("student");
   const { user, isLoading, signOut } = useAuth();
@@ -83,6 +89,7 @@ function RegisterShell({ initialRole = "student" }: { initialRole?: RegisterRole
             role={role}
             onRoleChange={handleRoleChange}
             showInstructorComingSoonOnMount={instructorDeepLink}
+            requireSpecialChar={requireSpecialChar}
           />
         </CardContent>
         <CardFooter className="flex flex-col gap-2 border-t border-border/50 bg-[rgb(18_36_51_/0.03)] py-5 text-center text-sm text-muted-foreground">

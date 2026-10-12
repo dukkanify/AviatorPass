@@ -115,4 +115,12 @@ describe("password rules", () => {
     );
     expect(passwordSchema.safeParse("Password123!").success).toBe(true);
   });
+
+  it("skips the special-character rule when the platform does not require it", () => {
+    const policy = { requireSpecialChar: false as const };
+    expect(passwordMeetsAllRequirements("Password123", policy)).toBe(true);
+    expect(passwordIssues("Password123", policy)).toEqual([]);
+    expect(passwordStrength("Password123", policy).label).toBe("Strong");
+    expect(firstPasswordIssue("password123", policy)?.id).toBe("upper");
+  });
 });
