@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { authErrorResponse, requireAuth } from "@/services/auth/guards";
-import { fetchZoomHostZak } from "@/services/classes/zoom-service";
-import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import {
   displayMeetingName,
@@ -33,18 +31,11 @@ export async function POST(request: Request) {
       hasSdkCredentials: Boolean(credentials),
     });
 
-    let zak: string | null = null;
-    if (body.isHost && mode === "sdk" && meetingNumber) {
-      zak = await fetchZoomHostZak({
-        meetingNumber,
-        instructorUserId: user.id,
-        accountEmail: getPlatformSettings().zoom.accountEmail,
-        startUrl: body.startUrl,
-      });
-    }
-    // Role 1 starts the meeting and needs the create/update start_url ZAK.
-    // Without one, join as a participant with the General App JWT.
-    const role: 0 | 1 = body.isHost && zak ? 1 : 0;
+    // Every classroom joins as the signed-in person, not the shared Zoom host.
+    // One Zoom user can only sit inside a single meeting; a host token would
+    // block every other lecture scheduled at the same time.
+    const zak: string | null = null;
+    const role: 0 | 1 = 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({

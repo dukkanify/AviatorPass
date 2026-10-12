@@ -9,8 +9,9 @@ import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-re
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import {
-  loadZoomEmbeddedClient,
+  openZoomEmbeddedClient,
   prefetchZoomEmbeddedSdk,
+  releaseZoomEmbeddedClient,
   type ZoomEmbeddedClient,
 } from "@/features/zoom/lib/load-embedded-sdk";
 import { cn } from "@/lib/utils";
@@ -287,8 +288,11 @@ function InAppZoomRoom({
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
-          const client = await loadZoomEmbeddedClient();
-          if (cancelled) return;
+          const client = await openZoomEmbeddedClient();
+          if (cancelled) {
+            await releaseZoomEmbeddedClient(client);
+            return;
+          }
           sdkRef.current = client;
           const videoSize = stageVideoSize(stageRef.current);
           await client.init({
@@ -329,8 +333,11 @@ function InAppZoomRoom({
             const detail =
               hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
             const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
-            if (!staleHostToken || !joinOpts.zak) throw hostError;
-            console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+            const anotherMeeting = /3000|other meetings in progress/i.test(detail);
+            if (!anotherMeeting && (!staleHostToken || !joinOpts.zak)) throw hostError;
+            if (staleHostToken) {
+              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+            }
             await client.leave?.().catch(() => undefined);
             await client.join({ ...joinOpts, zak: undefined });
           }
@@ -380,8 +387,9 @@ function InAppZoomRoom({
         } catch (error) {
           if (cancelled) return;
           console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
-          await sdkRef.current?.leave?.().catch(() => undefined);
+          const failedClient = sdkRef.current;
           sdkRef.current = null;
+          await releaseZoomEmbeddedClient(failedClient);
           if (stageRef.current) stageRef.current.replaceChildren();
           setPhase("classroom");
           await startLocalMedia();
@@ -411,8 +419,9 @@ function InAppZoomRoom({
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       if (pinTimer != null) window.clearTimeout(pinTimer);
-      void sdkRef.current?.leave?.().catch(() => undefined);
+      const client = sdkRef.current;
       sdkRef.current = null;
+      void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
     };
   }, [session, startLocalMedia, stopLocalMedia]);
