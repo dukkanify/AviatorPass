@@ -152,7 +152,7 @@ export function getCourseById(id: string, includeDeleted = false): Course | null
 /** Public catalog lookup by id, code, or marketing slug. */
 export function getPublicListedCourseByRef(ref: string): Course | null {
   const direct = getCourseById(ref);
-  if (direct && isCoursePubliclyListed(direct)) return direct;
+  if (direct && isCoursePubliclyListed(direct, { deliveryFilter: "all" })) return direct;
   const key = decodeURIComponent(ref || "")
     .trim()
     .toLowerCase();
@@ -162,7 +162,7 @@ export function getPublicListedCourseByRef(ref: string): Course | null {
     (course) => publicCourseRef(course).toLowerCase() === key,
   );
   if (!match || match.deletedAt) return null;
-  return isCoursePubliclyListed(match) ? match : null;
+  return isCoursePubliclyListed(match, { deliveryFilter: "all" }) ? match : null;
 }
 
 /** True when the user is primary instructor or assigned on the course. */
@@ -283,9 +283,12 @@ export function listPublishedCoursesGroupedByInstructor(pageSize = 100): Instruc
   );
 }
 
-export function listPublishedCoursesGroupedByCategory(pageSize = 100): CategoryCourseGroup[] {
+export function listPublishedCoursesGroupedByCategory(
+  pageSize = 100,
+  options?: { deliveryFilter?: ReturnType<typeof getPublicDeliveryFilter> },
+): CategoryCourseGroup[] {
   applyDueScheduledPublishes();
-  const deliveryFilter = getPublicDeliveryFilter();
+  const deliveryFilter = options?.deliveryFilter ?? getPublicDeliveryFilter();
   const { data } = listCourses({
     status: "published",
     pageSize: Math.max(pageSize, 200),
@@ -317,11 +320,12 @@ export function listPublishedCoursesGroupedByCategory(pageSize = 100): CategoryC
       .sort((a, b) => Number(b.featured) - Number(a.featured) || a.displayOrder - b.displayOrder),
   }));
 
-  const uncategorized = listed.filter((course) => !course.categoryId);
-  if (uncategorized.length) {
+  const visibleIds = new Set(categories.map((category) => category.id));
+  const loose = listed.filter((course) => !course.categoryId || !visibleIds.has(course.categoryId));
+  if (loose.length) {
     groups.push({
       category: null,
-      courses: uncategorized.sort(
+      courses: loose.sort(
         (a, b) => Number(b.featured) - Number(a.featured) || a.displayOrder - b.displayOrder,
       ),
     });

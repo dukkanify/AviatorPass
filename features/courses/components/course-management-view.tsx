@@ -369,11 +369,7 @@ function CourseManagementView({
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        description={
-          canManagePublishing
-            ? "ATPL subjects first — change photo, text, and checkout prices. Add a course or click a catalog price below."
-            : "Add a course or click a price to change it."
-        }
+        description="Add a course, set its price, then publish it so students see it on the website."
         breadcrumbs={[{ label: roleLabel }, { label: "Courses" }]}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -402,26 +398,6 @@ function CourseManagementView({
           </div>
         }
       />
-
-      <Card className="rounded-2xl border-accent/30 bg-accent/5 shadow-soft">
-        <CardHeader>
-          <CardTitle className="text-base">How to add a course and change prices</CardTitle>
-          <CardDescription className="space-y-1 text-sm">
-            <span className="block">
-              1. ATPL package — set KWD / AED / SAR / USD / EUR, then Save ATPL prices.
-            </span>
-            <span className="block">
-              2. Add course — name, photo, and price. It starts as a draft.
-            </span>
-            <span className="block">
-              3. Catalog price — click the price in the table, type the new amount, Save.
-            </span>
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {canManagePublishing ? <EasyAtplPrices /> : null}
-      {canManagePublishing ? <AtplSubjectsEasyPanel /> : null}
 
       <CourseStatsWidgets stats={stats} loading={loading} categoryHref={`${basePath}/categories`} />
 
@@ -635,6 +611,9 @@ function CourseManagementView({
           )}
         </CardContent>
       </Card>
+
+      {canManagePublishing ? <EasyAtplPrices /> : null}
+      {canManagePublishing ? <AtplSubjectsEasyPanel /> : null}
 
       {stats?.recentlyUpdated?.length ? (
         <Card>
