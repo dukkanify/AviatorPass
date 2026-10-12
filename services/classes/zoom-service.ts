@@ -38,6 +38,8 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   join_before_host: true,
   meeting_authentication: false,
   who_can_share_screen: "all",
+  participant_video: true,
+  request_permission_to_unmute_participants: false,
 } as const;
 
 export function isZoomRegistrationJoinUrl(url: string | null | undefined): boolean {
@@ -495,6 +497,7 @@ type ZoomMeetingDetails = {
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
   whoCanShareScreen: string | null;
+  requestPermissionToUnmute: boolean | null;
 };
 
 async function fetchZoomMeetingDetails(
@@ -517,6 +520,7 @@ async function fetchZoomMeetingDetails(
         join_before_host?: boolean;
         meeting_authentication?: boolean;
         who_can_share_screen?: string;
+        request_permission_to_unmute_participants?: boolean;
       };
     };
     return {
@@ -534,6 +538,10 @@ async function fetchZoomMeetingDetails(
           ? json.settings.meeting_authentication
           : null,
       whoCanShareScreen: json.settings?.who_can_share_screen?.trim() || null,
+      requestPermissionToUnmute:
+        typeof json.settings?.request_permission_to_unmute_participants === "boolean"
+          ? json.settings.request_permission_to_unmute_participants
+          : null,
     };
   } catch {
     return null;
@@ -555,6 +563,7 @@ export async function ensureInAppJoinSettings(
     current.joinBeforeHost === false ||
     current.meetingAuthentication === true ||
     current.whoCanShareScreen !== "all" ||
+    current.requestPermissionToUnmute === true ||
     isZoomRegistrationJoinUrl(current.joinUrl) ||
     isZoomRegistrationJoinUrl(meeting.joinUrl);
 

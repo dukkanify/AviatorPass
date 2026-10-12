@@ -40,13 +40,20 @@ function zoomLabel(node: HTMLElement) {
   return `${node.id} ${typeof node.className === "string" ? node.className : ""} ${node.getAttribute("role") ?? ""}`;
 }
 
-function isZoomChrome(node: HTMLElement) {
+function isZoomPopup(node: HTMLElement) {
   const label = zoomLabel(node);
   const role = node.getAttribute("role") ?? "";
-  if (/meeting-info-icon|MeetingInfoIcon/i.test(label) && node.offsetWidth < 72) return false;
   if (/suspension-view-tabpanel|video-player|zm-video/i.test(label)) return false;
-  if (role === "menu" || role === "listbox") return true;
-  return /meeting-info|meetingInfo|MuiMenu|MuiPopover|MuiDrawer/i.test(label);
+  if (role === "menu" || role === "listbox" || role === "dialog") return true;
+  return /meeting-info|meetingInfo|MuiMenu|MuiPopover|MuiModal|MuiDrawer|share-menu|ShareMenu|popup/i.test(
+    label,
+  );
+}
+
+function isZoomChrome(node: HTMLElement) {
+  const label = zoomLabel(node);
+  if (/meeting-info-icon|MeetingInfoIcon/i.test(label) && node.offsetWidth < 72) return false;
+  return isZoomPopup(node);
 }
 
 function fillZoomSurface(node: HTMLElement) {
@@ -61,15 +68,15 @@ function fillZoomSurface(node: HTMLElement) {
   set("margin", "0");
 }
 
-function clampZoomChrome(node: HTMLElement) {
-  if (!isZoomChrome(node)) return;
+function placeZoomPopup(node: HTMLElement) {
+  if (!isZoomPopup(node)) return;
   const parent = node.parentElement?.closest<HTMLElement>(
-    "[class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiDrawer']",
+    "[role='menu'], [role='dialog'], [role='listbox']",
   );
-  if (parent && parent !== node && isZoomChrome(parent)) return;
+  if (parent && parent !== node) return;
   const rect = node.getBoundingClientRect();
-  if (rect.width < 48 || rect.height < 24) return;
-  if (rect.width > window.innerWidth * 0.72 && rect.height > window.innerHeight * 0.4) return;
+  if (rect.width < 72 || rect.height < 36) return;
+  if (rect.width > window.innerWidth * 0.85 && rect.height > window.innerHeight * 0.7) return;
   const margin = 12;
   const outside =
     rect.left < margin ||
@@ -77,13 +84,13 @@ function clampZoomChrome(node: HTMLElement) {
     rect.right > window.innerWidth - margin ||
     rect.bottom > window.innerHeight - margin;
   if (!outside) return;
-  const width = Math.min(Math.max(rect.width, 220), window.innerWidth - margin * 2);
-  const height = Math.min(Math.max(rect.height, 80), window.innerHeight - margin * 2);
-  const left = Math.min(Math.max(rect.left, margin), window.innerWidth - width - margin);
-  const top = Math.min(Math.max(rect.top, margin), window.innerHeight - height - margin);
+  const width = Math.min(Math.max(rect.width, 240), window.innerWidth - margin * 2);
+  const height = Math.min(Math.max(rect.height, 120), window.innerHeight - margin * 2);
+  const left = Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin);
+  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - height - margin);
   const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
   set("position", "fixed");
-  set("z-index", "90");
+  set("z-index", "200");
   set("box-sizing", "border-box");
   set("inset", "auto");
   set("left", `${Math.round(left)}px`);
@@ -94,9 +101,27 @@ function clampZoomChrome(node: HTMLElement) {
   set("max-height", `${Math.round(height)}px`);
   set("overflow", "auto");
   set("transform", "none");
-  set("white-space", "normal");
-  set("overflow-wrap", "anywhere");
-  node.dataset.aviatorZoomInfo = "true";
+  node.dataset.aviatorZoomPopup = "true";
+}
+
+function expandMeetingSurface(stage: HTMLElement) {
+  const root = stage.querySelector<HTMLElement>(".classroom-sdk-root");
+  if (!root) return;
+  const box = root.getBoundingClientRect();
+  if (box.width < 160 || box.height < 120) return;
+  let node = root.firstElementChild;
+  for (let depth = 0; node instanceof HTMLElement && depth < 5; depth += 1) {
+    if (isZoomPopup(node)) break;
+    const rect = node.getBoundingClientRect();
+    if (rect.width > 80 && rect.width < box.width * 0.92) fillZoomSurface(node);
+    const next = [...node.children].find(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement &&
+        !isZoomPopup(child) &&
+        child.getBoundingClientRect().width > 80,
+    );
+    node = next ?? null;
+  }
 }
 
 function grantZoomFrameMedia() {
@@ -142,11 +167,12 @@ function pinZoomWindowToStage(stage: HTMLElement) {
     set("z-index", "6");
     set("margin", "0");
   }
+  expandMeetingSurface(stage);
   document
     .querySelectorAll<HTMLElement>(
-      "[class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiDrawer'], [role='menu'], [role='listbox']",
+      "[role='menu'], [role='listbox'], [role='dialog'], [class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='share-menu'], [class*='ShareMenu'], [class*='popup']",
     )
-    .forEach(clampZoomChrome);
+    .forEach(placeZoomPopup);
   grantZoomFrameMedia();
 }
 
@@ -283,7 +309,6 @@ function InAppZoomRoom({
     let cancelled = false;
     let resizeObserver: ResizeObserver | null = null;
     let mutationObserver: MutationObserver | null = null;
-    let pinTimer: number | null = null;
 
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
@@ -378,11 +403,6 @@ function InAppZoomRoom({
           resizeObserver.observe(stageRef.current);
           mutationObserver = new MutationObserver(() => fit(false));
           mutationObserver.observe(document.body, { childList: true, subtree: true });
-          pinTimer = window.setTimeout(() => {
-            mutationObserver?.disconnect();
-            mutationObserver = null;
-            pinTimer = null;
-          }, 12000);
           return;
         } catch (error) {
           if (cancelled) return;
@@ -418,7 +438,6 @@ function InAppZoomRoom({
       cancelled = true;
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
-      if (pinTimer != null) window.clearTimeout(pinTimer);
       const client = sdkRef.current;
       sdkRef.current = null;
       void releaseZoomEmbeddedClient(client);
