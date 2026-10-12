@@ -9,7 +9,11 @@ import {
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
 } from "@/lib/zoom/meeting-sdk";
-import { callerMayJoinAsZoomHost, fetchZoomHostZak } from "@/services/classes/zoom-service";
+import {
+  callerMayJoinAsZoomHost,
+  fetchZoomHostZak,
+  zoomHostBlockedByAnotherLiveMeeting,
+} from "@/services/classes/zoom-service";
 
 export async function POST(request: Request) {
   try {
@@ -42,13 +46,16 @@ export async function POST(request: Request) {
         role: user.role,
         meetingNumber,
       });
-    const zak = mayHost
-      ? await fetchZoomHostZak({
-          meetingNumber,
-          startUrl: body.startUrl,
-          instructorUserId: user.id,
-        })
-      : null;
+    const hostBlocked =
+      mayHost && meetingNumber ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber) : false;
+    const zak =
+      mayHost && !hostBlocked
+        ? await fetchZoomHostZak({
+            meetingNumber,
+            startUrl: body.startUrl,
+            instructorUserId: user.id,
+          })
+        : null;
     const role: 0 | 1 = zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber

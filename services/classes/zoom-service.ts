@@ -1262,6 +1262,58 @@ export async function refreshStoredZoomStartUrl(
 }
 
 /**
+ * A Zoom user can sit in only one started meeting. End leftover meetings that
+ * are past their lecture time, and report when another lecture is still live.
+ */
+export async function zoomHostBlockedByAnotherLiveMeeting(
+  meetingNumber: string | null | undefined,
+): Promise<boolean> {
+  try {
+    const current = meetingNumberDigits(meetingNumber);
+    if (!current || !zoomCredsPresent()) return false;
+    const token = await getZoomAccessToken();
+    if (!token) return false;
+    const session = findStoredZoomSession(current);
+    const host = session?.hostId || session?.hostEmail || "me";
+    const res = await fetch(
+      `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return false;
+    const json = (await res.json()) as {
+      meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
+    };
+    let blocked = false;
+    const now = Date.now();
+    const graceMs = 15 * 60_000;
+    for (const meeting of json.meetings ?? []) {
+      const id = meetingNumberDigits(String(meeting.id ?? ""));
+      if (!id || id === current) continue;
+      const stored = getZoomMeetingByNumber(id);
+      const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
+      const scheduledEnd = cls ? Date.parse(cls.endsAt) : Number.NaN;
+      const zoomEnd = meeting.start_time
+        ? Date.parse(meeting.start_time) + (meeting.duration ?? 60) * 60_000
+        : Number.NaN;
+      const end = Number.isFinite(scheduledEnd) ? scheduledEnd : zoomEnd;
+      if (Number.isFinite(end) && end + graceMs > now) {
+        blocked = true;
+        continue;
+      }
+      if (!Number.isFinite(end)) {
+        blocked = true;
+        continue;
+      }
+      await endZoomMeetingInstance(token, id);
+    }
+    return blocked;
+  } catch (error) {
+    console.error("Zoom stale meeting cleanup skipped", error);
+    return false;
+  }
+}
+
+/**
  * Host ZAK for Meeting SDK role 1.
  * Uses the start_url returned when the meeting was created or updated.
  * This Zoom account does not grant user:read:zak, so join never calls the token API.
