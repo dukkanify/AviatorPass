@@ -147,11 +147,9 @@ function enqueueZoomClientTask(task: () => Promise<void>): Promise<void> {
 export async function openZoomEmbeddedClient(): Promise<ZoomEmbeddedClient> {
   let created: ZoomEmbeddedClient | null = null;
   await enqueueZoomClientTask(async () => {
-    if (activeZoomClient?.leave) {
-      const previous = activeZoomClient;
-      activeZoomClient = null;
-      await previous.leave().catch(() => undefined);
-    }
+    const leave = activeZoomClient?.leave;
+    activeZoomClient = null;
+    if (leave) await leave().catch(() => undefined);
     created = await loadZoomEmbeddedClient();
     activeZoomClient = created;
   });
