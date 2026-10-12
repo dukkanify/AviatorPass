@@ -121,6 +121,8 @@ export function instructorMeetingPayload(input: {
       join_before_host: true,
       meeting_authentication: false,
       who_can_share_screen: "all",
+      who_can_share_screen_when_someone_is_sharing: "all",
+      request_permission_to_unmute_participants: false,
     },
   };
 }

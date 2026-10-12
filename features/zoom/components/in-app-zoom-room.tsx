@@ -196,6 +196,7 @@ interface InAppSession {
   userName: string;
   userEmail: string;
   signature: string | null;
+  hostSignature?: string | null;
   zak: string | null;
   role: 0 | 1;
 }
@@ -289,6 +290,7 @@ function InAppZoomRoom({
           userName: "AviatorPass student",
           userEmail: "",
           signature: null,
+          hostSignature: null,
           zak: null,
           role: isHost ? 1 : 0,
         });
@@ -343,28 +345,30 @@ function InAppZoomRoom({
               },
             },
           });
-          const joinOpts = {
+          const participantJoin = {
             signature: active.signature,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
             userEmail: active.userEmail,
             tk: "",
-            zak: active.zak || undefined,
           };
           try {
-            await client.join(joinOpts);
+            await client.join({
+              ...participantJoin,
+              signature: active.hostSignature || active.signature,
+              zak: active.zak || undefined,
+            });
           } catch (hostError) {
+            if (!active.zak && !active.hostSignature) throw hostError;
             const detail =
               hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
             const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
-            const anotherMeeting = /3000|other meetings in progress/i.test(detail);
-            if (!anotherMeeting && (!staleHostToken || !joinOpts.zak)) throw hostError;
             if (staleHostToken) {
               console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
             }
             await client.leave?.().catch(() => undefined);
-            await client.join({ ...joinOpts, zak: undefined });
+            await client.join(participantJoin);
           }
           if (cancelled) return;
           stopLocalMedia();
@@ -497,7 +501,7 @@ function InAppZoomRoom({
           </p>
         </div>
         <span className="classroom-chip shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/70">
-          {isHost ? "Host" : "Student"}
+          {session?.userName ?? (isHost ? "Instructor" : "Student")}
         </span>
       </header>
 

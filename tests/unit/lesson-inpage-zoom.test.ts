@@ -27,6 +27,14 @@ describe("lesson live class stays on the same page", () => {
     expect(IN_APP_ZOOM_MEETING_SETTINGS.join_before_host).toBe(true);
     expect(IN_APP_ZOOM_MEETING_SETTINGS.meeting_authentication).toBe(false);
     expect(IN_APP_ZOOM_MEETING_SETTINGS.who_can_share_screen).toBe("all");
+    expect(IN_APP_ZOOM_MEETING_SETTINGS.who_can_share_screen_when_someone_is_sharing).toBe("all");
+    expect(IN_APP_ZOOM_MEETING_SETTINGS.request_permission_to_unmute_participants).toBe(false);
+    expect(src("app/api/zoom/in-app-session/route.ts")).toMatch(/callerMayJoinAsZoomHost/);
+    expect(src("app/api/zoom/in-app-session/route.ts")).toMatch(/role: 0/);
+    expect(src("services/classes/zoom-service.ts")).toMatch(
+      /who_can_share_screen_when_someone_is_sharing/,
+    );
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/hostSignature/);
     expect(isZoomRegistrationJoinUrl("https://zoom.us/meeting/register/abc")).toBe(true);
     expect(isZoomRegistrationJoinUrl("https://us02web.zoom.us/j/86524929538")).toBe(false);
     expect(src("services/classes/zoom-service.ts")).toMatch(
