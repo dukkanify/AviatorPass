@@ -332,6 +332,21 @@ export function enrollStudentsInLiveClass(liveClassId: string, studentIds: strin
   addParticipants(liveClassId, studentIds, "participant");
 }
 
+/** Keep the roster host in step with the instructor assigned to this lecture. */
+function syncLectureStaff(
+  liveClassId: string,
+  instructorId: string,
+  assistantInstructorId: string | null,
+) {
+  writeClassesDb((d) => {
+    d.participants = d.participants.filter(
+      (row) => row.liveClassId !== liveClassId || (row.role !== "host" && row.role !== "cohost"),
+    );
+  });
+  addParticipants(liveClassId, [instructorId], "host");
+  if (assistantInstructorId) addParticipants(liveClassId, [assistantInstructorId], "cohost");
+}
+
 async function notifyUsers(
   userIds: string[],
   title: string,
@@ -652,6 +667,12 @@ export async function updateLiveClass(input: {
     const idx = d.classes.findIndex((c) => c.id === existing.id);
     if (idx >= 0) d.classes[idx] = next;
   });
+  if (
+    instructorId !== existing.instructorId ||
+    next.assistantInstructorId !== existing.assistantInstructorId
+  ) {
+    syncLectureStaff(next.id, instructorId, next.assistantInstructorId);
+  }
 
   const { liveClassMeetingFieldsChanged } = await import("@/services/zoom/meeting-service");
   if (liveClassMeetingFieldsChanged(existing, next)) {
@@ -993,7 +1014,9 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
     findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = listParticipantsForClass(liveClassId).some((p) => p.userId === userId);
+  const participant = listParticipantsForClass(liveClassId).some(
+    (p) => p.userId === userId && p.role === "participant",
+  );
   if (!isHost && !participant) {
     throw new ClassValidationError("You are not invited to this class");
   }
