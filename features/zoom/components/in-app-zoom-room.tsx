@@ -16,6 +16,74 @@ import {
 } from "@/features/zoom/lib/load-embedded-sdk";
 import { cn } from "@/lib/utils";
 
+function zoomFailureText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const row = error as { reason?: unknown; errorCode?: unknown; message?: unknown };
+    return [row.errorCode, row.reason, row.message]
+      .filter((part) => part != null && part !== "")
+      .join(" ");
+  }
+  return String(error ?? "");
+}
+
+function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
+  return /already has other meetings in progress/i.test(root?.innerText ?? "");
+}
+
+/** Join, and fail fast if Zoom paints the "other meeting" dialog without rejecting. */
+async function joinEmbeddedMeeting(
+  client: ZoomEmbeddedClient,
+  payload: {
+    signature: string;
+    meetingNumber: string;
+    password: string;
+    userName: string;
+    userEmail: string;
+    tk: string;
+    zak?: string;
+  },
+  stage: HTMLElement,
+): Promise<void> {
+  let timer = 0;
+  const observer = new MutationObserver(() => {
+    if (zoomStageShowsHostBusy(stage)) {
+      window.clearInterval(timer);
+    }
+  });
+  observer.observe(stage, { childList: true, subtree: true, characterData: true });
+  try {
+    const joined = client
+      .join(payload)
+      .then(() => {
+        if (zoomStageShowsHostBusy(stage)) {
+          throw new Error("3000 Already has other meetings in progress");
+        }
+      })
+      .catch((error: unknown) => {
+        throw error instanceof Error ? error : new Error(zoomFailureText(error));
+      });
+    try {
+      await Promise.race([
+        joined,
+        new Promise<void>((_, reject) => {
+          timer = window.setInterval(() => {
+            if (zoomStageShowsHostBusy(stage)) {
+              reject(new Error("3000 Already has other meetings in progress"));
+            }
+          }, 250);
+        }),
+      ]);
+    } catch (error) {
+      void joined.catch(() => undefined);
+      throw error;
+    }
+  } finally {
+    observer.disconnect();
+    window.clearInterval(timer);
+  }
+}
+
 function stageVideoSize(el: HTMLElement): { width: number; height: number } {
   const box = el.getBoundingClientRect();
   const width = Math.round(box.width || el.clientWidth || 0);
@@ -335,36 +403,41 @@ function InAppZoomRoom({
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
-          const client = await openZoomEmbeddedClient();
+          let client = await openZoomEmbeddedClient();
           if (cancelled) {
             await releaseZoomEmbeddedClient(client);
             return;
           }
-          sdkRef.current = client;
-          const videoSize = stageVideoSize(stageRef.current);
-          await client.init({
-            zoomAppRoot: stageRef.current,
-            language: "en-US",
-            patchJsMedia: true,
-            leaveOnPageUnload: true,
-            customize: {
-              video: {
-                isResizable: false,
-                viewSizes: {
-                  default: videoSize,
-                  ribbon: {
-                    width: Math.min(320, Math.round(videoSize.width / 4)),
-                    height: videoSize.height,
+          const stage = stageRef.current;
+          if (!stage) return;
+          const initClient = async (next: ZoomEmbeddedClient) => {
+            const videoSize = stageVideoSize(stage);
+            await next.init({
+              zoomAppRoot: stage,
+              language: "en-US",
+              patchJsMedia: true,
+              leaveOnPageUnload: true,
+              customize: {
+                video: {
+                  isResizable: false,
+                  viewSizes: {
+                    default: videoSize,
+                    ribbon: {
+                      width: Math.min(320, Math.round(videoSize.width / 4)),
+                      height: videoSize.height,
+                    },
+                  },
+                  popper: {
+                    disableDraggable: true,
+                    anchorElement: stage,
+                    placement: "innerCenter",
                   },
                 },
-                popper: {
-                  disableDraggable: true,
-                  anchorElement: stageRef.current,
-                  placement: "innerCenter",
-                },
               },
-            },
-          });
+            });
+          };
+          sdkRef.current = client;
+          await initClient(client);
           const participantJoin = {
             signature: active.signature,
             meetingNumber: active.meetingNumber,
@@ -374,21 +447,36 @@ function InAppZoomRoom({
             tk: "",
           };
           try {
-            await client.join({
-              ...participantJoin,
-              signature: active.hostSignature || active.signature,
-              zak: active.zak || undefined,
-            });
+            await joinEmbeddedMeeting(
+              client,
+              {
+                ...participantJoin,
+                signature: active.hostSignature || active.signature,
+                zak: active.zak || undefined,
+              },
+              stage,
+            );
           } catch (hostError) {
             if (!active.zak && !active.hostSignature) throw hostError;
-            const detail =
-              hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
+            const detail = zoomFailureText(hostError);
             const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
+            const hostBusy = /3000|other meetings in progress/i.test(detail);
             if (staleHostToken) {
               console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
             }
-            await client.leave?.().catch(() => undefined);
-            await client.join(participantJoin);
+            if (hostBusy) {
+              console.warn("[zoom] Host already in another meeting; joining as participant");
+            }
+            await releaseZoomEmbeddedClient(client);
+            stage.replaceChildren();
+            client = await openZoomEmbeddedClient();
+            if (cancelled) {
+              await releaseZoomEmbeddedClient(client);
+              return;
+            }
+            sdkRef.current = client;
+            await initClient(client);
+            await joinEmbeddedMeeting(client, participantJoin, stage);
           }
           if (cancelled) return;
           stopLocalMedia();
@@ -438,13 +526,15 @@ function InAppZoomRoom({
           setPhase("classroom");
           await startLocalMedia();
           if (!cancelled) {
-            const detail = error instanceof Error ? error.message : String(error);
+            const detail = zoomFailureText(error);
             setNotice(
               /3712|invalid sdk|sdk key/i.test(detail)
                 ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
                 : /3099|registration/i.test(detail)
                   ? "Zoom still asked for registration. AviatorPass is turning that off — open the classroom again."
-                  : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+                  : /3000|other meetings in progress/i.test(detail)
+                    ? "Zoom is already inside another meeting on this account. Leave that meeting, then open this classroom again."
+                    : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
             );
           }
           return;
