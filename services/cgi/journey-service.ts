@@ -751,6 +751,29 @@ async function bindLiveClassToAssignedSubject(input: {
   return input.liveClassId;
 }
 
+/** Move an existing lecture when TKI 1 edits its date, and email the new time. */
+async function alignLiveClassStart(input: {
+  liveClassId: string;
+  scheduledAt?: string | null;
+  actorId: string;
+}): Promise<string> {
+  const scheduledAt = input.scheduledAt?.trim() ?? "";
+  const when = Date.parse(scheduledAt);
+  if (!scheduledAt || !Number.isFinite(when)) return input.liveClassId;
+  const live = getLiveClass(input.liveClassId);
+  if (!live || live.deletedAt || live.status === "cancelled") return input.liveClassId;
+  if (Date.parse(live.startsAt) === when) return input.liveClassId;
+  const startsAt = new Date(when).toISOString();
+  const endsAt = new Date(when + live.durationMinutes * 60_000).toISOString();
+  const moved = await rescheduleLiveClass({
+    id: live.id,
+    startsAt,
+    endsAt,
+    actorId: input.actorId,
+  });
+  return moved?.id ?? input.liveClassId;
+}
+
 async function ensureAssignedSubjectLiveClass(input: {
   courseId: string;
   lessonId: string;
@@ -796,8 +819,13 @@ async function ensureAssignedSubjectLiveClass(input: {
         actorId: input.actorId,
       });
       if (liveClassId) {
-        if (selectedFirst) rememberFirstLectureLiveClass(input.studentId, liveClassId);
-        return liveClassId;
+        const alignedId = await alignLiveClassStart({
+          liveClassId,
+          scheduledAt: input.scheduledAt,
+          actorId: input.actorId,
+        });
+        if (selectedFirst) rememberFirstLectureLiveClass(input.studentId, alignedId);
+        return alignedId;
       }
     }
 
@@ -817,8 +845,13 @@ async function ensureAssignedSubjectLiveClass(input: {
           actorId: input.actorId,
         });
         if (liveClassId) {
-          rememberFirstLectureLiveClass(input.studentId, liveClassId);
-          return liveClassId;
+          const alignedId = await alignLiveClassStart({
+            liveClassId,
+            scheduledAt: input.scheduledAt,
+            actorId: input.actorId,
+          });
+          rememberFirstLectureLiveClass(input.studentId, alignedId);
+          return alignedId;
         }
       }
     }
@@ -845,8 +878,13 @@ async function ensureAssignedSubjectLiveClass(input: {
         actorId: input.actorId,
       });
       if (liveClassId) {
-        rememberFirstLectureLiveClass(input.studentId, liveClassId);
-        return liveClassId;
+        const alignedId = await alignLiveClassStart({
+          liveClassId,
+          scheduledAt: input.scheduledAt,
+          actorId: input.actorId,
+        });
+        rememberFirstLectureLiveClass(input.studentId, alignedId);
+        return alignedId;
       }
     }
   }

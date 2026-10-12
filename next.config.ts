@@ -17,7 +17,7 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const inAppMediaPolicy =
-  'camera=(self "https://zoom.us" "https://*.zoom.us"), microphone=(self "https://zoom.us" "https://*.zoom.us"), display-capture=(self), autoplay=(self), geolocation=()';
+  'camera=(self "https://zoom.us" "https://*.zoom.us"), microphone=(self "https://zoom.us" "https://*.zoom.us"), display-capture=(self "https://zoom.us" "https://*.zoom.us"), autoplay=(self "https://zoom.us" "https://*.zoom.us"), geolocation=()';
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -109,7 +109,7 @@ const nextConfig: NextConfig = {
         key: "Content-Security-Policy-Report-Only",
         value: contentSecurityPolicy,
       },
-      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
       { key: "Cross-Origin-Resource-Policy", value: "same-site" },
     ];
     if (isProd) {

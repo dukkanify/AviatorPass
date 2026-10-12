@@ -15,13 +15,13 @@ import { REGISTRATION_COUNTRIES } from "@/constants/countries";
 import {
   firstPasswordIssue,
   hasPasswordSpecialCharacter,
-  PASSWORD_REQUIREMENTS,
   PASSWORD_SPECIAL_ERROR,
   passwordMeetsAllRequirements,
+  passwordRulesFor,
   passwordsMatch,
   passwordStrength,
 } from "@/utils/password-rules";
-import { registerSchema } from "@/utils/validation";
+import { createRegisterSchema } from "@/utils/validation";
 import { normalizePhone, sanitizeEmail, sanitizeString } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
 import { routes } from "@/constants/routes";
@@ -102,10 +102,13 @@ function RegisterForm({
   role: initialRole = "student",
   onRoleChange,
   showInstructorComingSoonOnMount = false,
+  requireSpecialChar = false,
 }: {
   role?: RegisterRole;
   onRoleChange?: (role: RegisterRole) => void;
   showInstructorComingSoonOnMount?: boolean;
+  /** Platform setting. Off unless Authentication requires a symbol. */
+  requireSpecialChar?: boolean;
 }) {
   const router = useRouter();
   const [role, setRole] = React.useState<RegisterRole>(initialRole);
@@ -150,8 +153,14 @@ function RegisterForm({
   }, [countryCode, phoneDialCountry]);
 
   const copy = ROLE_COPY.student;
-  const strength = passwordStrength(password);
-  const passwordValid = passwordMeetsAllRequirements(password);
+  const passwordPolicy = React.useMemo(() => ({ requireSpecialChar }), [requireSpecialChar]);
+  const passwordRules = passwordRulesFor(passwordPolicy);
+  const registrationSchema = React.useMemo(
+    () => createRegisterSchema(passwordPolicy),
+    [passwordPolicy],
+  );
+  const strength = passwordStrength(password, passwordPolicy);
+  const passwordValid = passwordMeetsAllRequirements(password, passwordPolicy);
   const confirmMatches = passwordsMatch(password, confirmPassword);
   const formDraft = {
     email: sanitizeEmail(email),
@@ -172,7 +181,7 @@ function RegisterForm({
     language: "en",
     website: honeypot,
   };
-  const formReady = registerSchema.safeParse(formDraft).success;
+  const formReady = registrationSchema.safeParse(formDraft).success;
   const canSubmit = formReady && passwordValid && confirmMatches && !pending;
   const revealPasswordError = passwordBlurred || submitAttempted;
   const passwordFieldError =
@@ -183,7 +192,7 @@ function RegisterForm({
       : undefined;
 
   const syncPasswordError = (value: string, reveal: boolean) => {
-    const issue = firstPasswordIssue(value);
+    const issue = firstPasswordIssue(value, passwordPolicy);
     const hideSpecial =
       issue?.id === "special" && hasPasswordSpecialCharacter(value) ? undefined : issue;
     setErrors((prev) => {
@@ -234,7 +243,7 @@ function RegisterForm({
     }
 
     setSubmitAttempted(true);
-    const parsed = registerSchema.safeParse(formDraft);
+    const parsed = registrationSchema.safeParse(formDraft);
 
     if (!parsed.success) {
       const next: Record<string, string> = {};
@@ -573,7 +582,7 @@ function RegisterForm({
             </p>
           </div>
           <ul id="password-requirements" className="space-y-1" aria-live="polite">
-            {PASSWORD_REQUIREMENTS.map((rule) => {
+            {passwordRules.map((rule) => {
               const met = rule.test(password);
               return (
                 <li

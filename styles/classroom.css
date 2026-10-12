@@ -107,28 +107,24 @@
   z-index: 3;
 }
 
-.classroom-sdk-root.is-live,
-.classroom-sdk-root.is-live > *,
-.classroom-sdk-root.is-live iframe,
-.classroom-sdk-root.is-live canvas,
-.classroom-sdk-root.is-live video,
-.classroom-sdk-root.is-live [class*="video"],
-.classroom-sdk-root.is-live [class*="player"],
-.classroom-sdk-root.is-live [class*="gallery"],
-.classroom-sdk-root.is-live [class*="speaker"] {
+.classroom-sdk-root.is-live > div {
+  position: absolute !important;
+  inset: 0 !important;
   box-sizing: border-box !important;
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+  transform: none !important;
 }
 
-.classroom-sdk-root.is-live > div {
-  position: absolute !important;
-  inset: 0 !important;
-  left: 0 !important;
-  top: 0 !important;
-  transform: none !important;
+.classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
+.classroom-sdk-root.is-live [class*="video-player"] {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Zoom Component View often teleports a floating popper onto document.body */
@@ -149,25 +145,11 @@ body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
 }
 
 body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
-  position: fixed !important;
   z-index: 90 !important;
-  top: 72px !important;
-  left: max(16px, calc(50vw - 220px)) !important;
   box-sizing: border-box !important;
-  width: min(440px, calc(100vw - 32px)) !important;
-  max-width: min(440px, calc(100vw - 32px)) !important;
-  height: auto !important;
-  max-height: min(80vh, 680px) !important;
+  max-width: min(420px, calc(100vw - 24px)) !important;
+  max-height: min(70vh, 560px) !important;
   overflow: auto !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  transform: none !important;
-}
-
-body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] * {
-  max-width: 100% !important;
-  height: auto !important;
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: break-word !important;

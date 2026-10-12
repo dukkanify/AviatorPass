@@ -268,8 +268,11 @@ describe("Zoom stays inside AviatorPass", () => {
     const vercel = readFileSync(resolve(process.cwd(), "vercel.json"), "utf8");
     expect(nextConfig).toMatch(/camera=\(self/);
     expect(nextConfig).toMatch(/microphone=\(self/);
+    expect(nextConfig).toMatch(/display-capture=\(self "https:\/\/zoom\.us"/);
     expect(nextConfig).not.toMatch(/camera=\(\)/);
+    expect(nextConfig).not.toMatch(/display-capture=\(self\),/);
     expect(vercel).toMatch(/camera=\(self/);
+    expect(vercel).toMatch(/display-capture=\(self \\"https:\/\/zoom\.us\\"/);
     expect(vercel).not.toMatch(/camera=\(\)/);
   });
 });
