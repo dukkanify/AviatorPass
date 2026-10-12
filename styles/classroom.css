@@ -107,7 +107,7 @@
   z-index: 3;
 }
 
-.classroom-sdk-root.is-live > div {
+.classroom-sdk-root.is-live > div:not([role="menu"]):not([role="dialog"]):not([role="listbox"]) {
   position: absolute !important;
   inset: 0 !important;
   box-sizing: border-box !important;
@@ -115,7 +115,25 @@
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
-  transform: none !important;
+}
+
+.classroom-sdk-root.is-live
+  > div
+  > div:not([role="menu"]):not([role="dialog"]):not([role="listbox"]) {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+body:has(.classroom-sdk-root.is-live) [role="menu"],
+body:has(.classroom-sdk-root.is-live) [role="listbox"],
+body:has(.classroom-sdk-root.is-live) [role="dialog"] {
+  z-index: 200 !important;
+  max-width: min(440px, calc(100vw - 24px)) !important;
+  max-height: min(80vh, 640px) !important;
+  overflow: auto !important;
 }
 
 .classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
@@ -290,8 +308,15 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
     border-radius: 1.25rem;
   }
 
+  .classroom-stage.is-live {
+    min-height: calc(100dvh - 0.5rem) !important;
+    border-radius: 1rem;
+  }
+
   .classroom-viewport {
-    min-height: min(48vh, 420px);
+    min-height: 68dvh !important;
+    aspect-ratio: auto !important;
+    margin: 0.4rem;
   }
 }
 
