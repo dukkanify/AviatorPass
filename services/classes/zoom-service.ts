@@ -38,7 +38,6 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   join_before_host: true,
   meeting_authentication: false,
   who_can_share_screen: "all",
-  participant_video: true,
   request_permission_to_unmute_participants: false,
 } as const;
 
