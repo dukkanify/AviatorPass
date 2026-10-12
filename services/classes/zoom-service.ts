@@ -14,6 +14,7 @@ import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
 import {
@@ -37,9 +38,24 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   approval_type: 2,
   join_before_host: true,
   meeting_authentication: false,
+  mute_upon_entry: false,
   who_can_share_screen: "all",
+  who_can_share_screen_when_someone_is_sharing: "all",
   request_permission_to_unmute_participants: false,
 } as const;
+
+/** Zoom user defaults. A meeting-level "all" is ignored while this stays "host". */
+const ZOOM_HOST_PARTICIPANT_TOOLS = {
+  screen_sharing: true,
+  who_can_share_screen: "all",
+  who_can_share_screen_when_someone_is_sharing: "all",
+  request_permission_to_unmute_participants: false,
+  annotation: true,
+  whiteboard: true,
+  remote_control: true,
+} as const;
+
+const zoomShareToolsReady = new Set<string>();
 
 export function isZoomRegistrationJoinUrl(url: string | null | undefined): boolean {
   return /\/(?:meeting|webinar)\/register/i.test(url ?? "");
@@ -318,11 +334,9 @@ async function createZoomApiMeeting(
     password: opts.passcode ? undefined : "",
     settings: {
       waiting_room: opts.waitingRoom,
-      mute_upon_entry: true,
       host_video: true,
       participant_video: true,
       ...IN_APP_ZOOM_MEETING_SETTINGS,
-      who_can_share_screen: "all",
     },
   };
 
@@ -346,6 +360,7 @@ async function createZoomApiMeeting(
     liveClass,
     resolveZoomS2SUser(settings.zoom.accountEmail),
   );
+  await ensureZoomHostParticipantTools(token, user);
   let res = await postMeeting(user);
   if (!res.ok) {
     const errorText = await res.text();
@@ -496,6 +511,7 @@ type ZoomMeetingDetails = {
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
   whoCanShareScreen: string | null;
+  whoCanShareWhenSomeoneIsSharing: string | null;
   requestPermissionToUnmute: boolean | null;
 };
 
@@ -519,6 +535,7 @@ async function fetchZoomMeetingDetails(
         join_before_host?: boolean;
         meeting_authentication?: boolean;
         who_can_share_screen?: string;
+        who_can_share_screen_when_someone_is_sharing?: string;
         request_permission_to_unmute_participants?: boolean;
       };
     };
@@ -537,6 +554,8 @@ async function fetchZoomMeetingDetails(
           ? json.settings.meeting_authentication
           : null,
       whoCanShareScreen: json.settings?.who_can_share_screen?.trim() || null,
+      whoCanShareWhenSomeoneIsSharing:
+        json.settings?.who_can_share_screen_when_someone_is_sharing?.trim() || null,
       requestPermissionToUnmute:
         typeof json.settings?.request_permission_to_unmute_participants === "boolean"
           ? json.settings.request_permission_to_unmute_participants
@@ -555,6 +574,10 @@ export async function ensureInAppJoinSettings(
   const token = await getZoomAccessToken();
   if (!token) return meeting;
 
+  const shareToolsChanged = await ensureZoomHostParticipantTools(
+    token,
+    meeting.hostId || meeting.hostEmail,
+  );
   const current = await fetchZoomMeetingDetails(token, meeting.zoomMeetingId);
   const needsPatch =
     !current ||
@@ -562,6 +585,7 @@ export async function ensureInAppJoinSettings(
     current.joinBeforeHost === false ||
     current.meetingAuthentication === true ||
     current.whoCanShareScreen !== "all" ||
+    current.whoCanShareWhenSomeoneIsSharing === "host" ||
     current.requestPermissionToUnmute === true ||
     isZoomRegistrationJoinUrl(current.joinUrl) ||
     isZoomRegistrationJoinUrl(meeting.joinUrl);
@@ -580,6 +604,12 @@ export async function ensureInAppJoinSettings(
   const refreshed = needsPatch
     ? await fetchZoomMeetingDetails(token, meeting.zoomMeetingId)
     : current;
+  if (
+    shareToolsChanged ||
+    (current?.whoCanShareScreen === "host" && refreshed?.whoCanShareScreen === "all")
+  ) {
+    await endZoomMeetingInstance(token, meeting.zoomMeetingId);
+  }
   if (!refreshed) return meeting;
 
   const nextJoin =
@@ -604,6 +634,110 @@ export async function ensureInAppJoinSettings(
 
   upsertZoomMeeting(next);
   return next;
+}
+
+type ZoomUserShareSettings = {
+  whoCanShareScreen: string | null;
+  whoCanShareWhenSomeoneIsSharing: string | null;
+  requestPermissionToUnmute: boolean | null;
+};
+
+function zoomSettingsUser(hostUser: string | null | undefined): string {
+  return resolveZoomS2SUser(hostUser ?? null) || "me";
+}
+
+async function fetchZoomUserShareSettings(
+  token: string,
+  user: string,
+): Promise<ZoomUserShareSettings | null> {
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      in_meeting?: {
+        who_can_share_screen?: string;
+        who_can_share_screen_when_someone_is_sharing?: string;
+        request_permission_to_unmute_participants?: boolean;
+      };
+    };
+    return {
+      whoCanShareScreen: json.in_meeting?.who_can_share_screen?.trim() || null,
+      whoCanShareWhenSomeoneIsSharing:
+        json.in_meeting?.who_can_share_screen_when_someone_is_sharing?.trim() || null,
+      requestPermissionToUnmute:
+        typeof json.in_meeting?.request_permission_to_unmute_participants === "boolean"
+          ? json.in_meeting.request_permission_to_unmute_participants
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Unlock attendee screen share, camera, and unmute on the Zoom host user. */
+async function ensureZoomHostParticipantTools(
+  token: string,
+  hostUser: string | null | undefined,
+): Promise<boolean> {
+  const users = [...new Set([zoomSettingsUser(hostUser), "me"])];
+  let changed = false;
+  for (const user of users) {
+    if (zoomShareToolsReady.has(user)) continue;
+    const current = await fetchZoomUserShareSettings(token, user);
+    const blocked =
+      !current ||
+      current.whoCanShareScreen !== "all" ||
+      current.whoCanShareWhenSomeoneIsSharing === "host" ||
+      current.requestPermissionToUnmute === true;
+    if (!blocked) {
+      zoomShareToolsReady.add(user);
+      continue;
+    }
+    const wasHostOnly =
+      current?.whoCanShareScreen === "host" || current?.whoCanShareWhenSomeoneIsSharing === "host";
+    try {
+      const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}/settings`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ in_meeting: { ...ZOOM_HOST_PARTICIPANT_TOOLS } }),
+      });
+      if (res.ok || res.status === 204) {
+        zoomShareToolsReady.add(user);
+        if (wasHostOnly) changed = true;
+      } else {
+        console.error("Zoom participant tools update failed", res.status);
+      }
+    } catch (error) {
+      console.error("Zoom participant tools update failed", error);
+    }
+  }
+  return changed;
+}
+
+/** End a running instance so the next join starts with the updated share policy. */
+async function endZoomMeetingInstance(token: string, meetingId: string): Promise<void> {
+  const id = String(meetingId).replace(/\D/g, "");
+  if (!id) return;
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}/status`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "end" }),
+    });
+    if (!res.ok && res.status !== 404) {
+      console.error("Zoom meeting restart skipped", res.status);
+    }
+  } catch (error) {
+    console.error("Zoom meeting restart skipped", error);
+  }
 }
 
 export async function updateMeetingForClass(input: {
@@ -819,6 +953,41 @@ export function findStoredZoomSession(
   }
 
   return null;
+}
+
+/** Host ZAK is only for the assigned instructor or academy staff, never a student. */
+export function callerMayJoinAsZoomHost(input: {
+  userId: string;
+  role: string;
+  meetingNumber: string | null | undefined;
+}): boolean {
+  const id = meetingNumberDigits(input.meetingNumber);
+  if (!id) return false;
+  const staff =
+    input.role === ROLES.SUPER_ADMIN ||
+    input.role === ROLES.ADMIN ||
+    input.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
+
+  const meeting = getZoomMeetingByNumber(id);
+  if (meeting) {
+    const live = lookupLiveClass(meeting.liveClassId);
+    if (!live) return staff;
+    return (
+      staff || live.instructorId === input.userId || live.assistantInstructorId === input.userId
+    );
+  }
+
+  const booking = readBookingsDb().bookings.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (booking) return staff || booking.instructorId === input.userId;
+
+  const exam = readMockExamsDb().sessions.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (exam) return staff || exam.examinerId === input.userId;
+
+  return false;
 }
 
 function persistRefreshedStartUrl(meetingNumber: string, startUrl: string): void {

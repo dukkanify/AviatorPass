@@ -9,6 +9,7 @@ import {
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
 } from "@/lib/zoom/meeting-sdk";
+import { callerMayJoinAsZoomHost, fetchZoomHostZak } from "@/services/classes/zoom-service";
 
 export async function POST(request: Request) {
   try {
@@ -31,18 +32,40 @@ export async function POST(request: Request) {
       hasSdkCredentials: Boolean(credentials),
     });
 
-    // Every classroom joins as the signed-in person, not the shared Zoom host.
-    // One Zoom user can only sit inside a single meeting; a host token would
-    // block every other lecture scheduled at the same time.
-    const zak: string | null = null;
-    const role: 0 | 1 = 0;
+    // Students always join as themselves. Only the assigned instructor (or
+    // academy staff) receives the host token, so several lectures can run at
+    // once and attendees are still allowed to share.
+    const mayHost =
+      Boolean(body.isHost) &&
+      callerMayJoinAsZoomHost({
+        userId: user.id,
+        role: user.role,
+        meetingNumber,
+      });
+    const zak = mayHost
+      ? await fetchZoomHostZak({
+          meetingNumber,
+          startUrl: body.startUrl,
+          instructorUserId: user.id,
+        })
+      : null;
+    const role: 0 | 1 = zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
             clientId: credentials.clientId,
             clientSecret: credentials.clientSecret,
             meetingNumber,
-            role,
+            role: 0,
+          })
+        : null;
+    const hostSignature =
+      signature && zak && credentials && meetingNumber
+        ? generateMeetingSdkSignature({
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
+            meetingNumber,
+            role: 1,
           })
         : null;
 
@@ -55,6 +78,7 @@ export async function POST(request: Request) {
         userName: displayMeetingName(user),
         userEmail: user.email,
         signature,
+        hostSignature,
         zak,
         role,
       },
