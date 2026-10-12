@@ -159,6 +159,11 @@ export function ScheduleHubView({
   }
 
   const next = overview?.nextSession.session ?? null;
+  const joinableIds = new Set(
+    role === "student" ? (overview?.upcoming ?? []).map((item) => item.id) : [],
+  );
+  const canJoinClass = (classId: string | null | undefined) =>
+    typeof classId === "string" && (role !== "student" || joinableIds.has(classId));
 
   return (
     <div className="space-y-8">
@@ -203,7 +208,7 @@ export function ScheduleHubView({
                   </p>
                 ) : null}
                 <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
-                {active.liveClassId ? (
+                {canJoinClass(active.liveClassId) ? (
                   <p className="mt-2">
                     <Link
                       className="text-sm font-medium text-accent"
@@ -242,7 +247,7 @@ export function ScheduleHubView({
                           ? "Current"
                           : "Queued"}
                     </span>
-                    {isCurrent && active.liveClassId ? (
+                    {isCurrent && canJoinClass(active.liveClassId) ? (
                       <Link
                         className="text-sm font-medium text-accent"
                         href={`/join/${active.liveClassId}`}
@@ -343,11 +348,13 @@ export function ScheduleHubView({
                 Instructor: {overview?.nextSession.pendingInstructorReminders ?? 0}
               </span>
             </div>
-            <p>
-              <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
-                Join Zoom
-              </Link>
-            </p>
+            {canJoinClass(next.id) ? (
+              <p>
+                <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
+                  Join Zoom
+                </Link>
+              </p>
+            ) : null}
           </div>
         ) : atplSchedule?.packageOwned ? (
           (() => {
@@ -362,7 +369,7 @@ export function ScheduleHubView({
                   {active.when ?? "Your instructor sets this date after the current lecture."} ·
                   ATPL
                 </p>
-                {active.liveClassId ? (
+                {canJoinClass(active.liveClassId) ? (
                   <p>
                     <Link
                       className="text-sm font-medium text-accent"
