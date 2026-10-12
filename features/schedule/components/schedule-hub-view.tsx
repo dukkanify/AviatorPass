@@ -269,7 +269,7 @@ export function ScheduleHubView({
           <p className="text-sm text-muted-foreground">
             Confirmed ATPL first lectures on your timetable, with the student name.
           </p>
-          <ul className="space-y-2 text-sm">
+          <ul className="grid gap-3 text-sm md:grid-cols-2">
             {(overview?.firstLectures ?? []).filter(
               (lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"),
             ).length === 0 ? (
@@ -278,22 +278,37 @@ export function ScheduleHubView({
               (overview?.firstLectures ?? [])
                 .filter((lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"))
                 .map((lecture) => (
-                  <li
-                    key={lecture.id}
-                    className="rounded-xl border border-border bg-card px-4 py-3"
-                  >
-                    <p className="font-medium">{lecture.studentName}</p>
-                    <p className="text-muted-foreground">{lecture.studentEmail}</p>
-                    <p className="mt-1">
-                      {lecture.subjectTitle
-                        ? `${lecture.subjectTitle} · ${lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
-                        : (lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE)}
-                      <span className="ml-2 text-xs uppercase tracking-wide text-accent">
+                  <li key={lecture.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Student
+                        </p>
+                        <p className="font-medium">{lecture.studentName}</p>
+                        <p className="text-sm text-muted-foreground">{lecture.studentEmail}</p>
+                      </div>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                         {lecture.onTimetable ? "On timetable" : "Assigned"}
                       </span>
-                    </p>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Subject
+                      </p>
+                      <p className="font-medium">
+                        {lecture.subjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        When
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {lecture.label ?? "Time confirmed"}
+                      </p>
+                    </div>
                     {lecture.liveClassId ? (
-                      <p className="mt-2">
+                      <p className="mt-4">
                         <Link
                           className="text-sm font-medium text-accent"
                           href={`/join/${lecture.liveClassId}`}
