@@ -68,33 +68,55 @@ function fillZoomSurface(node: HTMLElement) {
   set("margin", "0");
 }
 
-function placeZoomPopup(node: HTMLElement) {
-  if (!isZoomPopup(node)) return;
-  const parent = node.parentElement?.closest<HTMLElement>(
-    "[role='menu'], [role='dialog'], [role='listbox']",
-  );
-  if (parent && parent !== node) return;
+function menuText(node: HTMLElement) {
+  return (node.innerText || "").replace(/\s+/g, " ").slice(0, 280);
+}
+
+function isClippedZoomMenu(node: HTMLElement) {
+  if (node.closest(".classroom-chrome, .classroom-footer, .classroom-dock")) return false;
   const rect = node.getBoundingClientRect();
-  if (rect.width < 72 || rect.height < 36) return;
-  if (rect.width > window.innerWidth * 0.85 && rect.height > window.innerHeight * 0.7) return;
+  if (rect.width < 96 || rect.height < 48) return false;
+  if (rect.width > window.innerWidth * 0.9 && rect.height > window.innerHeight * 0.7) return false;
+  const clipped =
+    rect.left < 8 ||
+    rect.top < 8 ||
+    rect.right > window.innerWidth - 8 ||
+    rect.bottom > window.innerHeight - 8;
+  if (!clipped && node.dataset.aviatorZoomPopup !== "true") return false;
+  if (isZoomPopup(node)) return true;
+  return /select a|microphone|speaker|camera|share|who can share|leave|iphone|airpod|macbook|default/i.test(
+    menuText(node),
+  );
+}
+
+function placeZoomPopup(node: HTMLElement) {
+  if (!isClippedZoomMenu(node)) return;
+  const parentMenu = node.parentElement?.closest<HTMLElement>(
+    "[role='menu'], [role='dialog'], [role='listbox'], [data-aviator-zoom-popup]",
+  );
+  if (parentMenu && parentMenu !== node) return;
+  const rect = node.getBoundingClientRect();
+  let host: HTMLElement | null = node.parentElement;
+  while (host && host !== document.documentElement) {
+    const transform = window.getComputedStyle(host).transform;
+    if (transform && transform !== "none") {
+      document.body.appendChild(node);
+      break;
+    }
+    host = host.parentElement;
+  }
   const margin = 12;
-  const outside =
-    rect.left < margin ||
-    rect.top < margin ||
-    rect.right > window.innerWidth - margin ||
-    rect.bottom > window.innerHeight - margin;
-  if (!outside) return;
-  const width = Math.min(Math.max(rect.width, 240), window.innerWidth - margin * 2);
-  const height = Math.min(Math.max(rect.height, 120), window.innerHeight - margin * 2);
+  const width = Math.min(Math.max(rect.width, 260), window.innerWidth - margin * 2);
+  const height = Math.min(Math.max(rect.height, 160), window.innerHeight - margin * 2);
   const left = Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin);
   const top = Math.min(Math.max(margin, rect.top), window.innerHeight - height - margin);
   const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
   set("position", "fixed");
-  set("z-index", "200");
+  set("z-index", "10000");
   set("box-sizing", "border-box");
   set("inset", "auto");
-  set("left", `${Math.round(left)}px`);
-  set("top", `${Math.round(top)}px`);
+  set("left", `${Math.round(Math.max(margin, left))}px`);
+  set("top", `${Math.round(Math.max(margin, top))}px`);
   set("width", `${Math.round(width)}px`);
   set("max-width", "calc(100vw - 24px)");
   set("height", "auto");
@@ -109,19 +131,17 @@ function expandMeetingSurface(stage: HTMLElement) {
   if (!root) return;
   const box = root.getBoundingClientRect();
   if (box.width < 160 || box.height < 120) return;
-  let node = root.firstElementChild;
-  for (let depth = 0; node instanceof HTMLElement && depth < 5; depth += 1) {
-    if (isZoomPopup(node)) break;
+  root.querySelectorAll<HTMLElement>("div").forEach((node) => {
+    if (isZoomPopup(node) || node.dataset.aviatorZoomPopup === "true") return;
+    if (node.closest("[data-aviator-zoom-popup]")) return;
     const rect = node.getBoundingClientRect();
-    if (rect.width > 80 && rect.width < box.width * 0.92) fillZoomSurface(node);
-    const next = [...node.children].find(
-      (child): child is HTMLElement =>
-        child instanceof HTMLElement &&
-        !isZoomPopup(child) &&
-        child.getBoundingClientRect().width > 80,
-    );
-    node = next ?? null;
-  }
+    const fillsWidth = rect.width >= box.width * 0.92;
+    const fillsHeight = rect.height >= box.height * 0.75;
+    if (fillsWidth && fillsHeight) return;
+    if (rect.width < 180 || rect.height < 180) return;
+    if (node.querySelectorAll("button").length < 3) return;
+    fillZoomSurface(node);
+  });
 }
 
 function grantZoomFrameMedia() {
@@ -170,7 +190,7 @@ function pinZoomWindowToStage(stage: HTMLElement) {
   expandMeetingSurface(stage);
   document
     .querySelectorAll<HTMLElement>(
-      "[role='menu'], [role='listbox'], [role='dialog'], [class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='share-menu'], [class*='ShareMenu'], [class*='popup']",
+      "[role='menu'], [role='listbox'], [role='dialog'], [class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='share-menu'], [class*='ShareMenu'], [class*='popup'], [class*='menu'], [class*='Menu'], [class*='popover'], [class*='Popover'], [class*='dropdown'], [class*='Dropdown']",
     )
     .forEach(placeZoomPopup);
   grantZoomFrameMedia();
