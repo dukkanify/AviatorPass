@@ -130,3 +130,39 @@ export async function loadZoomEmbeddedClient(): Promise<ZoomEmbeddedClient> {
   if (!factory) throw new Error("Zoom Meeting SDK is unavailable");
   return factory.createClient();
 }
+
+let activeZoomClient: ZoomEmbeddedClient | null = null;
+let zoomClientQueue: Promise<void> = Promise.resolve();
+
+function enqueueZoomClientTask(task: () => Promise<void>): Promise<void> {
+  const run = zoomClientQueue.then(task, task);
+  zoomClientQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/** Leave any meeting already open in this browser, then create a fresh client. */
+export async function openZoomEmbeddedClient(): Promise<ZoomEmbeddedClient> {
+  let created: ZoomEmbeddedClient | null = null;
+  await enqueueZoomClientTask(async () => {
+    const leave = activeZoomClient?.leave;
+    activeZoomClient = null;
+    if (leave) await leave().catch(() => undefined);
+    created = await loadZoomEmbeddedClient();
+    activeZoomClient = created;
+  });
+  if (!created) throw new Error("Zoom Meeting SDK is unavailable");
+  return created;
+}
+
+/** End the browser's current Zoom meeting so another lecture can start. */
+export function releaseZoomEmbeddedClient(client?: ZoomEmbeddedClient | null): Promise<void> {
+  return enqueueZoomClientTask(async () => {
+    const target = client ?? activeZoomClient;
+    if (!target) return;
+    if (activeZoomClient === target) activeZoomClient = null;
+    await target.leave?.().catch(() => undefined);
+  });
+}

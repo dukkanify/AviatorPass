@@ -845,6 +845,8 @@ export async function rescheduleLiveClass(input: {
     });
   }
 
+  await cancelMeetingForClass({ liveClassId: existing.id, actorId: input.actorId });
+
   await logActivity({
     actorId: input.actorId,
     action: ACTIVITY_ACTIONS.CLASS_RESCHEDULED,

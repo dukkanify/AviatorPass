@@ -17,6 +17,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { logActivity } from "@/services/auth/activity-log";
 import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
 import {
+  lookupAllLiveClasses,
   lookupLiveClass,
   lookupZoomMeetingByClassId,
   lookupZoomMeetingByNumber,
@@ -120,6 +121,87 @@ export function isZoomMissingUserError(body: string): boolean {
   } catch {
     return /user does not exist/i.test(body);
   }
+}
+
+type ZoomHostCandidate = { id: string; email: string };
+
+function lectureWindow(liveClass: Pick<LiveClass, "startsAt" | "endsAt" | "durationMinutes">): {
+  start: number;
+  end: number;
+} {
+  const start = Date.parse(liveClass.startsAt);
+  const end = Number.isNaN(Date.parse(liveClass.endsAt))
+    ? start + liveClass.durationMinutes * 60_000
+    : Date.parse(liveClass.endsAt);
+  return { start, end };
+}
+
+function sameZoomHost(meeting: ZoomMeetingRecord, host: ZoomHostCandidate): boolean {
+  const id = host.id.toLowerCase();
+  const email = host.email.toLowerCase();
+  const meetingId = (meeting.hostId ?? "").toLowerCase();
+  const meetingEmail = (meeting.hostEmail ?? "").toLowerCase();
+  if (id && meetingId && meetingId === id) return true;
+  if (email && meetingEmail && meetingEmail === email) return true;
+  return false;
+}
+
+/** True when this Zoom user already owns another lecture at the same time. */
+export function zoomHostBusy(
+  host: ZoomHostCandidate,
+  liveClass: Pick<LiveClass, "id" | "startsAt" | "endsAt" | "durationMinutes">,
+): boolean {
+  const next = lectureWindow(liveClass);
+  if (Number.isNaN(next.start) || Number.isNaN(next.end)) return false;
+  return lookupAllLiveClasses().some((other) => {
+    if (
+      other.id === liveClass.id ||
+      other.deletedAt ||
+      other.status === "cancelled" ||
+      other.status === "completed" ||
+      other.status === "rescheduled"
+    ) {
+      return false;
+    }
+    const current = lectureWindow(other);
+    if (!(current.start < next.end && next.start < current.end)) return false;
+    const meeting = lookupZoomMeetingByClassId(other.id);
+    return Boolean(meeting && sameZoomHost(meeting, host));
+  });
+}
+
+async function listZoomHostCandidates(token: string): Promise<ZoomHostCandidate[]> {
+  try {
+    const res = await fetch("https://api.zoom.us/v2/users?status=active&page_size=100", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as {
+      users?: Array<{ id?: string; email?: string; type?: number }>;
+    };
+    return (json.users ?? [])
+      .map((user) => ({
+        id: user.id?.trim() || user.email?.trim() || "",
+        email: user.email?.trim() || "",
+        type: user.type ?? 1,
+      }))
+      .filter((user) => user.id)
+      .sort((a, b) => Number(b.type === 2) - Number(a.type === 2))
+      .map(({ id, email }) => ({ id, email }));
+  } catch {
+    return [];
+  }
+}
+
+/** Put overlapping lectures on different Zoom users so they can run together. */
+async function chooseZoomHostUser(
+  token: string,
+  liveClass: LiveClass,
+  fallback: string,
+): Promise<string> {
+  const hosts = await listZoomHostCandidates(token);
+  const free = hosts.find((host) => !zoomHostBusy(host, liveClass));
+  return free?.id || fallback;
 }
 
 function requireLiveZoom(reason: string): never {
@@ -258,7 +340,11 @@ async function createZoomApiMeeting(
     });
   };
 
-  let user = resolveZoomS2SUser(settings.zoom.accountEmail);
+  let user = await chooseZoomHostUser(
+    token,
+    liveClass,
+    resolveZoomS2SUser(settings.zoom.accountEmail),
+  );
   let res = await postMeeting(user);
   if (!res.ok) {
     const errorText = await res.text();
@@ -519,6 +605,12 @@ export async function updateMeetingForClass(input: {
   const existing = lookupZoomMeetingByClassId(input.liveClass.id);
   if (!existing)
     return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
+
+  const currentHost = { id: existing.hostId ?? "", email: existing.hostEmail ?? "" };
+  if ((currentHost.id || currentHost.email) && zoomHostBusy(currentHost, input.liveClass)) {
+    await cancelMeetingForClass({ liveClassId: input.liveClass.id, actorId: input.actorId });
+    return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
+  }
 
   try {
     const { updateInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
