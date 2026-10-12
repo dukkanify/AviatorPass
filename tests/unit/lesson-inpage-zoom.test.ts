@@ -41,6 +41,7 @@ describe("lesson live class stays on the same page", () => {
       /ensureLiveMeetingForClass[\s\S]*ensureInAppJoinSettings\(existing\)/,
     );
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/3099\|registration/);
-    expect(src("services/classes/class-service.ts")).toMatch(/enrolledInCourse/);
+    expect(src("services/classes/class-service.ts")).not.toMatch(/enrolledInCourse/);
+    expect(src("services/classes/class-service.ts")).toMatch(/if \(!isHost && !participant\)/);
   });
 });

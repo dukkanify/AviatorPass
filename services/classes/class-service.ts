@@ -13,7 +13,7 @@ import {
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
-import { listEnrollments, listStudentEnrollments } from "@/services/courses/enrollment-service";
+import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
@@ -993,11 +993,8 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
     findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = listParticipantsForClass(liveClassId).find((p) => p.userId === userId);
-  const enrolledInCourse = cls.courseId
-    ? listStudentEnrollments(userId).some((row) => row.courseId === cls.courseId)
-    : false;
-  if (!isHost && !participant && !enrolledInCourse) {
+  const participant = listParticipantsForClass(liveClassId).some((p) => p.userId === userId);
+  if (!isHost && !participant) {
     throw new ClassValidationError("You are not invited to this class");
   }
 

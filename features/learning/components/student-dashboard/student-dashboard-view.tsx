@@ -161,7 +161,11 @@ function LearningDashboardView() {
   const resume = overview?.resume ?? null;
   const packageJourney = Boolean(atplSchedule?.packageOwned && atplSchedule.subjects.length);
   const activeLecture = atplSchedule ? activeAtplLecture(atplSchedule) : null;
-  const classroomHref = activeLecture?.liveClassId ? `/join/${activeLecture.liveClassId}` : null;
+  const invitedClassId = overview?.upcomingLiveClassId ?? null;
+  const classroomHref =
+    activeLecture?.liveClassId && activeLecture.liveClassId === invitedClassId
+      ? `/join/${invitedClassId}`
+      : null;
   const lectureName = [activeLecture?.code, activeLecture?.title].filter(Boolean).join(" ");
   const lectureWhen = activeLecture?.when ?? null;
   const calendar: LearningCalendarItem[] =
@@ -219,12 +223,7 @@ function LearningDashboardView() {
       : sessions.map(sessionToCalendar)
     : [];
   const todayItems = plannerItems.filter((item) => sameDay(item.startsAt, now));
-  const assignedClassId =
-    activeLecture?.liveClassId ||
-    atplSchedule?.nextLectureLiveClassId ||
-    atplSchedule?.firstLectureLiveClassId ||
-    overview?.upcomingLiveClassId ||
-    null;
+  const assignedClassId = invitedClassId;
   const liveItem = hasEnrolledCourses
     ? (calendar.find(
         (item) =>
@@ -738,7 +737,8 @@ function LearningDashboardView() {
               {openingComplete ? (
                 <p className="sl-muted">Complete</p>
               ) : activeLecture?.liveClassId &&
-                activeLecture.liveClassId === atplSchedule.firstLectureLiveClassId ? (
+                activeLecture.liveClassId === atplSchedule.firstLectureLiveClassId &&
+                activeLecture.liveClassId === assignedClassId ? (
                 <button
                   type="button"
                   className="sl-btn-gold"
@@ -759,7 +759,8 @@ function LearningDashboardView() {
                   </p>
                   {activeLecture?.liveClassId &&
                   activeLecture.liveClassId === atplSchedule.nextLectureLiveClassId &&
-                  activeLecture.liveClassId !== atplSchedule.firstLectureLiveClassId ? (
+                  activeLecture.liveClassId !== atplSchedule.firstLectureLiveClassId &&
+                  activeLecture.liveClassId === assignedClassId ? (
                     <>
                       <p className="sl-muted">{atplSchedule.nextLectureLabel}</p>
                       <button
@@ -852,39 +853,40 @@ function LearningDashboardView() {
               </div>
             </div>
             <h2 id="live-session-title">
-              {hasEnrolledCourses
-                ? (assignedSubjectTitle ??
-                  overview.upcomingLiveClass ??
+              {assignedClassId
+                ? (overview.upcomingLiveClass ??
+                  assignedSubjectTitle ??
                   liveItem?.title ??
-                  (confirmedStartsAt ? ATPL_PACKAGE_FIRST_LECTURE_TITLE : "No live class booked"))
-                : ACTION_LABELS.enrolToUnlockLive}
+                  "Your lecture")
+                : hasEnrolledCourses
+                  ? (assignedSubjectTitle ??
+                    (confirmedStartsAt ? ATPL_PACKAGE_FIRST_LECTURE_TITLE : "No live class booked"))
+                  : ACTION_LABELS.enrolToUnlockLive}
             </h2>
             <p className="sl-muted">
-              {hasEnrolledCourses
+              {assignedClassId
                 ? liveStartsAt
-                  ? `${countdownLabel(liveStartsAt, now)} · ${assignedSubjectTitle ?? liveItem?.title ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
-                  : assignedClassId
-                    ? `${assignedSubjectTitle ?? "Your assigned subject"} is ready in the AviatorPass classroom.`
-                    : atplSchedule?.scheduleProvisional
-                      ? "Waiting for TKI 1 to confirm your first lecture."
-                      : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
-                : "Live classes appear here after you enrol in a programme."}
+                  ? `${countdownLabel(liveStartsAt, now)} · ${overview.upcomingLiveClass ?? assignedSubjectTitle ?? "Your lecture"}`
+                  : "Your lecture is ready in the AviatorPass classroom."
+                : hasEnrolledCourses
+                  ? atplSchedule?.scheduleProvisional
+                    ? "Waiting for TKI 1 to confirm your first lecture."
+                    : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
+                  : "Live classes appear here after you enrol in a programme."}
             </p>
-            {hasEnrolledCourses ? (
-              assignedClassId ? (
-                <button
-                  type="button"
-                  className="sl-btn-gold"
-                  onClick={() => void joinLive()}
-                  disabled={joining}
-                >
-                  {joining ? "Opening…" : liveNow ? "Join Live Session" : "Join Zoom"}
-                </button>
-              ) : (
-                <Link className="sl-btn-gold" href="/student/schedule">
-                  {ACTION_LABELS.viewTimetable}
-                </Link>
-              )
+            {assignedClassId ? (
+              <button
+                type="button"
+                className="sl-btn-gold"
+                onClick={() => void joinLive()}
+                disabled={joining}
+              >
+                {joining ? "Opening…" : liveNow ? "Join Live Session" : "Join Zoom"}
+              </button>
+            ) : hasEnrolledCourses ? (
+              <Link className="sl-btn-gold" href="/student/schedule">
+                {ACTION_LABELS.viewTimetable}
+              </Link>
             ) : (
               <Link className="sl-btn-gold" href="/courses">
                 {ACTION_LABELS.browseCourses}
