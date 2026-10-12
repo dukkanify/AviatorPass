@@ -18,6 +18,8 @@ import {
   isExternalZoomUrl,
   resolveInAppMeetingMode,
   zakFromStartUrl,
+  zoomLectureAgenda,
+  zoomLectureTopic,
 } from "@/lib/zoom/meeting-sdk";
 
 const JOIN_SURFACES = [
@@ -104,6 +106,22 @@ describe("Zoom stays inside AviatorPass", () => {
       "Omar Instructor",
     );
     expect(displayMeetingName({ email: "student@aviatorpass.com" })).toBe("student");
+    expect(
+      displayMeetingName({
+        fullName: "student@aviatorpass.com",
+        firstName: "Omar",
+        lastName: "Khalil",
+      }),
+    ).toBe("Omar Khalil");
+    expect(zoomLectureTopic("ATPL lecture · Air Law", "Khalid Al Rashid")).toBe(
+      "ATPL lecture · Air Law · Khalid Al Rashid",
+    );
+    expect(
+      zoomLectureAgenda({
+        instructorName: "Khalid Al Rashid",
+        studentNames: ["Omar Khalil", "Omar Khalil"],
+      }),
+    ).toBe("Instructor: Khalid Al Rashid\nStudents: Omar Khalil");
   });
 
   it("does not open Zoom in a new tab from join surfaces", () => {

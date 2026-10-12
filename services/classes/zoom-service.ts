@@ -9,15 +9,22 @@ import {
   PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
-import { zakFromStartUrl } from "@/lib/zoom/meeting-sdk";
+import {
+  displayMeetingName,
+  zakFromStartUrl,
+  zoomLectureAgenda,
+  zoomLectureTopic,
+} from "@/lib/zoom/meeting-sdk";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
+import { findUserById } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
 import {
+  listParticipantsForClass,
   lookupAllLiveClasses,
   lookupLiveClass,
   lookupZoomMeetingByClassId,
@@ -316,6 +323,36 @@ function mockMeeting(
   };
 }
 
+function describeZoomLecture(liveClass: {
+  id: string;
+  title: string;
+  instructorId: string;
+  description?: string | null;
+}): {
+  topic: string;
+  agenda: string;
+} {
+  const instructor = findUserById(liveClass.instructorId);
+  const instructorName = instructor ? displayMeetingName(instructor) : null;
+  const studentNames = listParticipantsForClass(liveClass.id)
+    .filter((person) => person.role === "participant")
+    .flatMap((person) => {
+      const user = findUserById(person.userId);
+      return user ? [displayMeetingName(user)] : [];
+    });
+  const agenda = [
+    zoomLectureAgenda({ instructorName, studentNames }),
+    liveClass.description?.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 2000);
+  return {
+    topic: zoomLectureTopic(liveClass.title, instructorName),
+    agenda,
+  };
+}
+
 async function createZoomApiMeeting(
   liveClass: LiveClass,
   opts: { waitingRoom: boolean; passcode: boolean; meetingType: MeetingType },
@@ -324,13 +361,14 @@ async function createZoomApiMeeting(
   if (!token) return null;
 
   const settings = getPlatformSettings();
+  const roster = describeZoomLecture(liveClass);
   const body = {
-    topic: liveClass.title,
+    topic: roster.topic,
     type: 2,
     start_time: liveClass.startsAt,
     duration: liveClass.durationMinutes,
     timezone: liveClass.timezone,
-    agenda: liveClass.description,
+    agenda: roster.agenda,
     password: opts.passcode ? undefined : "",
     settings: {
       waiting_room: opts.waitingRoom,
@@ -507,6 +545,8 @@ type ZoomMeetingDetails = {
   startUrl: string | null;
   joinUrl: string | null;
   password: string | null;
+  topic: string | null;
+  agenda: string | null;
   approvalType: number | null;
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
@@ -530,6 +570,8 @@ async function fetchZoomMeetingDetails(
       start_url?: string;
       join_url?: string;
       password?: string;
+      topic?: string;
+      agenda?: string;
       settings?: {
         approval_type?: number;
         join_before_host?: boolean;
@@ -543,6 +585,8 @@ async function fetchZoomMeetingDetails(
       startUrl: json.start_url?.trim() || null,
       joinUrl: json.join_url?.trim() || null,
       password: json.password?.trim() || null,
+      topic: json.topic?.trim() || null,
+      agenda: json.agenda?.trim() || null,
       approvalType:
         typeof json.settings?.approval_type === "number" ? json.settings.approval_type : null,
       joinBeforeHost:
@@ -578,6 +622,8 @@ export async function ensureInAppJoinSettings(
     token,
     meeting.hostId || meeting.hostEmail,
   );
+  const liveClass = lookupLiveClass(meeting.liveClassId);
+  const roster = liveClass ? describeZoomLecture(liveClass) : null;
   const current = await fetchZoomMeetingDetails(token, meeting.zoomMeetingId);
   const needsPatch =
     !current ||
@@ -588,7 +634,10 @@ export async function ensureInAppJoinSettings(
     current.whoCanShareWhenSomeoneIsSharing === "host" ||
     current.requestPermissionToUnmute === true ||
     isZoomRegistrationJoinUrl(current.joinUrl) ||
-    isZoomRegistrationJoinUrl(meeting.joinUrl);
+    isZoomRegistrationJoinUrl(meeting.joinUrl) ||
+    (roster != null &&
+      current != null &&
+      (current.topic !== roster.topic || current.agenda !== roster.agenda));
 
   if (needsPatch) {
     await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(meeting.zoomMeetingId)}`, {
@@ -597,7 +646,10 @@ export async function ensureInAppJoinSettings(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ settings: { ...IN_APP_ZOOM_MEETING_SETTINGS } }),
+      body: JSON.stringify({
+        ...(roster ? { topic: roster.topic, agenda: roster.agenda } : {}),
+        settings: { ...IN_APP_ZOOM_MEETING_SETTINGS },
+      }),
     }).catch((error) => console.error("Zoom in-app join settings failed", error));
   }
 

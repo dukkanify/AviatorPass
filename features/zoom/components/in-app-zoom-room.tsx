@@ -501,7 +501,7 @@ function InAppZoomRoom({
           </p>
         </div>
         <span className="classroom-chip shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/70">
-          {isHost ? "Host" : "Student"}
+          {session?.userName ?? (isHost ? "Instructor" : "Student")}
         </span>
       </header>
 
