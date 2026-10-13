@@ -1070,7 +1070,7 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
   subjectTitle: string;
 }> {
   const officialCourseIds = new Set(listAtplCourses().map((course) => course.id));
-  return listLectureAssignments({ instructorId: options?.instructorId })
+  return listLectureAssignments()
     .filter((row) => {
       if (!row.studentId || row.status !== "scheduled") return false;
       if (row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID) return true;
@@ -1096,7 +1096,7 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
           ? [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email
           : "Student",
         studentEmail: student?.email ?? "",
-        instructorId: row.instructorId,
+        instructorId: live?.instructorId || row.instructorId,
         scheduledAt,
         label: scheduledAt ? formatAtplPackageInstant(scheduledAt) : null,
         liveClassId: row.liveClassId,
@@ -1106,6 +1106,7 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
         subjectTitle,
       };
     })
+    .filter((row) => !options?.instructorId || row.instructorId === options.instructorId)
     .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))
     .slice(0, 20);
 }

@@ -307,7 +307,7 @@ export function ScheduleHubView({
                         {lecture.label ?? "Time confirmed"}
                       </p>
                     </div>
-                    {lecture.liveClassId ? (
+                    {lecture.liveClassId && role !== "cgi" ? (
                       <p className="mt-4">
                         <Link
                           className="text-sm font-medium text-accent"
