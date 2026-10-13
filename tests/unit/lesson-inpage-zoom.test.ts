@@ -26,6 +26,7 @@ describe("lesson live class stays on the same page", () => {
     expect(IN_APP_ZOOM_MEETING_SETTINGS.approval_type).toBe(2);
     expect(IN_APP_ZOOM_MEETING_SETTINGS.join_before_host).toBe(true);
     expect(IN_APP_ZOOM_MEETING_SETTINGS.meeting_authentication).toBe(false);
+    expect(IN_APP_ZOOM_MEETING_SETTINGS.waiting_room).toBe(false);
     expect(IN_APP_ZOOM_MEETING_SETTINGS.who_can_share_screen).toBe("all");
     expect(IN_APP_ZOOM_MEETING_SETTINGS.who_can_share_screen_when_someone_is_sharing).toBe("all");
     expect(IN_APP_ZOOM_MEETING_SETTINGS.request_permission_to_unmute_participants).toBe(false);
@@ -43,5 +44,7 @@ describe("lesson live class stays on the same page", () => {
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/3099\|registration/);
     expect(src("services/classes/class-service.ts")).not.toMatch(/enrolledInCourse/);
     expect(src("services/classes/class-service.ts")).toMatch(/if \(!isHost && !participant\)/);
+    expect(src("services/classes/zoom-service.ts")).toMatch(/current\.waitingRoom === true/);
+    expect(src("services/zoom/meeting-service.ts")).toMatch(/waitingRoom: false/);
   });
 });

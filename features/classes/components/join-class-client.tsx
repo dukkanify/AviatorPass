@@ -181,7 +181,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         </div>
 
         <div className="mt-6 flex-1 pb-4">
-          {join && audience !== "Cancelled" ? (
+          {join && cls.status !== "completed" && audience !== "Cancelled" ? (
             <InAppZoomRoom
               joinUrl={join.joinUrl}
               startUrl={join.startUrl}
@@ -196,7 +196,9 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
             <p className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center text-sm text-white/65">
               {audience === "Cancelled"
                 ? "This class was cancelled."
-                : "Meeting details unavailable."}
+                : cls.status === "completed"
+                  ? "This subject is complete and will not open again."
+                  : "Meeting details unavailable."}
             </p>
           )}
           {join ? (

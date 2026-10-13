@@ -26,6 +26,10 @@ import {
   ATTENDANCE_STATUSES,
   LIVE_CLASS_STATUS_LABELS,
 } from "@/constants/classes";
+import {
+  atplPackageSubjectByEasaCode,
+  easaCodeFromAtplCourseCode,
+} from "@/constants/atpl-complete-package";
 import { PERFORMANCE_RATING_LABELS, PERFORMANCE_RATINGS } from "@/constants/performance-reports";
 import { classFetch } from "@/features/classes/lib/api";
 import type { AttendanceWithStudent, LiveClassListItem } from "@/types/classes";
@@ -73,6 +77,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
   const [nextTime, setNextTime] = React.useState("");
   const [nextHomework, setNextHomework] = React.useState("");
   const [schedulingNext, setSchedulingNext] = React.useState(false);
+  const [completingSubject, setCompletingSubject] = React.useState(false);
 
   const load = React.useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -203,6 +208,35 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
     void load({ silent: true });
   }
 
+  async function markSubjectComplete() {
+    if (!reportStudentId) {
+      toast.error("Select a student");
+      return;
+    }
+    setCompletingSubject(true);
+    const result = await classFetch<{ subjectTitle: string | null }>(
+      `/api/classes/${classId}/actions`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          action: "complete_subject",
+          studentId: reportStudentId,
+        }),
+      },
+    );
+    setCompletingSubject(false);
+    if (!result.success) {
+      toast.error(result.error ?? "Could not mark this subject complete");
+      return;
+    }
+    toast.success(
+      result.data?.subjectTitle
+        ? `${result.data.subjectTitle} is complete and will not open again.`
+        : "This subject is complete and will not open again.",
+    );
+    await load({ silent: true });
+  }
+
   const participants = detail?.participants.filter((p) => p.role === "participant") ?? [];
 
   if (loading) {
@@ -242,12 +276,14 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
-            <Button asChild>
-              <Link href={`/join/${detail.id}`}>
-                <Radio className="mr-2 h-4 w-4" />{" "}
-                {detail.zoom?.startUrl ? "Start meeting" : "Join / Start"}
-              </Link>
-            </Button>
+            {detail.status === "completed" ? null : (
+              <Button asChild>
+                <Link href={`/join/${detail.id}`}>
+                  <Radio className="mr-2 h-4 w-4" />{" "}
+                  {detail.zoom?.startUrl ? "Start meeting" : "Join / Start"}
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
@@ -310,11 +346,15 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                   {detail.zoom.waitingRoom ? "On" : "Off"}
                 </p>
                 <div className="flex flex-col gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/join/${detail.id}`}>
-                      <Radio className="mr-2 h-4 w-4" /> Open classroom
-                    </Link>
-                  </Button>
+                  {detail.status === "completed" ? (
+                    <p>This subject is complete and will not open again.</p>
+                  ) : (
+                    <Button asChild size="sm">
+                      <Link href={`/join/${detail.id}`}>
+                        <Radio className="mr-2 h-4 w-4" /> Open classroom
+                      </Link>
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -499,53 +539,81 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 {savingReport ? "Saving…" : "Save & email student"}
               </Button>
               <div className="space-y-3 rounded-xl border border-border/70 p-4">
-                <div>
-                  <p className="font-medium">Next lecture</p>
-                  <p className="text-sm text-muted-foreground">
-                    Agree a date and time with the student from your availability, then press
-                    Schedule Next Session. The student is emailed the subject, date, time, and join
-                    link. If you are not available, press Unable to Schedule. You, TKI 1, and Super
-                    Admin are notified, the student status becomes Scheduling Required, and TKI 1
-                    can assign another instructor.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nextDate">Date</Label>
-                    <Input
-                      id="nextDate"
-                      type="date"
-                      value={nextDate}
-                      onChange={(e) => setNextDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nextTime">Time</Label>
-                    <Input
-                      id="nextTime"
-                      type="time"
-                      value={nextTime}
-                      onChange={(e) => setNextTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nextHomework">Homework (optional)</Label>
-                  <Textarea
-                    id="nextHomework"
-                    value={nextHomework}
-                    onChange={(e) => setNextHomework(e.target.value)}
-                    rows={2}
-                    placeholder="Homework for the next lecture"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  disabled={schedulingNext || !reportStudentId}
-                  onClick={() => void scheduleNextSession()}
-                >
-                  {schedulingNext ? "Scheduling…" : "Schedule Next Session"}
-                </Button>
+                {atplPackageSubjectByEasaCode(easaCodeFromAtplCourseCode(detail.courseCode)) ? (
+                  <>
+                    <div>
+                      <p className="font-medium">Mark subject complete</p>
+                      <p className="text-sm text-muted-foreground">
+                        When this lecture is finished, mark the subject complete. It will not open
+                        again. TKI 1 books the next subject after the time is agreed. If you cannot
+                        take that subject, press Unable to Schedule.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={
+                        completingSubject || !reportStudentId || detail.status === "completed"
+                      }
+                      onClick={() => void markSubjectComplete()}
+                    >
+                      {detail.status === "completed"
+                        ? "Subject complete"
+                        : completingSubject
+                          ? "Saving…"
+                          : "Mark subject complete"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="font-medium">Next lecture</p>
+                      <p className="text-sm text-muted-foreground">
+                        Agree a date and time with the student from your availability, then press
+                        Schedule Next Session. The student is emailed the subject, date, time, and
+                        join link. If you are not available, press Unable to Schedule. You, TKI 1,
+                        and Super Admin are notified, the student status becomes Scheduling
+                        Required, and TKI 1 can assign another instructor.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nextDate">Date</Label>
+                        <Input
+                          id="nextDate"
+                          type="date"
+                          value={nextDate}
+                          onChange={(e) => setNextDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nextTime">Time</Label>
+                        <Input
+                          id="nextTime"
+                          type="time"
+                          value={nextTime}
+                          onChange={(e) => setNextTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="nextHomework">Homework (optional)</Label>
+                      <Textarea
+                        id="nextHomework"
+                        value={nextHomework}
+                        onChange={(e) => setNextHomework(e.target.value)}
+                        rows={2}
+                        placeholder="Homework for the next lecture"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={schedulingNext || !reportStudentId}
+                      onClick={() => void scheduleNextSession()}
+                    >
+                      {schedulingNext ? "Scheduling…" : "Schedule Next Session"}
+                    </Button>
+                  </>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="unableReason">Reason (optional)</Label>
                   <Textarea

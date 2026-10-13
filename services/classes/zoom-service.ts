@@ -46,6 +46,7 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   join_before_host: true,
   meeting_authentication: false,
   mute_upon_entry: false,
+  waiting_room: false,
   who_can_share_screen: "all",
   who_can_share_screen_when_someone_is_sharing: "all",
   request_permission_to_unmute_participants: false,
@@ -434,7 +435,7 @@ async function createZoomApiMeeting(
     startUrl: json.start_url,
     password: json.password ?? "",
     hostEmail: json.host_email ?? settings.zoom.accountEmail ?? null,
-    waitingRoom: opts.waitingRoom,
+    waitingRoom: false,
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
     providerMode: "zoom",
@@ -468,7 +469,7 @@ export async function createMeetingForClass(input: {
   }
 
   const settings = getPlatformSettings();
-  const waitingRoom = input.waitingRoom ?? settings.zoom.defaultWaitingRoom;
+  const waitingRoom = false;
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
@@ -550,6 +551,7 @@ type ZoomMeetingDetails = {
   approvalType: number | null;
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
+  waitingRoom: boolean | null;
   whoCanShareScreen: string | null;
   whoCanShareWhenSomeoneIsSharing: string | null;
   requestPermissionToUnmute: boolean | null;
@@ -576,6 +578,7 @@ async function fetchZoomMeetingDetails(
         approval_type?: number;
         join_before_host?: boolean;
         meeting_authentication?: boolean;
+        waiting_room?: boolean;
         who_can_share_screen?: string;
         who_can_share_screen_when_someone_is_sharing?: string;
         request_permission_to_unmute_participants?: boolean;
@@ -597,6 +600,8 @@ async function fetchZoomMeetingDetails(
         typeof json.settings?.meeting_authentication === "boolean"
           ? json.settings.meeting_authentication
           : null,
+      waitingRoom:
+        typeof json.settings?.waiting_room === "boolean" ? json.settings.waiting_room : null,
       whoCanShareScreen: json.settings?.who_can_share_screen?.trim() || null,
       whoCanShareWhenSomeoneIsSharing:
         json.settings?.who_can_share_screen_when_someone_is_sharing?.trim() || null,
@@ -630,6 +635,7 @@ export async function ensureInAppJoinSettings(
     current.approvalType !== 2 ||
     current.joinBeforeHost === false ||
     current.meetingAuthentication === true ||
+    current.waitingRoom === true ||
     current.whoCanShareScreen !== "all" ||
     current.whoCanShareWhenSomeoneIsSharing === "host" ||
     current.requestPermissionToUnmute === true ||
@@ -673,12 +679,14 @@ export async function ensureInAppJoinSettings(
     joinUrl: nextJoin,
     startUrl: refreshed.startUrl || meeting.startUrl,
     password: refreshed.password || meeting.password,
+    waitingRoom: false,
     updatedAt: new Date().toISOString(),
   };
   if (
     next.joinUrl === meeting.joinUrl &&
     next.startUrl === meeting.startUrl &&
     next.password === meeting.password &&
+    next.waitingRoom === meeting.waitingRoom &&
     !needsPatch
   ) {
     return meeting;
@@ -1421,7 +1429,7 @@ export function linkExistingZoomMeeting(input: {
     startUrl: appJoinUrl(input.liveClass.id, zoomMeetingId, true),
     password: input.password?.trim() ?? "",
     hostEmail: getPlatformSettings().zoom.accountEmail || null,
-    waitingRoom: getPlatformSettings().zoom.defaultWaitingRoom,
+    waitingRoom: false,
     passcodeEnabled: Boolean(input.password?.trim()),
     coHostEmails: [],
     providerMode: "zoom",
