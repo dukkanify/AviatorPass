@@ -9,7 +9,9 @@
 import { generateId } from "@/lib/security/crypto";
 import {
   ATPL_PACKAGE_LECTURE_TITLE,
+  atplPackageSubjectByEasaCode,
   combineLocalDateAndTime,
+  easaCodeFromAtplCourseCode,
   formatAtplPackageScheduleLabel,
 } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
@@ -860,6 +862,12 @@ export async function scheduleNextLectureFromClass(input: {
   }
 
   const course = getCourseById(liveClass.courseId);
+  if (atplPackageSubjectByEasaCode(easaCodeFromAtplCourseCode(course?.code))) {
+    throw new AssignmentError(
+      "Mark this subject complete. It does not open again. TKI 1 books the next subject.",
+      400,
+    );
+  }
   const subjectName = subjectNameFromClass(liveClass.title, course?.title ?? null);
   const homework = input.homework?.trim() || "";
   const comments = input.comments?.trim() || "";

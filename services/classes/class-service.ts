@@ -497,7 +497,7 @@ export async function createLiveClass(
     try {
       await createMeetingForClass({
         liveClass: cls,
-        waitingRoom: input.waitingRoom ?? settings.zoom.defaultWaitingRoom,
+        waitingRoom: false,
         passcode: settings.zoom.defaultPasscode,
         meetingType,
         actorId: input.actorId,
@@ -1021,9 +1021,10 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     throw new ClassValidationError("You are not invited to this class");
   }
 
+  const closed = cls.status === "completed" || cls.status === "cancelled";
   return {
     class: toListItem(cls),
-    join: getPublicJoinInfo(liveClassId, Boolean(isHost)),
+    join: closed ? null : getPublicJoinInfo(liveClassId, Boolean(isHost)),
     isHost: Boolean(isHost),
     audienceStatus: meetingAudienceStatus(cls),
   };

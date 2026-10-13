@@ -1858,6 +1858,9 @@ function PlatformSettingsShell() {
                   setDraft({ ...draft, zoom: { ...draft.zoom, defaultWaitingRoom: v } })
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Live classes ignore this and open directly for invited accounts.
+              </p>
               <ToggleRow
                 label="Passcode by default"
                 checked={draft.zoom.defaultPasscode}

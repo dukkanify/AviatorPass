@@ -11,6 +11,7 @@ import {
   ATPL_PACKAGE_FIRST_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
   atplPackageLmsCourseCode,
+  ATPL_PACKAGE_INSTRUCTOR_COMPLETED_NOTICE,
   ATPL_PACKAGE_NEXT_SUBJECT_NOTICE,
   ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE,
   ATPL_PACKAGE_OPENING_SUBJECT_CODE,
@@ -19,6 +20,7 @@ import {
   ATPL_PENDING_INSTRUCTOR_ASSIGNMENT,
   EMPTY_ATPL_PACKAGE_SCHEDULE,
   atplPackageLectureLessonId,
+  atplPackageSubjectByEasaCode,
   atplPackageSubjectOrderIndex,
   atplPackageSubjectTitle,
   type AtplPackageSubjectProgress,
@@ -39,6 +41,7 @@ import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
 import { listAssignmentRequests } from "@/services/assignment/engine";
+import { getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
   listEnrollmentsForCourse,
@@ -77,6 +80,7 @@ import {
   canManageClass,
 } from "@/services/classes/class-service";
 import { ClassValidationError } from "@/services/classes/validation";
+import { writeClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { hasParticipant } from "@/lib/data/lms-class-participant-store";
 import { readClassesDb } from "@/services/classes/store";
@@ -2159,6 +2163,157 @@ export async function completeAtplPackageSubject(input: { studentId: string; act
   }
 
   return latestPaidPackageSchedule(input.studentId, student.email);
+}
+
+function currentOpenOfficialSubject(studentId: string): {
+  code: string;
+  title: string;
+  courseId: string;
+  status: AtplSubjectAssignment["status"];
+} | null {
+  const plan = listStudentSubjectPlan(studentId);
+  if (!plan.length) return null;
+  for (const subject of ATPL_COMPLETE_PACKAGE_SUBJECTS) {
+    const courseId = stableCourseId(atplPackageLmsCourseCode(subject.code));
+    const row = plan.find((item) => {
+      if (courseId && item.courseId === courseId) return true;
+      return easaCodeFromAtplCourseCode(item.subjectCode) === subject.code;
+    });
+    if (!row || row.status === "completed") continue;
+    return {
+      code: subject.code,
+      title: subject.title,
+      courseId: row.courseId,
+      status: row.status,
+    };
+  }
+  return null;
+}
+
+/** The assigned instructor closes this subject so the same course does not open again. */
+export async function completeSubjectFromClass(input: {
+  liveClassId: string;
+  studentId: string;
+  actorId: string;
+}) {
+  const liveClass = getLiveClass(input.liveClassId);
+  if (!liveClass || liveClass.deletedAt) throw new CgiError("Live class not found", 404);
+  const actor = findUserById(input.actorId);
+  if (!actor) throw new CgiError("Forbidden", 403);
+  const allowed =
+    liveClass.instructorId === input.actorId ||
+    liveClass.assistantInstructorId === input.actorId ||
+    actor.role === ROLES.CHIEF_GROUND_INSTRUCTOR ||
+    actor.role === ROLES.ADMIN ||
+    actor.role === ROLES.SUPER_ADMIN;
+  if (!allowed) throw new CgiError("Only the instructor of this lecture can mark it complete", 403);
+
+  const student = findUserById(input.studentId);
+  if (!student || student.role !== ROLES.STUDENT) throw new CgiError("Student not found", 404);
+  if (liveClass.status === "completed") {
+    return { liveClassId: liveClass.id, subjectTitle: null, alreadyComplete: true };
+  }
+
+  const course = liveClass.courseId ? getCourseById(liveClass.courseId) : null;
+  const official = atplPackageSubjectByEasaCode(easaCodeFromAtplCourseCode(course?.code));
+  let completedTitle: string | null = null;
+
+  if (official) {
+    ensureStudentSubjectPlan(input.studentId, input.actorId);
+    const plan = listStudentSubjectPlan(input.studentId);
+    const row = plan.find((item) => {
+      if (liveClass.courseId && item.courseId === liveClass.courseId) return true;
+      return easaCodeFromAtplCourseCode(item.subjectCode) === official.code;
+    });
+    if (!row || row.status !== "completed") {
+      const current = currentOpenOfficialSubject(input.studentId);
+      if (!current || current.code !== official.code) {
+        throw new CgiError(
+          current
+            ? `Mark ${current.title} complete first. ${official.title} is not the open subject.`
+            : "Every official ATPL subject is already complete",
+        );
+      }
+      if (current.status !== "available" && current.status !== "in_progress") {
+        throw new CgiError(`Open ${official.title} before marking it complete`);
+      }
+
+      const stamp = nowIso();
+      writeCgiDb((db) => {
+        const target = db.subjectAssignments.find((item) => item.id === row?.id);
+        const match =
+          target ??
+          db.subjectAssignments.find(
+            (item) => item.studentId === input.studentId && item.courseId === current.courseId,
+          );
+        if (!match || match.status === "completed") return;
+        match.status = "completed";
+        match.completedAt = stamp;
+        match.updatedAt = stamp;
+      });
+
+      const enrollment = listStudentEnrollments(input.studentId).find(
+        (item) =>
+          item.courseId === current.courseId && !["dropped", "rejected"].includes(item.status),
+      );
+      if (enrollment && (enrollment.status === "approved" || enrollment.status === "suspended")) {
+        await updateEnrollmentStatus({
+          id: enrollment.id,
+          status: "completed",
+          actorId: input.actorId,
+        });
+      }
+      completedTitle = official.title;
+      audit(
+        "cgi.schedule.complete_subject",
+        input.actorId,
+        "student",
+        input.studentId,
+        `Instructor completed ${official.title}`,
+      );
+    }
+  }
+
+  const stamp = nowIso();
+  writeClassesDb((db) => {
+    const idx = db.classes.findIndex((item) => item.id === liveClass.id);
+    if (idx < 0) return;
+    const current = db.classes[idx]!;
+    db.classes[idx] = { ...current, status: "completed", updatedAt: stamp };
+  });
+  writeCgiDb((db) => {
+    for (const lecture of db.lectureAssignments) {
+      if (lecture.liveClassId === liveClass.id && lecture.studentId === input.studentId) {
+        lecture.status = "delivered";
+        lecture.updatedAt = stamp;
+      }
+    }
+  });
+
+  if (completedTitle) {
+    const brand = getPublicBrandConfig();
+    try {
+      await dispatchEmailEvent({
+        event: "student_alert",
+        userIds: [student.id],
+        to: student.email,
+        subject: `${completedTitle} is complete`,
+        data: {
+          recipientName:
+            [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || student.email,
+          title: `${completedTitle} complete`,
+          detail: ATPL_PACKAGE_INSTRUCTOR_COMPLETED_NOTICE,
+          supportEmail: brand.supportEmail,
+        },
+        actorId: input.actorId,
+        system: true,
+      });
+    } catch {
+      // Completion is already stored; email is best-effort.
+    }
+  }
+
+  return { liveClassId: liveClass.id, subjectTitle: completedTitle, alreadyComplete: false };
 }
 
 function orderStamp(order: { paidAt?: string | null; updatedAt: string }) {

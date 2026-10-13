@@ -503,8 +503,10 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Complete current subject</h2>
         <p className="text-sm text-muted-foreground">
-          Booking the next lecture already marks the previous subject complete. Use this only when a
-          subject should be complete before its next lecture is booked.
+          Booking the next lecture already marks the previous subject complete. The assigned
+          instructor can also mark the open subject complete from the class page, and that subject
+          does not open again. Use this only when a subject should be complete before its next
+          lecture is booked.
         </p>
         <ul className="space-y-2 text-sm">
           {readyToCompleteSubject.length === 0 ? (

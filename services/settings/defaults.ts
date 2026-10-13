@@ -175,7 +175,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   zoom: {
     enabled: true,
     accountEmail: siteStatic.supportEmail,
-    defaultWaitingRoom: true,
+    defaultWaitingRoom: false,
     defaultPasscode: true,
     defaultMeetingType: "meeting",
     credentialsConfigured: false,
