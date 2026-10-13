@@ -86,11 +86,42 @@ async function joinEmbeddedMeeting(
 
 function stageVideoSize(el: HTMLElement): { width: number; height: number } {
   const box = el.getBoundingClientRect();
-  const width = Math.round(box.width || el.clientWidth || 0);
-  const height = Math.round(box.height || el.clientHeight || 0);
+  const screenWidth = Math.round(window.innerWidth || box.width || 480);
+  const screenHeight = Math.round(window.innerHeight || box.height || 320);
+  const narrow = screenWidth < 720;
+  const measuredWidth = Math.round(box.width || el.clientWidth || screenWidth);
+  const measuredHeight = Math.round(box.height || el.clientHeight || screenHeight);
+  const floorWidth = narrow ? Math.min(320, screenWidth) : 480;
+  const floorHeight = narrow ? Math.min(420, Math.round(screenHeight * 0.62)) : 320;
   return {
-    width: Math.max(width, 480),
-    height: Math.max(height, 320),
+    width: Math.min(Math.max(measuredWidth, floorWidth), screenWidth),
+    height: Math.min(Math.max(measuredHeight, floorHeight), screenHeight),
+  };
+}
+
+function zoomVideoOptions(stage: HTMLElement) {
+  const videoSize = stageVideoSize(stage);
+  const narrow = videoSize.width < 720;
+  return {
+    isResizable: false,
+    defaultViewType: narrow ? ("gallery" as const) : ("speaker" as const),
+    viewSizes: {
+      default: videoSize,
+      ribbon: narrow
+        ? {
+            width: videoSize.width,
+            height: Math.max(140, Math.round(videoSize.height * 0.34)),
+          }
+        : {
+            width: Math.min(320, Math.round(videoSize.width / 4)),
+            height: videoSize.height,
+          },
+    },
+    popper: {
+      disableDraggable: true,
+      anchorElement: stage,
+      placement: narrow ? "top" : "innerCenter",
+    },
   };
 }
 
@@ -411,28 +442,13 @@ function InAppZoomRoom({
           const stage = stageRef.current;
           if (!stage) return;
           const initClient = async (next: ZoomEmbeddedClient) => {
-            const videoSize = stageVideoSize(stage);
             await next.init({
               zoomAppRoot: stage,
               language: "en-US",
               patchJsMedia: true,
               leaveOnPageUnload: true,
               customize: {
-                video: {
-                  isResizable: false,
-                  viewSizes: {
-                    default: videoSize,
-                    ribbon: {
-                      width: Math.min(320, Math.round(videoSize.width / 4)),
-                      height: videoSize.height,
-                    },
-                  },
-                  popper: {
-                    disableDraggable: true,
-                    anchorElement: stage,
-                    placement: "innerCenter",
-                  },
-                },
+                video: zoomVideoOptions(stage),
               },
             });
           };
@@ -495,14 +511,11 @@ function InAppZoomRoom({
               fitResize = false;
               if (!stageRef.current) return;
               if (resizeNow) {
-                const next = stageVideoSize(stageRef.current);
+                const next = zoomVideoOptions(stageRef.current);
                 void client.updateVideoOptions?.({
-                  viewSizes: { default: next },
-                  popper: {
-                    disableDraggable: true,
-                    anchorElement: stageRef.current,
-                    placement: "innerCenter",
-                  },
+                  defaultViewType: next.defaultViewType,
+                  viewSizes: next.viewSizes,
+                  popper: next.popper,
                 });
               }
               pinZoomWindowToStage(stageRef.current);

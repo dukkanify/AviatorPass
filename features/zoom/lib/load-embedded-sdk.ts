@@ -9,6 +9,7 @@ export interface ZoomEmbeddedClient {
     customize?: {
       video?: {
         isResizable?: boolean;
+        defaultViewType?: "gallery" | "speaker" | "ribbon" | "active";
         viewSizes?: {
           default?: ZoomEmbeddedVideoSize;
           ribbon?: ZoomEmbeddedVideoSize;
@@ -22,6 +23,7 @@ export interface ZoomEmbeddedClient {
     };
   }) => Promise<void>;
   updateVideoOptions?: (opts: {
+    defaultViewType?: "gallery" | "speaker" | "ribbon" | "active";
     viewSizes?: {
       default?: ZoomEmbeddedVideoSize;
       ribbon?: ZoomEmbeddedVideoSize;

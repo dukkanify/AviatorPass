@@ -122,7 +122,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
   return (
     <div className="classroom-shell relative">
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
+      <div className="classroom-page relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
         <header className="flex items-center justify-between gap-3">
           <BrandLogo variant="dark" href="/" priority />
           <span
@@ -136,7 +136,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
           </span>
         </header>
 
-        <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="classroom-page-heading mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#CCA04C]">
               Live classroom
