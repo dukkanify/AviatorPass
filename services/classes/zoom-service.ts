@@ -372,7 +372,6 @@ async function createZoomApiMeeting(
     agenda: roster.agenda,
     password: opts.passcode ? undefined : "",
     settings: {
-      waiting_room: opts.waitingRoom,
       host_video: true,
       participant_video: true,
       ...IN_APP_ZOOM_MEETING_SETTINGS,
