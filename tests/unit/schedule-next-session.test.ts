@@ -18,7 +18,10 @@ import { resetAssignmentDbCache, writeAssignmentDb } from "@/services/assignment
 import { createLiveClass, getLiveClass } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
-import { completeSubjectFromClass } from "@/services/cgi/journey-service";
+import {
+  completeSubjectFromClass,
+  listAssignedFirstLectures,
+} from "@/services/cgi/journey-service";
 import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";

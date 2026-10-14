@@ -110,6 +110,8 @@ export interface AssignedFirstLecture {
   courseId: string;
   subjectCode?: string | null;
   subjectTitle?: string;
+  /** True after the lecture end time, while the subject is still open. */
+  windowEnded: boolean;
 }
 
 export interface ScheduleOverview {

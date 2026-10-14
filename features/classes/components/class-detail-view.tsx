@@ -259,11 +259,25 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
     );
   }
 
+  const officialSubject = Boolean(
+    atplPackageSubjectByEasaCode(easaCodeFromAtplCourseCode(detail.courseCode)),
+  );
+  const lectureEnd = Date.parse(detail.endsAt);
+  const lectureTimeEnded =
+    detail.status !== "completed" &&
+    detail.status !== "cancelled" &&
+    Number.isFinite(lectureEnd) &&
+    Date.now() > lectureEnd;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={detail.title}
-        description={`${LIVE_CLASS_STATUS_LABELS[detail.status]} · ${new Date(detail.startsAt).toLocaleString()}`}
+        description={`${LIVE_CLASS_STATUS_LABELS[detail.status]} · ${new Date(detail.startsAt).toLocaleString()}${
+          officialSubject && lectureTimeEnded
+            ? " · Time ended. Mark the subject complete so it does not open again."
+            : ""
+        }`}
         breadcrumbs={[
           { label: roleLabel },
           { label: "Classes", href: basePath },
@@ -284,6 +298,19 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 </Link>
               </Button>
             )}
+            {officialSubject &&
+            lectureTimeEnded &&
+            detail.status !== "completed" &&
+            reportStudentId ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={completingSubject}
+                onClick={() => void markSubjectComplete()}
+              >
+                {completingSubject ? "Saving…" : "Mark subject complete"}
+              </Button>
+            ) : null}
           </div>
         }
       />

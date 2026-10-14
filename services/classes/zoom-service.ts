@@ -1022,10 +1022,7 @@ export function callerMayJoinAsZoomHost(input: {
 }): boolean {
   const id = meetingNumberDigits(input.meetingNumber);
   if (!id) return false;
-  const staff =
-    input.role === ROLES.SUPER_ADMIN ||
-    input.role === ROLES.ADMIN ||
-    input.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
+  const staff = input.role === ROLES.SUPER_ADMIN || input.role === ROLES.ADMIN;
 
   const meeting = getZoomMeetingByNumber(id);
   if (meeting) {
@@ -1047,6 +1044,54 @@ export function callerMayJoinAsZoomHost(input: {
   if (exam) return staff || exam.examinerId === input.userId;
 
   return false;
+}
+
+/** Signature and host tokens are only for people already allowed into that meeting. */
+export function assertCallerMayEnterMeeting(input: {
+  userId: string;
+  role: string;
+  meetingNumber: string | null | undefined;
+}): void {
+  const id = meetingNumberDigits(input.meetingNumber);
+  if (!id) throw new ClassValidationError("You are not invited to this class");
+  const academy = input.role === ROLES.SUPER_ADMIN || input.role === ROLES.ADMIN;
+
+  const meeting = getZoomMeetingByNumber(id);
+  if (meeting?.liveClassId) {
+    const live = lookupLiveClass(meeting.liveClassId);
+    if (!live || live.deletedAt || live.status === "completed" || live.status === "cancelled") {
+      throw new ClassValidationError("You are not invited to this class");
+    }
+    const teaches =
+      live.instructorId === input.userId || live.assistantInstructorId === input.userId;
+    const enrolled = listParticipantsForClass(live.id).some(
+      (person) => person.userId === input.userId && person.role === "participant",
+    );
+    if (!academy && !teaches && !enrolled) {
+      throw new ClassValidationError("You are not invited to this class");
+    }
+    return;
+  }
+
+  const booking = readBookingsDb().bookings.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (booking) {
+    if (academy || booking.instructorId === input.userId || booking.studentId === input.userId) {
+      return;
+    }
+    throw new ClassValidationError("You are not invited to this class");
+  }
+
+  const exam = readMockExamsDb().sessions.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (exam) {
+    if (academy || exam.examinerId === input.userId || exam.studentId === input.userId) return;
+    throw new ClassValidationError("You are not invited to this class");
+  }
+
+  throw new ClassValidationError("You are not invited to this class");
 }
 
 function persistRefreshedStartUrl(meetingNumber: string, startUrl: string): void {

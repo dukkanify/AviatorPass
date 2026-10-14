@@ -1059,6 +1059,14 @@ export function listLectureAssignments(filters?: {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+function lectureWindowEnded(
+  live: { status: string; endsAt: string } | null | undefined,
+): boolean {
+  if (!live || live.status === "completed" || live.status === "cancelled") return false;
+  const end = Date.parse(live.endsAt);
+  return Number.isFinite(end) && Date.now() > end;
+}
+
 export function listAssignedFirstLectures(options?: { instructorId?: string }): Array<{
   id: string;
   studentId: string;
@@ -1072,6 +1080,7 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
   courseId: string;
   subjectCode: string | null;
   subjectTitle: string;
+  windowEnded: boolean;
 }> {
   const officialCourseIds = new Set(listAtplCourses().map((course) => course.id));
   return listLectureAssignments()
@@ -1108,6 +1117,7 @@ export function listAssignedFirstLectures(options?: { instructorId?: string }): 
         courseId: row.courseId,
         subjectCode: course ? easaFromAtplCourse(course) : null,
         subjectTitle,
+        windowEnded: lectureWindowEnded(live),
       };
     })
     .filter((row) => !options?.instructorId || row.instructorId === options.instructorId)

@@ -9,7 +9,9 @@ import {
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
 } from "@/lib/zoom/meeting-sdk";
+import { ClassValidationError } from "@/services/classes/validation";
 import {
+  assertCallerMayEnterMeeting,
   callerMayJoinAsZoomHost,
   fetchZoomHostZak,
   zoomHostBlockedByAnotherLiveMeeting,
@@ -29,6 +31,21 @@ export async function POST(request: Request) {
 
     const meetingNumber = extractZoomMeetingNumber(body.joinUrl, body.meetingNumber);
     const password = extractZoomPassword(body.joinUrl, body.password);
+    try {
+      assertCallerMayEnterMeeting({
+        userId: user.id,
+        role: user.role,
+        meetingNumber,
+      });
+    } catch (error) {
+      if (error instanceof ClassValidationError) {
+        return NextResponse.json(
+          { success: false, data: null, error: error.message },
+          { status: error.status },
+        );
+      }
+      throw error;
+    }
     const credentials = getZoomMeetingSdkCredentials();
     const mode = resolveInAppMeetingMode({
       providerMode: body.providerMode,

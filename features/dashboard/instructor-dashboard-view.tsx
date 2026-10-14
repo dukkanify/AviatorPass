@@ -3,6 +3,7 @@
 import { CalendarPlus, Users, Video } from "lucide-react";
 
 import Link from "@/components/ui/app-link";
+import { MarkSubjectCompleteButton } from "@/features/classes/components/mark-subject-complete-button";
 
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -36,6 +37,8 @@ interface InstructorDashboardViewProps {
     onTimetable: boolean;
     subjectTitle?: string;
     liveClassId?: string | null;
+    studentId: string;
+    windowEnded: boolean;
   }>;
 }
 
@@ -85,7 +88,11 @@ function InstructorDashboardView({
                     <p className="font-medium">{lecture.studentName}</p>
                   </div>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                    {lecture.onTimetable ? "On timetable" : "Assigned"}
+                    {lecture.windowEnded
+                      ? "Time ended"
+                      : lecture.onTimetable
+                        ? "On timetable"
+                        : "Assigned"}
                   </span>
                 </div>
                 <div className="mt-3">
@@ -103,19 +110,33 @@ function InstructorDashboardView({
                   </p>
                 </div>
                 {lecture.liveClassId ? (
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <Link
-                      href={`/join/${lecture.liveClassId}`}
-                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
-                    >
-                      Join Zoom
-                    </Link>
-                    <Link
-                      href={`/instructor/classes/${lecture.liveClassId}`}
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium"
-                    >
-                      Performance and next session
-                    </Link>
+                  <div className="mt-4 space-y-2">
+                    {lecture.windowEnded ? (
+                      <p className="text-sm text-muted-foreground">
+                        This lecture time has ended. Mark the subject complete so it does not open
+                        again. TKI 1 books the next subject.
+                      </p>
+                    ) : null}
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Link
+                        href={`/join/${lecture.liveClassId}`}
+                        className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+                      >
+                        Join Zoom
+                      </Link>
+                      {lecture.windowEnded ? (
+                        <MarkSubjectCompleteButton
+                          liveClassId={lecture.liveClassId}
+                          studentId={lecture.studentId}
+                        />
+                      ) : null}
+                      <Link
+                        href={`/instructor/classes/${lecture.liveClassId}`}
+                        className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium"
+                      >
+                        Performance and next session
+                      </Link>
+                    </div>
                   </div>
                 ) : null}
               </li>
