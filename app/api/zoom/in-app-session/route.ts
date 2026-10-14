@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { authErrorResponse, requireAuth } from "@/services/auth/guards";
-import { fetchZoomHostZak } from "@/services/classes/zoom-service";
-import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import {
   displayMeetingName,
@@ -11,6 +9,11 @@ import {
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
 } from "@/lib/zoom/meeting-sdk";
+import {
+  callerMayJoinAsZoomHost,
+  fetchZoomHostZak,
+  zoomHostBlockedByAnotherLiveMeeting,
+} from "@/services/classes/zoom-service";
 
 export async function POST(request: Request) {
   try {
@@ -33,25 +36,43 @@ export async function POST(request: Request) {
       hasSdkCredentials: Boolean(credentials),
     });
 
-    let zak: string | null = null;
-    if (body.isHost && mode === "sdk" && meetingNumber) {
-      zak = await fetchZoomHostZak({
+    // Students always join as themselves. Only the assigned instructor (or
+    // academy staff) receives the host token, so several lectures can run at
+    // once and attendees are still allowed to share.
+    const mayHost =
+      Boolean(body.isHost) &&
+      callerMayJoinAsZoomHost({
+        userId: user.id,
+        role: user.role,
         meetingNumber,
-        instructorUserId: user.id,
-        accountEmail: getPlatformSettings().zoom.accountEmail,
-        startUrl: body.startUrl,
       });
-    }
-    // Role 1 starts the meeting and needs the create/update start_url ZAK.
-    // Without one, join as a participant with the General App JWT.
-    const role: 0 | 1 = body.isHost && zak ? 1 : 0;
+    const hostBlocked =
+      mayHost && meetingNumber ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber) : false;
+    const zak =
+      mayHost && !hostBlocked
+        ? await fetchZoomHostZak({
+            meetingNumber,
+            startUrl: body.startUrl,
+            instructorUserId: user.id,
+          })
+        : null;
+    const role: 0 | 1 = zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
             clientId: credentials.clientId,
             clientSecret: credentials.clientSecret,
             meetingNumber,
-            role,
+            role: 0,
+          })
+        : null;
+    const hostSignature =
+      signature && zak && credentials && meetingNumber
+        ? generateMeetingSdkSignature({
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
+            meetingNumber,
+            role: 1,
           })
         : null;
 
@@ -64,6 +85,7 @@ export async function POST(request: Request) {
         userName: displayMeetingName(user),
         userEmail: user.email,
         signature,
+        hostSignature,
         zak,
         role,
       },

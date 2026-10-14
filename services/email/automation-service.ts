@@ -317,7 +317,8 @@ async function maybeCopyAdmin(
         ? "Refund"
         : input.event === "admin_alert"
           ? String(input.subject ?? input.data.title ?? "Admin alert")
-          : input.event === "payment" && /fail/i.test(String(input.data.title ?? input.subject ?? ""))
+          : input.event === "payment" &&
+              /fail/i.test(String(input.data.title ?? input.subject ?? ""))
             ? "Payment failed"
             : "New purchase / payment";
   const template = renderAutomationTemplate(
@@ -405,6 +406,9 @@ export async function emailScheduleLifecycle(input: {
       joinUrl: input.joinUrl ?? "",
     },
     actorId: input.actorId,
+    // A moved lecture is transactional. It must still email when the
+    // general email-notifications switch is off.
+    system: true,
     meta: { liveClassId: input.liveClassId },
   });
 }

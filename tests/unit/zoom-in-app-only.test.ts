@@ -18,6 +18,8 @@ import {
   isExternalZoomUrl,
   resolveInAppMeetingMode,
   zakFromStartUrl,
+  zoomLectureAgenda,
+  zoomLectureTopic,
 } from "@/lib/zoom/meeting-sdk";
 
 const JOIN_SURFACES = [
@@ -104,6 +106,22 @@ describe("Zoom stays inside AviatorPass", () => {
       "Omar Instructor",
     );
     expect(displayMeetingName({ email: "student@aviatorpass.com" })).toBe("student");
+    expect(
+      displayMeetingName({
+        fullName: "student@aviatorpass.com",
+        firstName: "Omar",
+        lastName: "Khalil",
+      }),
+    ).toBe("Omar Khalil");
+    expect(zoomLectureTopic("ATPL lecture · Air Law", "Khalid Al Rashid")).toBe(
+      "ATPL lecture · Air Law · Khalid Al Rashid",
+    );
+    expect(
+      zoomLectureAgenda({
+        instructorName: "Khalid Al Rashid",
+        studentNames: ["Omar Khalil", "Omar Khalil"],
+      }),
+    ).toBe("Instructor: Khalid Al Rashid\nStudents: Omar Khalil");
   });
 
   it("does not open Zoom in a new tab from join surfaces", () => {
@@ -122,6 +140,10 @@ describe("Zoom stays inside AviatorPass", () => {
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
     expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
+    expect(room).toMatch(/Host already in another meeting; joining as participant/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
+    ).toMatch(/zoomHostBlockedByAnotherLiveMeeting/);
     expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
   });
 
@@ -268,8 +290,11 @@ describe("Zoom stays inside AviatorPass", () => {
     const vercel = readFileSync(resolve(process.cwd(), "vercel.json"), "utf8");
     expect(nextConfig).toMatch(/camera=\(self/);
     expect(nextConfig).toMatch(/microphone=\(self/);
+    expect(nextConfig).toMatch(/display-capture=\(self "https:\/\/zoom\.us"/);
     expect(nextConfig).not.toMatch(/camera=\(\)/);
+    expect(nextConfig).not.toMatch(/display-capture=\(self\),/);
     expect(vercel).toMatch(/camera=\(self/);
+    expect(vercel).toMatch(/display-capture=\(self \\"https:\/\/zoom\.us\\"/);
     expect(vercel).not.toMatch(/camera=\(\)/);
   });
 });

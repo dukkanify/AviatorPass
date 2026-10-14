@@ -102,6 +102,10 @@ function UserManagementTable({
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status && Object.values(ACCOUNT_STATUS).includes(status as AccountStatus)) {
+      setStatusFilter(status);
+    }
     if (params.get("create") === "1" && canCreate) {
       setCreateOpen(true);
       params.delete("create");
@@ -110,7 +114,9 @@ function UserManagementTable({
     }
   }, [canCreate]);
 
-  const filtered = statusFilter === "all" ? users : users.filter((u) => u.status === statusFilter);
+  const liveUsers = users.filter((user) => !user.email.trim().toLowerCase().endsWith(".test"));
+  const filtered =
+    statusFilter === "all" ? liveUsers : liveUsers.filter((user) => user.status === statusFilter);
 
   async function changeStatus(target: UserProfile, status: AccountStatus) {
     const result = await authFetch<UserProfile>(`${routes.api.users}/${target.id}`, {

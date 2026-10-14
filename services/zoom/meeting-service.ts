@@ -48,7 +48,7 @@ function fromApiMeeting(
     startUrl: json.start_url ?? "",
     password: json.password ?? "",
     hostEmail: host?.email ?? json.host_id ?? null,
-    waitingRoom: true,
+    waitingRoom: false,
     passcodeEnabled: Boolean(json.password),
     coHostEmails: [],
     providerMode: "zoom",
@@ -184,6 +184,7 @@ export async function updateInstructorZoomMeeting(input: {
     d.zoomMeetings[idx] = {
       ...current,
       startUrl,
+      waitingRoom: false,
       timezone,
       durationMinutes: input.liveClass.durationMinutes,
       startTime: input.liveClass.startsAt,

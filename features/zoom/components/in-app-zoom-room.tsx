@@ -9,16 +9,120 @@ import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-re
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import {
-  loadZoomEmbeddedClient,
+  openZoomEmbeddedClient,
   prefetchZoomEmbeddedSdk,
+  releaseZoomEmbeddedClient,
   type ZoomEmbeddedClient,
 } from "@/features/zoom/lib/load-embedded-sdk";
 import { cn } from "@/lib/utils";
 
+function zoomFailureText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const row = error as { reason?: unknown; errorCode?: unknown; message?: unknown };
+    return [row.errorCode, row.reason, row.message]
+      .filter((part) => part != null && part !== "")
+      .join(" ");
+  }
+  return String(error ?? "");
+}
+
+function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
+  return /already has other meetings in progress/i.test(root?.innerText ?? "");
+}
+
+/** Join, and fail fast if Zoom paints the "other meeting" dialog without rejecting. */
+async function joinEmbeddedMeeting(
+  client: ZoomEmbeddedClient,
+  payload: {
+    signature: string;
+    meetingNumber: string;
+    password: string;
+    userName: string;
+    userEmail: string;
+    tk: string;
+    zak?: string;
+  },
+  stage: HTMLElement,
+): Promise<void> {
+  let timer = 0;
+  const observer = new MutationObserver(() => {
+    if (zoomStageShowsHostBusy(stage)) {
+      window.clearInterval(timer);
+    }
+  });
+  observer.observe(stage, { childList: true, subtree: true, characterData: true });
+  try {
+    const joined = client
+      .join(payload)
+      .then(() => {
+        if (zoomStageShowsHostBusy(stage)) {
+          throw new Error("3000 Already has other meetings in progress");
+        }
+      })
+      .catch((error: unknown) => {
+        throw error instanceof Error ? error : new Error(zoomFailureText(error));
+      });
+    try {
+      await Promise.race([
+        joined,
+        new Promise<void>((_, reject) => {
+          timer = window.setInterval(() => {
+            if (zoomStageShowsHostBusy(stage)) {
+              reject(new Error("3000 Already has other meetings in progress"));
+            }
+          }, 250);
+        }),
+      ]);
+    } catch (error) {
+      void joined.catch(() => undefined);
+      throw error;
+    }
+  } finally {
+    observer.disconnect();
+    window.clearInterval(timer);
+  }
+}
+
 function stageVideoSize(el: HTMLElement): { width: number; height: number } {
-  const width = Math.max(el.clientWidth || 0, 720);
-  const height = Math.max(el.clientHeight || 0, Math.round((width * 9) / 16));
-  return { width, height };
+  const box = el.getBoundingClientRect();
+  const screenWidth = Math.round(window.innerWidth || box.width || 480);
+  const screenHeight = Math.round(window.innerHeight || box.height || 320);
+  const narrow = screenWidth < 720;
+  const measuredWidth = Math.round(box.width || el.clientWidth || screenWidth);
+  const measuredHeight = Math.round(box.height || el.clientHeight || screenHeight);
+  const floorWidth = narrow ? Math.min(320, screenWidth) : 480;
+  const floorHeight = narrow ? Math.min(420, Math.round(screenHeight * 0.62)) : 320;
+  return {
+    width: Math.min(Math.max(measuredWidth, floorWidth), screenWidth),
+    height: Math.min(Math.max(measuredHeight, floorHeight), screenHeight),
+  };
+}
+
+function zoomVideoOptions(stage: HTMLElement) {
+  const videoSize = stageVideoSize(stage);
+  const narrow = videoSize.width < 720;
+  return {
+    isResizable: false,
+    defaultViewType: narrow ? ("gallery" as const) : ("speaker" as const),
+    viewSizes: {
+      default: videoSize,
+      ribbon: narrow
+        ? {
+            width: videoSize.width,
+            height: Math.max(140, Math.round(videoSize.height * 0.34)),
+          }
+        : {
+            width: Math.min(320, Math.round(videoSize.width / 4)),
+            height: videoSize.height,
+          },
+    },
+    popper: {
+      disableDraggable: true,
+      anchorElement: stage,
+      placement: narrow ? "top" : "innerCenter",
+    },
+  };
 }
 
 const ZOOM_FLOAT_SELECTOR = [
@@ -31,32 +135,164 @@ const ZOOM_FLOAT_SELECTOR = [
   "iframe[src*='zoom']",
 ].join(", ");
 
+function zoomLabel(node: HTMLElement) {
+  return `${node.id} ${typeof node.className === "string" ? node.className : ""} ${node.getAttribute("role") ?? ""}`;
+}
+
+function isZoomPopup(node: HTMLElement) {
+  const label = zoomLabel(node);
+  const role = node.getAttribute("role") ?? "";
+  if (/suspension-view-tabpanel|video-player|zm-video/i.test(label)) return false;
+  if (role === "menu" || role === "listbox" || role === "dialog") return true;
+  return /meeting-info|meetingInfo|MuiMenu|MuiPopover|MuiModal|MuiDrawer|share-menu|ShareMenu|popup/i.test(
+    label,
+  );
+}
+
+function isZoomChrome(node: HTMLElement) {
+  const label = zoomLabel(node);
+  if (/meeting-info-icon|MeetingInfoIcon/i.test(label) && node.offsetWidth < 72) return false;
+  return isZoomPopup(node);
+}
+
+function fillZoomSurface(node: HTMLElement) {
+  const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
+  set("position", "absolute");
+  set("inset", "0");
+  set("width", "100%");
+  set("height", "100%");
+  set("max-width", "100%");
+  set("max-height", "100%");
+  set("transform", "none");
+  set("margin", "0");
+}
+
+function menuText(node: HTMLElement) {
+  return (node.innerText || "").replace(/\s+/g, " ").slice(0, 280);
+}
+
+function isClippedZoomMenu(node: HTMLElement) {
+  if (node.closest(".classroom-chrome, .classroom-footer, .classroom-dock")) return false;
+  const rect = node.getBoundingClientRect();
+  if (rect.width < 96 || rect.height < 48) return false;
+  if (rect.width > window.innerWidth * 0.9 && rect.height > window.innerHeight * 0.7) return false;
+  const clipped =
+    rect.left < 8 ||
+    rect.top < 8 ||
+    rect.right > window.innerWidth - 8 ||
+    rect.bottom > window.innerHeight - 8;
+  if (!clipped && node.dataset.aviatorZoomPopup !== "true") return false;
+  if (isZoomPopup(node)) return true;
+  return /select a|microphone|speaker|camera|share|who can share|leave|iphone|airpod|macbook|default/i.test(
+    menuText(node),
+  );
+}
+
+function placeZoomPopup(node: HTMLElement) {
+  if (!isClippedZoomMenu(node)) return;
+  const parentMenu = node.parentElement?.closest<HTMLElement>(
+    "[role='menu'], [role='dialog'], [role='listbox'], [data-aviator-zoom-popup]",
+  );
+  if (parentMenu && parentMenu !== node) return;
+  const rect = node.getBoundingClientRect();
+  let host: HTMLElement | null = node.parentElement;
+  while (host && host !== document.documentElement) {
+    const transform = window.getComputedStyle(host).transform;
+    if (transform && transform !== "none") {
+      document.body.appendChild(node);
+      break;
+    }
+    host = host.parentElement;
+  }
+  const margin = 12;
+  const width = Math.min(Math.max(rect.width, 260), window.innerWidth - margin * 2);
+  const height = Math.min(Math.max(rect.height, 160), window.innerHeight - margin * 2);
+  const left = Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin);
+  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - height - margin);
+  const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
+  set("position", "fixed");
+  set("z-index", "10000");
+  set("box-sizing", "border-box");
+  set("inset", "auto");
+  set("left", `${Math.round(Math.max(margin, left))}px`);
+  set("top", `${Math.round(Math.max(margin, top))}px`);
+  set("width", `${Math.round(width)}px`);
+  set("max-width", "calc(100vw - 24px)");
+  set("height", "auto");
+  set("max-height", `${Math.round(height)}px`);
+  set("overflow", "auto");
+  set("transform", "none");
+  node.dataset.aviatorZoomPopup = "true";
+}
+
+function expandMeetingSurface(stage: HTMLElement) {
+  const root = stage.querySelector<HTMLElement>(".classroom-sdk-root");
+  if (!root) return;
+  const box = root.getBoundingClientRect();
+  if (box.width < 160 || box.height < 120) return;
+  root.querySelectorAll<HTMLElement>("div").forEach((node) => {
+    if (isZoomPopup(node) || node.dataset.aviatorZoomPopup === "true") return;
+    if (node.closest("[data-aviator-zoom-popup]")) return;
+    const rect = node.getBoundingClientRect();
+    const fillsWidth = rect.width >= box.width * 0.92;
+    const fillsHeight = rect.height >= box.height * 0.75;
+    if (fillsWidth && fillsHeight) return;
+    if (rect.width < 180 || rect.height < 180) return;
+    if (node.querySelectorAll("button").length < 3) return;
+    fillZoomSurface(node);
+  });
+}
+
+function grantZoomFrameMedia() {
+  document.querySelectorAll("iframe").forEach((frame) => {
+    const src = frame.getAttribute("src") ?? "";
+    const label = `${frame.id} ${typeof frame.className === "string" ? frame.className : ""}`;
+    if (
+      !/zoom/i.test(`${src} ${label}`) &&
+      !frame.closest(".classroom-sdk-root, .classroom-stage")
+    ) {
+      return;
+    }
+    const allow = frame.getAttribute("allow") ?? "";
+    if (/display-capture/i.test(allow)) return;
+    frame.setAttribute(
+      "allow",
+      [allow, "camera", "microphone", "display-capture", "autoplay", "clipboard-write"]
+        .filter(Boolean)
+        .join("; "),
+    );
+  });
+}
+
 function pinZoomWindowToStage(stage: HTMLElement) {
   const rect = stage.getBoundingClientRect();
   if (rect.width < 120 || rect.height < 90) return;
+  for (const child of stage.children) {
+    if (child instanceof HTMLElement && !isZoomChrome(child)) fillZoomSurface(child);
+  }
   const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
   for (const node of nodes) {
-    if (stage.contains(node)) {
-      node.style.position = "absolute";
-      node.style.inset = "0";
-      node.style.width = "100%";
-      node.style.height = "100%";
-      node.style.maxWidth = "100%";
-      node.style.maxHeight = "100%";
-      node.style.transform = "none";
-      continue;
-    }
+    if (isZoomChrome(node) || stage.contains(node)) continue;
     if (node.offsetWidth < 64 || node.offsetHeight < 64) continue;
-    node.style.position = "fixed";
-    node.style.left = `${Math.round(rect.left)}px`;
-    node.style.top = `${Math.round(rect.top)}px`;
-    node.style.width = `${Math.round(rect.width)}px`;
-    node.style.height = `${Math.round(rect.height)}px`;
-    node.style.maxWidth = `${Math.round(rect.width)}px`;
-    node.style.maxHeight = `${Math.round(rect.height)}px`;
-    node.style.transform = "none";
-    node.style.zIndex = "6";
+    const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
+    set("position", "fixed");
+    set("left", `${Math.round(rect.left)}px`);
+    set("top", `${Math.round(rect.top)}px`);
+    set("width", `${Math.round(rect.width)}px`);
+    set("height", `${Math.round(rect.height)}px`);
+    set("max-width", `${Math.round(rect.width)}px`);
+    set("max-height", `${Math.round(rect.height)}px`);
+    set("transform", "none");
+    set("z-index", "6");
+    set("margin", "0");
   }
+  expandMeetingSurface(stage);
+  document
+    .querySelectorAll<HTMLElement>(
+      "[role='menu'], [role='listbox'], [role='dialog'], [class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='share-menu'], [class*='ShareMenu'], [class*='popup'], [class*='menu'], [class*='Menu'], [class*='popover'], [class*='Popover'], [class*='dropdown'], [class*='Dropdown']",
+    )
+    .forEach(placeZoomPopup);
+  grantZoomFrameMedia();
 }
 
 interface InAppZoomRoomProps {
@@ -79,6 +315,7 @@ interface InAppSession {
   userName: string;
   userEmail: string;
   signature: string | null;
+  hostSignature?: string | null;
   zak: string | null;
   role: 0 | 1;
 }
@@ -172,6 +409,7 @@ function InAppZoomRoom({
           userName: "AviatorPass student",
           userEmail: "",
           signature: null,
+          hostSignature: null,
           zak: null,
           role: isHost ? 1 : 0,
         });
@@ -192,109 +430,124 @@ function InAppZoomRoom({
     let cancelled = false;
     let resizeObserver: ResizeObserver | null = null;
     let mutationObserver: MutationObserver | null = null;
-    let pinTimer: number | null = null;
 
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
-          const client = await loadZoomEmbeddedClient();
-          if (cancelled) return;
-          sdkRef.current = client;
-          const videoSize = stageVideoSize(stageRef.current);
-          await client.init({
-            zoomAppRoot: stageRef.current,
-            language: "en-US",
-            patchJsMedia: true,
-            leaveOnPageUnload: true,
-            customize: {
-              video: {
-                isResizable: false,
-                viewSizes: {
-                  default: videoSize,
-                  ribbon: {
-                    width: Math.min(320, Math.round(videoSize.width / 4)),
-                    height: videoSize.height,
-                  },
-                },
-                popper: {
-                  disableDraggable: true,
-                  anchorElement: stageRef.current,
-                  placement: "innerCenter",
-                },
+          let client = await openZoomEmbeddedClient();
+          if (cancelled) {
+            await releaseZoomEmbeddedClient(client);
+            return;
+          }
+          const stage = stageRef.current;
+          if (!stage) return;
+          const initClient = async (next: ZoomEmbeddedClient) => {
+            await next.init({
+              zoomAppRoot: stage,
+              language: "en-US",
+              patchJsMedia: true,
+              leaveOnPageUnload: true,
+              customize: {
+                video: zoomVideoOptions(stage),
               },
-            },
-          });
-          const joinOpts = {
+            });
+          };
+          sdkRef.current = client;
+          await initClient(client);
+          const participantJoin = {
             signature: active.signature,
             meetingNumber: active.meetingNumber,
             password: active.password,
             userName: active.userName,
             userEmail: active.userEmail,
             tk: "",
-            zak: active.zak || undefined,
           };
           try {
-            await client.join(joinOpts);
+            await joinEmbeddedMeeting(
+              client,
+              {
+                ...participantJoin,
+                signature: active.hostSignature || active.signature,
+                zak: active.zak || undefined,
+              },
+              stage,
+            );
           } catch (hostError) {
-            const detail =
-              hostError instanceof Error ? hostError.message : JSON.stringify(hostError ?? {});
+            if (!active.zak && !active.hostSignature) throw hostError;
+            const detail = zoomFailureText(hostError);
             const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
-            if (!staleHostToken || !joinOpts.zak) throw hostError;
-            console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
-            await client.leave?.().catch(() => undefined);
-            await client.join({ ...joinOpts, zak: undefined });
+            const hostBusy = /3000|other meetings in progress/i.test(detail);
+            if (staleHostToken) {
+              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+            }
+            if (hostBusy) {
+              console.warn("[zoom] Host already in another meeting; joining as participant");
+            }
+            await releaseZoomEmbeddedClient(client);
+            stage.replaceChildren();
+            client = await openZoomEmbeddedClient();
+            if (cancelled) {
+              await releaseZoomEmbeddedClient(client);
+              return;
+            }
+            sdkRef.current = client;
+            await initClient(client);
+            await joinEmbeddedMeeting(client, participantJoin, stage);
           }
           if (cancelled) return;
           stopLocalMedia();
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
           console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
-          const fit = () => {
-            if (!stageRef.current) return;
-            const next = stageVideoSize(stageRef.current);
-            void client.updateVideoOptions?.({
-              viewSizes: { default: next },
-              popper: {
-                disableDraggable: true,
-                anchorElement: stageRef.current,
-                placement: "innerCenter",
-              },
+          let fitQueued = false;
+          let fitResize = false;
+          const fit = (resize: boolean) => {
+            fitResize = fitResize || resize;
+            if (!stageRef.current || fitQueued) return;
+            fitQueued = true;
+            window.requestAnimationFrame(() => {
+              fitQueued = false;
+              const resizeNow = fitResize;
+              fitResize = false;
+              if (!stageRef.current) return;
+              if (resizeNow) {
+                const next = zoomVideoOptions(stageRef.current);
+                void client.updateVideoOptions?.({
+                  defaultViewType: next.defaultViewType,
+                  viewSizes: next.viewSizes,
+                  popper: next.popper,
+                });
+              }
+              pinZoomWindowToStage(stageRef.current);
             });
-            pinZoomWindowToStage(stageRef.current);
           };
-          fit();
-          window.setTimeout(fit, 50);
-          window.setTimeout(fit, 200);
-          window.setTimeout(fit, 600);
-          resizeObserver = new ResizeObserver(fit);
+          fit(true);
+          window.setTimeout(() => fit(true), 200);
+          window.setTimeout(() => fit(true), 800);
+          resizeObserver = new ResizeObserver(() => fit(true));
           resizeObserver.observe(stageRef.current);
-          mutationObserver = new MutationObserver(fit);
+          mutationObserver = new MutationObserver(() => fit(false));
           mutationObserver.observe(document.body, { childList: true, subtree: true });
-          const until = Date.now() + 15000;
-          pinTimer = window.setInterval(() => {
-            fit();
-            if (Date.now() > until && pinTimer != null) {
-              window.clearInterval(pinTimer);
-              pinTimer = null;
-            }
-          }, 80);
           return;
         } catch (error) {
           if (cancelled) return;
           console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
-          await sdkRef.current?.leave?.().catch(() => undefined);
+          const failedClient = sdkRef.current;
           sdkRef.current = null;
+          await releaseZoomEmbeddedClient(failedClient);
           if (stageRef.current) stageRef.current.replaceChildren();
           setPhase("classroom");
           await startLocalMedia();
           if (!cancelled) {
-            const detail = error instanceof Error ? error.message : String(error);
+            const detail = zoomFailureText(error);
             setNotice(
               /3712|invalid sdk|sdk key/i.test(detail)
                 ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
                 : /3099|registration/i.test(detail)
                   ? "Zoom still asked for registration. AviatorPass is turning that off — open the classroom again."
-                  : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+                  : /3000|other meetings in progress/i.test(detail)
+                    ? "Zoom is already inside another meeting on this account. Leave that meeting, then open this classroom again."
+                    : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
             );
           }
           return;
@@ -312,9 +565,9 @@ function InAppZoomRoom({
       cancelled = true;
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
-      if (pinTimer != null) window.clearInterval(pinTimer);
-      void sdkRef.current?.leave?.().catch(() => undefined);
+      const client = sdkRef.current;
       sdkRef.current = null;
+      void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
     };
   }, [session, startLocalMedia, stopLocalMedia]);
@@ -371,7 +624,7 @@ function InAppZoomRoom({
           </p>
         </div>
         <span className="classroom-chip shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/70">
-          {isHost ? "Host" : "Student"}
+          {session?.userName ?? (isHost ? "Instructor" : "Student")}
         </span>
       </header>
 
@@ -382,7 +635,7 @@ function InAppZoomRoom({
           width: "100%",
           aspectRatio: "16 / 9",
           minHeight: "min(58vh, 680px)",
-          overflow: "hidden",
+          overflow: liveZoom ? "visible" : "hidden",
         }}
       >
         <div

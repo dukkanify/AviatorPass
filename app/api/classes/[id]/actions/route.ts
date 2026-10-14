@@ -141,6 +141,24 @@ export async function POST(request: Request, { params }: Params) {
         error: null,
       });
     }
+    if (body.action === "complete_subject") {
+      if (!body.studentId) {
+        return NextResponse.json(
+          { success: false, data: null, error: "studentId required" },
+          { status: 400 },
+        );
+      }
+      const { completeSubjectFromClass } = await import("@/services/cgi/journey-service");
+      return NextResponse.json({
+        success: true,
+        data: await completeSubjectFromClass({
+          liveClassId: id,
+          studentId: body.studentId,
+          actorId: user.id,
+        }),
+        error: null,
+      });
+    }
 
     return NextResponse.json(
       { success: false, data: null, error: "Unknown action" },

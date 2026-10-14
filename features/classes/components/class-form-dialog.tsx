@@ -63,7 +63,7 @@ function ClassFormDialog({
   const [maxStudents, setMaxStudents] = React.useState("30");
   const [meetingType, setMeetingType] = React.useState("meeting");
   const [timezone, setTimezone] = React.useState("Asia/Kuwait");
-  const [waitingRoom, setWaitingRoom] = React.useState(true);
+  const [waitingRoom, setWaitingRoom] = React.useState(false);
   const [frequency, setFrequency] = React.useState("once");
 
   React.useEffect(() => {
@@ -81,7 +81,7 @@ function ClassFormDialog({
     setMaxStudents("30");
     setMeetingType("meeting");
     setTimezone("Asia/Kuwait");
-    setWaitingRoom(true);
+    setWaitingRoom(false);
     setFrequency("once");
   }, [open, defaultInstructorId]);
 
@@ -283,8 +283,13 @@ function ClassFormDialog({
               </Select>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-              <Label htmlFor="wr">Waiting room</Label>
-              <Switch id="wr" checked={waitingRoom} onCheckedChange={setWaitingRoom} />
+              <div>
+                <Label htmlFor="wr">Waiting room</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allowed accounts enter the classroom directly.
+                </p>
+              </div>
+              <Switch id="wr" checked={waitingRoom} disabled />
             </div>
           </div>
           <DialogFooter>

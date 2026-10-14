@@ -50,6 +50,45 @@ function PriorityIcon({ priority }: { priority?: string }) {
   return <Info className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
+function notifyAudio(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Host =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Host) return null;
+  const store = window as Window & { __aviatorNotifyAudio?: AudioContext };
+  if (!store.__aviatorNotifyAudio) store.__aviatorNotifyAudio = new Host();
+  return store.__aviatorNotifyAudio;
+}
+
+function unlockNotifyAudio() {
+  const audio = notifyAudio();
+  if (audio && audio.state === "suspended") void audio.resume();
+}
+
+function playNotifyChime() {
+  if (typeof window === "undefined") return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const audio = notifyAudio();
+  if (!audio) return;
+  if (audio.state === "suspended") void audio.resume();
+  const now = audio.currentTime;
+  [880, 1174].forEach((frequency, index) => {
+    const tone = audio.createOscillator();
+    const level = audio.createGain();
+    tone.type = "sine";
+    tone.frequency.value = frequency;
+    const start = now + index * 0.11;
+    level.gain.setValueAtTime(0.0001, start);
+    level.gain.exponentialRampToValueAtTime(0.045, start + 0.02);
+    level.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
+    tone.connect(level);
+    level.connect(audio.destination);
+    tone.start(start);
+    tone.stop(start + 0.28);
+  });
+}
+
 function categoryColor(category?: string): string {
   switch (category) {
     case "security":
@@ -78,7 +117,16 @@ function NotificationBell() {
   const [loading, setLoading] = React.useState(false);
   const [category, setCategory] = React.useState("all");
   const [ringKey, setRingKey] = React.useState(0);
-  const prevUnread = React.useRef(0);
+  const prevUnread = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    window.addEventListener("pointerdown", unlockNotifyAudio);
+    window.addEventListener("keydown", unlockNotifyAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockNotifyAudio);
+      window.removeEventListener("keydown", unlockNotifyAudio);
+    };
+  }, []);
 
   const roleSegment = user
     ? user.role === "super_admin"
@@ -97,6 +145,7 @@ function NotificationBell() {
       );
       if (result.success && result.data) {
         setPayload(result.data);
+        if (prevUnread.current === null) prevUnread.current = result.data.unreadCount;
         setUnread(result.data.unreadCount);
       }
     } finally {
@@ -106,7 +155,10 @@ function NotificationBell() {
 
   const pollUnread = React.useCallback(async () => {
     const result = await authFetch<{ unreadCount: number }>(routes.api.notificationUnreadCount);
-    if (result.success && result.data) setUnread(result.data.unreadCount);
+    if (result.success && result.data) {
+      if (prevUnread.current === null) prevUnread.current = result.data.unreadCount;
+      setUnread(result.data.unreadCount);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -120,7 +172,11 @@ function NotificationBell() {
   }, [open, load]);
 
   React.useEffect(() => {
-    if (unread > prevUnread.current) setRingKey((key) => key + 1);
+    if (prevUnread.current === null) return;
+    if (unread > prevUnread.current) {
+      setRingKey((key) => key + 1);
+      playNotifyChime();
+    }
     prevUnread.current = unread;
   }, [unread]);
 

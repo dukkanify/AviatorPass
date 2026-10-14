@@ -159,6 +159,11 @@ export function ScheduleHubView({
   }
 
   const next = overview?.nextSession.session ?? null;
+  const joinableIds = new Set(
+    role === "student" ? (overview?.upcoming ?? []).map((item) => item.id) : [],
+  );
+  const canJoinClass = (classId: string | null | undefined) =>
+    typeof classId === "string" && (role !== "student" || joinableIds.has(classId));
 
   return (
     <div className="space-y-8">
@@ -203,7 +208,7 @@ export function ScheduleHubView({
                   </p>
                 ) : null}
                 <p className="mt-1 text-sm text-muted-foreground">{atplSchedule.scheduleNotice}</p>
-                {active.liveClassId ? (
+                {canJoinClass(active.liveClassId) ? (
                   <p className="mt-2">
                     <Link
                       className="text-sm font-medium text-accent"
@@ -242,7 +247,7 @@ export function ScheduleHubView({
                           ? "Current"
                           : "Queued"}
                     </span>
-                    {isCurrent && active.liveClassId ? (
+                    {isCurrent && canJoinClass(active.liveClassId) ? (
                       <Link
                         className="text-sm font-medium text-accent"
                         href={`/join/${active.liveClassId}`}
@@ -264,34 +269,56 @@ export function ScheduleHubView({
           <p className="text-sm text-muted-foreground">
             Confirmed ATPL first lectures on your timetable, with the student name.
           </p>
-          <ul className="space-y-2 text-sm">
-            {(overview?.firstLectures ?? []).length === 0 ? (
+          <ul className="grid gap-3 text-sm md:grid-cols-2">
+            {(overview?.firstLectures ?? []).filter(
+              (lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"),
+            ).length === 0 ? (
               <li className="text-muted-foreground">No ATPL first lectures assigned yet.</li>
             ) : (
-              (overview?.firstLectures ?? []).map((lecture) => (
-                <li key={lecture.id} className="rounded-xl border border-border bg-card px-4 py-3">
-                  <p className="font-medium">{lecture.studentName}</p>
-                  <p className="text-muted-foreground">{lecture.studentEmail}</p>
-                  <p className="mt-1">
-                    {lecture.subjectTitle
-                      ? `${lecture.subjectTitle} · ${lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}`
-                      : (lecture.label ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE)}
-                    <span className="ml-2 text-xs uppercase tracking-wide text-accent">
-                      {lecture.onTimetable ? "On timetable" : "Assigned"}
-                    </span>
-                  </p>
-                  {lecture.liveClassId ? (
-                    <p className="mt-2">
-                      <Link
-                        className="text-sm font-medium text-accent"
-                        href={`/join/${lecture.liveClassId}`}
-                      >
-                        Open classroom
-                      </Link>
-                    </p>
-                  ) : null}
-                </li>
-              ))
+              (overview?.firstLectures ?? [])
+                .filter((lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"))
+                .map((lecture) => (
+                  <li key={lecture.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Student
+                        </p>
+                        <p className="font-medium">{lecture.studentName}</p>
+                        <p className="text-sm text-muted-foreground">{lecture.studentEmail}</p>
+                      </div>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                        {lecture.onTimetable ? "On timetable" : "Assigned"}
+                      </span>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Subject
+                      </p>
+                      <p className="font-medium">
+                        {lecture.subjectTitle ?? ATPL_PACKAGE_FIRST_LECTURE_TITLE}
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        When
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {lecture.label ?? "Time confirmed"}
+                      </p>
+                    </div>
+                    {lecture.liveClassId && role !== "cgi" ? (
+                      <p className="mt-4">
+                        <Link
+                          className="text-sm font-medium text-accent"
+                          href={`/join/${lecture.liveClassId}`}
+                        >
+                          Open classroom
+                        </Link>
+                      </p>
+                    ) : null}
+                  </li>
+                ))
             )}
           </ul>
         </section>
@@ -336,11 +363,13 @@ export function ScheduleHubView({
                 Instructor: {overview?.nextSession.pendingInstructorReminders ?? 0}
               </span>
             </div>
-            <p>
-              <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
-                Join Zoom
-              </Link>
-            </p>
+            {canJoinClass(next.id) ? (
+              <p>
+                <Link className="text-sm font-medium text-accent" href={`/join/${next.id}`}>
+                  Join Zoom
+                </Link>
+              </p>
+            ) : null}
           </div>
         ) : atplSchedule?.packageOwned ? (
           (() => {
@@ -355,7 +384,7 @@ export function ScheduleHubView({
                   {active.when ?? "Your instructor sets this date after the current lecture."} ·
                   ATPL
                 </p>
-                {active.liveClassId ? (
+                {canJoinClass(active.liveClassId) ? (
                   <p>
                     <Link
                       className="text-sm font-medium text-accent"

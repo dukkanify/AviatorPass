@@ -8,7 +8,7 @@ import { listPublishedCoursesGroupedByCategory } from "@/services/courses/course
 function PublicCourseCatalog() {
   let groups: ReturnType<typeof listPublishedCoursesGroupedByCategory> = [];
   try {
-    groups = listPublishedCoursesGroupedByCategory(100);
+    groups = listPublishedCoursesGroupedByCategory(200, { deliveryFilter: "all" });
   } catch (error) {
     console.error("[public-course-catalog]", error);
     return (
@@ -39,10 +39,6 @@ function PublicCourseCatalog() {
           <h2 className="catalog-deck-title">
             {total} course{total === 1 ? "" : "s"} by category
           </h2>
-          <p className="catalog-deck-lead">
-            Browse published lanes by category. Featured courses appear first, with live or recorded
-            badges from Super Admin.
-          </p>
         </div>
         <div className="catalog-deck-stat" aria-label={`${groups.length} categories`}>
           <span className="catalog-deck-stat-value">{groups.length}</span>
@@ -65,6 +61,7 @@ function PublicCourseCatalog() {
             }}
             groupIndex={groupIndex}
             kicker={group.category ? "Category" : "Other"}
+            countLabel="course"
             ctaLabel="View course"
             showInstructorOnCard
             descriptionLines={3}

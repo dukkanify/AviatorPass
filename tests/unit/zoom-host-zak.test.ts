@@ -8,6 +8,7 @@ import {
   resetZoomS2STokenCacheForTests,
   resolveZoomHostZak,
   updateMeetingForClass,
+  zoomHostBlockedByAnotherLiveMeeting,
 } from "@/services/classes/zoom-service";
 import type { LiveClass } from "@/types/classes";
 
@@ -392,5 +393,50 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.zak).toBe("refreshed-join-zak");
     expect(calls.some((url) => url.includes("/users/") && url.includes("/token"))).toBe(false);
     expect(calls.some((url) => url.startsWith("PATCH "))).toBe(true);
+  });
+
+  it("ends a finished Zoom meeting and keeps a live lecture from blocking the host", async () => {
+    s2sEnv();
+    storedMeeting("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
+    const ended: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/users/zoom-host-99/meetings") && method === "GET") {
+        return new Response(
+          JSON.stringify({
+            meetings: [
+              { id: 82122854800, start_time: new Date().toISOString(), duration: 60 },
+              {
+                id: 111,
+                start_time: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+                duration: 60,
+              },
+              {
+                id: 222,
+                start_time: new Date().toISOString(),
+                duration: 90,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "PUT" && url.includes("/meetings/") && url.includes("/status")) {
+        ended.push(url);
+        return new Response(null, { status: 204 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(true);
+    expect(ended.some((url) => url.includes("/meetings/111/status"))).toBe(true);
+    expect(ended.some((url) => url.includes("/meetings/222/status"))).toBe(false);
+    expect(ended.some((url) => url.includes("/meetings/82122854800/status"))).toBe(false);
   });
 });

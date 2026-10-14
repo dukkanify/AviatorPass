@@ -8,7 +8,9 @@ import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
+import { ROLE_DASHBOARD, type Role } from "@/constants/roles";
 import { routes } from "@/constants/routes";
+import { useAuth } from "@/providers/auth-provider";
 import { classFetch } from "@/features/classes/lib/api";
 import { prefetchZoomEmbeddedSdk } from "@/features/zoom/lib/load-embedded-sdk";
 import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
@@ -28,6 +30,11 @@ interface JoinClassClientProps {
 }
 
 function JoinClassClient({ classId }: JoinClassClientProps) {
+  const { user } = useAuth();
+  const leaveHref =
+    user && user.role in ROLE_DASHBOARD
+      ? ROLE_DASHBOARD[user.role as Role]
+      : routes.studentDashboard;
   const [data, setData] = React.useState<{
     class: LiveClassListItem;
     join: {
@@ -114,8 +121,8 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const finished = audience === "Finished" || audience === "Cancelled";
 
   return (
-    <div className="classroom-shell relative overflow-hidden">
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
+    <div className="classroom-shell relative">
+      <div className="classroom-page relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
         <header className="flex items-center justify-between gap-3">
           <BrandLogo variant="dark" href="/" priority />
           <span
@@ -129,7 +136,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
           </span>
         </header>
 
-        <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="classroom-page-heading mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#CCA04C]">
               Live classroom
@@ -174,7 +181,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         </div>
 
         <div className="mt-6 flex-1 pb-4">
-          {join && audience !== "Cancelled" ? (
+          {join && cls.status !== "completed" && audience !== "Cancelled" ? (
             <InAppZoomRoom
               joinUrl={join.joinUrl}
               startUrl={join.startUrl}
@@ -183,13 +190,15 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               isHost={data.isHost}
               providerMode={join.providerMode}
               title={cls.title}
-              leaveHref={routes.studentDashboard}
+              leaveHref={leaveHref}
             />
           ) : (
             <p className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center text-sm text-white/65">
               {audience === "Cancelled"
                 ? "This class was cancelled."
-                : "Meeting details unavailable."}
+                : cls.status === "completed"
+                  ? "This subject is complete and will not open again."
+                  : "Meeting details unavailable."}
             </p>
           )}
           {join ? (

@@ -54,6 +54,18 @@ export type PasswordStrengthLabel = "Weak" | "Fair" | "Good" | "Strong";
 
 export type PasswordRequirementId = (typeof PASSWORD_REQUIREMENTS)[number]["id"];
 
+export type PasswordPolicy = {
+  /** When false, a symbol is not required. Defaults to required. */
+  requireSpecialChar?: boolean;
+};
+
+export function passwordRulesFor(policy?: PasswordPolicy) {
+  if (policy?.requireSpecialChar === false) {
+    return PASSWORD_REQUIREMENTS.filter((rule) => rule.id !== "special");
+  }
+  return PASSWORD_REQUIREMENTS;
+}
+
 export type PasswordIssue = {
   id: PasswordRequirementId;
   message: string;
@@ -69,31 +81,41 @@ export function passwordRequirementState(password: string): Record<PasswordRequi
   };
 }
 
-export function passwordIssues(password: string): PasswordIssue[] {
-  return PASSWORD_REQUIREMENTS.filter((rule) => !rule.test(password)).map((rule) => ({
-    id: rule.id,
-    message: rule.message,
-  }));
+export function passwordIssues(password: string, policy?: PasswordPolicy): PasswordIssue[] {
+  return passwordRulesFor(policy)
+    .filter((rule) => !rule.test(password))
+    .map((rule) => ({
+      id: rule.id,
+      message: rule.message,
+    }));
 }
 
-export function firstPasswordIssue(password: string): PasswordIssue | undefined {
-  return passwordIssues(password)[0];
+export function firstPasswordIssue(
+  password: string,
+  policy?: PasswordPolicy,
+): PasswordIssue | undefined {
+  return passwordIssues(password, policy)[0];
 }
 
-export function passwordMeetsAllRequirements(password: string): boolean {
-  return PASSWORD_REQUIREMENTS.every((rule) => rule.test(password));
+export function passwordMeetsAllRequirements(password: string, policy?: PasswordPolicy): boolean {
+  return passwordRulesFor(policy).every((rule) => rule.test(password));
 }
 
-export function passwordStrength(password: string): {
+export function passwordStrength(
+  password: string,
+  policy?: PasswordPolicy,
+): {
   score: number;
   met: number;
   label: PasswordStrengthLabel;
   bars: number;
 } {
-  const met = PASSWORD_REQUIREMENTS.filter((rule) => rule.test(password)).length;
+  const rules = passwordRulesFor(policy);
+  const met = rules.filter((rule) => rule.test(password)).length;
+  const total = rules.length;
   if (!password || met <= 1) return { score: 1, met, label: "Weak", bars: password ? 1 : 0 };
   if (met === 2) return { score: 2, met, label: "Fair", bars: 2 };
-  if (met <= 4) return { score: 3, met, label: "Good", bars: 3 };
+  if (met < total) return { score: 3, met, label: "Good", bars: 3 };
   return { score: 4, met, label: "Strong", bars: 4 };
 }
 

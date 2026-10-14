@@ -31,6 +31,12 @@ import {
 } from "@/components/dashboard";
 import { formatCurrency } from "@/utils/format";
 
+const EMPTY_JOURNEY = {
+  pendingInstructor: 0,
+  schedulingRequired: 0,
+  confirmedLectures: 0,
+};
+
 const EMPTY_OVERVIEW = {
   totalStudents: 0,
   totalInstructors: 0,
@@ -50,6 +56,7 @@ function SuperAdminDashboardView() {
   const [attendance, setAttendance] = React.useState<SeriesPoint[]>([]);
   const [activity, setActivity] = React.useState<ActivityItem[]>([]);
   const [calendar, setCalendar] = React.useState<CalendarEvent[]>([]);
+  const [journey, setJourney] = React.useState(EMPTY_JOURNEY);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -66,6 +73,7 @@ function SuperAdminDashboardView() {
           enrollments?: SeriesPoint[];
           attendance?: SeriesPoint[];
         };
+        journey?: typeof EMPTY_JOURNEY;
       };
     };
     function apply(json: MetricsJson) {
@@ -79,6 +87,7 @@ function SuperAdminDashboardView() {
       }
       setActivity(json.data.activity ?? []);
       setCalendar(json.data.calendar ?? []);
+      if (json.data.journey) setJourney(json.data.journey);
     }
     async function load() {
       const counts = (await (
@@ -112,6 +121,27 @@ function SuperAdminDashboardView() {
         }
         breadcrumbs={[{ label: "Super Admin" }, { label: "Dashboard" }]}
       />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Pending instructor"
+          value={journey.pendingInstructor}
+          icon={Users}
+          hint="Paid students waiting for TKI 1"
+        />
+        <StatCard
+          label="Scheduling Required"
+          value={journey.schedulingRequired}
+          icon={GraduationCap}
+          hint="Instructor could not book the next lecture"
+        />
+        <StatCard
+          label="Confirmed lectures"
+          value={journey.confirmedLectures}
+          icon={Layers}
+          hint="On the student timetable"
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Students" value={overview.totalStudents} icon={Users} />

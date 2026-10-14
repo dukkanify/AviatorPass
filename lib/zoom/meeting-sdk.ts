@@ -46,18 +46,51 @@ export function zakFromStartUrl(startUrl?: string | null): string | null {
   }
 }
 
+const ZOOM_NAME_MAX = 64;
+const ZOOM_TOPIC_MAX = 200;
+const ZOOM_AGENDA_MAX = 2000;
+
+function cleanZoomText(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
 export function displayMeetingName(user: {
   fullName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
 }): string {
-  const full = user.fullName?.trim();
-  if (full) return full;
-  const parts = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  if (parts) return parts;
-  const email = user.email?.trim() ?? "";
-  return email.split("@")[0] || "AviatorPass student";
+  const full = cleanZoomText(user.fullName);
+  if (full && !full.includes("@")) return full.slice(0, ZOOM_NAME_MAX);
+  const parts = cleanZoomText([user.firstName, user.lastName].filter(Boolean).join(" "));
+  if (parts) return parts.slice(0, ZOOM_NAME_MAX);
+  const email = cleanZoomText(user.email);
+  return (email.split("@")[0] || "AviatorPass student").slice(0, ZOOM_NAME_MAX);
+}
+
+/** Zoom meeting title. The instructor name stays visible inside the meeting info. */
+export function zoomLectureTopic(title: string, instructorName: string | null | undefined): string {
+  const base = cleanZoomText(title);
+  const instructor = cleanZoomText(instructorName);
+  if (!instructor || base.toLowerCase().includes(instructor.toLowerCase())) {
+    return base.slice(0, ZOOM_TOPIC_MAX);
+  }
+  const combined = `${base} · ${instructor}`;
+  return (combined.length <= ZOOM_TOPIC_MAX ? combined : base).slice(0, ZOOM_TOPIC_MAX);
+}
+
+/** Zoom meeting agenda lists the instructor and the enrolled students by name. */
+export function zoomLectureAgenda(input: {
+  instructorName: string | null | undefined;
+  studentNames: string[];
+}): string {
+  const instructor = cleanZoomText(input.instructorName) || "Instructor";
+  const students = [
+    ...new Set(input.studentNames.map((name) => cleanZoomText(name)).filter(Boolean)),
+  ];
+  const lines = [`Instructor: ${instructor}`];
+  if (students.length) lines.push(`Students: ${students.join(", ")}`);
+  return lines.join("\n").slice(0, ZOOM_AGENDA_MAX);
 }
 
 export function resolveInAppMeetingMode(input: {

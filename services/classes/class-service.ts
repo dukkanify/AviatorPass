@@ -13,7 +13,7 @@ import {
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
-import { listEnrollments, listStudentEnrollments } from "@/services/courses/enrollment-service";
+import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
@@ -332,6 +332,21 @@ export function enrollStudentsInLiveClass(liveClassId: string, studentIds: strin
   addParticipants(liveClassId, studentIds, "participant");
 }
 
+/** Keep the roster host in step with the instructor assigned to this lecture. */
+function syncLectureStaff(
+  liveClassId: string,
+  instructorId: string,
+  assistantInstructorId: string | null,
+) {
+  writeClassesDb((d) => {
+    d.participants = d.participants.filter(
+      (row) => row.liveClassId !== liveClassId || (row.role !== "host" && row.role !== "cohost"),
+    );
+  });
+  addParticipants(liveClassId, [instructorId], "host");
+  if (assistantInstructorId) addParticipants(liveClassId, [assistantInstructorId], "cohost");
+}
+
 async function notifyUsers(
   userIds: string[],
   title: string,
@@ -482,7 +497,7 @@ export async function createLiveClass(
     try {
       await createMeetingForClass({
         liveClass: cls,
-        waitingRoom: input.waitingRoom ?? settings.zoom.defaultWaitingRoom,
+        waitingRoom: false,
         passcode: settings.zoom.defaultPasscode,
         meetingType,
         actorId: input.actorId,
@@ -652,6 +667,12 @@ export async function updateLiveClass(input: {
     const idx = d.classes.findIndex((c) => c.id === existing.id);
     if (idx >= 0) d.classes[idx] = next;
   });
+  if (
+    instructorId !== existing.instructorId ||
+    next.assistantInstructorId !== existing.assistantInstructorId
+  ) {
+    syncLectureStaff(next.id, instructorId, next.assistantInstructorId);
+  }
 
   const { liveClassMeetingFieldsChanged } = await import("@/services/zoom/meeting-service");
   if (liveClassMeetingFieldsChanged(existing, next)) {
@@ -661,13 +682,30 @@ export async function updateLiveClass(input: {
   await queueClassReminders(next.id);
 
   const participantIds = listParticipantsForClass(next.id).map((p) => p.userId);
+  const dateChanged = existing.startsAt !== next.startsAt;
   await notifyUsers(
     participantIds,
-    "Live class updated",
-    `${next.title} schedule or details changed`,
-    "class.updated",
+    dateChanged ? "Live class rescheduled" : "Live class updated",
+    dateChanged
+      ? `${next.title} moved to ${new Date(next.startsAt).toLocaleString()}`
+      : `${next.title} schedule or details changed`,
+    dateChanged ? "class.rescheduled" : "class.updated",
     { liveClassId: next.id },
+    false,
   );
+  if (dateChanged) {
+    const meeting = getZoomMeetingByClassId(next.id);
+    await emailScheduleLifecycle({
+      event: "reschedule",
+      userIds: participantIds,
+      title: next.title,
+      when: new Date(next.startsAt).toLocaleString(),
+      detail: "The lecture date was updated. Join from AviatorPass at the new time.",
+      liveClassId: next.id,
+      actorId: input.actorId,
+      joinUrl: meeting ? appJoinUrl(next.id, meeting.zoomMeetingId) : undefined,
+    });
+  }
 
   await logActivity({
     actorId: input.actorId,
@@ -828,6 +866,8 @@ export async function rescheduleLiveClass(input: {
     });
   }
 
+  await cancelMeetingForClass({ liveClassId: existing.id, actorId: input.actorId });
+
   await logActivity({
     actorId: input.actorId,
     action: ACTIVITY_ACTIONS.CLASS_RESCHEDULED,
@@ -974,17 +1014,17 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
     findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = listParticipantsForClass(liveClassId).find((p) => p.userId === userId);
-  const enrolledInCourse = cls.courseId
-    ? listStudentEnrollments(userId).some((row) => row.courseId === cls.courseId)
-    : false;
-  if (!isHost && !participant && !enrolledInCourse) {
+  const participant = listParticipantsForClass(liveClassId).some(
+    (p) => p.userId === userId && p.role === "participant",
+  );
+  if (!isHost && !participant) {
     throw new ClassValidationError("You are not invited to this class");
   }
 
+  const closed = cls.status === "completed" || cls.status === "cancelled";
   return {
     class: toListItem(cls),
-    join: getPublicJoinInfo(liveClassId, Boolean(isHost)),
+    join: closed ? null : getPublicJoinInfo(liveClassId, Boolean(isHost)),
     isHost: Boolean(isHost),
     audienceStatus: meetingAudienceStatus(cls),
   };

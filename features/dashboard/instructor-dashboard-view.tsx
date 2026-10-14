@@ -60,39 +60,63 @@ function InstructorDashboardView({
       </div>
 
       {firstLectures.length > 0 ? (
-        <section className="space-y-3 rounded-xl border border-border bg-card px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg tracking-tight">
-              First lectures assigned by TKI 1
-            </h2>
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg tracking-tight">
+                First lectures assigned by TKI 1
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                One card per lecture. Student, subject, and time stay separate.
+              </p>
+            </div>
             <Link href="/instructor/schedule" className="text-sm text-primary hover:underline">
               Open timetable
             </Link>
           </div>
-          <ul className="space-y-2 text-sm">
+          <ul className="grid gap-3 md:grid-cols-2">
             {firstLectures.map((lecture) => (
-              <li key={lecture.id} className="border-b border-border/50 pb-2 last:border-0">
-                <p className="font-medium">{lecture.studentName}</p>
-                <p className="text-muted-foreground">
-                  {lecture.subjectTitle ? `${lecture.subjectTitle} · ` : ""}
-                  {lecture.label ?? "Time confirmed"}
-                  {lecture.onTimetable ? " · on timetable" : ""}
-                </p>
+              <li key={lecture.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Student
+                    </p>
+                    <p className="font-medium">{lecture.studentName}</p>
+                  </div>
+                  <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                    {lecture.onTimetable ? "On timetable" : "Assigned"}
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Subject
+                  </p>
+                  <p className="font-medium">{lecture.subjectTitle || "ATPL lecture"}</p>
+                </div>
+                <div className="mt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    When
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {lecture.label ?? "Time confirmed"}
+                  </p>
+                </div>
                 {lecture.liveClassId ? (
-                  <p className="mt-1 flex flex-wrap gap-3">
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                     <Link
                       href={`/join/${lecture.liveClassId}`}
-                      className="font-medium text-primary hover:underline"
+                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
                     >
                       Join Zoom
                     </Link>
                     <Link
                       href={`/instructor/classes/${lecture.liveClassId}`}
-                      className="text-primary hover:underline"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium"
                     >
                       Performance and next session
                     </Link>
-                  </p>
+                  </div>
                 ) : null}
               </li>
             ))}

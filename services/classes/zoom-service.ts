@@ -9,14 +9,23 @@ import {
   PROJECT_CONTACT_EMAIL,
   PROJECT_SUPPORT_EMAIL,
 } from "@/lib/branding/legacy-client-identity";
-import { zakFromStartUrl } from "@/lib/zoom/meeting-sdk";
+import {
+  displayMeetingName,
+  zakFromStartUrl,
+  zoomLectureAgenda,
+  zoomLectureTopic,
+} from "@/lib/zoom/meeting-sdk";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
+import { findUserById } from "@/services/auth/store";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { readBookingsDb, writeBookingsDb } from "@/services/bookings/store";
 import {
+  listParticipantsForClass,
+  lookupAllLiveClasses,
   lookupLiveClass,
   lookupZoomMeetingByClassId,
   lookupZoomMeetingByNumber,
@@ -36,7 +45,25 @@ export const IN_APP_ZOOM_MEETING_SETTINGS = {
   approval_type: 2,
   join_before_host: true,
   meeting_authentication: false,
+  mute_upon_entry: false,
+  waiting_room: false,
+  who_can_share_screen: "all",
+  who_can_share_screen_when_someone_is_sharing: "all",
+  request_permission_to_unmute_participants: false,
 } as const;
+
+/** Zoom user defaults. A meeting-level "all" is ignored while this stays "host". */
+const ZOOM_HOST_PARTICIPANT_TOOLS = {
+  screen_sharing: true,
+  who_can_share_screen: "all",
+  who_can_share_screen_when_someone_is_sharing: "all",
+  request_permission_to_unmute_participants: false,
+  annotation: true,
+  whiteboard: true,
+  remote_control: true,
+} as const;
+
+const zoomShareToolsReady = new Set<string>();
 
 export function isZoomRegistrationJoinUrl(url: string | null | undefined): boolean {
   return /\/(?:meeting|webinar)\/register/i.test(url ?? "");
@@ -119,6 +146,87 @@ export function isZoomMissingUserError(body: string): boolean {
   } catch {
     return /user does not exist/i.test(body);
   }
+}
+
+type ZoomHostCandidate = { id: string; email: string };
+
+function lectureWindow(liveClass: Pick<LiveClass, "startsAt" | "endsAt" | "durationMinutes">): {
+  start: number;
+  end: number;
+} {
+  const start = Date.parse(liveClass.startsAt);
+  const end = Number.isNaN(Date.parse(liveClass.endsAt))
+    ? start + liveClass.durationMinutes * 60_000
+    : Date.parse(liveClass.endsAt);
+  return { start, end };
+}
+
+function sameZoomHost(meeting: ZoomMeetingRecord, host: ZoomHostCandidate): boolean {
+  const id = host.id.toLowerCase();
+  const email = host.email.toLowerCase();
+  const meetingId = (meeting.hostId ?? "").toLowerCase();
+  const meetingEmail = (meeting.hostEmail ?? "").toLowerCase();
+  if (id && meetingId && meetingId === id) return true;
+  if (email && meetingEmail && meetingEmail === email) return true;
+  return false;
+}
+
+/** True when this Zoom user already owns another lecture at the same time. */
+export function zoomHostBusy(
+  host: ZoomHostCandidate,
+  liveClass: Pick<LiveClass, "id" | "startsAt" | "endsAt" | "durationMinutes">,
+): boolean {
+  const next = lectureWindow(liveClass);
+  if (Number.isNaN(next.start) || Number.isNaN(next.end)) return false;
+  return lookupAllLiveClasses().some((other) => {
+    if (
+      other.id === liveClass.id ||
+      other.deletedAt ||
+      other.status === "cancelled" ||
+      other.status === "completed" ||
+      other.status === "rescheduled"
+    ) {
+      return false;
+    }
+    const current = lectureWindow(other);
+    if (!(current.start < next.end && next.start < current.end)) return false;
+    const meeting = lookupZoomMeetingByClassId(other.id);
+    return Boolean(meeting && sameZoomHost(meeting, host));
+  });
+}
+
+async function listZoomHostCandidates(token: string): Promise<ZoomHostCandidate[]> {
+  try {
+    const res = await fetch("https://api.zoom.us/v2/users?status=active&page_size=100", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as {
+      users?: Array<{ id?: string; email?: string; type?: number }>;
+    };
+    return (json.users ?? [])
+      .map((user) => ({
+        id: user.id?.trim() || user.email?.trim() || "",
+        email: user.email?.trim() || "",
+        type: user.type ?? 1,
+      }))
+      .filter((user) => user.id)
+      .sort((a, b) => Number(b.type === 2) - Number(a.type === 2))
+      .map(({ id, email }) => ({ id, email }));
+  } catch {
+    return [];
+  }
+}
+
+/** Put overlapping lectures on different Zoom users so they can run together. */
+async function chooseZoomHostUser(
+  token: string,
+  liveClass: LiveClass,
+  fallback: string,
+): Promise<string> {
+  const hosts = await listZoomHostCandidates(token);
+  const free = hosts.find((host) => !zoomHostBusy(host, liveClass));
+  return free?.id || fallback;
 }
 
 function requireLiveZoom(reason: string): never {
@@ -216,6 +324,36 @@ function mockMeeting(
   };
 }
 
+function describeZoomLecture(liveClass: {
+  id: string;
+  title: string;
+  instructorId: string;
+  description?: string | null;
+}): {
+  topic: string;
+  agenda: string;
+} {
+  const instructor = findUserById(liveClass.instructorId);
+  const instructorName = instructor ? displayMeetingName(instructor) : null;
+  const studentNames = listParticipantsForClass(liveClass.id)
+    .filter((person) => person.role === "participant")
+    .flatMap((person) => {
+      const user = findUserById(person.userId);
+      return user ? [displayMeetingName(user)] : [];
+    });
+  const agenda = [
+    zoomLectureAgenda({ instructorName, studentNames }),
+    liveClass.description?.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 2000);
+  return {
+    topic: zoomLectureTopic(liveClass.title, instructorName),
+    agenda,
+  };
+}
+
 async function createZoomApiMeeting(
   liveClass: LiveClass,
   opts: { waitingRoom: boolean; passcode: boolean; meetingType: MeetingType },
@@ -224,21 +362,19 @@ async function createZoomApiMeeting(
   if (!token) return null;
 
   const settings = getPlatformSettings();
+  const roster = describeZoomLecture(liveClass);
   const body = {
-    topic: liveClass.title,
+    topic: roster.topic,
     type: 2,
     start_time: liveClass.startsAt,
     duration: liveClass.durationMinutes,
     timezone: liveClass.timezone,
-    agenda: liveClass.description,
+    agenda: roster.agenda,
     password: opts.passcode ? undefined : "",
     settings: {
-      waiting_room: opts.waitingRoom,
-      mute_upon_entry: true,
       host_video: true,
       participant_video: true,
       ...IN_APP_ZOOM_MEETING_SETTINGS,
-      who_can_share_screen: "all",
     },
   };
 
@@ -257,7 +393,12 @@ async function createZoomApiMeeting(
     });
   };
 
-  let user = resolveZoomS2SUser(settings.zoom.accountEmail);
+  let user = await chooseZoomHostUser(
+    token,
+    liveClass,
+    resolveZoomS2SUser(settings.zoom.accountEmail),
+  );
+  await ensureZoomHostParticipantTools(token, user);
   let res = await postMeeting(user);
   if (!res.ok) {
     const errorText = await res.text();
@@ -293,7 +434,7 @@ async function createZoomApiMeeting(
     startUrl: json.start_url,
     password: json.password ?? "",
     hostEmail: json.host_email ?? settings.zoom.accountEmail ?? null,
-    waitingRoom: opts.waitingRoom,
+    waitingRoom: false,
     passcodeEnabled: opts.passcode,
     coHostEmails: [],
     providerMode: "zoom",
@@ -327,7 +468,7 @@ export async function createMeetingForClass(input: {
   }
 
   const settings = getPlatformSettings();
-  const waitingRoom = input.waitingRoom ?? settings.zoom.defaultWaitingRoom;
+  const waitingRoom = false;
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
@@ -404,9 +545,15 @@ type ZoomMeetingDetails = {
   startUrl: string | null;
   joinUrl: string | null;
   password: string | null;
+  topic: string | null;
+  agenda: string | null;
   approvalType: number | null;
   joinBeforeHost: boolean | null;
   meetingAuthentication: boolean | null;
+  waitingRoom: boolean | null;
+  whoCanShareScreen: string | null;
+  whoCanShareWhenSomeoneIsSharing: string | null;
+  requestPermissionToUnmute: boolean | null;
 };
 
 async function fetchZoomMeetingDetails(
@@ -424,16 +571,24 @@ async function fetchZoomMeetingDetails(
       start_url?: string;
       join_url?: string;
       password?: string;
+      topic?: string;
+      agenda?: string;
       settings?: {
         approval_type?: number;
         join_before_host?: boolean;
         meeting_authentication?: boolean;
+        waiting_room?: boolean;
+        who_can_share_screen?: string;
+        who_can_share_screen_when_someone_is_sharing?: string;
+        request_permission_to_unmute_participants?: boolean;
       };
     };
     return {
       startUrl: json.start_url?.trim() || null,
       joinUrl: json.join_url?.trim() || null,
       password: json.password?.trim() || null,
+      topic: json.topic?.trim() || null,
+      agenda: json.agenda?.trim() || null,
       approvalType:
         typeof json.settings?.approval_type === "number" ? json.settings.approval_type : null,
       joinBeforeHost:
@@ -443,6 +598,15 @@ async function fetchZoomMeetingDetails(
       meetingAuthentication:
         typeof json.settings?.meeting_authentication === "boolean"
           ? json.settings.meeting_authentication
+          : null,
+      waitingRoom:
+        typeof json.settings?.waiting_room === "boolean" ? json.settings.waiting_room : null,
+      whoCanShareScreen: json.settings?.who_can_share_screen?.trim() || null,
+      whoCanShareWhenSomeoneIsSharing:
+        json.settings?.who_can_share_screen_when_someone_is_sharing?.trim() || null,
+      requestPermissionToUnmute:
+        typeof json.settings?.request_permission_to_unmute_participants === "boolean"
+          ? json.settings.request_permission_to_unmute_participants
           : null,
     };
   } catch {
@@ -458,14 +622,27 @@ export async function ensureInAppJoinSettings(
   const token = await getZoomAccessToken();
   if (!token) return meeting;
 
+  const shareToolsChanged = await ensureZoomHostParticipantTools(
+    token,
+    meeting.hostId || meeting.hostEmail,
+  );
+  const liveClass = lookupLiveClass(meeting.liveClassId);
+  const roster = liveClass ? describeZoomLecture(liveClass) : null;
   const current = await fetchZoomMeetingDetails(token, meeting.zoomMeetingId);
   const needsPatch =
     !current ||
     current.approvalType !== 2 ||
     current.joinBeforeHost === false ||
     current.meetingAuthentication === true ||
+    current.waitingRoom === true ||
+    current.whoCanShareScreen !== "all" ||
+    current.whoCanShareWhenSomeoneIsSharing === "host" ||
+    current.requestPermissionToUnmute === true ||
     isZoomRegistrationJoinUrl(current.joinUrl) ||
-    isZoomRegistrationJoinUrl(meeting.joinUrl);
+    isZoomRegistrationJoinUrl(meeting.joinUrl) ||
+    (roster != null &&
+      current != null &&
+      (current.topic !== roster.topic || current.agenda !== roster.agenda));
 
   if (needsPatch) {
     await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(meeting.zoomMeetingId)}`, {
@@ -474,13 +651,22 @@ export async function ensureInAppJoinSettings(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ settings: { ...IN_APP_ZOOM_MEETING_SETTINGS } }),
+      body: JSON.stringify({
+        ...(roster ? { topic: roster.topic, agenda: roster.agenda } : {}),
+        settings: { ...IN_APP_ZOOM_MEETING_SETTINGS },
+      }),
     }).catch((error) => console.error("Zoom in-app join settings failed", error));
   }
 
   const refreshed = needsPatch
     ? await fetchZoomMeetingDetails(token, meeting.zoomMeetingId)
     : current;
+  if (
+    shareToolsChanged ||
+    (current?.whoCanShareScreen === "host" && refreshed?.whoCanShareScreen === "all")
+  ) {
+    await endZoomMeetingInstance(token, meeting.zoomMeetingId);
+  }
   if (!refreshed) return meeting;
 
   const nextJoin =
@@ -492,12 +678,14 @@ export async function ensureInAppJoinSettings(
     joinUrl: nextJoin,
     startUrl: refreshed.startUrl || meeting.startUrl,
     password: refreshed.password || meeting.password,
+    waitingRoom: false,
     updatedAt: new Date().toISOString(),
   };
   if (
     next.joinUrl === meeting.joinUrl &&
     next.startUrl === meeting.startUrl &&
     next.password === meeting.password &&
+    next.waitingRoom === meeting.waitingRoom &&
     !needsPatch
   ) {
     return meeting;
@@ -507,6 +695,110 @@ export async function ensureInAppJoinSettings(
   return next;
 }
 
+type ZoomUserShareSettings = {
+  whoCanShareScreen: string | null;
+  whoCanShareWhenSomeoneIsSharing: string | null;
+  requestPermissionToUnmute: boolean | null;
+};
+
+function zoomSettingsUser(hostUser: string | null | undefined): string {
+  return resolveZoomS2SUser(hostUser ?? null) || "me";
+}
+
+async function fetchZoomUserShareSettings(
+  token: string,
+  user: string,
+): Promise<ZoomUserShareSettings | null> {
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      in_meeting?: {
+        who_can_share_screen?: string;
+        who_can_share_screen_when_someone_is_sharing?: string;
+        request_permission_to_unmute_participants?: boolean;
+      };
+    };
+    return {
+      whoCanShareScreen: json.in_meeting?.who_can_share_screen?.trim() || null,
+      whoCanShareWhenSomeoneIsSharing:
+        json.in_meeting?.who_can_share_screen_when_someone_is_sharing?.trim() || null,
+      requestPermissionToUnmute:
+        typeof json.in_meeting?.request_permission_to_unmute_participants === "boolean"
+          ? json.in_meeting.request_permission_to_unmute_participants
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Unlock attendee screen share, camera, and unmute on the Zoom host user. */
+async function ensureZoomHostParticipantTools(
+  token: string,
+  hostUser: string | null | undefined,
+): Promise<boolean> {
+  const users = [...new Set([zoomSettingsUser(hostUser), "me"])];
+  let changed = false;
+  for (const user of users) {
+    if (zoomShareToolsReady.has(user)) continue;
+    const current = await fetchZoomUserShareSettings(token, user);
+    const blocked =
+      !current ||
+      current.whoCanShareScreen !== "all" ||
+      current.whoCanShareWhenSomeoneIsSharing === "host" ||
+      current.requestPermissionToUnmute === true;
+    if (!blocked) {
+      zoomShareToolsReady.add(user);
+      continue;
+    }
+    const wasHostOnly =
+      current?.whoCanShareScreen === "host" || current?.whoCanShareWhenSomeoneIsSharing === "host";
+    try {
+      const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}/settings`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ in_meeting: { ...ZOOM_HOST_PARTICIPANT_TOOLS } }),
+      });
+      if (res.ok || res.status === 204) {
+        zoomShareToolsReady.add(user);
+        if (wasHostOnly) changed = true;
+      } else {
+        console.error("Zoom participant tools update failed", res.status);
+      }
+    } catch (error) {
+      console.error("Zoom participant tools update failed", error);
+    }
+  }
+  return changed;
+}
+
+/** End a running instance so the next join starts with the updated share policy. */
+async function endZoomMeetingInstance(token: string, meetingId: string): Promise<void> {
+  const id = String(meetingId).replace(/\D/g, "");
+  if (!id) return;
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}/status`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "end" }),
+    });
+    if (!res.ok && res.status !== 404) {
+      console.error("Zoom meeting restart skipped", res.status);
+    }
+  } catch (error) {
+    console.error("Zoom meeting restart skipped", error);
+  }
+}
+
 export async function updateMeetingForClass(input: {
   liveClass: LiveClass;
   actorId?: string | null;
@@ -514,6 +806,12 @@ export async function updateMeetingForClass(input: {
   const existing = lookupZoomMeetingByClassId(input.liveClass.id);
   if (!existing)
     return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
+
+  const currentHost = { id: existing.hostId ?? "", email: existing.hostEmail ?? "" };
+  if ((currentHost.id || currentHost.email) && zoomHostBusy(currentHost, input.liveClass)) {
+    await cancelMeetingForClass({ liveClassId: input.liveClass.id, actorId: input.actorId });
+    return createMeetingForClass({ liveClass: input.liveClass, actorId: input.actorId });
+  }
 
   try {
     const { updateInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
@@ -714,6 +1012,41 @@ export function findStoredZoomSession(
   }
 
   return null;
+}
+
+/** Host ZAK is only for the assigned instructor or academy staff, never a student. */
+export function callerMayJoinAsZoomHost(input: {
+  userId: string;
+  role: string;
+  meetingNumber: string | null | undefined;
+}): boolean {
+  const id = meetingNumberDigits(input.meetingNumber);
+  if (!id) return false;
+  const staff =
+    input.role === ROLES.SUPER_ADMIN ||
+    input.role === ROLES.ADMIN ||
+    input.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
+
+  const meeting = getZoomMeetingByNumber(id);
+  if (meeting) {
+    const live = lookupLiveClass(meeting.liveClassId);
+    if (!live) return staff;
+    return (
+      staff || live.instructorId === input.userId || live.assistantInstructorId === input.userId
+    );
+  }
+
+  const booking = readBookingsDb().bookings.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (booking) return staff || booking.instructorId === input.userId;
+
+  const exam = readMockExamsDb().sessions.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (exam) return staff || exam.examinerId === input.userId;
+
+  return false;
 }
 
 function persistRefreshedStartUrl(meetingNumber: string, startUrl: string): void {
@@ -936,6 +1269,58 @@ export async function refreshStoredZoomStartUrl(
 }
 
 /**
+ * A Zoom user can sit in only one started meeting. End leftover meetings that
+ * are past their lecture time, and report when another lecture is still live.
+ */
+export async function zoomHostBlockedByAnotherLiveMeeting(
+  meetingNumber: string | null | undefined,
+): Promise<boolean> {
+  try {
+    const current = meetingNumberDigits(meetingNumber);
+    if (!current || !zoomCredsPresent()) return false;
+    const token = await getZoomAccessToken();
+    if (!token) return false;
+    const session = findStoredZoomSession(current);
+    const host = session?.hostId || session?.hostEmail || "me";
+    const res = await fetch(
+      `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return false;
+    const json = (await res.json()) as {
+      meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
+    };
+    let blocked = false;
+    const now = Date.now();
+    const graceMs = 15 * 60_000;
+    for (const meeting of json.meetings ?? []) {
+      const id = meetingNumberDigits(String(meeting.id ?? ""));
+      if (!id || id === current) continue;
+      const stored = getZoomMeetingByNumber(id);
+      const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
+      const scheduledEnd = cls ? Date.parse(cls.endsAt) : Number.NaN;
+      const zoomEnd = meeting.start_time
+        ? Date.parse(meeting.start_time) + (meeting.duration ?? 60) * 60_000
+        : Number.NaN;
+      const end = Number.isFinite(scheduledEnd) ? scheduledEnd : zoomEnd;
+      if (Number.isFinite(end) && end + graceMs > now) {
+        blocked = true;
+        continue;
+      }
+      if (!Number.isFinite(end)) {
+        blocked = true;
+        continue;
+      }
+      await endZoomMeetingInstance(token, id);
+    }
+    return blocked;
+  } catch (error) {
+    console.error("Zoom stale meeting cleanup skipped", error);
+    return false;
+  }
+}
+
+/**
  * Host ZAK for Meeting SDK role 1.
  * Uses the start_url returned when the meeting was created or updated.
  * This Zoom account does not grant user:read:zak, so join never calls the token API.
@@ -1043,7 +1428,7 @@ export function linkExistingZoomMeeting(input: {
     startUrl: appJoinUrl(input.liveClass.id, zoomMeetingId, true),
     password: input.password?.trim() ?? "",
     hostEmail: getPlatformSettings().zoom.accountEmail || null,
-    waitingRoom: getPlatformSettings().zoom.defaultWaitingRoom,
+    waitingRoom: false,
     passcodeEnabled: Boolean(input.password?.trim()),
     coHostEmails: [],
     providerMode: "zoom",
