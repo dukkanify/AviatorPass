@@ -26,6 +26,7 @@ import {
   deleteIntegrationForUser,
   getIntegrationByUserId,
   getIntegrationByZoomUserId,
+  readZoomDb,
   upsertIntegration,
   writeZoomDb,
 } from "@/services/zoom/store";
@@ -52,7 +53,7 @@ export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string
   const cfg = getZoomOAuthConfig();
   const nonce = generateToken(16);
   const expiresAt = new Date(Date.now() + STATE_TTL_MS).toISOString();
-  const returnTo = input.returnTo || "/instructor/dashboard";
+  const returnTo = input.returnTo || "/instructor/profile";
   writeZoomDb((db) => {
     db.pendingStates = db.pendingStates.filter((s) => Date.parse(s.expiresAt) > Date.now());
     db.pendingStates.push({
@@ -169,7 +170,7 @@ export async function completeZoomOAuthCallback(input: {
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
       metadata: { error: input.error ?? "missing_code_or_state" },
     });
-    return { redirectTo: "/instructor/dashboard?zoom=error", userId: "" };
+    return { redirectTo: "/instructor/profile?zoom=error", userId: "" };
   }
 
   let parsed: { userId: string; nonce: string };
@@ -182,7 +183,7 @@ export async function completeZoomOAuthCallback(input: {
       level: "error",
       details: { error: error instanceof Error ? error.message : "invalid_state" },
     });
-    return { redirectTo: "/instructor/dashboard?zoom=error", userId: "" };
+    return { redirectTo: "/instructor/profile?zoom=error", userId: "" };
   }
 
   const pending = consumePendingOAuthState(parsed.userId, parsed.nonce);
@@ -194,7 +195,7 @@ export async function completeZoomOAuthCallback(input: {
       message: "OAuth state not found or already used",
       level: "error",
     });
-    return { redirectTo: "/instructor/dashboard?zoom=error", userId: parsed.userId };
+    return { redirectTo: "/instructor/profile?zoom=error", userId: parsed.userId };
   }
 
   try {
@@ -235,7 +236,7 @@ export async function completeZoomOAuthCallback(input: {
       metadata: { zoomEmail: profile.email },
     });
 
-    const dest = pending.returnTo.startsWith("/") ? pending.returnTo : "/instructor/dashboard";
+    const dest = pending.returnTo.startsWith("/") ? pending.returnTo : "/instructor/profile";
     const sep = dest.includes("?") ? "&" : "?";
     return { redirectTo: `${dest}${sep}zoom=connected`, userId: parsed.userId };
   } catch (error) {
@@ -251,8 +252,75 @@ export async function completeZoomOAuthCallback(input: {
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
       metadata: { error: error instanceof Error ? error.message : "exchange_failed" },
     });
-    return { redirectTo: "/instructor/dashboard?zoom=error", userId: parsed.userId };
+    return { redirectTo: "/instructor/profile?zoom=error", userId: parsed.userId };
   }
+}
+
+/** Access token for Zoom REST — refresh first, then retry once on 401. */
+export async function instructorZoomApiRequest<T>(input: {
+  userId: string;
+  method: string;
+  path: string;
+  body?: unknown;
+  retries?: number;
+}): Promise<T> {
+  const { zoomRequest, ZoomApiError } = await import("@/services/zoom/client");
+  let accessToken = await refreshInstructorAccessToken(input.userId);
+  try {
+    return await zoomRequest<T>({
+      accessToken,
+      method: input.method,
+      path: input.path,
+      body: input.body,
+      userId: input.userId,
+      retries: input.retries,
+    });
+  } catch (error) {
+    if (!(error instanceof ZoomApiError) || error.status !== 401) throw error;
+    const row = getIntegrationByUserId(input.userId);
+    if (row) {
+      upsertIntegration({
+        ...row,
+        expiresAt: new Date(0).toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    accessToken = await refreshInstructorAccessToken(input.userId);
+    return zoomRequest<T>({
+      accessToken,
+      method: input.method,
+      path: input.path,
+      body: input.body,
+      userId: input.userId,
+      retries: input.retries,
+    });
+  }
+}
+
+export function assertInstructorZoomConnected(instructorId: string): void {
+  const row = getIntegrationByUserId(instructorId);
+  if (!row || row.status !== "connected") {
+    throw new PermissionError(
+      "Please connect your Zoom account before creating a live class.",
+      409,
+    );
+  }
+}
+
+export function listInstructorZoomConnectionSummaries(): Array<{
+  userId: string;
+  connected: boolean;
+  status: "connected" | "reconnect_required" | "disconnected";
+  zoomEmail: string | null;
+  lastSyncAt: string | null;
+}> {
+  return readZoomDb().integrations.map((row) => ({
+    userId: row.userId,
+    connected: row.status === "connected",
+    status: row.status,
+    zoomEmail: row.zoomEmail,
+    lastSyncAt: row.lastSyncAt,
+  }));
 }
 
 export async function refreshInstructorAccessToken(userId: string): Promise<string> {

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         { status: 503 },
       );
     }
-    const returnTo = new URL(request.url).searchParams.get("returnTo") ?? "/instructor/dashboard";
+    const returnTo = new URL(request.url).searchParams.get("returnTo") ?? "/instructor/profile";
     const url = buildZoomAuthorizeUrl({ userId: user.id, returnTo });
     return NextResponse.redirect(url);
   } catch (error) {
