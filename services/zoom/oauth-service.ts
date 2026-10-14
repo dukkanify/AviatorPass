@@ -522,9 +522,24 @@ export async function listZoomAccountUsers(emails?: string[]): Promise<
   const seen = new Set<string>();
   for (const candidate of candidates) {
     const user = await fetchZoomUserByEmailOrId({ token, emailOrId: candidate });
-    if (!user || seen.has(user.id)) continue;
-    seen.add(user.id);
-    users.push(user);
+    if (user) {
+      if (seen.has(user.id)) continue;
+      seen.add(user.id);
+      users.push(user);
+      continue;
+    }
+    // Without user:read scopes, still surface known emails as host candidates.
+    if (candidate.includes("@") && !seen.has(candidate.toLowerCase())) {
+      seen.add(candidate.toLowerCase());
+      users.push({
+        id: candidate,
+        email: candidate,
+        firstName: null,
+        lastName: null,
+        type: null,
+        status: "active",
+      });
+    }
   }
   return users;
 }
@@ -550,19 +565,48 @@ export async function delegateConnectInstructorZoom(input: {
   if (!email) throw new PermissionError("zoomUserEmail is required", 400);
 
   const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
-  const accessTokenForLookup = await getZoomS2SAccessToken();
-  if (!accessTokenForLookup) {
+  const { zoomRequest, ZoomApiError } = await import("@/services/zoom/client");
+  const accessToken = await getZoomS2SAccessToken();
+  if (!accessToken) {
     throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
   }
-  const match = await fetchZoomUserByEmailOrId({
-    token: accessTokenForLookup,
-    emailOrId: email,
-  });
+
+  // Prefer profile lookup; if S2S lacks user:read scopes, Zoom still accepts
+  // email as the user identifier on /users/{email}/meetings (same as platform S2S).
+  let match = await fetchZoomUserByEmailOrId({ token: accessToken, emailOrId: email });
   if (!match) {
-    throw new PermissionError(
-      `No active Zoom user found for ${email}. Invite them on the Zoom account first.`,
-      404,
-    );
+    try {
+      await zoomRequest({
+        accessToken,
+        method: "GET",
+        path: `/users/${encodeURIComponent(email)}/settings`,
+      });
+      match = {
+        id: email,
+        email,
+        firstName: null,
+        lastName: null,
+        type: null,
+        status: "active",
+      };
+    } catch (error) {
+      if (error instanceof ZoomApiError && error.status !== 404) {
+        // Settings may be forbidden while meeting create still works — keep email id.
+        match = {
+          id: email,
+          email,
+          firstName: null,
+          lastName: null,
+          type: null,
+          status: "active",
+        };
+      } else {
+        throw new PermissionError(
+          `No active Zoom user found for ${email}. Invite them on the Zoom account first.`,
+          404,
+        );
+      }
+    }
   }
 
   const existingOwner = getIntegrationByZoomUserId(match.id);
@@ -573,7 +617,6 @@ export async function delegateConnectInstructorZoom(input: {
     );
   }
 
-  const accessToken = accessTokenForLookup;
   const now = new Date().toISOString();
   const existing = getIntegrationByUserId(input.instructorId);
   const profile: ZoomProfile = {
