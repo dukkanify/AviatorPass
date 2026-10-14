@@ -1334,6 +1334,84 @@ export async function refreshStoredZoomStartUrl(
   return session;
 }
 
+async function listZoomLiveMeetingsForHost(
+  token: string,
+  host: string,
+): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
+  const res = await fetch(
+    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return [];
+  const json = (await res.json()) as {
+    meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
+  };
+  return json.meetings ?? [];
+}
+
+/**
+ * End live Zoom meetings for the shared classroom host account.
+ * Keeps `keepMeetingNumber` when provided. Used by host-join cleanup and
+ * Super Admin recovery when Zoom still holds a leftover session.
+ */
+export async function clearZoomHostLiveMeetings(input?: {
+  keepMeetingNumber?: string | null;
+  force?: boolean;
+}): Promise<{ ended: string[]; kept: string[]; blocked: string[] }> {
+  const ended: string[] = [];
+  const kept: string[] = [];
+  const blocked: string[] = [];
+  if (!zoomCredsPresent()) return { ended, kept, blocked };
+  const token = await getZoomAccessToken();
+  if (!token) return { ended, kept, blocked };
+
+  const keep = meetingNumberDigits(input?.keepMeetingNumber);
+  const settings = getPlatformSettings();
+  const hosts = Array.from(
+    new Set(
+      ["me", settings.zoom.accountEmail, keep ? findStoredZoomSession(keep)?.hostId : null]
+        .map((h) => (h || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const seen = new Set<string>();
+  const now = Date.now();
+  const graceMs = 15 * 60_000;
+  for (const host of hosts) {
+    const meetings = await listZoomLiveMeetingsForHost(token, host);
+    for (const meeting of meetings) {
+      const id = meetingNumberDigits(String(meeting.id ?? ""));
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      if (keep && id === keep) {
+        kept.push(id);
+        continue;
+      }
+      const stored = getZoomMeetingByNumber(id);
+      const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
+      if (!input?.force && cls) {
+        const closed = cls.status === "completed" || cls.status === "cancelled";
+        const start = Date.parse(cls.startsAt);
+        const end = Date.parse(cls.endsAt);
+        const inLiveWindow =
+          !closed &&
+          Number.isFinite(start) &&
+          Number.isFinite(end) &&
+          now >= start &&
+          now <= end + graceMs;
+        if (inLiveWindow) {
+          blocked.push(id);
+          continue;
+        }
+      }
+      await endZoomMeetingInstance(token, id);
+      ended.push(id);
+    }
+  }
+  return { ended, kept, blocked };
+}
+
 /**
  * A Zoom user can sit in only one started meeting. End orphan / finished
  * leftovers, and only block when another AviatorPass lecture is still inside
@@ -1345,44 +1423,8 @@ export async function zoomHostBlockedByAnotherLiveMeeting(
   try {
     const current = meetingNumberDigits(meetingNumber);
     if (!current || !zoomCredsPresent()) return false;
-    const token = await getZoomAccessToken();
-    if (!token) return false;
-    const session = findStoredZoomSession(current);
-    const host = session?.hostId || session?.hostEmail || "me";
-    const res = await fetch(
-      `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (!res.ok) return false;
-    const json = (await res.json()) as {
-      meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
-    };
-    let blocked = false;
-    const now = Date.now();
-    const graceMs = 15 * 60_000;
-    for (const meeting of json.meetings ?? []) {
-      const id = meetingNumberDigits(String(meeting.id ?? ""));
-      if (!id || id === current) continue;
-      const stored = getZoomMeetingByNumber(id);
-      const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-      if (cls) {
-        const closed = cls.status === "completed" || cls.status === "cancelled";
-        const start = Date.parse(cls.startsAt);
-        const end = Date.parse(cls.endsAt);
-        const inLiveWindow =
-          !closed &&
-          Number.isFinite(start) &&
-          Number.isFinite(end) &&
-          now >= start &&
-          now <= end + graceMs;
-        if (inLiveWindow) {
-          blocked = true;
-          continue;
-        }
-      }
-      await endZoomMeetingInstance(token, id);
-    }
-    return blocked;
+    const result = await clearZoomHostLiveMeetings({ keepMeetingNumber: current, force: false });
+    return result.blocked.length > 0;
   } catch (error) {
     console.error("Zoom stale meeting cleanup skipped", error);
     return false;

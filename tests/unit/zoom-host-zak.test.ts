@@ -407,7 +407,7 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
           status: 200,
         });
       }
-      if (url.includes("/users/zoom-host-99/meetings") && method === "GET") {
+      if (url.includes("/users/") && url.includes("/meetings") && method === "GET") {
         return new Response(
           JSON.stringify({
             meetings: [
