@@ -170,6 +170,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         <div className="mt-3 flex min-h-0 flex-1 flex-col">
           {join && cls.status !== "completed" && audience !== "Cancelled" ? (
             <InAppZoomRoom
+              liveClassId={classId}
               joinUrl={join.joinUrl}
               startUrl={join.startUrl}
               meetingNumber={join.zoomMeetingId}
