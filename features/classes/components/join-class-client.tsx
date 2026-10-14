@@ -143,10 +143,10 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#CCA04C]">
               Live classroom
             </p>
-            <h1 className="truncate font-display text-lg font-semibold tracking-tight text-white sm:text-2xl">
+            <h1 className="line-clamp-2 font-display text-lg font-semibold tracking-tight text-white sm:text-2xl">
               {cls.title}
             </h1>
-            <p className="truncate text-xs text-white/55">
+            <p className="line-clamp-2 text-xs text-white/55">
               {new Date(cls.startsAt).toLocaleString()} · {cls.durationMinutes} min
               {!finished ? (
                 <>
