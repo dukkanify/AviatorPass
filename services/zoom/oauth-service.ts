@@ -444,7 +444,49 @@ export async function getCachedZoomProfile(userId: string): Promise<ZoomProfile 
   return profile;
 }
 
-export async function listZoomAccountUsers(): Promise<
+async function fetchZoomUserByEmailOrId(input: { token: string; emailOrId: string }): Promise<{
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  type: number | null;
+  status: string | null;
+} | null> {
+  const { zoomRequest, ZoomApiError } = await import("@/services/zoom/client");
+  try {
+    const user = await zoomRequest<{
+      id: string;
+      email?: string;
+      first_name?: string;
+      last_name?: string;
+      type?: number;
+      status?: string;
+    }>({
+      accessToken: input.token,
+      method: "GET",
+      path: `/users/${encodeURIComponent(input.emailOrId)}`,
+    });
+    return {
+      id: String(user.id),
+      email: user.email ?? input.emailOrId,
+      firstName: user.first_name ?? null,
+      lastName: user.last_name ?? null,
+      type: user.type ?? null,
+      status: user.status ?? null,
+    };
+  } catch (error) {
+    if (error instanceof ZoomApiError && (error.status === 404 || error.status === 400)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Lists Zoom users the S2S app can resolve without user:read:list_users:admin.
+ * Uses /users/{email|id} lookups for platform host + optional emails query.
+ */
+export async function listZoomAccountUsers(emails?: string[]): Promise<
   Array<{
     id: string;
     email: string;
@@ -455,32 +497,36 @@ export async function listZoomAccountUsers(): Promise<
   }>
 > {
   const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
-  const { zoomRequest } = await import("@/services/zoom/client");
+  const { getPlatformSettings } = await import("@/services/settings/settings-service");
   const token = await getZoomS2SAccessToken();
-  if (!token)
+  if (!token) {
     throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
-  const json = await zoomRequest<{
-    users?: Array<{
-      id: string;
-      email?: string;
-      first_name?: string;
-      last_name?: string;
-      type?: number;
-      status?: string;
-    }>;
-  }>({
-    accessToken: token,
-    method: "GET",
-    path: "/users?page_size=100&status=active",
-  });
-  return (json.users ?? []).map((user) => ({
-    id: String(user.id),
-    email: user.email ?? "",
-    firstName: user.first_name ?? null,
-    lastName: user.last_name ?? null,
-    type: user.type ?? null,
-    status: user.status ?? null,
-  }));
+  }
+
+  const settings = getPlatformSettings();
+  const candidates = new Set<string>();
+  candidates.add("me");
+  if (settings.zoom.accountEmail?.trim()) candidates.add(settings.zoom.accountEmail.trim());
+  for (const email of emails ?? []) {
+    if (email.trim()) candidates.add(email.trim());
+  }
+
+  const users: Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    type: number | null;
+    status: string | null;
+  }> = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const user = await fetchZoomUserByEmailOrId({ token, emailOrId: candidate });
+    if (!user || seen.has(user.id)) continue;
+    seen.add(user.id);
+    users.push(user);
+  }
+  return users;
 }
 
 /**
@@ -503,8 +549,15 @@ export async function delegateConnectInstructorZoom(input: {
   const email = input.zoomUserEmail.trim().toLowerCase();
   if (!email) throw new PermissionError("zoomUserEmail is required", 400);
 
-  const users = await listZoomAccountUsers();
-  const match = users.find((user) => user.email.trim().toLowerCase() === email);
+  const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
+  const accessTokenForLookup = await getZoomS2SAccessToken();
+  if (!accessTokenForLookup) {
+    throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
+  }
+  const match = await fetchZoomUserByEmailOrId({
+    token: accessTokenForLookup,
+    emailOrId: email,
+  });
   if (!match) {
     throw new PermissionError(
       `No active Zoom user found for ${email}. Invite them on the Zoom account first.`,
@@ -520,11 +573,7 @@ export async function delegateConnectInstructorZoom(input: {
     );
   }
 
-  const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
-  const accessToken = await getZoomS2SAccessToken();
-  if (!accessToken)
-    throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
-
+  const accessToken = accessTokenForLookup;
   const now = new Date().toISOString();
   const existing = getIntegrationByUserId(input.instructorId);
   const profile: ZoomProfile = {
