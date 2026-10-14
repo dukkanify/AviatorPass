@@ -65,6 +65,8 @@ function ClassFormDialog({
   const [timezone, setTimezone] = React.useState("Asia/Kuwait");
   const [waitingRoom, setWaitingRoom] = React.useState(false);
   const [frequency, setFrequency] = React.useState("once");
+  const [zoomReady, setZoomReady] = React.useState<boolean | null>(null);
+  const [zoomHint, setZoomHint] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -83,12 +85,67 @@ function ClassFormDialog({
     setTimezone("Asia/Kuwait");
     setWaitingRoom(false);
     setFrequency("once");
+    setZoomReady(null);
+    setZoomHint(null);
   }, [open, defaultInstructorId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    async function checkZoom() {
+      if (lockInstructor) {
+        const res = await fetch("/api/integrations/zoom/status", { cache: "no-store" });
+        const json = (await res.json()) as {
+          success?: boolean;
+          data?: { connected?: boolean; needsReconnect?: boolean };
+        };
+        if (cancelled) return;
+        const connected = Boolean(json.data?.connected);
+        setZoomReady(connected);
+        setZoomHint(
+          connected ? null : "Please connect your Zoom account before creating a live class.",
+        );
+        return;
+      }
+      if (instructorId === "none") {
+        setZoomReady(null);
+        setZoomHint(null);
+        return;
+      }
+      const res = await fetch("/api/admin/instructors/zoom", { cache: "no-store" });
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: {
+          instructors?: Array<{ userId: string; connected: boolean }>;
+        };
+      };
+      if (cancelled) return;
+      if (!res.ok || !json.success) {
+        setZoomReady(null);
+        setZoomHint(null);
+        return;
+      }
+      const row = json.data?.instructors?.find((item) => item.userId === instructorId);
+      const connected = Boolean(row?.connected);
+      setZoomReady(connected);
+      setZoomHint(
+        connected ? null : "Please connect your Zoom account before creating a live class.",
+      );
+    }
+    void checkZoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, instructorId, lockInstructor]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (instructorId === "none") {
       toast.error("Select an instructor");
+      return;
+    }
+    if (zoomReady === false) {
+      toast.error(zoomHint ?? "Please connect your Zoom account before creating a live class.");
       return;
     }
     setSaving(true);
@@ -124,8 +181,10 @@ function ClassFormDialog({
         ? (result.data as { zoomError?: string | null }).zoomError
         : null;
     if (zoomError) {
-      toast.warning(
-        "Class saved. Zoom is not connected yet — connect the instructor Zoom account.",
+      toast.error(
+        zoomError.includes("connect")
+          ? zoomError
+          : "Please connect your Zoom account before creating a live class.",
       );
     } else {
       toast.success("Live class scheduled");
@@ -140,11 +199,15 @@ function ClassFormDialog({
         <DialogHeader>
           <DialogTitle>Schedule live class</DialogTitle>
           <DialogDescription>
-            Saves the class now. A live Zoom meeting is created when the instructor has connected
-            Zoom, or when Server-to-Server credentials are set.
+            Live meetings are created on the assigned instructor&apos;s connected Zoom account.
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
+          {zoomHint ? (
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+              {zoomHint}
+            </p>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="class-title">Title</Label>
             <Input
@@ -296,7 +359,7 @@ function ClassFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={saving} disabled={zoomReady === false}>
               Create session
             </Button>
           </DialogFooter>

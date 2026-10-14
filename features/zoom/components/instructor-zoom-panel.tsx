@@ -88,9 +88,10 @@ function InstructorZoomPanel() {
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Zoom Integration</CardTitle>
+            <CardTitle className="text-base">Connect Zoom</CardTitle>
             <CardDescription>
-              Connect your Zoom account so live classes create meetings automatically.
+              Connect your own Zoom account before creating live classes. Meetings are hosted on
+              your account — not a shared platform host.
             </CardDescription>
           </div>
           <Badge variant={connected ? "success" : needsReconnect ? "warning" : "outline"}>
@@ -126,15 +127,15 @@ function InstructorZoomPanel() {
         <div className="flex flex-wrap gap-2">
           {!connected ? (
             <Button asChild disabled={!status?.oauthConfigured}>
-              <a href="/api/integrations/zoom/connect">
+              <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
                 <Link2 className="mr-2 h-4 w-4" />
-                {needsReconnect ? "Reconnect" : "Connect"}
+                {needsReconnect ? "Reconnect Zoom" : "Connect Zoom"}
               </a>
             </Button>
           ) : (
             <Button asChild variant="outline">
-              <a href="/api/integrations/zoom/connect">
-                <Video className="mr-2 h-4 w-4" /> Reconnect
+              <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
+                <Video className="mr-2 h-4 w-4" /> Reconnect Zoom
               </a>
             </Button>
           )}

@@ -456,15 +456,46 @@ export async function createMeetingForClass(input: {
   meetingType?: MeetingType;
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord> {
-  try {
-    const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
-    const instructorMeeting = await createInstructorZoomMeeting({
-      liveClass: input.liveClass,
-      actorId: input.actorId,
-    });
-    if (instructorMeeting) return instructorMeeting;
-  } catch (error) {
-    console.error("Instructor Zoom create failed; falling back", error);
+  const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+  const { assertInstructorZoomConnected, getValidInstructorAccessToken } =
+    await import("@/services/zoom/oauth-service");
+  const { PermissionError } = await import("@/services/auth/permissions");
+  const { findUserById } = await import("@/services/auth/store");
+  const { ROLES } = await import("@/constants/roles");
+
+  const instructorToken = await getValidInstructorAccessToken(input.liveClass.instructorId);
+  if (instructorToken) {
+    try {
+      const instructorMeeting = await createInstructorZoomMeeting({
+        liveClass: input.liveClass,
+        actorId: input.actorId,
+      });
+      if (instructorMeeting) return instructorMeeting;
+    } catch (error) {
+      console.error("Instructor Zoom create failed", error);
+      throw new ClassValidationError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create a Zoom meeting on the instructor account.",
+        503,
+      );
+    }
+  }
+
+  const actor = input.actorId ? findUserById(input.actorId) : null;
+  const actorIsPlatformAdmin = actor?.role === ROLES.ADMIN || actor?.role === ROLES.SUPER_ADMIN;
+
+  // Instructor classrooms prefer instructor OAuth. Without it, only mock/dev
+  // or platform Server-to-Server provisioning may continue.
+  if (!instructorToken && !isMockZoomAllowed() && !zoomCredsPresent()) {
+    try {
+      assertInstructorZoomConnected(input.liveClass.instructorId);
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        throw new ClassValidationError(error.message, 409);
+      }
+      throw error;
+    }
   }
 
   const settings = getPlatformSettings();
@@ -482,7 +513,7 @@ export async function createMeetingForClass(input: {
       requireLiveZoom(
         zoomCredsPresent()
           ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
-          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
+          : "Please connect your Zoom account before creating a live class.",
       );
     }
     payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
@@ -492,6 +523,7 @@ export async function createMeetingForClass(input: {
   const record: ZoomMeetingRecord = {
     id: generateId(),
     ...payload,
+    oauthUserId: instructorToken ? input.liveClass.instructorId : payload.oauthUserId,
     createdAt: now,
     updatedAt: now,
   };
@@ -519,6 +551,8 @@ export async function createMeetingForClass(input: {
       liveClassId: input.liveClass.id,
       zoomMeetingId: record.zoomMeetingId,
       providerMode: record.providerMode,
+      via: instructorToken ? "instructor_oauth" : zoomCredsPresent() ? "platform_s2s" : "mock_dev",
+      actorIsPlatformAdmin,
     },
   });
 
@@ -1313,8 +1347,16 @@ export async function refreshStoredZoomStartUrl(
   meetingNumber: string,
 ): Promise<StoredZoomSession | null> {
   const session = findStoredZoomSession(meetingNumber);
-  if (!session || !zoomCredsPresent()) return session;
-  const token = await getZoomAccessToken();
+  if (!session) return session;
+
+  let token: string | null = null;
+  if (session.oauthUserId) {
+    const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+    token = await getValidInstructorAccessToken(session.oauthUserId);
+  }
+  if (!token && zoomCredsPresent()) {
+    token = await getZoomAccessToken();
+  }
   if (!token) return session;
 
   await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(session.meetingNumber)}`, {

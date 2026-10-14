@@ -19,6 +19,7 @@ import { emitZoomEvent } from "@/services/zoom/events";
 import { logZoomActivity, ZOOM_ACTIVITY } from "@/services/zoom/logging";
 import { enqueueZoomNotification } from "@/services/zoom/notifications";
 import { getValidInstructorAccessToken, instructorTimezone } from "@/services/zoom/oauth-service";
+import { getIntegrationByUserId } from "@/services/zoom/store";
 import type { LiveClass, ZoomMeetingRecord } from "@/types/classes";
 import type { ZoomApiMeeting } from "@/types/zoom-oauth";
 
@@ -39,6 +40,7 @@ function fromApiMeeting(
   json: ZoomApiMeeting,
   oauthUserId: string,
 ): Omit<ZoomMeetingRecord, "id" | "createdAt" | "updatedAt"> {
+  const integration = getIntegrationByUserId(oauthUserId);
   const host = findUserById(oauthUserId);
   return {
     liveClassId: liveClass.id,
@@ -47,12 +49,12 @@ function fromApiMeeting(
     joinUrl: json.join_url ?? "",
     startUrl: json.start_url ?? "",
     password: json.password ?? "",
-    hostEmail: host?.email ?? json.host_id ?? null,
+    hostEmail: integration?.zoomEmail || host?.email || json.host_id || null,
     waitingRoom: false,
     passcodeEnabled: Boolean(json.password),
     coHostEmails: [],
     providerMode: "zoom",
-    hostId: json.host_id ?? null,
+    hostId: json.host_id ?? integration?.zoomUserId ?? null,
     timezone: json.timezone ?? liveClass.timezone,
     durationMinutes: json.duration ?? liveClass.durationMinutes,
     startTime: json.start_time ?? liveClass.startsAt,
