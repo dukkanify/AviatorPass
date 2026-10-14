@@ -296,6 +296,7 @@ function pinZoomWindowToStage(stage: HTMLElement) {
 }
 
 interface InAppZoomRoomProps {
+  liveClassId?: string | null;
   joinUrl: string;
   startUrl?: string | null;
   meetingNumber?: string | null;
@@ -322,6 +323,7 @@ interface InAppSession {
 }
 
 function InAppZoomRoom({
+  liveClassId = null,
   joinUrl,
   startUrl,
   meetingNumber,
@@ -394,6 +396,7 @@ function InAppZoomRoom({
       const result = await authFetch<InAppSession>("/api/zoom/in-app-session", {
         method: "POST",
         body: JSON.stringify({
+          liveClassId: liveClassId || undefined,
           joinUrl,
           startUrl,
           meetingNumber,
@@ -425,7 +428,7 @@ function InAppZoomRoom({
     return () => {
       cancelled = true;
     };
-  }, [isHost, joinUrl, meetingNumber, password, providerMode, startUrl]);
+  }, [isHost, joinUrl, liveClassId, meetingNumber, password, providerMode, startUrl]);
 
   React.useEffect(() => {
     if (!session) return;

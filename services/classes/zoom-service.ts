@@ -1015,6 +1015,75 @@ export function findStoredZoomSession(
 }
 
 /** Host ZAK is only for the assigned instructor or academy staff, never a student. */
+function academyOversightHost(role: string): boolean {
+  return role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN;
+}
+
+/**
+ * Roster / booking gate before minting a Meeting SDK JWT.
+ * CGI is not oversight-host unless assigned on the lecture.
+ */
+export function assertCallerMayReceiveInAppZoomSession(input: {
+  userId: string;
+  role: string;
+  liveClassId?: string | null;
+  meetingNumber?: string | null;
+}): { isHost: boolean; liveClassId: string | null } {
+  if (input.liveClassId) {
+    const live = lookupLiveClass(input.liveClassId);
+    if (!live) throw new ClassValidationError("Live class not found");
+    const isHost =
+      live.instructorId === input.userId ||
+      live.assistantInstructorId === input.userId ||
+      academyOversightHost(input.role);
+    const participant = listParticipantsForClass(live.id).some(
+      (p) => p.userId === input.userId && p.role === "participant",
+    );
+    if (!isHost && !participant) {
+      throw new ClassValidationError("You are not invited to this class");
+    }
+    return { isHost: Boolean(isHost), liveClassId: live.id };
+  }
+
+  const id = meetingNumberDigits(input.meetingNumber);
+  if (!id) throw new ClassValidationError("A valid Zoom meeting number is required", 400);
+
+  const meeting = getZoomMeetingByNumber(id);
+  if (meeting?.liveClassId) {
+    return assertCallerMayReceiveInAppZoomSession({
+      userId: input.userId,
+      role: input.role,
+      liveClassId: meeting.liveClassId,
+    });
+  }
+
+  const booking = readBookingsDb().bookings.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (booking) {
+    const isHost = booking.instructorId === input.userId || academyOversightHost(input.role);
+    const isStudent = booking.studentId === input.userId;
+    if (!isHost && !isStudent) {
+      throw new ClassValidationError("You are not invited to this meeting", 403);
+    }
+    return { isHost, liveClassId: null };
+  }
+
+  const exam = readMockExamsDb().sessions.find(
+    (item) => meetingNumberDigits(item.zoom?.meetingNumber) === id,
+  );
+  if (exam) {
+    const isHost = exam.examinerId === input.userId || academyOversightHost(input.role);
+    const isStudent = exam.studentId === input.userId;
+    if (!isHost && !isStudent) {
+      throw new ClassValidationError("You are not invited to this meeting", 403);
+    }
+    return { isHost, liveClassId: null };
+  }
+
+  throw new ClassValidationError("You are not invited to this meeting", 403);
+}
+
 export function callerMayJoinAsZoomHost(input: {
   userId: string;
   role: string;
@@ -1022,10 +1091,7 @@ export function callerMayJoinAsZoomHost(input: {
 }): boolean {
   const id = meetingNumberDigits(input.meetingNumber);
   if (!id) return false;
-  const staff =
-    input.role === ROLES.SUPER_ADMIN ||
-    input.role === ROLES.ADMIN ||
-    input.role === ROLES.CHIEF_GROUND_INSTRUCTOR;
+  const staff = academyOversightHost(input.role);
 
   const meeting = getZoomMeetingByNumber(id);
   if (meeting) {

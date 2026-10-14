@@ -16,7 +16,12 @@ import {
 } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
-import { getPublicJoinInfo, getZoomMeetingByClassId } from "@/services/classes/zoom-service";
+import {
+  assertCallerMayReceiveInAppZoomSession,
+  getPublicJoinInfo,
+  getZoomMeetingByClassId,
+} from "@/services/classes/zoom-service";
+import { ClassValidationError } from "@/services/classes/validation";
 import { instructorMeetingPayload } from "@/services/zoom/client";
 import { decryptSecret, encryptSecret, looksEncrypted } from "@/services/zoom/crypto";
 import {
@@ -332,6 +337,28 @@ describe("Zoom meeting lifecycle", () => {
       role: ROLES.INSTRUCTOR,
     });
     expect(instructorDetail?.zoom?.startUrl).toContain("zak=secret");
+
+    expect(
+      assertCallerMayReceiveInAppZoomSession({
+        userId: learner.id,
+        role: ROLES.STUDENT,
+        liveClassId: created!.id,
+      }).isHost,
+    ).toBe(false);
+    expect(
+      assertCallerMayReceiveInAppZoomSession({
+        userId: user.id,
+        role: ROLES.INSTRUCTOR,
+        meetingNumber: "987654321",
+      }).isHost,
+    ).toBe(true);
+    expect(() =>
+      assertCallerMayReceiveInAppZoomSession({
+        userId: "not-invited",
+        role: ROLES.STUDENT,
+        meetingNumber: "987654321",
+      }),
+    ).toThrow(ClassValidationError);
   });
 
   it("updates the existing meeting instead of creating a duplicate", async () => {

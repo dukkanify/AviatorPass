@@ -31,7 +31,14 @@ describe("lesson live class stays on the same page", () => {
     expect(IN_APP_ZOOM_MEETING_SETTINGS.who_can_share_screen_when_someone_is_sharing).toBe("all");
     expect(IN_APP_ZOOM_MEETING_SETTINGS.request_permission_to_unmute_participants).toBe(false);
     expect(src("app/api/zoom/in-app-session/route.ts")).toMatch(/callerMayJoinAsZoomHost/);
+    expect(src("app/api/zoom/in-app-session/route.ts")).toMatch(
+      /assertCallerMayReceiveInAppZoomSession/,
+    );
     expect(src("app/api/zoom/in-app-session/route.ts")).toMatch(/role: 0/);
+    expect(src("services/classes/zoom-service.ts")).toMatch(
+      /assertCallerMayReceiveInAppZoomSession/,
+    );
+    expect(src("services/classes/zoom-service.ts")).toMatch(/academyOversightHost/);
     expect(src("services/classes/zoom-service.ts")).toMatch(
       /who_can_share_screen_when_someone_is_sharing/,
     );
