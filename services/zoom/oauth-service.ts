@@ -528,8 +528,15 @@ export async function listZoomAccountUsers(emails?: string[]): Promise<
       users.push(user);
       continue;
     }
-    // Without user:read scopes, still surface known emails as host candidates.
-    if (candidate.includes("@") && !seen.has(candidate.toLowerCase())) {
+    if (!candidate.includes("@") || seen.has(candidate.toLowerCase())) continue;
+    // Without user:read, verify membership via meetings list (404 => not a Zoom user).
+    try {
+      const { zoomRequest } = await import("@/services/zoom/client");
+      await zoomRequest({
+        accessToken: token,
+        method: "GET",
+        path: `/users/${encodeURIComponent(candidate)}/meetings?type=scheduled&page_size=1`,
+      });
       seen.add(candidate.toLowerCase());
       users.push({
         id: candidate,
@@ -539,6 +546,8 @@ export async function listZoomAccountUsers(emails?: string[]): Promise<
         type: null,
         status: "active",
       });
+    } catch {
+      // Skip emails that are not Zoom account users.
     }
   }
   return users;
@@ -571,15 +580,15 @@ export async function delegateConnectInstructorZoom(input: {
     throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
   }
 
-  // Prefer profile lookup; if S2S lacks user:read scopes, Zoom still accepts
-  // email as the user identifier on /users/{email}/meetings (same as platform S2S).
+  // Prefer profile lookup. If S2S lacks user:read, probe meeting list for that
+  // email — Zoom returns 404/1001 when the user is not on the account.
   let match = await fetchZoomUserByEmailOrId({ token: accessToken, emailOrId: email });
   if (!match) {
     try {
       await zoomRequest({
         accessToken,
         method: "GET",
-        path: `/users/${encodeURIComponent(email)}/settings`,
+        path: `/users/${encodeURIComponent(email)}/meetings?type=scheduled&page_size=1`,
       });
       match = {
         id: email,
@@ -590,22 +599,22 @@ export async function delegateConnectInstructorZoom(input: {
         status: "active",
       };
     } catch (error) {
-      if (error instanceof ZoomApiError && error.status !== 404) {
-        // Settings may be forbidden while meeting create still works — keep email id.
-        match = {
-          id: email,
-          email,
-          firstName: null,
-          lastName: null,
-          type: null,
-          status: "active",
-        };
-      } else {
+      if (
+        error instanceof ZoomApiError &&
+        (error.status === 404 || /does not exist/i.test(error.message))
+      ) {
         throw new PermissionError(
           `No active Zoom user found for ${email}. Invite them on the Zoom account first.`,
           404,
         );
       }
+      if (error instanceof ZoomApiError && error.status === 400) {
+        throw new PermissionError(
+          `Unable to verify Zoom user ${email}. Check S2S scopes / account membership.`,
+          400,
+        );
+      }
+      throw error;
     }
   }
 
