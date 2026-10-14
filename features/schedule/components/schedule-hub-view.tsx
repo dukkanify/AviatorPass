@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "@/components/ui/app-link";
+import { MarkSubjectCompleteButton } from "@/features/classes/components/mark-subject-complete-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -288,7 +289,11 @@ export function ScheduleHubView({
                         <p className="text-sm text-muted-foreground">{lecture.studentEmail}</p>
                       </div>
                       <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                        {lecture.onTimetable ? "On timetable" : "Assigned"}
+                        {lecture.windowEnded
+                          ? "Time ended"
+                          : lecture.onTimetable
+                            ? "On timetable"
+                            : "Assigned"}
                       </span>
                     </div>
                     <div className="mt-3">
@@ -308,14 +313,29 @@ export function ScheduleHubView({
                       </p>
                     </div>
                     {lecture.liveClassId && role !== "cgi" ? (
-                      <p className="mt-4">
-                        <Link
-                          className="text-sm font-medium text-accent"
-                          href={`/join/${lecture.liveClassId}`}
-                        >
-                          Open classroom
-                        </Link>
-                      </p>
+                      <div className="mt-4 space-y-2">
+                        {role === "instructor" && lecture.windowEnded ? (
+                          <p className="text-sm text-muted-foreground">
+                            This lecture time has ended. Mark the subject complete so it does not
+                            open again. TKI 1 books the next subject.
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link
+                            className="text-sm font-medium text-accent"
+                            href={`/join/${lecture.liveClassId}`}
+                          >
+                            Open classroom
+                          </Link>
+                          {role === "instructor" && lecture.windowEnded ? (
+                            <MarkSubjectCompleteButton
+                              liveClassId={lecture.liveClassId}
+                              studentId={lecture.studentId}
+                              onCompleted={() => void load()}
+                            />
+                          ) : null}
+                        </div>
+                      </div>
                     ) : null}
                   </li>
                 ))

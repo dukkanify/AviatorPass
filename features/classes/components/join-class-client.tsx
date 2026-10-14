@@ -3,8 +3,6 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "@/components/ui/app-link";
-import { Copy, Shield } from "lucide-react";
-import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -76,14 +74,12 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     };
   }, [classId]);
 
-  function copy(text: string) {
-    void navigator.clipboard.writeText(text);
-    toast.success("Copied");
-  }
-
   if (loading) {
     return (
-      <div className="classroom-shell relative overflow-hidden">
+      <div
+        className="classroom-shell relative overflow-hidden"
+        style={{ backgroundColor: "#071018", color: "#fff", minHeight: "100dvh" }}
+      >
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
           <div className="h-10 w-40 rounded-full bg-white/10" />
           <div className="classroom-stage-skeleton" />
@@ -94,7 +90,10 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
   if (error || !data) {
     return (
-      <div className="classroom-shell relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 text-center">
+      <div
+        className="classroom-shell relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 text-center"
+        style={{ backgroundColor: "#071018", color: "#fff" }}
+      >
         <div className="relative z-10 max-w-md">
           <BrandLogo variant="dark" href="/login" priority />
           <h1 className="mt-8 font-display text-3xl font-semibold">Unable to join</h1>
@@ -109,6 +108,10 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
   const cls = data.class;
   const join = data.join;
+  const displayName =
+    user?.fullName?.trim() ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+    (data.isHost ? "Instructor" : "Student");
   const audience =
     data.audienceStatus ??
     (cls.computedStatus === "live_now"
@@ -121,13 +124,41 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const finished = audience === "Finished" || audience === "Cancelled";
 
   return (
-    <div className="classroom-shell relative">
-      <div className="classroom-page relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
+    <div
+      className="classroom-shell relative"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100dvh",
+        minHeight: "100dvh",
+        overflow: "hidden",
+        backgroundColor: "#071018",
+        color: "#fff",
+      }}
+    >
+      <div className="classroom-page relative z-10 mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
         <header className="flex items-center justify-between gap-3">
           <BrandLogo variant="dark" href="/" priority />
+          <div className="min-w-0 flex-1 px-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#CCA04C]">
+              Live classroom
+            </p>
+            <h1 className="line-clamp-2 font-display text-lg font-semibold tracking-tight text-white sm:text-2xl">
+              {cls.title}
+            </h1>
+            <p className="line-clamp-2 text-xs text-white/55">
+              {new Date(cls.startsAt).toLocaleString()} · {cls.durationMinutes} min
+              {!finished ? (
+                <>
+                  {" "}
+                  · <MeetingCountdown startsAt={cls.startsAt} />
+                </>
+              ) : null}
+            </p>
+          </div>
           <span
             className={cn(
-              "classroom-chip font-semibold uppercase tracking-[0.16em]",
+              "classroom-chip shrink-0 font-semibold uppercase tracking-[0.16em]",
               audience === "Live" && "text-[#F6C36C]",
             )}
           >
@@ -136,51 +167,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
           </span>
         </header>
 
-        <div className="classroom-page-heading mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#CCA04C]">
-              Live classroom
-            </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              {cls.title}
-            </h1>
-            <p className="mt-2 text-sm text-white/60">
-              {new Date(cls.startsAt).toLocaleString()} · {cls.durationMinutes} min
-              {!finished ? (
-                <>
-                  {" "}
-                  · Starts <MeetingCountdown startsAt={cls.startsAt} />
-                </>
-              ) : null}
-            </p>
-          </div>
-          {join ? (
-            <div className="flex flex-wrap gap-2">
-              <span className="classroom-chip">
-                <span className="text-white/45">Meeting ID</span>
-                <button type="button" onClick={() => copy(join.zoomMeetingId)}>
-                  {join.zoomMeetingId}
-                </button>
-                <button
-                  type="button"
-                  aria-label="Copy meeting ID"
-                  className="text-white/45 hover:text-white"
-                  onClick={() => copy(join.zoomMeetingId)}
-                >
-                  <Copy className="size-3.5" />
-                </button>
-              </span>
-              <span className="classroom-chip">
-                <span className="text-white/45">Passcode</span>
-                <button type="button" onClick={() => copy(join.password)}>
-                  {join.password || "—"}
-                </button>
-              </span>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-6 flex-1 pb-4">
+        <div className="mt-3 flex min-h-0 flex-1 flex-col">
           {join && cls.status !== "completed" && audience !== "Cancelled" ? (
             <InAppZoomRoom
               joinUrl={join.joinUrl}
@@ -190,6 +177,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               isHost={data.isHost}
               providerMode={join.providerMode}
               title={cls.title}
+              displayName={displayName}
               leaveHref={leaveHref}
             />
           ) : (
@@ -201,15 +189,6 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   : "Meeting details unavailable."}
             </p>
           )}
-          {join ? (
-            <p className="mt-4 flex items-center gap-2 text-xs text-white/45">
-              <Shield className="size-3.5" />
-              {join.providerMode === "mock"
-                ? "Live classroom on AviatorPass"
-                : "Zoom meeting inside AviatorPass"}
-              {join.waitingRoom ? " · Waiting room on" : ""}
-            </p>
-          ) : null}
         </div>
       </div>
     </div>
