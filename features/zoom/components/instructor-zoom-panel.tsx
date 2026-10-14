@@ -82,51 +82,78 @@ function InstructorZoomPanel() {
 
   const connected = Boolean(status?.connected);
   const needsReconnect = Boolean(status?.needsReconnect);
+  const oauthReady = Boolean(status?.oauthConfigured);
+  const statusLabel = loading
+    ? "Checking"
+    : connected
+      ? "Connected"
+      : needsReconnect
+        ? "Reconnect required"
+        : "Not Connected";
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden border-border/80 shadow-sm">
+      <div className="h-1 w-full bg-gradient-to-r from-[#9E712E] via-[#CCA04C] to-[#F6C36C]" />
+      <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Connect Zoom</CardTitle>
-            <CardDescription>
-              Connect your own Zoom account before creating live classes. Meetings are hosted on
-              your account — not a shared platform host.
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#CCA04C]">
+              Zoom Account
+            </p>
+            <CardTitle className="font-display text-xl text-[#143048]">Zoom Account</CardTitle>
+            <CardDescription className="max-w-xl text-sm leading-relaxed">
+              {connected
+                ? "Your live classes are hosted on this Zoom account. Students join in-app as participants."
+                : "Connect your Zoom account once to create and host your live classes."}
             </CardDescription>
           </div>
-          <Badge variant={connected ? "success" : needsReconnect ? "warning" : "outline"}>
-            {loading
-              ? "Checking"
-              : connected
-                ? "Connected"
-                : needsReconnect
-                  ? "Reconnect required"
-                  : "Not connected"}
+          <Badge
+            variant={connected ? "success" : needsReconnect ? "warning" : "outline"}
+            className="shrink-0"
+          >
+            {statusLabel}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 text-sm sm:grid-cols-2">
-          <p>
-            <span className="text-muted-foreground">Connected Zoom email:</span>{" "}
-            {status?.zoomEmail ?? "—"}
+      <CardContent className="space-y-5">
+        <dl className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Connected Email
+            </dt>
+            <dd className="mt-1 truncate text-sm font-medium text-foreground">
+              {status?.zoomEmail ?? "—"}
+            </dd>
+          </div>
+          <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Connection Status
+            </dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">{statusLabel}</dd>
+          </div>
+          <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Last Synchronization
+            </dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">
+              {formatWhen(status?.lastSyncAt ?? null)}
+            </dd>
+          </div>
+        </dl>
+
+        {!connected && !needsReconnect ? (
+          <p className="rounded-lg border border-[#CCA04C]/35 bg-[#CCA04C]/10 px-3 py-2.5 text-sm text-[#143048]">
+            Connect your Zoom account once to create and host your live classes.
           </p>
-          <p>
-            <span className="text-muted-foreground">Connected since:</span>{" "}
-            {formatWhen(status?.connectedAt ?? null)}
-          </p>
-          <p>
-            <span className="text-muted-foreground">Last sync:</span>{" "}
-            {formatWhen(status?.lastSyncAt ?? null)}
-          </p>
-          <p>
-            <span className="text-muted-foreground">OAuth configured:</span>{" "}
-            {status?.oauthConfigured ? "Yes" : "No"}
-          </p>
-        </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-2">
           {!connected ? (
-            <Button asChild disabled={!status?.oauthConfigured}>
+            <Button
+              asChild
+              disabled={!oauthReady}
+              className="bg-[#143048] text-white hover:bg-[#0f2538]"
+            >
               <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
                 <Link2 className="mr-2 h-4 w-4" />
                 {needsReconnect ? "Reconnect Zoom" : "Connect Zoom"}
@@ -155,7 +182,7 @@ function InstructorZoomPanel() {
             disabled={(!connected && !needsReconnect) || busy !== null}
           >
             <Unplug className="mr-2 h-4 w-4" />
-            {busy === "disconnect" ? "Disconnecting…" : "Disconnect"}
+            {busy === "disconnect" ? "Disconnecting…" : "Disconnect Zoom"}
           </Button>
         </div>
       </CardContent>

@@ -53,6 +53,8 @@ export function isS2SDelegateIntegration(row: ZoomIntegrationRecord | null | und
   }
 }
 
+export { getIntegrationByUserId };
+
 export function getInstructorZoomStatus(userId: string) {
   return publicIntegrationView(userId, isZoomOAuthConfigured());
 }
