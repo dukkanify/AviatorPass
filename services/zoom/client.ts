@@ -183,10 +183,19 @@ export async function createZoomUserMeeting(
   payload: ReturnType<typeof instructorMeetingPayload>,
   userId?: string | null,
 ): Promise<ZoomApiMeeting> {
+  let path = "/users/me/meetings";
+  if (userId) {
+    const { getIntegrationByUserId } = await import("@/services/zoom/store");
+    const { isS2SDelegateIntegration } = await import("@/services/zoom/oauth-service");
+    const row = getIntegrationByUserId(userId);
+    if (isS2SDelegateIntegration(row) && row?.zoomUserId) {
+      path = `/users/${encodeURIComponent(row.zoomUserId)}/meetings`;
+    }
+  }
   return instructorOwnedRequest<ZoomApiMeeting>({
     accessToken,
     method: "POST",
-    path: "/users/me/meetings",
+    path,
     body: payload,
     userId,
   });
