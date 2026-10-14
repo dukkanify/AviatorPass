@@ -489,15 +489,17 @@ export async function createLiveClass(
   }
 
   {
-    const { assertInstructorZoomConnected } = await import("@/services/zoom/oauth-service");
-    const { PermissionError } = await import("@/services/auth/permissions");
-    try {
-      assertInstructorZoomConnected(instructorId);
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        throw new ClassValidationError(error.message, 409);
-      }
-      throw error;
+    const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+    const { isMockZoomAllowed } = await import("@/services/classes/zoom-service");
+    const actor = input.actorId ? findUserById(input.actorId) : null;
+    const actorIsPlatformAdmin = actor?.role === ROLES.ADMIN || actor?.role === ROLES.SUPER_ADMIN;
+    const instructorToken = await getValidInstructorAccessToken(instructorId);
+    const instructorSelfServe = actor?.role === ROLES.INSTRUCTOR || actor?.id === instructorId;
+    if (!instructorToken && !isMockZoomAllowed() && instructorSelfServe && !actorIsPlatformAdmin) {
+      throw new ClassValidationError(
+        "Please connect your Zoom account before creating a live class.",
+        409,
+      );
     }
   }
 
