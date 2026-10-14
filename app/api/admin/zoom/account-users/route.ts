@@ -6,10 +6,15 @@ import { requirePermission } from "@/services/auth/guards";
 import { listZoomAccountUsers } from "@/services/zoom/oauth-service";
 
 /** Super Admin: list Zoom account users available for instructor hosting (no tokens). */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requirePermission(PERMISSIONS.SYSTEM_ZOOM);
-    const users = await listZoomAccountUsers();
+    const url = new URL(request.url);
+    const emails = (url.searchParams.get("emails") || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const users = await listZoomAccountUsers(emails);
     return NextResponse.json({
       success: true,
       data: { users },
