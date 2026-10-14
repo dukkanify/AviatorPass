@@ -1335,8 +1335,9 @@ export async function refreshStoredZoomStartUrl(
 }
 
 /**
- * A Zoom user can sit in only one started meeting. End leftover meetings that
- * are past their lecture time, and report when another lecture is still live.
+ * A Zoom user can sit in only one started meeting. End orphan / finished
+ * leftovers, and only block when another AviatorPass lecture is still inside
+ * its live window.
  */
 export async function zoomHostBlockedByAnotherLiveMeeting(
   meetingNumber: string | null | undefined,
@@ -1364,18 +1365,20 @@ export async function zoomHostBlockedByAnotherLiveMeeting(
       if (!id || id === current) continue;
       const stored = getZoomMeetingByNumber(id);
       const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-      const scheduledEnd = cls ? Date.parse(cls.endsAt) : Number.NaN;
-      const zoomEnd = meeting.start_time
-        ? Date.parse(meeting.start_time) + (meeting.duration ?? 60) * 60_000
-        : Number.NaN;
-      const end = Number.isFinite(scheduledEnd) ? scheduledEnd : zoomEnd;
-      if (Number.isFinite(end) && end + graceMs > now) {
-        blocked = true;
-        continue;
-      }
-      if (!Number.isFinite(end)) {
-        blocked = true;
-        continue;
+      if (cls) {
+        const closed = cls.status === "completed" || cls.status === "cancelled";
+        const start = Date.parse(cls.startsAt);
+        const end = Date.parse(cls.endsAt);
+        const inLiveWindow =
+          !closed &&
+          Number.isFinite(start) &&
+          Number.isFinite(end) &&
+          now >= start &&
+          now <= end + graceMs;
+        if (inLiveWindow) {
+          blocked = true;
+          continue;
+        }
       }
       await endZoomMeetingInstance(token, id);
     }

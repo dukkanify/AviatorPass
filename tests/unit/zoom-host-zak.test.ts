@@ -395,7 +395,7 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(calls.some((url) => url.startsWith("PATCH "))).toBe(true);
   });
 
-  it("ends a finished Zoom meeting and keeps a live lecture from blocking the host", async () => {
+  it("ends orphan Zoom leftovers and only blocks another AviatorPass lecture in its live window", async () => {
     s2sEnv();
     storedMeeting("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
     const ended: string[] = [];
@@ -434,9 +434,9 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(true);
+    await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(false);
     expect(ended.some((url) => url.includes("/meetings/111/status"))).toBe(true);
-    expect(ended.some((url) => url.includes("/meetings/222/status"))).toBe(false);
+    expect(ended.some((url) => url.includes("/meetings/222/status"))).toBe(true);
     expect(ended.some((url) => url.includes("/meetings/82122854800/status"))).toBe(false);
   });
 });
