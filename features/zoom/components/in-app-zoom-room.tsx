@@ -303,6 +303,7 @@ interface InAppZoomRoomProps {
   isHost?: boolean;
   providerMode?: string | null;
   title?: string;
+  displayName?: string;
   leaveHref?: string;
   onLeave?: () => void;
   className?: string;
@@ -328,6 +329,7 @@ function InAppZoomRoom({
   isHost = false,
   providerMode = null,
   title = "Live class",
+  displayName,
   leaveHref = routes.dashboard,
   onLeave,
   className,
@@ -339,6 +341,7 @@ function InAppZoomRoom({
   const sdkRef = React.useRef<ZoomEmbeddedClient | null>(null);
   const [session, setSession] = React.useState<InAppSession | null>(null);
   const [phase, setPhase] = React.useState<"loading" | "classroom" | "sdk" | "error">("loading");
+  const [attempt, setAttempt] = React.useState(0);
   const [notice, setNotice] = React.useState("Preparing the AviatorPass classroom");
   const [camOn, setCamOn] = React.useState(true);
   const [micOn, setMicOn] = React.useState(true);
@@ -536,18 +539,16 @@ function InAppZoomRoom({
           sdkRef.current = null;
           await releaseZoomEmbeddedClient(failedClient);
           if (stageRef.current) stageRef.current.replaceChildren();
-          setPhase("classroom");
+          setPhase("error");
           await startLocalMedia();
           if (!cancelled) {
             const detail = zoomFailureText(error);
             setNotice(
-              /3712|invalid sdk|sdk key/i.test(detail)
-                ? "Zoom Meeting SDK rejected the General App credentials. Check ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET."
-                : /3099|registration/i.test(detail)
-                  ? "Zoom still asked for registration. AviatorPass is turning that off — open the classroom again."
-                  : /3000|other meetings in progress/i.test(detail)
-                    ? "Zoom is already inside another meeting on this account. Leave that meeting, then open this classroom again."
-                    : "Zoom could not join inside AviatorPass. The classroom stays on this page.",
+              /3099|registration/i.test(detail)
+                ? "This meeting still asks for registration. Open the classroom again."
+                : /3000|other meetings in progress/i.test(detail)
+                  ? "This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again."
+                  : "The classroom could not open the meeting. You can try again.",
             );
           }
           return;
@@ -570,7 +571,7 @@ function InAppZoomRoom({
       void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
     };
-  }, [session, startLocalMedia, stopLocalMedia]);
+  }, [attempt, session, startLocalMedia, stopLocalMedia]);
 
   function toggleCamera() {
     const next = !camOn;
@@ -603,28 +604,44 @@ function InAppZoomRoom({
   }
 
   const shownMeeting = session?.meetingNumber || meetingNumber || "";
-  const shownPassword = session?.password || password || "";
   const liveZoom = phase === "sdk";
-  const liveLabel = liveZoom
-    ? "Live Zoom · inside AviatorPass"
-    : "Live classroom · inside AviatorPass";
   const showPreview = !liveZoom;
+  const personName =
+    displayName?.trim() ||
+    (session?.userName && !/^host$/i.test(session.userName) ? session.userName : "") ||
+    (isHost ? "Instructor" : "Student");
+  const controlLine = liveZoom
+    ? isHost
+      ? "You are the host. Mute, camera, share, chat, and record are on the Zoom bar."
+      : "Mute, camera, share, and chat are on the Zoom bar."
+    : "Camera and microphone stay on this page until the meeting opens.";
 
   return (
     <div
       className={cn("classroom-stage text-white", liveZoom && "is-live", className)}
-      style={{ width: "100%", minHeight: "min(72vh, 820px)", background: "#050b11" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        flex: "1 1 auto",
+        minHeight: "min(72vh, 820px)",
+        overflow: "hidden",
+        background: "#050b11",
+        color: "#fff",
+      }}
     >
-      <header className="classroom-chrome">
+      <header className="classroom-chrome" style={{ flex: "0 0 auto", background: "#0c1824" }}>
         <div className="min-w-0">
           <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
             <Radio className="size-3 shrink-0 text-[#CCA04C]" />
-            {liveLabel}
+            {personName}
+            {isHost ? " · Host" : ""}
           </p>
         </div>
-        <span className="classroom-chip shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/70">
-          {session?.userName ?? (isHost ? "Instructor" : "Student")}
+        <span className="classroom-chip shrink-0 text-[11px] tracking-wide text-white/70">
+          {liveZoom ? "In the meeting" : phase === "error" ? "Reconnect" : "Ready"}
         </span>
       </header>
 
@@ -632,10 +649,10 @@ function InAppZoomRoom({
         className="classroom-viewport"
         style={{
           position: "relative",
-          width: "100%",
-          aspectRatio: "16 / 9",
-          minHeight: "min(58vh, 680px)",
+          flex: "1 1 auto",
+          minHeight: 0,
           overflow: liveZoom ? "visible" : "hidden",
+          background: "#03070c",
         }}
       >
         <div
@@ -652,6 +669,14 @@ function InAppZoomRoom({
               playsInline
               autoPlay
               className={cn("classroom-preview", !camOn && "is-off")}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                background: "#071018",
+              }}
             />
             {!camOn ? (
               <div className="classroom-preview-fallback">
@@ -663,19 +688,33 @@ function InAppZoomRoom({
         ) : null}
       </div>
 
-      <div className="classroom-footer">
+      <div
+        className="classroom-footer"
+        style={{ flex: "0 0 auto", background: "#0c1824", color: "#fff" }}
+      >
         <div className="classroom-caption">
           <Shield className="size-4 shrink-0 text-[#CCA04C]" />
           <div className="min-w-0">
-            <p>{notice}</p>
-            {shownMeeting ? (
-              <p className="classroom-caption-meta">
-                Meeting ID {shownMeeting}
-                {shownPassword ? ` · Passcode ${shownPassword}` : ""}
-              </p>
+            <p>{phase === "error" ? notice : controlLine}</p>
+            {shownMeeting && !liveZoom ? (
+              <p className="classroom-caption-meta">Meeting ID {shownMeeting}</p>
             ) : null}
           </div>
         </div>
+        {phase === "error" ? (
+          <button
+            type="button"
+            className="classroom-dock-btn"
+            data-leave="true"
+            onClick={() => {
+              setNotice("Opening the classroom again");
+              setPhase("loading");
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Open classroom again
+          </button>
+        ) : null}
         <div className="classroom-dock">
           {showPreview ? (
             <>

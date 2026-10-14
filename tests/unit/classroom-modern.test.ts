@@ -12,6 +12,9 @@ describe("modern classroom join page", () => {
     expect(join).toMatch(/classroom-shell/);
     expect(join).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(join).toMatch(/next\/dynamic/);
+    expect(join).toMatch(/displayName/);
+    expect(join).not.toContain("Passcode");
+    expect(join).not.toContain("Waiting room on");
     expect(join).not.toContain('from "@/components/ui/card"');
   });
 
@@ -26,8 +29,11 @@ describe("modern classroom join page", () => {
     expect(room).toMatch(/classroom-footer/);
     expect(room).toMatch(/classroom-dock/);
     expect(room).toMatch(/Leave classroom/);
+    expect(room).toMatch(/Open classroom again/);
+    expect(room).toMatch(/displayName/);
     expect(room).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(room).toMatch(/startLocalMedia\(\)/);
+    expect(room).not.toContain("Passcode ${");
     expect(room).not.toContain("from-black/80");
     expect(room).not.toContain("bottom-24");
   });

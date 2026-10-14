@@ -1,6 +1,8 @@
 /* Live classroom — immersive Aviator Blue / Gold stage */
 
 .classroom-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
   background-color: #071018;
   background-image:
@@ -46,6 +48,21 @@
   letter-spacing: 0.02em;
 }
 
+.classroom-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+}
+
+.classroom-page .classroom-stage {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0 !important;
+}
+
 .classroom-stage {
   position: relative;
   display: flex;
@@ -84,9 +101,8 @@
   position: relative;
   isolation: isolate;
   flex: 1 1 auto;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: min(58vh, 680px);
+  width: auto;
+  min-height: 0;
   margin: 0.75rem 0.85rem;
   overflow: hidden;
   border-radius: 1.15rem;
@@ -151,6 +167,13 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-popup] {
   max-height: 100% !important;
 }
 
+.classroom-sdk-root.is-live [class*="footer"],
+.classroom-sdk-root.is-live [class*="toolbar"],
+.classroom-sdk-root.is-live [class*="control-bar"] {
+  z-index: 30 !important;
+  max-width: 100% !important;
+}
+
 /* Zoom Component View often teleports a floating popper onto document.body */
 body:has(.classroom-sdk-root.is-live) [class*="suspension"],
 body:has(.classroom-sdk-root.is-live) [class*="zoom-ui"],
@@ -186,6 +209,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   height: 100%;
   width: 100%;
   object-fit: cover;
+  object-position: center;
   background: #071018;
 }
 
@@ -209,6 +233,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
 
 .classroom-footer {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 0.9rem;
   padding: 0.95rem 1.15rem 1.1rem;
@@ -346,7 +371,6 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-viewport {
     min-height: min(70dvh, 640px) !important;
     height: min(70dvh, 640px);
-    aspect-ratio: auto !important;
     margin: 0.35rem;
     border-radius: 0.85rem;
   }
