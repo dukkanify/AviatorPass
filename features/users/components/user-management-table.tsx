@@ -69,6 +69,10 @@ function UserManagementTable({
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<UserProfile | null>(null);
+  const [zoomByUser, setZoomByUser] = React.useState<
+    Record<string, { connected: boolean; zoomEmail: string | null; lastSyncAt: string | null }>
+  >({});
+  const showZoom = roleFilter === "instructor";
 
   const allowedRoles = React.useMemo(() => {
     const roles = creatableRolesFor(actor?.role ?? "student");
@@ -92,6 +96,30 @@ function UserManagementTable({
       setUsers([]);
     } else {
       setUsers(result.data ?? []);
+    }
+    if (roleFilter === "instructor") {
+      const zoom = await authFetch<{
+        instructors: Array<{
+          userId: string;
+          connected: boolean;
+          zoomEmail: string | null;
+          lastSyncAt: string | null;
+        }>;
+      }>("/api/admin/instructors/zoom");
+      if (zoom.success && zoom.data?.instructors) {
+        const map: Record<
+          string,
+          { connected: boolean; zoomEmail: string | null; lastSyncAt: string | null }
+        > = {};
+        for (const row of zoom.data.instructors) {
+          map[row.userId] = {
+            connected: row.connected,
+            zoomEmail: row.zoomEmail,
+            lastSyncAt: row.lastSyncAt,
+          };
+        }
+        setZoomByUser(map);
+      }
     }
     setLoading(false);
   }, [roleFilter]);
@@ -166,6 +194,36 @@ function UserManagementTable({
       header: "Country",
       cell: (row) => row.countryCode || "—",
     },
+    ...(showZoom
+      ? ([
+          {
+            id: "zoomStatus",
+            header: "Zoom",
+            cell: (row: UserProfile) => {
+              const zoom = zoomByUser[row.id];
+              const connected = Boolean(zoom?.connected);
+              return (
+                <Badge variant={connected ? "success" : "outline"}>
+                  {connected ? "Connected" : "Not Connected"}
+                </Badge>
+              );
+            },
+          },
+          {
+            id: "zoomEmail",
+            header: "Zoom email",
+            cell: (row: UserProfile) => zoomByUser[row.id]?.zoomEmail || "—",
+          },
+          {
+            id: "zoomSync",
+            header: "Last sync",
+            cell: (row: UserProfile) => {
+              const value = zoomByUser[row.id]?.lastSyncAt;
+              return value ? new Date(value).toLocaleString() : "—";
+            },
+          },
+        ] as DataTableColumn<UserProfile>[])
+      : []),
     {
       id: "lastLoginAt",
       header: "Last login",
