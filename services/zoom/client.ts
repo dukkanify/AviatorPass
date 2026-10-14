@@ -157,12 +157,33 @@ export async function fetchZoomProfile(
   };
 }
 
+async function instructorOwnedRequest<T>(input: {
+  accessToken: string;
+  method: string;
+  path: string;
+  body?: unknown;
+  userId?: string | null;
+  retries?: number;
+}): Promise<T> {
+  if (!input.userId) {
+    return zoomRequest<T>(input);
+  }
+  const { instructorZoomApiRequest } = await import("@/services/zoom/oauth-service");
+  return instructorZoomApiRequest<T>({
+    userId: input.userId,
+    method: input.method,
+    path: input.path,
+    body: input.body,
+    retries: input.retries,
+  });
+}
+
 export async function createZoomUserMeeting(
   accessToken: string,
   payload: ReturnType<typeof instructorMeetingPayload>,
   userId?: string | null,
 ): Promise<ZoomApiMeeting> {
-  return zoomRequest<ZoomApiMeeting>({
+  return instructorOwnedRequest<ZoomApiMeeting>({
     accessToken,
     method: "POST",
     path: "/users/me/meetings",
@@ -177,7 +198,7 @@ export async function updateZoomUserMeeting(
   payload: Partial<ReturnType<typeof instructorMeetingPayload>>,
   userId?: string | null,
 ): Promise<void> {
-  await zoomRequest({
+  await instructorOwnedRequest({
     accessToken,
     method: "PATCH",
     path: `/meetings/${encodeURIComponent(meetingId)}`,
@@ -191,7 +212,7 @@ export async function deleteZoomUserMeeting(
   meetingId: string,
   userId?: string | null,
 ): Promise<void> {
-  await zoomRequest({
+  await instructorOwnedRequest({
     accessToken,
     method: "DELETE",
     path: `/meetings/${encodeURIComponent(meetingId)}`,
@@ -204,7 +225,7 @@ export async function getZoomUserMeeting(
   meetingId: string,
   userId?: string | null,
 ): Promise<ZoomApiMeeting> {
-  return zoomRequest<ZoomApiMeeting>({
+  return instructorOwnedRequest<ZoomApiMeeting>({
     accessToken,
     method: "GET",
     path: `/meetings/${encodeURIComponent(meetingId)}`,
@@ -218,7 +239,7 @@ export async function getZoomMeetingParticipantCount(
   userId?: string | null,
 ): Promise<number | null> {
   try {
-    const json = await zoomRequest<{
+    const json = await instructorOwnedRequest<{
       participants?: unknown[];
       total_records?: number;
     }>({

@@ -456,15 +456,40 @@ export async function createMeetingForClass(input: {
   meetingType?: MeetingType;
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord> {
+  const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+  const { assertInstructorZoomConnected } = await import("@/services/zoom/oauth-service");
+  const { PermissionError } = await import("@/services/auth/permissions");
+
   try {
-    const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
+    assertInstructorZoomConnected(input.liveClass.instructorId);
+  } catch (error) {
+    if (error instanceof PermissionError) {
+      throw new ClassValidationError(error.message, 409);
+    }
+    throw error;
+  }
+
+  try {
     const instructorMeeting = await createInstructorZoomMeeting({
       liveClass: input.liveClass,
       actorId: input.actorId,
     });
     if (instructorMeeting) return instructorMeeting;
   } catch (error) {
-    console.error("Instructor Zoom create failed; falling back", error);
+    console.error("Instructor Zoom create failed", error);
+    throw new ClassValidationError(
+      error instanceof Error
+        ? error.message
+        : "Unable to create a Zoom meeting on the instructor account.",
+      503,
+    );
+  }
+
+  if (!isMockZoomAllowed()) {
+    throw new ClassValidationError(
+      "Please connect your Zoom account before creating a live class.",
+      409,
+    );
   }
 
   const settings = getPlatformSettings();
@@ -472,26 +497,12 @@ export async function createMeetingForClass(input: {
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
-
-  let payload = zoomCredsPresent()
-    ? await createZoomApiMeeting(input.liveClass, { waitingRoom, passcode, meetingType })
-    : null;
-
-  if (!payload) {
-    if (!isMockZoomAllowed()) {
-      requireLiveZoom(
-        zoomCredsPresent()
-          ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
-          : "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
-      );
-    }
-    payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
-  }
-
+  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
   const now = new Date().toISOString();
   const record: ZoomMeetingRecord = {
     id: generateId(),
     ...payload,
+    oauthUserId: input.liveClass.instructorId,
     createdAt: now,
     updatedAt: now,
   };
@@ -519,6 +530,7 @@ export async function createMeetingForClass(input: {
       liveClassId: input.liveClass.id,
       zoomMeetingId: record.zoomMeetingId,
       providerMode: record.providerMode,
+      via: "mock_dev",
     },
   });
 
@@ -1313,8 +1325,16 @@ export async function refreshStoredZoomStartUrl(
   meetingNumber: string,
 ): Promise<StoredZoomSession | null> {
   const session = findStoredZoomSession(meetingNumber);
-  if (!session || !zoomCredsPresent()) return session;
-  const token = await getZoomAccessToken();
+  if (!session) return session;
+
+  let token: string | null = null;
+  if (session.oauthUserId) {
+    const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+    token = await getValidInstructorAccessToken(session.oauthUserId);
+  }
+  if (!token && zoomCredsPresent()) {
+    token = await getZoomAccessToken();
+  }
   if (!token) return session;
 
   await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(session.meetingNumber)}`, {

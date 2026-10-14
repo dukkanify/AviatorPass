@@ -488,6 +488,19 @@ export async function createLiveClass(
     }
   }
 
+  {
+    const { assertInstructorZoomConnected } = await import("@/services/zoom/oauth-service");
+    const { PermissionError } = await import("@/services/auth/permissions");
+    try {
+      assertInstructorZoomConnected(instructorId);
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        throw new ClassValidationError(error.message, 409);
+      }
+      throw error;
+    }
+  }
+
   writeClassesDb((d) => {
     d.classes.push(...occurrences);
   });
@@ -503,7 +516,7 @@ export async function createLiveClass(
         actorId: input.actorId,
       });
     } catch (error) {
-      if (error instanceof ClassValidationError && error.status === 503) {
+      if (error instanceof ClassValidationError && (error.status === 503 || error.status === 409)) {
         zoomError = error.message;
         console.error("Zoom meeting not created; live class kept", error);
       } else {
