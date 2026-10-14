@@ -252,6 +252,11 @@ export function resetZoomS2STokenCacheForTests(): void {
 }
 
 /** Server-to-Server OAuth only — create / update / delete. Never a Meeting SDK JWT. */
+export async function getZoomS2SAccessToken(): Promise<string | null> {
+  return getZoomAccessToken();
+}
+
+/** Server-to-Server OAuth only — create / update / delete. Never a Meeting SDK JWT. */
 async function getZoomAccessToken(): Promise<string | null> {
   const creds = getZoomS2SCredentials();
   if (!creds) return null;

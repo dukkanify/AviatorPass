@@ -37,9 +37,20 @@ import type {
 } from "@/types/zoom-oauth";
 
 const STATE_TTL_MS = 15 * 60 * 1000;
+/** Refresh-token ciphertext plaintext for Super Admin S2S user delegation. */
+export const S2S_DELEGATE_REFRESH_MARKER = "aviatorpass:s2s_delegate";
 
 function authSecret() {
   return getServerEnv().AUTH_SECRET;
+}
+
+export function isS2SDelegateIntegration(row: ZoomIntegrationRecord | null | undefined): boolean {
+  if (!row?.refreshToken) return false;
+  try {
+    return decryptSecret(row.refreshToken) === S2S_DELEGATE_REFRESH_MARKER;
+  } catch {
+    return false;
+  }
 }
 
 export function getInstructorZoomStatus(userId: string) {
@@ -331,6 +342,25 @@ export async function refreshInstructorAccessToken(userId: string): Promise<stri
     return decryptSecret(row.accessToken);
   }
 
+  if (isS2SDelegateIntegration(row)) {
+    const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
+    const accessToken = await getZoomS2SAccessToken();
+    if (!accessToken) {
+      throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
+    }
+    const now = new Date().toISOString();
+    upsertIntegration({
+      ...row,
+      accessToken: encryptSecret(accessToken),
+      refreshToken: encryptSecret(S2S_DELEGATE_REFRESH_MARKER),
+      expiresAt: new Date(Date.now() + 50 * 60 * 1000).toISOString(),
+      lastSyncAt: now,
+      status: "connected",
+      updatedAt: now,
+    });
+    return accessToken;
+  }
+
   try {
     const body = new URLSearchParams({
       grant_type: "refresh_token",
@@ -414,21 +444,155 @@ export async function getCachedZoomProfile(userId: string): Promise<ZoomProfile 
   return profile;
 }
 
+export async function listZoomAccountUsers(): Promise<
+  Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    type: number | null;
+    status: string | null;
+  }>
+> {
+  const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
+  const { zoomRequest } = await import("@/services/zoom/client");
+  const token = await getZoomS2SAccessToken();
+  if (!token)
+    throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
+  const json = await zoomRequest<{
+    users?: Array<{
+      id: string;
+      email?: string;
+      first_name?: string;
+      last_name?: string;
+      type?: number;
+      status?: string;
+    }>;
+  }>({
+    accessToken: token,
+    method: "GET",
+    path: "/users?page_size=100&status=active",
+  });
+  return (json.users ?? []).map((user) => ({
+    id: String(user.id),
+    email: user.email ?? "",
+    firstName: user.first_name ?? null,
+    lastName: user.last_name ?? null,
+    type: user.type ?? null,
+    status: user.status ?? null,
+  }));
+}
+
+/**
+ * Super Admin only: bind an instructor to a Zoom account user via S2S so
+ * classrooms host on that user (not the shared platform host) when interactive
+ * General App OAuth cannot be completed in the delivery environment.
+ */
+export async function delegateConnectInstructorZoom(input: {
+  instructorId: string;
+  zoomUserEmail: string;
+  actorId?: string | null;
+}): Promise<{
+  userId: string;
+  zoomUserId: string;
+  zoomEmail: string;
+  connected: true;
+}> {
+  const instructor = findUserById(input.instructorId);
+  if (!instructor) throw new PermissionError("Instructor not found", 404);
+  const email = input.zoomUserEmail.trim().toLowerCase();
+  if (!email) throw new PermissionError("zoomUserEmail is required", 400);
+
+  const users = await listZoomAccountUsers();
+  const match = users.find((user) => user.email.trim().toLowerCase() === email);
+  if (!match) {
+    throw new PermissionError(
+      `No active Zoom user found for ${email}. Invite them on the Zoom account first.`,
+      404,
+    );
+  }
+
+  const existingOwner = getIntegrationByZoomUserId(match.id);
+  if (existingOwner && existingOwner.userId !== input.instructorId) {
+    throw new PermissionError(
+      "That Zoom user is already linked to another instructor. Disconnect them first.",
+      409,
+    );
+  }
+
+  const { getZoomS2SAccessToken } = await import("@/services/classes/zoom-service");
+  const accessToken = await getZoomS2SAccessToken();
+  if (!accessToken)
+    throw new PermissionError("Zoom Server-to-Server credentials are not configured.", 503);
+
+  const now = new Date().toISOString();
+  const existing = getIntegrationByUserId(input.instructorId);
+  const profile: ZoomProfile = {
+    zoomUserId: match.id,
+    email: match.email,
+    firstName: match.firstName,
+    lastName: match.lastName,
+    timezone: null,
+    accountId: null,
+    type: match.type,
+  };
+  upsertIntegration({
+    id: existing?.id ?? generateId(),
+    userId: input.instructorId,
+    zoomUserId: match.id,
+    zoomEmail: match.email,
+    accessToken: encryptSecret(accessToken),
+    refreshToken: encryptSecret(S2S_DELEGATE_REFRESH_MARKER),
+    expiresAt: new Date(Date.now() + 50 * 60 * 1000).toISOString(),
+    connectedAt: existing?.connectedAt ?? now,
+    lastSyncAt: now,
+    status: "connected",
+    scopes: "s2s_delegate",
+    cachedProfile: profile,
+    profileCachedAt: now,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  });
+
+  emitZoomEvent({
+    event: "zoom.oauth.success",
+    userId: input.instructorId,
+    message: "Instructor Zoom linked via platform S2S delegate",
+    details: { zoomEmail: match.email, via: "s2s_delegate" },
+    dispatchOutbound: true,
+  });
+  await logZoomActivity({
+    actorId: input.actorId ?? input.instructorId,
+    action: ZOOM_ACTIVITY.OAUTH_CONNECTED,
+    entityId: input.instructorId,
+    metadata: { zoomEmail: match.email, via: "s2s_delegate" },
+  });
+
+  return {
+    userId: input.instructorId,
+    zoomUserId: match.id,
+    zoomEmail: match.email,
+    connected: true,
+  };
+}
+
 export async function disconnectZoomIntegration(userId: string): Promise<void> {
   const row = getIntegrationByUserId(userId);
   if (!row) return;
-  try {
-    const token = decryptSecret(row.accessToken);
-    await fetch(ZOOM_OAUTH_REVOKE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: zoomBasicAuthHeader(),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ token }),
-    });
-  } catch {
-    // Revoke is best-effort — local disconnect always succeeds.
+  if (!isS2SDelegateIntegration(row)) {
+    try {
+      const token = decryptSecret(row.accessToken);
+      await fetch(ZOOM_OAUTH_REVOKE_URL, {
+        method: "POST",
+        headers: {
+          Authorization: zoomBasicAuthHeader(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ token }),
+      });
+    } catch {
+      // Revoke is best-effort — local disconnect always succeeds.
+    }
   }
   deleteIntegrationForUser(userId);
   emitZoomEvent({
