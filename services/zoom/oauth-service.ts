@@ -555,7 +555,7 @@ export async function delegateConnectInstructorZoom(input: {
   });
 
   emitZoomEvent({
-    event: "zoom.oauth.connected",
+    event: "zoom.oauth.success",
     userId: input.instructorId,
     message: "Instructor Zoom linked via platform S2S delegate",
     details: { zoomEmail: match.email, via: "s2s_delegate" },
