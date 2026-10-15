@@ -177,7 +177,8 @@ Logged via ops + activity (never tokens / start URLs):
 
 Zoom Marketplace (cannot be done from this repo):
 
-- Allowlist the production redirect URI.
+- Allowlist the production redirect URI **exactly**: `https://www.aviatorpass.com/api/integrations/zoom/callback` (no trailing slash). Add it under both **Redirect URL for OAuth** and **OAuth allow list** / whitelist if the Marketplace UI shows both fields.
+- If Zoom shows `Invalid redirect: …/api/integrations/zoom/callback (4,700)`, the app is sending the correct URI and the Marketplace allowlist is missing or mistyped — fix the Marketplace entry, then retry **Connect Zoom**. Do not change the AviatorPass callback path to work around this.
 - Grant granular scopes: `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`, `meeting:read:list_meetings`.
 - Event subscriptions: `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 - Optional dashboard metrics scope if live participant counts should appear (otherwise count stays “—”).
