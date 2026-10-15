@@ -481,14 +481,20 @@ function InAppZoomRoom({
           } catch (hostError) {
             if (!active.zak && !active.hostSignature) throw hostError;
             const detail = zoomFailureText(hostError);
-            const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
+            // Signature failures are credential/JWT issues — retrying as participant
+            // with the same Meeting SDK secret will fail the same way.
+            if (/3712|signature is invalid/i.test(detail)) throw hostError;
+            const staleHostToken = /(?:^|\D)200(?:\D|$)|start meeting via tokens|\bzak\b/i.test(
+              detail,
+            );
             const hostBusy = /3000|other meetings in progress/i.test(detail);
             if (staleHostToken) {
-              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
+              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only", detail);
             }
             if (hostBusy) {
               console.warn("[zoom] Host already in another meeting; joining as participant");
             }
+            if (!staleHostToken && !hostBusy) throw hostError;
             await releaseZoomEmbeddedClient(client);
             stage.replaceChildren();
             client = await openZoomEmbeddedClient();
@@ -546,14 +552,17 @@ function InAppZoomRoom({
           await startLocalMedia();
           if (!cancelled) {
             const detail = zoomFailureText(error);
+            const meetingHint = active.meetingNumber ? ` Meeting ID ${active.meetingNumber}.` : "";
             setNotice(
               /3099|registration/i.test(detail)
-                ? "This meeting still asks for registration. Open the classroom again."
+                ? `This meeting still asks for registration. Open the classroom again.${meetingHint}`
                 : /3000|other meetings in progress/i.test(detail)
-                  ? "This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again."
+                  ? `This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again.${meetingHint}`
                   : /3712|signature is invalid/i.test(detail)
-                    ? "Zoom rejected the Meeting SDK signature. An admin must re-copy ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET from the same Meeting SDK app (Production, Embed enabled) — not Instructor OAuth secrets."
-                    : "The classroom could not open the meeting. You can try again.",
+                    ? `Zoom error 3712 — Meeting SDK signature rejected.${meetingHint} Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*).`
+                    : /200|start meeting via tokens|\bzak\b/i.test(detail)
+                      ? `Zoom host token (ZAK) was rejected.${meetingHint} Reconnect Zoom on the instructor profile, then open the classroom again.`
+                      : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).${meetingHint}`,
             );
           }
           return;

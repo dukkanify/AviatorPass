@@ -99,7 +99,7 @@ export async function probeMeetingSdkCredentialPair(): Promise<MeetingSdkCredent
         clientIdLength,
         credentialPairValid: false,
         detail:
-          "Zoom rejected ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET (invalid_client). Re-copy both from the same Meeting SDK General app App Credentials (Production). Do not use Instructor OAuth or S2S secrets.",
+          "Zoom rejected ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET (invalid_client). This is the usual cause of Meeting SDK error 3712. In Vercel, set both values from the same Meeting SDK General app → App Credentials (use Development credentials if the app is unpublished; Production only after publish). Leave ZOOM_INSTRUCTOR_* unchanged.",
       };
     }
 
@@ -116,7 +116,7 @@ export async function probeMeetingSdkCredentialPair(): Promise<MeetingSdkCredent
         clientIdLength,
         credentialPairValid: true,
         detail:
-          "Client ID/Secret pair is accepted by Zoom. If join still returns 3712, enable Features → Embed → Meeting SDK on that app and use Production credentials.",
+          "Client ID/Secret pair is accepted by Zoom OAuth. If join still returns 3712, enable Features → Embed → Meeting SDK and use Development credentials until the app is published (Production credentials require a published/activated app).",
       };
     }
 
