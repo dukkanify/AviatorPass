@@ -207,6 +207,26 @@ export async function fetchZoomProfile(
         });
         return fromJwt;
       }
+      // Last resort: token exchange succeeded and meeting scopes may still work via /users/me/*.
+      // Persist a stable instructor-scoped placeholder until Marketplace enables user:read:user.
+      if (userId) {
+        logZoomEvent({
+          event: "zoom.api.error",
+          level: "warn",
+          userId,
+          message: "GET /users/me missing user:read:user — using instructor placeholder identity",
+          details: { code: error instanceof ZoomApiError ? error.code : null, via: "placeholder" },
+        });
+        return {
+          zoomUserId: `oauth:${userId}`,
+          email: "",
+          firstName: null,
+          lastName: null,
+          timezone: null,
+          accountId: null,
+          type: null,
+        };
+      }
     }
     throw error;
   }
