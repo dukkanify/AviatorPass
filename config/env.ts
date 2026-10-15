@@ -63,6 +63,8 @@ const serverEnvSchema = z.object({
   ZOOM_REDIRECT_URI: z.string().url().optional(),
   ZOOM_BASE_URL: z.string().url().optional(),
   ZOOM_OAUTH_SCOPES: z.string().optional(),
+  /** Opt-in: append `scope` to Zoom authorize URL (unsafe for most General apps; default off). */
+  ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
   /** Legacy aliases — prefer ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET for Meeting SDK */
@@ -163,6 +165,9 @@ export function getServerEnv() {
     ZOOM_REDIRECT_URI: emptyToUndef(process.env.ZOOM_REDIRECT_URI),
     ZOOM_BASE_URL: emptyToUndef(process.env.ZOOM_BASE_URL),
     ZOOM_OAUTH_SCOPES: emptyToUndef(process.env.ZOOM_OAUTH_SCOPES),
+    ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES: emptyToUndef(
+      process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES,
+    ),
     ZOOM_SECRET_TOKEN: emptyToUndef(process.env.ZOOM_SECRET_TOKEN),
     ZOOM_WEBHOOK_SECRET: emptyToUndef(process.env.ZOOM_WEBHOOK_SECRET),
     ZOOM_SDK_KEY: emptyToUndef(process.env.ZOOM_SDK_KEY),

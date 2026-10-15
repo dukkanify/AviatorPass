@@ -72,6 +72,7 @@ export function getZoomOAuthPublicDiagnostics() {
     clientIdSuffix: suffix(instructorId),
     clientIdLength: instructorId ? instructorId.length : 0,
     scopes: oauth.scopes,
+    includeScopesInAuthorizeUrl: oauth.includeScopesInAuthorizeUrl,
     authorizeHost: "zoom.us",
     meetingSdkClientIdSuffix: suffix(sdkId),
     credentialsMixed,
@@ -87,12 +88,19 @@ export function getZoomOAuthConfig() {
   const env = getServerEnv();
   const redirectUri = resolveZoomOAuthRedirectUri(env.ZOOM_REDIRECT_URI);
   const scopes = env.ZOOM_OAUTH_SCOPES?.trim() || DEFAULT_ZOOM_OAUTH_SCOPES;
+  // Opt-in only. Zoom Marketplace Local Test / docs authorize URLs omit `scope`;
+  // including it has caused authorize failures ("Something went wrong", 4,700).
+  const includeScopesInAuthorizeUrl =
+    String(env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES || "")
+      .trim()
+      .toLowerCase() === "true";
   return {
     clientId: env.ZOOM_INSTRUCTOR_CLIENT_ID?.trim() || "",
     clientSecret: env.ZOOM_INSTRUCTOR_CLIENT_SECRET?.trim() || "",
     redirectUri,
     baseUrl: (env.ZOOM_BASE_URL?.trim() || "https://api.zoom.us/v2").replace(/\/$/, ""),
     scopes,
+    includeScopesInAuthorizeUrl,
     secretToken: env.ZOOM_SECRET_TOKEN?.trim() || env.ZOOM_WEBHOOK_SECRET?.trim() || "",
     webhookSecret: env.ZOOM_WEBHOOK_SECRET?.trim() || env.ZOOM_SECRET_TOKEN?.trim() || "",
   };

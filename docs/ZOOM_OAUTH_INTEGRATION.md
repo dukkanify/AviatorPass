@@ -183,7 +183,7 @@ Logged via ops + activity (never tokens / start URLs):
 
 Zoom Marketplace (cannot be done from this repo):
 
-### Development vs Production credentials (critical for error 4,700)
+### Development vs Production credentials (critical for error 4,700 / Marketplace “Something went wrong”)
 
 Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Redirect URL + Allow List for **Development** and **Production** (Marketplace environment filter).
 
@@ -193,20 +193,30 @@ Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Re
 | Production Client ID                                | Production environment filter                |
 
 - While the app is **Draft / unpublished**, use **Development** Client ID + Secret in Vercel and configure the **Development** Redirect URL + Allow List.
-- For live published Marketplace use, switch Vercel to **Production** credentials and configure the **Production** Redirect URL + Allow List (published apps may require a Marketplace update approval before Production redirect changes apply).
-- Confirm which side Client ID `…` matches via Admin `GET /api/admin/instructors/zoom` → `oauthClientIdSuffix` (last 4 chars only; never log full secrets).
+- **Development / Local Test** OAuth is restricted: only the app owner and users on that Zoom account (or an approved shareable beta URL) can authorize. A random personal Zoom account will land on `marketplace.zoom.us/error` (“Something went wrong”).
+- For any instructor’s personal Zoom account in production, use **Production** Client ID + Secret after the General app is activated/published (or request a shareable beta authorization URL under Marketplace → Production → Beta test).
+- Confirm which side Client ID matches via Admin `GET /api/admin/instructors/zoom` → `oauthClientIdSuffix` (last 4 chars only; never log full secrets). Live Instructor OAuth suffix must **not** equal Meeting SDK `meetingSdkClientIdSuffix`.
 
-### Exact allowlist entries
+### Authorize URL (AviatorPass)
 
-- Redirect URI **exactly**: `https://www.aviatorpass.com/api/integrations/zoom/callback` (no trailing slash, must include `www`).
-- Add the same URL to **OAuth Allow List**. Also add `https://www.aviatorpass.com` if using domain-level allowlisting.
-- If **Strict Mode** is enabled, the allow list entry must be the full callback URL character-for-character.
-- If **Subdomain check** is enabled, `https://aviatorpass.com` (apex) does **not** cover `https://www.aviatorpass.com` — list the `www` host explicitly.
-- Instructor AviatorPass email does **not** need to match their personal Zoom email.
-- If Zoom shows `Invalid redirect: …/callback (4,700)`, AviatorPass is already sending the canonical www callback; fix the Marketplace environment that matches the live Client ID. Do not change the AviatorPass callback path to work around this.
-- Grant granular scopes: `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`, `meeting:read:list_meetings`.
-- Event subscriptions: `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
-- Optional dashboard metrics scope if live participant counts should appear (otherwise count stays “—”).
-- Add `http://localhost:3000/api/integrations/zoom/callback` only if local OAuth testing is required.
+AviatorPass builds:
+
+`https://zoom.us/oauth/authorize?response_type=code&client_id=…&redirect_uri=…&state=…`
+
+It does **not** append `scope` by default (matches Zoom Marketplace Local Test / docs). Scopes are taken from the General app’s Scopes page. Set `ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES=true` only for temporary debugging — Zoom has rejected authorize URLs that include scopes.
+
+### Exact allowlist + scopes (Marketplace app 29)
+
+Location: [Zoom Marketplace](https://marketplace.zoom.us/) → **Manage** → General app (app 29) → environment toggle **Development** or **Production** (must match Vercel Client ID).
+
+1. **App credentials** → copy Client ID / Secret into Vercel `ZOOM_INSTRUCTOR_CLIENT_ID` / `ZOOM_INSTRUCTOR_CLIENT_SECRET` (never into `ZOOM_CLIENT_*`).
+2. **OAuth Redirect URL** (exact): `https://www.aviatorpass.com/api/integrations/zoom/callback`
+3. **OAuth Allow List**: same callback URL; with Strict Mode / subdomain check enabled, also list `https://www.aviatorpass.com` if required — apex `https://aviatorpass.com` does **not** cover `www`.
+4. **Scopes** (user-managed): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`. Add `meeting:read:list_meetings` only if enabled on the app.
+5. **Local Test** → “Add App Now” as the **app owner** first. If that works but a personal instructor Zoom account fails, the Client ID is still Development-restricted — switch Vercel to **Production** credentials or add the tester to the Zoom account / request a shareable beta URL.
+6. Event subscriptions (optional): `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
+7. Add `http://localhost:3000/api/integrations/zoom/callback` only for local OAuth testing.
+
+If Zoom shows `Invalid redirect: …/callback (4,700)`, AviatorPass already sends the canonical www callback — fix the Marketplace environment that matches the live Client ID.
 
 Local/demo without Zoom credentials continues to use mock meetings. S2S (`ZOOM_ACCOUNT_ID`) remains available for platform-level / booking meetings.

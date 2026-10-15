@@ -43,6 +43,7 @@ export async function GET() {
         /** Non-secret: last 4 of Instructor OAuth Client ID (not Meeting SDK). */
         oauthClientIdSuffix: oauth.clientIdSuffix,
         oauthScopes: oauth.scopes,
+        includeScopesInAuthorizeUrl: oauth.includeScopesInAuthorizeUrl,
         meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
         credentialsMixed: oauth.credentialsMixed,
         instructors: data,

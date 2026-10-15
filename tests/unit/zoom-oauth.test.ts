@@ -91,17 +91,33 @@ describe("Zoom token encryption", () => {
 });
 
 describe("Zoom OAuth connect + callback", () => {
-  it("builds an authorize URL with signed state", () => {
+  it("builds an authorize URL with signed state and without scope by default", () => {
+    delete process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES;
     const url = buildZoomAuthorizeUrl({ userId: instructor().id });
     const parsed = new URL(url);
     expect(parsed.origin + parsed.pathname).toBe("https://zoom.us/oauth/authorize");
     expect(parsed.searchParams.get("client_id")).toBe("zoom-instructor-client-id");
     expect(parsed.searchParams.get("redirect_uri")).toContain("/api/integrations/zoom/callback");
+    // Zoom Marketplace authorize URLs omit scope — scopes come from the app config.
+    expect(parsed.searchParams.get("scope")).toBeNull();
+    expect(parsed.searchParams.get("state")).toBeTruthy();
+    expect([...parsed.searchParams.keys()].sort()).toEqual([
+      "client_id",
+      "redirect_uri",
+      "response_type",
+      "state",
+    ]);
+  });
+
+  it("optionally includes scope when ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES=true", () => {
+    process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES = "true";
+    const url = buildZoomAuthorizeUrl({ userId: instructor().id });
+    const parsed = new URL(url);
     expect(parsed.searchParams.get("scope")).toBe(
       "user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting",
     );
     expect(parsed.searchParams.get("scope")).not.toContain("meeting:read:list_meetings");
-    expect(parsed.searchParams.get("state")).toBeTruthy();
+    delete process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES;
   });
 
   it("does not use Meeting SDK credentials for instructor OAuth", async () => {

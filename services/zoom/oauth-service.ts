@@ -82,12 +82,19 @@ export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string
   ).toString("base64url");
   const state = `${payload}.${signPayload(payload, authSecret())}`;
 
+  // Zoom General App authorize URL must match Marketplace Local Test format:
+  //   response_type + client_id + redirect_uri (+ state)
+  // Do NOT append `scope` by default — Zoom grants scopes configured on the app.
+  // Passing scopes in the query string is a known cause of Marketplace
+  // "Something went wrong" / invalid authorize (Zoom DevForum / OAuth 4,700).
   const url = new URL(ZOOM_OAUTH_AUTHORIZE_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", cfg.clientId);
   url.searchParams.set("redirect_uri", cfg.redirectUri);
   url.searchParams.set("state", state);
-  url.searchParams.set("scope", cfg.scopes);
+  if (cfg.includeScopesInAuthorizeUrl && cfg.scopes) {
+    url.searchParams.set("scope", cfg.scopes);
+  }
   return url.toString();
 }
 
@@ -171,17 +178,39 @@ export async function completeZoomOAuthCallback(input: {
   code: string | null;
   state: string | null;
   error?: string | null;
+  errorDescription?: string | null;
 }): Promise<{ redirectTo: string; userId: string }> {
   if (input.error || !input.code || !input.state) {
+    const reason = input.error
+      ? `zoom_error:${input.error}`
+      : !input.code && !input.state
+        ? "missing_code_and_state"
+        : !input.code
+          ? "missing_code"
+          : "missing_state";
     emitZoomEvent({
       event: "zoom.oauth.failure",
       message: "OAuth callback rejected",
       level: "error",
-      details: { error: input.error ?? "missing_code_or_state" },
+      details: {
+        error: reason,
+        zoomError: input.error ?? null,
+        zoomErrorDescription: input.errorDescription
+          ? String(input.errorDescription).slice(0, 200)
+          : null,
+        hasCode: Boolean(input.code),
+        hasState: Boolean(input.state),
+      },
     });
     await logZoomActivity({
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
-      metadata: { error: input.error ?? "missing_code_or_state" },
+      metadata: {
+        error: reason,
+        zoomError: input.error ?? null,
+        zoomErrorDescription: input.errorDescription
+          ? String(input.errorDescription).slice(0, 200)
+          : null,
+      },
     });
     return { redirectTo: "/instructor/profile?zoom=error", userId: "" };
   }
