@@ -27,11 +27,29 @@ function zoomFailureText(error: unknown): string {
   return String(error ?? "");
 }
 
-function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
-  return /already has other meetings in progress/i.test(root?.innerText ?? "");
+function zoomStageDialogText(root: HTMLElement | null): string {
+  return root?.innerText ?? "";
 }
 
-/** Join, and fail fast if Zoom paints the "other meeting" dialog without rejecting. */
+function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
+  return /already has other meetings in progress/i.test(zoomStageDialogText(root));
+}
+
+function zoomStageShowsInvalidSignature(root: HTMLElement | null): boolean {
+  return /signature is invalid/i.test(zoomStageDialogText(root));
+}
+
+function zoomDomJoinError(root: HTMLElement | null): Error | null {
+  if (zoomStageShowsInvalidSignature(root)) {
+    return new Error("3712 Signature is invalid");
+  }
+  if (zoomStageShowsHostBusy(root)) {
+    return new Error("3000 Already has other meetings in progress");
+  }
+  return null;
+}
+
+/** Join, and fail fast if Zoom paints a fatal dialog without rejecting the promise. */
 async function joinEmbeddedMeeting(
   client: ZoomEmbeddedClient,
   payload: {
@@ -46,19 +64,13 @@ async function joinEmbeddedMeeting(
   stage: HTMLElement,
 ): Promise<void> {
   let timer = 0;
-  const observer = new MutationObserver(() => {
-    if (zoomStageShowsHostBusy(stage)) {
-      window.clearInterval(timer);
-    }
-  });
-  observer.observe(stage, { childList: true, subtree: true, characterData: true });
+  const joinedAt = Date.now();
   try {
     const joined = client
       .join(payload)
       .then(() => {
-        if (zoomStageShowsHostBusy(stage)) {
-          throw new Error("3000 Already has other meetings in progress");
-        }
+        const painted = zoomDomJoinError(stage);
+        if (painted) throw painted;
       })
       .catch((error: unknown) => {
         throw error instanceof Error ? error : new Error(zoomFailureText(error));
@@ -67,10 +79,11 @@ async function joinEmbeddedMeeting(
       await Promise.race([
         joined,
         new Promise<void>((_, reject) => {
+          // Give Zoom a moment to settle before treating painted dialog text as final.
           timer = window.setInterval(() => {
-            if (zoomStageShowsHostBusy(stage)) {
-              reject(new Error("3000 Already has other meetings in progress"));
-            }
+            if (Date.now() - joinedAt < 1500) return;
+            const painted = zoomDomJoinError(stage);
+            if (painted) reject(painted);
           }, 250);
         }),
       ]);
@@ -79,7 +92,6 @@ async function joinEmbeddedMeeting(
       throw error;
     }
   } finally {
-    observer.disconnect();
     window.clearInterval(timer);
   }
 }

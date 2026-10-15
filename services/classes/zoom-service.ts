@@ -1325,6 +1325,8 @@ export type FetchZoomHostZakInput = {
   meetingNumber?: string | null;
   /** Host start_url already issued to this instructor (bookings / mock exams). */
   startUrl?: string | null;
+  /** When true, always PATCH+GET a fresh start_url before reading ZAK. */
+  forceRefreshStartUrl?: boolean;
 };
 
 export type ZoomHostZakSource = "meeting-start-url";
@@ -1396,27 +1398,60 @@ async function listZoomLiveMeetingsForHost(
   return json.meetings ?? [];
 }
 
+async function resolveClearLiveAccessToken(
+  instructorUserId?: string | null,
+): Promise<string | null> {
+  if (instructorUserId) {
+    try {
+      const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
+      const instructorToken = await getValidInstructorAccessToken(instructorUserId);
+      if (instructorToken) return instructorToken;
+    } catch (error) {
+      console.error("Instructor Zoom token unavailable for clear-live", error);
+    }
+  }
+  if (!zoomCredsPresent()) return null;
+  return getZoomAccessToken();
+}
+
 /**
- * End live Zoom meetings for the shared classroom host account.
- * Keeps `keepMeetingNumber` when provided. Used by host-join cleanup and
- * Super Admin recovery when Zoom still holds a leftover session.
+ * End live Zoom meetings for the classroom host account.
+ * Prefers the instructor OAuth token when available so cleanup targets the
+ * same Zoom user that owns the Meeting SDK host ZAK (not only S2S "me").
+ * Keeps `keepMeetingNumber` when provided. `endMeetingNumbers` force-ends
+ * specific meetings even when Zoom's live list is empty (ghost sessions).
  */
 export async function clearZoomHostLiveMeetings(input?: {
   keepMeetingNumber?: string | null;
   force?: boolean;
+  instructorUserId?: string | null;
+  endMeetingNumbers?: string[] | null;
 }): Promise<{ ended: string[]; kept: string[]; blocked: string[] }> {
   const ended: string[] = [];
   const kept: string[] = [];
   const blocked: string[] = [];
-  if (!zoomCredsPresent()) return { ended, kept, blocked };
-  const token = await getZoomAccessToken();
+  const token = await resolveClearLiveAccessToken(input?.instructorUserId);
   if (!token) return { ended, kept, blocked };
 
   const keep = meetingNumberDigits(input?.keepMeetingNumber);
   const settings = getPlatformSettings();
+  const keepSession = keep ? findStoredZoomSession(keep) : null;
+  const keepMeeting = keep ? getZoomMeetingByNumber(keep) : null;
+  const instructorIntegration = input?.instructorUserId
+    ? getIntegrationByUserId(input.instructorUserId)
+    : null;
   const hosts = Array.from(
     new Set(
-      ["me", settings.zoom.accountEmail, keep ? findStoredZoomSession(keep)?.hostId : null]
+      [
+        "me",
+        settings.zoom.accountEmail,
+        keepSession?.hostId,
+        keepSession?.hostEmail,
+        keepMeeting?.hostId,
+        keepMeeting?.hostEmail,
+        instructorIntegration?.zoomUserId,
+        instructorIntegration?.zoomEmail,
+      ]
         .map((h) => (h || "").trim())
         .filter(Boolean),
     ),
@@ -1425,37 +1460,46 @@ export async function clearZoomHostLiveMeetings(input?: {
   const seen = new Set<string>();
   const now = Date.now();
   const graceMs = 15 * 60_000;
+
+  const maybeEnd = async (id: string) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    if (keep && id === keep) {
+      kept.push(id);
+      return;
+    }
+    const stored = getZoomMeetingByNumber(id);
+    const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
+    if (!input?.force && cls) {
+      const closed = cls.status === "completed" || cls.status === "cancelled";
+      const start = Date.parse(cls.startsAt);
+      const end = Date.parse(cls.endsAt);
+      const inLiveWindow =
+        !closed &&
+        Number.isFinite(start) &&
+        Number.isFinite(end) &&
+        now >= start &&
+        now <= end + graceMs;
+      if (inLiveWindow) {
+        blocked.push(id);
+        return;
+      }
+    }
+    await endZoomMeetingInstance(token, id);
+    ended.push(id);
+  };
+
   for (const host of hosts) {
     const meetings = await listZoomLiveMeetingsForHost(token, host);
     for (const meeting of meetings) {
-      const id = meetingNumberDigits(String(meeting.id ?? ""));
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      if (keep && id === keep) {
-        kept.push(id);
-        continue;
-      }
-      const stored = getZoomMeetingByNumber(id);
-      const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-      if (!input?.force && cls) {
-        const closed = cls.status === "completed" || cls.status === "cancelled";
-        const start = Date.parse(cls.startsAt);
-        const end = Date.parse(cls.endsAt);
-        const inLiveWindow =
-          !closed &&
-          Number.isFinite(start) &&
-          Number.isFinite(end) &&
-          now >= start &&
-          now <= end + graceMs;
-        if (inLiveWindow) {
-          blocked.push(id);
-          continue;
-        }
-      }
-      await endZoomMeetingInstance(token, id);
-      ended.push(id);
+      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")));
     }
   }
+
+  for (const raw of input?.endMeetingNumbers ?? []) {
+    await maybeEnd(meetingNumberDigits(raw));
+  }
+
   return { ended, kept, blocked };
 }
 
@@ -1466,11 +1510,16 @@ export async function clearZoomHostLiveMeetings(input?: {
  */
 export async function zoomHostBlockedByAnotherLiveMeeting(
   meetingNumber: string | null | undefined,
+  instructorUserId?: string | null,
 ): Promise<boolean> {
   try {
     const current = meetingNumberDigits(meetingNumber);
-    if (!current || !zoomCredsPresent()) return false;
-    const result = await clearZoomHostLiveMeetings({ keepMeetingNumber: current, force: false });
+    if (!current) return false;
+    const result = await clearZoomHostLiveMeetings({
+      keepMeetingNumber: current,
+      force: false,
+      instructorUserId,
+    });
     return result.blocked.length > 0;
   } catch (error) {
     console.error("Zoom stale meeting cleanup skipped", error);
@@ -1495,8 +1544,12 @@ export async function resolveZoomHostZak(
         startUrl: input.startUrl,
       };
     }
-    if (session && startUrlNeedsRefresh(session) && zoomCredsPresent()) {
-      session = (await refreshStoredZoomStartUrl(session.meetingNumber)) ?? session;
+    // Host join passes forceRefreshStartUrl so ZAK is rotated each start.
+    // Otherwise only refresh when the stored start_url is missing/stale.
+    const shouldRefresh =
+      Boolean(session) && (input.forceRefreshStartUrl || startUrlNeedsRefresh(session));
+    if (shouldRefresh && (zoomCredsPresent() || input.instructorUserId)) {
+      session = (await refreshStoredZoomStartUrl(session!.meetingNumber)) ?? session;
     }
     const classMeeting = getZoomMeetingByNumber(input.meetingNumber);
     const zak = zakFromStartUrl(session?.startUrl ?? input.startUrl);

@@ -72,13 +72,16 @@ export async function POST(request: Request) {
         meetingNumber,
       });
     const hostBlocked =
-      mayHost && meetingNumber ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber) : false;
+      mayHost && meetingNumber
+        ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id)
+        : false;
     const zak =
       mayHost && !hostBlocked
         ? await fetchZoomHostZak({
             meetingNumber,
             startUrl,
             instructorUserId: user.id,
+            forceRefreshStartUrl: true,
           })
         : null;
     const role: 0 | 1 = zak ? 1 : 0;
