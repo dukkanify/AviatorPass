@@ -174,17 +174,76 @@ function persistTokens(
   });
 }
 
+/** Safe public reason codes for instructor UI (never include tokens/secrets). */
+export type ZoomOAuthFailureReason =
+  | "denied"
+  | "missing_code"
+  | "missing_state"
+  | "invalid_state"
+  | "state_expired"
+  | "token_exchange"
+  | "missing_user_scope"
+  | "profile"
+  | "already_linked"
+  | "unknown";
+
+function newOAuthCorrelationId() {
+  return `zoa_${generateToken(10)}`;
+}
+
+function zoomErrorRedirect(input: {
+  returnTo?: string;
+  reason: ZoomOAuthFailureReason;
+  correlationId: string;
+}) {
+  const dest = (input.returnTo || "/instructor/profile").startsWith("/")
+    ? input.returnTo || "/instructor/profile"
+    : "/instructor/profile";
+  const url = new URL(dest, "https://www.aviatorpass.com");
+  url.searchParams.set("zoom", "error");
+  url.searchParams.set("reason", input.reason);
+  url.searchParams.set("cid", input.correlationId);
+  return `${url.pathname}${url.search}`;
+}
+
+function classifyOAuthFailure(error: unknown): ZoomOAuthFailureReason {
+  if (error instanceof PermissionError && /already connected/i.test(error.message)) {
+    return "already_linked";
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (/token exchange|invalid_grant|invalid_client|redirect_uri/i.test(message)) {
+    return "token_exchange";
+  }
+  if (
+    error instanceof ZoomApiError &&
+    (error.code === "4711" || /does not contain scopes|user:read:user/i.test(message))
+  ) {
+    return "missing_user_scope";
+  }
+  if (/does not contain scopes|user:read:user/i.test(message)) {
+    return "missing_user_scope";
+  }
+  if (/profile|users\/me/i.test(message)) return "profile";
+  return "unknown";
+}
+
+export { zoomOAuthFailureUserMessage } from "@/features/zoom/oauth-error-messages";
+
 export async function completeZoomOAuthCallback(input: {
   code: string | null;
   state: string | null;
   error?: string | null;
   errorDescription?: string | null;
 }): Promise<{ redirectTo: string; userId: string }> {
+  const correlationId = newOAuthCorrelationId();
+
   if (input.error || !input.code || !input.state) {
-    const reason = input.error
-      ? `zoom_error:${input.error}`
+    const reason: ZoomOAuthFailureReason = input.error
+      ? input.error === "access_denied"
+        ? "denied"
+        : "unknown"
       : !input.code && !input.state
-        ? "missing_code_and_state"
+        ? "missing_code"
         : !input.code
           ? "missing_code"
           : "missing_state";
@@ -194,6 +253,7 @@ export async function completeZoomOAuthCallback(input: {
       level: "error",
       details: {
         error: reason,
+        correlationId,
         zoomError: input.error ?? null,
         zoomErrorDescription: input.errorDescription
           ? String(input.errorDescription).slice(0, 200)
@@ -206,26 +266,39 @@ export async function completeZoomOAuthCallback(input: {
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
       metadata: {
         error: reason,
+        correlationId,
         zoomError: input.error ?? null,
-        zoomErrorDescription: input.errorDescription
-          ? String(input.errorDescription).slice(0, 200)
-          : null,
       },
     });
-    return { redirectTo: "/instructor/profile?zoom=error", userId: "" };
+    return {
+      redirectTo: zoomErrorRedirect({ reason, correlationId }),
+      userId: "",
+    };
   }
 
   let parsed: { userId: string; nonce: string };
   try {
     parsed = parseState(input.state);
   } catch (error) {
+    const reason: ZoomOAuthFailureReason = /expired/i.test(
+      error instanceof Error ? error.message : "",
+    )
+      ? "state_expired"
+      : "invalid_state";
     emitZoomEvent({
       event: "zoom.oauth.failure",
       message: "OAuth state validation failed",
       level: "error",
-      details: { error: error instanceof Error ? error.message : "invalid_state" },
+      details: {
+        error: reason,
+        correlationId,
+        detail: error instanceof Error ? error.message : "invalid_state",
+      },
     });
-    return { redirectTo: "/instructor/profile?zoom=error", userId: "" };
+    return {
+      redirectTo: zoomErrorRedirect({ reason, correlationId }),
+      userId: "",
+    };
   }
 
   const pending = consumePendingOAuthState(parsed.userId, parsed.nonce);
@@ -236,8 +309,16 @@ export async function completeZoomOAuthCallback(input: {
       userId: parsed.userId,
       message: "OAuth state not found or already used",
       level: "error",
+      details: { error: "state_expired", correlationId },
     });
-    return { redirectTo: "/instructor/profile?zoom=error", userId: parsed.userId };
+    return {
+      redirectTo: zoomErrorRedirect({
+        returnTo: "/instructor/profile",
+        reason: "state_expired",
+        correlationId,
+      }),
+      userId: parsed.userId,
+    };
   }
 
   try {
@@ -247,7 +328,16 @@ export async function completeZoomOAuthCallback(input: {
       code: input.code,
       redirect_uri: cfg.redirectUri,
     });
-    const tokens = await exchangeToken(body);
+    let tokens: ZoomOAuthTokenResponse;
+    try {
+      tokens = await exchangeToken(body);
+    } catch (error) {
+      const err = new Error(
+        `token exchange: ${error instanceof Error ? error.message.slice(0, 180) : "failed"}`,
+      );
+      throw err;
+    }
+
     const profile = await fetchZoomProfile(tokens.access_token, parsed.userId);
 
     const taken = getIntegrationByZoomUserId(profile.zoomUserId);
@@ -268,33 +358,56 @@ export async function completeZoomOAuthCallback(input: {
       event: "zoom.oauth.success",
       userId: parsed.userId,
       message: "Instructor Zoom account connected",
-      details: { zoomUserId: profile.zoomUserId, zoomEmail: profile.email },
+      details: {
+        zoomUserId: profile.zoomUserId,
+        zoomEmail: profile.email || null,
+        grantedScopes: tokens.scope ?? null,
+        correlationId,
+      },
       dispatchOutbound: true,
     });
     await logZoomActivity({
       actorId: parsed.userId,
       action: ZOOM_ACTIVITY.OAUTH_CONNECTED,
       entityId: profile.zoomUserId,
-      metadata: { zoomEmail: profile.email },
+      metadata: { zoomEmail: profile.email || null, correlationId },
     });
 
     const dest = pending.returnTo.startsWith("/") ? pending.returnTo : "/instructor/profile";
     const sep = dest.includes("?") ? "&" : "?";
     return { redirectTo: `${dest}${sep}zoom=connected`, userId: parsed.userId };
   } catch (error) {
+    const reason = classifyOAuthFailure(error);
     emitZoomEvent({
       event: "zoom.oauth.failure",
       userId: parsed.userId,
-      message: "OAuth token exchange failed",
+      message:
+        reason === "token_exchange"
+          ? "OAuth token exchange failed"
+          : reason === "missing_user_scope"
+            ? "OAuth profile failed — missing user:read:user scope"
+            : "OAuth callback processing failed",
       level: "error",
-      details: { error: error instanceof Error ? error.message : "exchange_failed" },
+      details: {
+        error: reason,
+        correlationId,
+        detail: error instanceof Error ? error.message.slice(0, 240) : "failed",
+        zoomCode: error instanceof ZoomApiError ? error.code : null,
+      },
     });
     await logZoomActivity({
       actorId: parsed.userId,
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
-      metadata: { error: error instanceof Error ? error.message : "exchange_failed" },
+      metadata: { error: reason, correlationId },
     });
-    return { redirectTo: "/instructor/profile?zoom=error", userId: parsed.userId };
+    return {
+      redirectTo: zoomErrorRedirect({
+        returnTo: pending.returnTo,
+        reason,
+        correlationId,
+      }),
+      userId: parsed.userId,
+    };
   }
 }
 

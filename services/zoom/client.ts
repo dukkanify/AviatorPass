@@ -127,34 +127,89 @@ export function instructorMeetingPayload(input: {
   };
 }
 
+/**
+ * Best-effort identity from a Zoom OAuth access token JWT.
+ * Used when GET /users/me fails because the Marketplace app is missing
+ * `user:read:user` (Zoom error 4711). Never logs the token.
+ */
+export function profileFromZoomAccessTokenJwt(accessToken: string): ZoomProfile | null {
+  const parts = accessToken.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const json = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf8")) as {
+      uid?: string;
+      userId?: string;
+      user_id?: string;
+      email?: string;
+      aid?: string;
+      account_id?: string;
+    };
+    const zoomUserId = String(json.uid || json.userId || json.user_id || "").trim();
+    if (!zoomUserId) return null;
+    return {
+      zoomUserId,
+      email: typeof json.email === "string" ? json.email : "",
+      firstName: null,
+      lastName: null,
+      timezone: null,
+      accountId: typeof json.aid === "string" ? json.aid : (json.account_id ?? null),
+      type: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchZoomProfile(
   accessToken: string,
   userId?: string | null,
 ): Promise<ZoomProfile> {
-  const json = await zoomRequest<{
-    id: string;
-    email?: string;
-    first_name?: string;
-    last_name?: string;
-    timezone?: string;
-    account_id?: string;
-    type?: number;
-  }>({
-    accessToken,
-    method: "GET",
-    path: "/users/me",
-    userId,
-  });
+  try {
+    const json = await zoomRequest<{
+      id: string;
+      email?: string;
+      first_name?: string;
+      last_name?: string;
+      timezone?: string;
+      account_id?: string;
+      type?: number;
+    }>({
+      accessToken,
+      method: "GET",
+      path: "/users/me",
+      userId,
+    });
 
-  return {
-    zoomUserId: String(json.id),
-    email: json.email ?? "",
-    firstName: json.first_name ?? null,
-    lastName: json.last_name ?? null,
-    timezone: json.timezone ?? null,
-    accountId: json.account_id ?? null,
-    type: json.type ?? null,
-  };
+    return {
+      zoomUserId: String(json.id),
+      email: json.email ?? "",
+      firstName: json.first_name ?? null,
+      lastName: json.last_name ?? null,
+      timezone: json.timezone ?? null,
+      accountId: json.account_id ?? null,
+      type: json.type ?? null,
+    };
+  } catch (error) {
+    const missingUserScope =
+      error instanceof ZoomApiError &&
+      (error.code === "4711" ||
+        /does not contain scopes/i.test(error.message) ||
+        /user:read:user/i.test(error.message));
+    if (missingUserScope) {
+      const fromJwt = profileFromZoomAccessTokenJwt(accessToken);
+      if (fromJwt) {
+        logZoomEvent({
+          event: "zoom.api.error",
+          level: "warn",
+          userId,
+          message: "GET /users/me missing user:read:user — using access-token identity",
+          details: { code: error instanceof ZoomApiError ? error.code : null, via: "jwt_uid" },
+        });
+        return fromJwt;
+      }
+    }
+    throw error;
+  }
 }
 
 async function instructorOwnedRequest<T>(input: {

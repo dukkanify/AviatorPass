@@ -195,6 +195,50 @@ describe("Zoom OAuth connect + callback", () => {
     expect(decryptSecret(row.refreshToken)).toBe("refresh-live");
   });
 
+  it("falls back to access-token JWT identity when /users/me lacks user:read:user", async () => {
+    const user = instructor();
+    const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));
+    const state = authorize.searchParams.get("state")!;
+    const jwtPayload = Buffer.from(
+      JSON.stringify({ uid: "zuid-jwt-9", email: "from.jwt@example.com", aid: "acct-1" }),
+    ).toString("base64url");
+    const accessToken = `hdr.${jwtPayload}.sig`;
+
+    globalThis.fetch = vi.fn(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: accessToken,
+            refresh_token: "refresh-live",
+            token_type: "bearer",
+            expires_in: 3600,
+            scope: "meeting:write:meeting meeting:read:meeting",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.endsWith("/users/me")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message:
+              "Invalid access token, does not contain scopes:[user:read:user:admin, user:read:user].",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await completeZoomOAuthCallback({ code: "auth-code", state, error: null });
+    expect(result.redirectTo).toContain("zoom=connected");
+    const status = getInstructorZoomStatus(user.id);
+    expect(status.connected).toBe(true);
+    expect(status.zoomUserId).toBe("zuid-jwt-9");
+    expect(status.zoomEmail).toBe("from.jwt@example.com");
+  });
+
   it("records OAuth failure without storing tokens", async () => {
     const result = await completeZoomOAuthCallback({
       code: null,
@@ -202,6 +246,8 @@ describe("Zoom OAuth connect + callback", () => {
       error: "access_denied",
     });
     expect(result.redirectTo).toContain("zoom=error");
+    expect(result.redirectTo).toContain("reason=denied");
+    expect(result.redirectTo).toContain("cid=");
     expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
   });
 });
