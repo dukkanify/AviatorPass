@@ -39,7 +39,10 @@ export async function GET() {
           redirectUri: oauth.redirectUri,
           clientIdSuffix: oauth.clientIdSuffix,
           clientIdLength: oauth.clientIdLength,
+          scopes: oauth.scopes,
           authorizeHost: oauth.authorizeHost,
+          meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
+          credentialsMixed: oauth.credentialsMixed,
         },
         hostZak: hostZak
           ? {

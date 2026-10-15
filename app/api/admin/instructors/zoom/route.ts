@@ -40,8 +40,11 @@ export async function GET() {
         oauthConfigured,
         /** Non-secret: exact redirect_uri production sends to Zoom (for Marketplace matching). */
         oauthRedirectUri: oauth.redirectUri,
-        /** Non-secret: last 4 of Client ID so Admin can match Dev vs Prod credentials. */
+        /** Non-secret: last 4 of Instructor OAuth Client ID (not Meeting SDK). */
         oauthClientIdSuffix: oauth.clientIdSuffix,
+        oauthScopes: oauth.scopes,
+        meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
+        credentialsMixed: oauth.credentialsMixed,
         instructors: data,
       },
       error: null,

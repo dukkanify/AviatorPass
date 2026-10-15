@@ -82,6 +82,8 @@ export function getZoomCredentialInventory() {
     accountId: envPresent("ZOOM_ACCOUNT_ID"),
     clientId: envPresent("ZOOM_CLIENT_ID"),
     clientSecret: envPresent("ZOOM_CLIENT_SECRET"),
+    instructorClientId: envPresent("ZOOM_INSTRUCTOR_CLIENT_ID"),
+    instructorClientSecret: envPresent("ZOOM_INSTRUCTOR_CLIENT_SECRET"),
     s2sClientId: envPresent("ZOOM_S2S_CLIENT_ID"),
     s2sClientSecret: envPresent("ZOOM_S2S_CLIENT_SECRET"),
     webhookSecret: envPresent("ZOOM_WEBHOOK_SECRET"),

@@ -1803,7 +1803,9 @@ function PlatformSettingsShell() {
               <CardDescription>
                 Meeting defaults for live classes. Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`,
                 `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates meetings. In-app join uses
-                the General App Meeting SDK (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`).
+                the Meeting SDK app (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`). Instructor Connect
+                Zoom uses separate credentials (`ZOOM_INSTRUCTOR_CLIENT_ID`,
+                `ZOOM_INSTRUCTOR_CLIENT_SECRET`).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
