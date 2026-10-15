@@ -434,9 +434,9 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(false);
-    expect(ended.some((url) => url.includes("/meetings/111/status"))).toBe(true);
-    expect(ended.some((url) => url.includes("/meetings/222/status"))).toBe(true);
-    expect(ended.some((url) => url.includes("/meetings/82122854800/status"))).toBe(false);
+    // Probe-only: another live meeting blocks host start, but we never PUT-end
+    // unrelated meetings from the join path (Super Admin clear-live is explicit).
+    await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(true);
+    expect(ended).toEqual([]);
   });
 });

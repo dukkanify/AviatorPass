@@ -21,6 +21,7 @@ import { emitZoomEvent } from "@/services/zoom/events";
 import { fetchZoomProfile, ZoomApiError } from "@/services/zoom/client";
 import { logZoomActivity, ZOOM_ACTIVITY } from "@/services/zoom/logging";
 import { publicIntegrationView } from "@/services/zoom/policy";
+import { getPlatformSettings } from "@/services/settings/settings-service";
 import {
   consumePendingOAuthState,
   deleteIntegrationForUser,
@@ -51,6 +52,34 @@ export function isS2SDelegateIntegration(row: ZoomIntegrationRecord | null | und
   } catch {
     return false;
   }
+}
+
+/**
+ * True when the instructor's connected Zoom identity is the shared platform
+ * host (S2S delegate or same email as platform Zoom accountEmail). Live classes
+ * must use a personal instructor Zoom account — never CEO / platform fallback.
+ */
+export function isSharedPlatformZoomAccount(
+  row: ZoomIntegrationRecord | null | undefined,
+  platformAccountEmail?: string | null,
+): boolean {
+  if (!row) return false;
+  if (isS2SDelegateIntegration(row)) return true;
+  const platform = (platformAccountEmail || "").trim().toLowerCase();
+  const zoomEmail = (row.zoomEmail || "").trim().toLowerCase();
+  if (platform && zoomEmail && platform === zoomEmail) return true;
+  return false;
+}
+
+/** Personal Instructor OAuth ready to host live classes (not S2S / shared platform). */
+export function hasPersonalInstructorZoom(
+  row: ZoomIntegrationRecord | null | undefined,
+  platformAccountEmail?: string | null,
+): boolean {
+  if (!row || row.status !== "connected") return false;
+  if (row.zoomUserId?.startsWith("oauth:")) return false;
+  if (isSharedPlatformZoomAccount(row, platformAccountEmail)) return false;
+  return true;
 }
 
 export { getIntegrationByUserId };
@@ -463,6 +492,13 @@ export function assertInstructorZoomConnected(instructorId: string): void {
   if (row.zoomUserId?.startsWith("oauth:")) {
     throw new PermissionError(
       "Zoom connected without a real Zoom user profile. Enable user:read:user on the Instructor OAuth app, then disconnect and Connect Zoom again before hosting live classes.",
+      409,
+    );
+  }
+  const platformEmail = getPlatformSettings().zoom.accountEmail;
+  if (isSharedPlatformZoomAccount(row, platformEmail)) {
+    throw new PermissionError(
+      "Connect your own personal Zoom account before hosting. The shared platform Zoom account cannot host live classes.",
       409,
     );
   }

@@ -212,14 +212,15 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100dvh",
         minHeight: "100dvh",
-        overflow: "hidden",
+        height: "100dvh",
+        overflowX: "hidden",
+        overflowY: "auto",
         backgroundColor: "#071018",
         color: "#fff",
       }}
     >
-      <div className="classroom-page relative z-10">
+      <div className="classroom-page relative z-10" data-live={roomPhase === "sdk" || undefined}>
         <header className="classroom-topbar">
           <BrandLogo variant="dark" href="/" priority />
           <div className="classroom-topbar-user">

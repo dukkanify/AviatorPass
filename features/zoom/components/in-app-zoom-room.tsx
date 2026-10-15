@@ -60,7 +60,29 @@ function zoomDomJoinError(root: HTMLElement | null): Error | null {
   return null;
 }
 
-/** Join, and fail fast if Zoom paints a fatal dialog without rejecting the promise. */
+/** Dismiss leftover Zoom MUI error dialogs after a successful join(). */
+function dismissZoomErrorDialogs(root: HTMLElement | null) {
+  if (!root || typeof document === "undefined") return;
+  const buttons = [
+    ...root.querySelectorAll("button"),
+    ...document.querySelectorAll(
+      ".zoom-MuiDialog-root button, [id='error-dialog-title'] ~ * button",
+    ),
+  ];
+  for (const button of buttons) {
+    const label = (button.textContent || "").trim();
+    if (/^(ok|close|got it)$/i.test(label)) {
+      (button as HTMLButtonElement).click();
+      break;
+    }
+  }
+}
+
+/**
+ * Join Meeting SDK. Prefer the SDK promise. Only treat painted dialogs as
+ * failures when join() rejects or never settles — never race-fail a live join
+ * that already connected media (that left video + a false 3000 banner).
+ */
 async function joinEmbeddedMeeting(
   client: ZoomEmbeddedClient,
   payload: {
@@ -76,46 +98,55 @@ async function joinEmbeddedMeeting(
 ): Promise<void> {
   let timer = 0;
   const joinedAt = Date.now();
+  const joined = client
+    .join(payload)
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      throw error instanceof Error ? error : new Error(zoomFailureText(error));
+    });
+
   try {
-    const joined = client
-      .join(payload)
-      .then(() => {
-        const painted = zoomDomJoinError(stage);
-        if (painted) throw painted;
-      })
-      .catch((error: unknown) => {
-        throw error instanceof Error ? error : new Error(zoomFailureText(error));
-      });
-    try {
-      await Promise.race([
-        joined,
-        new Promise<void>((_, reject) => {
-          // Give Zoom a moment to settle before treating painted dialog text as final.
-          timer = window.setInterval(() => {
-            if (Date.now() - joinedAt < 1500) return;
-            const painted = zoomDomJoinError(stage);
-            if (painted) reject(painted);
-          }, 250);
-        }),
-      ]);
-    } catch (error) {
-      void joined.catch(() => undefined);
-      throw error;
-    }
+    await Promise.race([
+      joined,
+      new Promise<void>((_, reject) => {
+        timer = window.setInterval(() => {
+          if (Date.now() - joinedAt < 2500) return;
+          // Only fail-fast from DOM while join is still pending.
+          const painted = zoomDomJoinError(stage);
+          if (painted) reject(painted);
+        }, 300);
+      }),
+    ]);
+  } catch (error) {
+    void joined.catch(() => undefined);
+    const painted = zoomDomJoinError(stage);
+    if (painted) throw painted;
+    throw error instanceof Error ? error : new Error(zoomFailureText(error));
   } finally {
     window.clearInterval(timer);
   }
+
+  // join() resolved — media is connected. Dismiss stale busy dialogs instead of
+  // tearing down a working session.
+  if (zoomStageShowsHostBusy(stage)) {
+    dismissZoomErrorDialogs(stage);
+  }
+  if (zoomStageShowsInvalidSignature(stage)) {
+    throw new Error("3712 Signature is invalid");
+  }
 }
+
+const CLASSROOM_NARROW_PX = 900;
 
 function stageVideoSize(el: HTMLElement): { width: number; height: number } {
   const box = el.getBoundingClientRect();
   const screenWidth = Math.round(window.innerWidth || box.width || 480);
   const screenHeight = Math.round(window.innerHeight || box.height || 320);
-  const narrow = screenWidth < 720;
+  const narrow = screenWidth < CLASSROOM_NARROW_PX;
   const measuredWidth = Math.round(box.width || el.clientWidth || screenWidth);
   const measuredHeight = Math.round(box.height || el.clientHeight || screenHeight);
   const floorWidth = narrow ? Math.min(320, screenWidth) : 480;
-  const floorHeight = narrow ? Math.min(420, Math.round(screenHeight * 0.62)) : 320;
+  const floorHeight = narrow ? Math.min(280, Math.round(screenHeight * 0.42)) : 320;
   return {
     width: Math.min(Math.max(measuredWidth, floorWidth), screenWidth),
     height: Math.min(Math.max(measuredHeight, floorHeight), screenHeight),
@@ -124,7 +155,8 @@ function stageVideoSize(el: HTMLElement): { width: number; height: number } {
 
 function zoomVideoOptions(stage: HTMLElement) {
   const videoSize = stageVideoSize(stage);
-  const narrow = videoSize.width < 720;
+  const narrow =
+    (typeof window !== "undefined" ? window.innerWidth : videoSize.width) < CLASSROOM_NARROW_PX;
   return {
     isResizable: false,
     defaultViewType: narrow ? ("gallery" as const) : ("speaker" as const),
@@ -620,17 +652,17 @@ function InAppZoomRoom({
           await startLocalMedia();
           if (!cancelled) {
             const detail = zoomFailureText(error);
-            const meetingHint = active.meetingNumber ? ` Meeting ID ${active.meetingNumber}.` : "";
+            // Meeting ID is rendered once below the notice — do not embed it here.
             setNotice(
               /3099|registration/i.test(detail)
-                ? `This meeting still asks for registration. Open the classroom again.${meetingHint}`
+                ? "This meeting still asks for registration. Open the classroom again."
                 : /3000|other meetings in progress/i.test(detail)
-                  ? `This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again.${meetingHint}`
+                  ? "Zoom error 3000 — this Zoom host account is already inside another meeting. Leave that meeting in the Zoom app or web client, then open this classroom again. AviatorPass does not end your other Zoom meetings automatically."
                   : /3712|signature is invalid/i.test(detail)
-                    ? `Zoom error 3712 — Meeting SDK signature rejected.${meetingHint} Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*).`
+                    ? "Zoom error 3712 — Meeting SDK signature rejected. Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*)."
                     : /200|start meeting via tokens|\bzak\b/i.test(detail)
-                      ? `Zoom host token (ZAK) was rejected.${meetingHint} Reconnect Zoom on the instructor profile, then open the classroom again.`
-                      : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).${meetingHint}`,
+                      ? "Zoom error 200 — host token (ZAK) was rejected. Reconnect your personal Zoom account on the instructor profile, then open the classroom again."
+                      : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).`,
             );
           }
           return;
@@ -693,7 +725,14 @@ function InAppZoomRoom({
     (session?.userName && !/^host$/i.test(session.userName) ? session.userName : "") ||
     (isHost ? "Instructor" : "Student");
   const hostLabel = instructorName?.trim() || (isHost ? personName : "Instructor");
-  const participantCount = 2;
+  const sameAsHost = hostLabel.trim().toLowerCase() === personName.trim().toLowerCase();
+  const railPeople = sameAsHost
+    ? [{ name: hostLabel, host: true }]
+    : [
+        { name: hostLabel, host: true },
+        { name: personName, host: false },
+      ];
+  const participantCount = railPeople.length;
 
   return (
     <div
@@ -702,7 +741,7 @@ function InAppZoomRoom({
         width: "100%",
         height: "100%",
         flex: "1 1 auto",
-        minHeight: "min(72vh, 820px)",
+        minHeight: 0,
         color: "#fff",
       }}
     >
@@ -751,20 +790,23 @@ function InAppZoomRoom({
           </button>
         </div>
         <div className="classroom-rail-list">
-          <div className="classroom-tile" aria-label={`${hostLabel} host`}>
-            <div className="classroom-tile-avatar">{initialsOf(hostLabel)}</div>
-            <div className="classroom-tile-label">
-              <span className="truncate">{hostLabel}</span>
-              <span className="classroom-tile-host">Host</span>
+          {railPeople.map((person) => (
+            <div
+              key={`${person.host ? "host" : "self"}-${person.name}`}
+              className="classroom-tile"
+              aria-label={person.host ? `${person.name} host` : person.name}
+            >
+              <div className="classroom-tile-avatar">{initialsOf(person.name)}</div>
+              <div className="classroom-tile-label">
+                <span className="truncate">{person.name}</span>
+                {person.host ? (
+                  <span className="classroom-tile-host">Host</span>
+                ) : !micOn ? (
+                  <MicOff className="size-3.5 text-[#fda4af]" aria-hidden />
+                ) : null}
+              </div>
             </div>
-          </div>
-          <div className="classroom-tile" aria-label={personName}>
-            <div className="classroom-tile-avatar">{initialsOf(personName)}</div>
-            <div className="classroom-tile-label">
-              <span className="truncate">{personName}</span>
-              {!micOn ? <MicOff className="size-3.5 text-[#fda4af]" aria-hidden /> : null}
-            </div>
-          </div>
+          ))}
         </div>
       </aside>
 
@@ -775,6 +817,9 @@ function InAppZoomRoom({
             <div className="min-w-0">
               <p>{notice}</p>
               {shownMeeting ? <p className="mt-1 opacity-70">Meeting ID {shownMeeting}</p> : null}
+              {showPreview ? (
+                <p className="mt-1 opacity-70">Camera preview only — Zoom is not connected yet.</p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -790,7 +835,7 @@ function InAppZoomRoom({
               disabled={liveZoom}
             >
               {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-              {micOn ? "Mute" : "Unmute"}
+              <span>{micOn ? "Mute" : "Unmute"}</span>
             </button>
             <button
               type="button"
@@ -801,30 +846,35 @@ function InAppZoomRoom({
               disabled={liveZoom}
             >
               {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-              {camOn ? "Stop Video" : "Start Video"}
+              <span>{camOn ? "Stop Video" : "Start Video"}</span>
             </button>
             <button type="button" className="classroom-dock-btn" aria-label="Participants">
               <Users className="size-5" />
-              Participants
+              <span>Participants</span>
             </button>
             <button type="button" className="classroom-dock-btn" aria-label="Chat">
               <MessageSquare className="size-5" />
-              Chat
+              <span>Chat</span>
             </button>
             <button
               type="button"
               className="classroom-dock-btn"
-              data-share="true"
+              data-share={shareHint || undefined}
               data-active={shareHint || undefined}
               aria-label="Share Screen"
               onClick={() => setShareHint((value) => !value)}
+              title={
+                liveZoom
+                  ? "Use Zoom’s Share control inside the meeting when available"
+                  : "Share Screen is available after you join the live meeting"
+              }
             >
               <MonitorUp className="size-5" />
-              Share Screen
+              <span>Share Screen</span>
             </button>
             <button type="button" className="classroom-dock-btn" aria-label="More">
               <Ellipsis className="size-5" />
-              More
+              <span>More</span>
             </button>
           </div>
 

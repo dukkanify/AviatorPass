@@ -49,12 +49,22 @@
   flex: 1 1 auto;
   flex-direction: column;
   width: 100%;
-  min-height: 0;
-  height: 100%;
+  min-height: 100%;
   max-width: 1440px;
   margin-inline: auto;
-  padding: 0.75rem 1.25rem 1rem;
+  padding: 0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
   gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+.classroom-page > .flex.min-h-0.flex-1 {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* When Zoom is live, keep Class Info below the fold so the stage + dock fit */
+.classroom-page[data-live="true"] .classroom-panel {
+  flex: 0 0 auto;
 }
 
 /* —— Top brand bar —— */
@@ -94,6 +104,7 @@
 
 .classroom-topbar-meta strong {
   display: block;
+  max-width: min(42vw, 14rem);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -283,7 +294,8 @@
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 0.75rem;
   width: 100%;
-  min-height: min(72vh, 820px);
+  flex: 1 1 auto;
+  min-height: clamp(22rem, 58vh, 44rem);
   padding: 0.75rem;
   border-radius: 1.25rem;
   border: 1px solid var(--ap-line);
@@ -295,7 +307,7 @@
 }
 
 .classroom-stage.is-live {
-  min-height: min(78vh, 900px);
+  min-height: clamp(24rem, 62vh, 48rem);
   overflow: visible;
 }
 
@@ -627,15 +639,10 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.classroom-dock-btn[data-share="true"] {
+.classroom-dock-btn[data-share="true"],
+.classroom-dock-btn[data-active="true"] {
   background: rgba(34, 197, 94, 0.92);
   border-color: rgba(134, 239, 172, 0.4);
-  color: #052e16;
-}
-
-.classroom-dock-btn[data-active="true"] {
-  background: rgba(34, 197, 94, 0.9);
-  border-color: rgba(134, 239, 172, 0.35);
   color: #052e16;
 }
 
@@ -840,15 +847,15 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   }
 }
 
-/* —— Mobile —— */
+/* —— Mobile / tablet portrait —— */
 @media (max-width: 900px) {
   .classroom-page {
-    padding: 0.55rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom));
-    gap: 0.55rem;
+    padding: 0.5rem 0.6rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.5rem;
   }
 
   .classroom-topbar {
-    min-height: 2.75rem;
+    min-height: 2.6rem;
   }
 
   .classroom-topbar-user span {
@@ -858,19 +865,33 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-meet-head {
     flex-direction: column;
     align-items: stretch;
-    padding: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    gap: 0.55rem;
+  }
+
+  .classroom-meet-copy h1 {
+    font-size: 1.05rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .classroom-meet-meta {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
   }
 
   .classroom-meet-actions {
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .classroom-stage {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
+    flex: 1 1 auto;
     min-height: 0 !important;
-    padding: 0.5rem;
+    padding: 0.45rem;
     border-radius: 1rem;
   }
 
@@ -879,43 +900,57 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   }
 
   .classroom-stage-main {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 0;
     order: 1;
   }
 
   .classroom-viewport {
-    min-height: 26vh;
-    max-height: 32vh;
-    aspect-ratio: 16 / 10;
+    flex: 1 1 auto;
+    min-height: min(36vh, 16rem);
+    max-height: none;
+    aspect-ratio: auto;
     border-radius: 0.85rem;
   }
 
   .classroom-footer {
     order: 2;
+    gap: 0.4rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: linear-gradient(180deg, transparent, rgba(5, 11, 17, 0.92) 28%);
   }
 
+  /* Keep the rail compact on phones so Class Info is not mid-clipped */
   .classroom-rail {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    padding: 0.5rem;
+    gap: 0.35rem;
+    padding: 0.45rem;
     order: 3;
+    max-height: 5.5rem;
+    overflow: auto;
+  }
+
+  .classroom-page > .flex.min-h-0.flex-1 {
+    padding-bottom: 0.35rem;
+  }
+
+  .classroom-panel {
+    scroll-margin-bottom: 1rem;
   }
 
   .classroom-rail-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .classroom-tile {
     aspect-ratio: 16 / 9;
-    min-height: 4.5rem;
-  }
-
-  .classroom-footer {
-    gap: 0.45rem;
+    min-height: 3.75rem;
   }
 
   .classroom-dock {
@@ -926,7 +961,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-dock-cluster {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.4rem;
+    gap: 0.35rem;
     width: 100%;
     border-radius: 1rem;
   }
@@ -934,13 +969,14 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-dock-btn {
     min-width: 0;
     width: 100%;
-    height: 3.45rem;
+    height: 3.25rem;
+    font-size: 0.58rem;
   }
 
   .classroom-dock-btn[data-leave="true"] {
     width: 100%;
     min-width: 0;
-    height: 3rem;
+    height: 2.85rem;
   }
 
   .classroom-panel-body {
@@ -952,18 +988,44 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
     padding-inline: 0.45rem;
   }
 
-  /* Keep Class Info compact under the fold on phones */
   .classroom-panel {
-    margin-top: 0.15rem;
+    margin-top: 0.1rem;
+  }
+
+  .classroom-notice {
+    font-size: 0.72rem;
   }
 }
 
 @media (max-width: 420px) {
   .classroom-meet-copy h1 {
-    font-size: 1rem;
+    font-size: 0.98rem;
   }
 
   .classroom-materials-btn span {
     display: none;
+  }
+
+  .classroom-dock-btn span {
+    display: none;
+  }
+
+  .classroom-dock-btn {
+    height: 2.85rem;
+  }
+
+  .classroom-dock-btn[data-leave="true"] span {
+    display: inline;
+  }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .classroom-viewport {
+    min-height: min(58vh, 22rem);
+  }
+
+  .classroom-rail {
+    max-height: none;
   }
 }

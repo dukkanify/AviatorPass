@@ -1,7 +1,7 @@
 {
   "name": "AviatorPass",
   "install": "npm ci",
-  "start": "npm run demo:seed",
+  "start": "if [ -x node_modules/.bin/vitest ]; then npm run demo:seed; else echo 'demo:seed skipped (node_modules missing — wait for environment build / npm ci)'; fi",
   "terminals": [
     {
       "name": "dev",
