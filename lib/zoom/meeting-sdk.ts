@@ -12,18 +12,34 @@ export function isExternalZoomUrl(value: string | null | undefined): boolean {
   }
 }
 
+/** Zoom meeting numbers are 9–13 digits. Reject UUID / hex ids whose digits alone look numeric. */
+export function normalizeZoomMeetingNumber(value?: string | null): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (/^\d{9,13}$/.test(raw)) return raw;
+  // Allow spaced / dashed display forms ("818 6630 2161") when every char is digit or separator.
+  if (/^[\d\s-]+$/.test(raw)) {
+    const digits = raw.replace(/\D/g, "");
+    return digits.length >= 9 && digits.length <= 13 ? digits : "";
+  }
+  // Never digit-strip hex/UUID record ids — that invents fake meeting numbers and triggers 3712.
+  return "";
+}
+
 export function extractZoomMeetingNumber(
   joinUrl?: string | null,
   meetingNumber?: string | null,
 ): string {
-  const explicit = meetingNumber?.replace(/\D/g, "") ?? "";
+  const explicit = normalizeZoomMeetingNumber(meetingNumber);
   if (explicit) return explicit;
   if (!joinUrl) return "";
   try {
     const url = new URL(joinUrl, "https://www.aviatorpass.com");
-    return url.pathname.match(/\/(?:j|s|wc)\/(\d+)/)?.[1] ?? "";
+    const fromPath = url.pathname.match(/\/(?:j|s|wc)\/(\d{9,13})/)?.[1];
+    if (fromPath) return fromPath;
+    return normalizeZoomMeetingNumber(url.searchParams.get("mid"));
   } catch {
-    return joinUrl.match(/\/(?:j|s|wc)\/(\d+)/)?.[1] ?? "";
+    return joinUrl.match(/\/(?:j|s|wc)\/(\d{9,13})/)?.[1] ?? "";
   }
 }
 
@@ -100,8 +116,8 @@ export function resolveInAppMeetingMode(input: {
 }): InAppMeetingMode {
   if (!input.hasSdkCredentials) return "classroom";
   if ((input.providerMode ?? "").toLowerCase() === "mock") return "classroom";
-  const meetingNumber = (input.meetingNumber ?? "").replace(/\D/g, "");
-  if (meetingNumber.length < 9) return "classroom";
+  const meetingNumber = normalizeZoomMeetingNumber(input.meetingNumber);
+  if (!meetingNumber) return "classroom";
   return "sdk";
 }
 
@@ -116,9 +132,13 @@ export function generateMeetingSdkSignature(input: {
   const iat = (input.nowSec ?? Math.floor(Date.now() / 1000)) - 30;
   const exp = iat + 60 * 60 * 2;
   const header = { alg: "HS256", typ: "JWT" };
+  const mn = normalizeZoomMeetingNumber(input.meetingNumber);
+  if (!mn) {
+    throw new Error("A numeric Zoom meeting number is required for the Meeting SDK signature");
+  }
   const payload = {
     appKey: input.clientId,
-    mn: String(input.meetingNumber).replace(/\D/g, ""),
+    mn,
     role: input.role,
     iat,
     exp,

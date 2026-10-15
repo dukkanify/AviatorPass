@@ -551,7 +551,9 @@ function InAppZoomRoom({
                 ? "This meeting still asks for registration. Open the classroom again."
                 : /3000|other meetings in progress/i.test(detail)
                   ? "This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again."
-                  : "The classroom could not open the meeting. You can try again.",
+                  : /3712|signature is invalid/i.test(detail)
+                    ? "Zoom rejected the Meeting SDK signature. An admin must re-copy ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET from the same Meeting SDK app (Production, Embed enabled) — not Instructor OAuth secrets."
+                    : "The classroom could not open the meeting. You can try again.",
             );
           }
           return;
