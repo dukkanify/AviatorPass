@@ -230,7 +230,11 @@ describe("Zoom OAuth connect + callback", () => {
     const result = await completeZoomOAuthCallback({ code: "auth-code", state, error: null });
     expect(result.redirectTo).toContain("zoom=connected");
     const status = getInstructorZoomStatus(user.id);
-    expect(status.connected).toBe(true);
+    // Tokens may persist, but placeholder identity is not meeting-ready Connected.
+    expect(status.connected).toBe(false);
+    expect(status.status).toBe("reconnect_required");
+    expect(status.meetingReady).toBe(false);
+    expect(status.identitySource).toBe("placeholder");
     expect(status.zoomUserId).toBe(`oauth:${user.id}`);
   });
 
@@ -274,6 +278,8 @@ describe("Zoom OAuth connect + callback", () => {
     expect(result.redirectTo).toContain("zoom=connected");
     const status = getInstructorZoomStatus(user.id);
     expect(status.connected).toBe(true);
+    expect(status.meetingReady).toBe(true);
+    expect(status.identitySource).toBe("profile");
     expect(status.zoomUserId).toBe("zuid-jwt-9");
     expect(status.zoomEmail).toBe("from.jwt@example.com");
   });
