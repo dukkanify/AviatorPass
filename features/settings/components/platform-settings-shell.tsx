@@ -174,6 +174,7 @@ function PlatformSettingsShell() {
   } | null>(null);
   const [registeringDomain, setRegisteringDomain] = React.useState(false);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
+  const [clearingLive, setClearingLive] = React.useState(false);
 
   const dirty = React.useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(draft),
@@ -1802,10 +1803,10 @@ function PlatformSettingsShell() {
               <CardTitle>Zoom integration</CardTitle>
               <CardDescription>
                 Meeting defaults for live classes. Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`,
-                `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates meetings. In-app join uses
-                the Meeting SDK app (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`). Instructor Connect
-                Zoom uses separate credentials (`ZOOM_INSTRUCTOR_CLIENT_ID`,
-                `ZOOM_INSTRUCTOR_CLIENT_SECRET`).
+                `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates platform/booking meetings.
+                In-app join uses the Meeting SDK app (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`).
+                Instructors must Connect Zoom with a personal account (`ZOOM_INSTRUCTOR_*`) — never
+                the shared host email below.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1818,7 +1819,7 @@ function PlatformSettingsShell() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label="Host account email"
-                  description="Must be a user on the Zoom Server-to-Server account (for example ceo@aviatorpass.com). The support mailbox is not a Zoom user and is ignored when creating meetings."
+                  description="Shared platform / S2S Zoom user (for example ceo@aviatorpass.com). Instructors must not connect this email for live classes — use a personal Zoom login so personalZoomReady stays true."
                 >
                   <Input
                     value={draft.zoom.accountEmail}
@@ -1873,6 +1874,59 @@ function PlatformSettingsShell() {
               <p className="text-xs text-muted-foreground">
                 Credentials configured:{" "}
                 {draft.zoom.credentialsConfigured ? "Yes" : "No (mock mode)"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Clear live meetings</CardTitle>
+              <CardDescription>
+                Ends leftover live Zoom meetings on the platform host (and optional instructor
+                hosts). Use when classroom join hits Error 3000 from a stuck shared session. Does
+                not replace instructors reconnecting a personal Zoom account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={clearingLive}
+                onClick={() => {
+                  void (async () => {
+                    setClearingLive(true);
+                    const result = await authFetch<{
+                      ended: string[];
+                      kept: string[];
+                      blocked: string[];
+                    }>("/api/admin/zoom/clear-live", {
+                      method: "POST",
+                      body: JSON.stringify({ force: true }),
+                    });
+                    setClearingLive(false);
+                    if (!result.success || !result.data) {
+                      toast.error(result.error ?? "Clear live failed");
+                      return;
+                    }
+                    const { ended, kept, blocked } = result.data;
+                    toast.success(
+                      `Cleared ${ended.length} live meeting(s)` +
+                        (kept.length ? ` · kept ${kept.length}` : "") +
+                        (blocked.length ? ` · blocked ${blocked.length}` : ""),
+                    );
+                  })();
+                }}
+              >
+                {clearingLive ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {clearingLive ? "Clearing…" : "Clear live meetings now"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Requires `system.zoom`. Prefer clearing after instructors disconnect a shared
+                platform Zoom connection.
               </p>
             </CardContent>
           </Card>
