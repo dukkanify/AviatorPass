@@ -814,6 +814,7 @@ function InAppZoomRoom({
             <button
               type="button"
               className="classroom-dock-btn"
+              data-share="true"
               data-active={shareHint || undefined}
               aria-label="Share Screen"
               onClick={() => setShareHint((value) => !value)}
