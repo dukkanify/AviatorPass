@@ -40,6 +40,7 @@ export async function GET() {
           clientIdSuffix: oauth.clientIdSuffix,
           clientIdLength: oauth.clientIdLength,
           scopes: oauth.scopes,
+          includeScopesInAuthorizeUrl: oauth.includeScopesInAuthorizeUrl,
           authorizeHost: oauth.authorizeHost,
           meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
           credentialsMixed: oauth.credentialsMixed,
