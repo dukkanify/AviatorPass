@@ -500,34 +500,49 @@ function InAppZoomRoom({
               detail,
             );
             const hostBusy = /3000|other meetings in progress/i.test(detail);
-            if (staleHostToken) {
-              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only", detail);
-            }
-            if (hostBusy) {
-              console.warn("[zoom] Host already in another meeting; joining as participant");
-            }
             if (!staleHostToken && !hostBusy) throw hostError;
-            await releaseZoomEmbeddedClient(client);
-            stage.replaceChildren();
-            client = await openZoomEmbeddedClient();
-            if (cancelled) {
+
+            const remount = async () => {
               await releaseZoomEmbeddedClient(client);
-              return;
+              stage.replaceChildren();
+              client = await openZoomEmbeddedClient();
+              if (cancelled) {
+                await releaseZoomEmbeddedClient(client);
+                return false;
+              }
+              sdkRef.current = client;
+              await initClient(client);
+              return true;
+            };
+
+            // 1) start_url ZAK rejected → retry host JWT (role 1) without zak
+            if (staleHostToken && active.hostSignature) {
+              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only", detail);
+              if (!(await remount())) return;
+              try {
+                await joinEmbeddedMeeting(
+                  client,
+                  { ...participantJoin, signature: active.hostSignature },
+                  stage,
+                );
+              } catch (hostOnlyError) {
+                const hostOnlyDetail = zoomFailureText(hostOnlyError);
+                if (/3712|signature is invalid/i.test(hostOnlyDetail)) throw hostOnlyError;
+                // Role-1 without a Zoom-accepted ZAK still returns 200 on this account.
+                // Fall through to participant JWT so the instructor can enter the room.
+                console.warn(
+                  "[zoom] Host JWT without ZAK rejected; joining as participant",
+                  hostOnlyDetail,
+                );
+                if (!(await remount())) return;
+                await joinEmbeddedMeeting(client, participantJoin, stage);
+              }
+            } else {
+              // 2) Host already in another meeting → participant JWT only
+              console.warn("[zoom] Host already in another meeting; joining as participant");
+              if (!(await remount())) return;
+              await joinEmbeddedMeeting(client, participantJoin, stage);
             }
-            sdkRef.current = client;
-            await initClient(client);
-            // Stale ZAK: keep host role JWT (role 1) and omit zak. Only drop to
-            // participant JWT when Zoom reports the account is already in another meeting.
-            await joinEmbeddedMeeting(
-              client,
-              staleHostToken && active.hostSignature
-                ? {
-                    ...participantJoin,
-                    signature: active.hostSignature,
-                  }
-                : participantJoin,
-              stage,
-            );
           }
           if (cancelled) return;
           stopLocalMedia();
