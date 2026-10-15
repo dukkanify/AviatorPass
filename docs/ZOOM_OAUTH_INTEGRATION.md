@@ -71,16 +71,18 @@ JSON mode uses `.data/aep-zoom.json` with the same fields.
 
 ## 4. API routes
 
-| Method  | Path                                | Auth                         | Purpose                                                      |
-| ------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------ |
-| GET     | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                                       |
-| GET     | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard           |
-| GET     | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens)                                |
-| POST    | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                                  |
-| POST    | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status                      |
-| GET     | `/api/integrations/zoom/webhook`    | None                         | `405` JSON (reachability; Zoom/browser must not land on `/`) |
-| OPTIONS | `/api/integrations/zoom/webhook`    | None                         | `204` with `Allow: POST, OPTIONS`                            |
-| POST    | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                           |
+| Method  | Path                                | Auth                         | Purpose                                                                               |
+| ------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------- |
+| GET     | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                                                                |
+| GET     | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard                                    |
+| GET     | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens); includes `personalZoomReady` / `sharedPlatformAccount` |
+| GET     | `/api/admin/instructors/zoom`       | Instructors manage           | Admin Zoom readiness per instructor                                                   |
+| POST    | `/api/admin/zoom/clear-live`        | Super Admin (`system.zoom`)  | End leftover live meetings blocking classroom join                                    |
+| POST    | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                                                           |
+| POST    | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status                                               |
+| GET     | `/api/integrations/zoom/webhook`    | None                         | `405` JSON (reachability; Zoom/browser must not land on `/`)                          |
+| OPTIONS | `/api/integrations/zoom/webhook`    | None                         | `204` with `Allow: POST, OPTIONS`                                                     |
+| POST    | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                                                    |
 
 Existing: `GET /api/zoom/status` (platform S2S, Super Admin), `/api/classes/:id/join` (student/instructor join info).
 
@@ -177,7 +179,10 @@ Logged via ops + activity (never tokens / start URLs):
 4. Set Vercel Production env vars listed in section 5. Do **not** commit secrets.
 5. Apply `031_zoom_integrations.sql` if Postgres is in use.
 6. Deploy `main` (or this PR) and confirm `/api/health?ready=1`.
-7. Connect one instructor account and schedule a 15-minute test class.
+7. Connect one instructor’s **personal** Zoom account (not the platform Host account email) and confirm `personalZoomReady: true` on `/api/integrations/zoom/status`.
+8. Schedule a 15-minute test class and run host → student in-app join.
+
+If an instructor previously connected the shared platform / CEO Zoom email, they must **Disconnect Zoom** then **Connect Zoom** with their own login before hosting. Shared-host leftovers that still block join: Super Admin → Platform Settings → Zoom → Clear live meetings (`POST /api/admin/zoom/clear-live`).
 
 ## 11. Remaining manual configuration
 
