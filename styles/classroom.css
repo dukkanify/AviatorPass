@@ -881,13 +881,18 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-stage-main {
     flex: 0 0 auto;
     min-height: 0;
+    order: 1;
   }
 
   .classroom-viewport {
-    min-height: 28vh;
-    max-height: 34vh;
+    min-height: 26vh;
+    max-height: 32vh;
     aspect-ratio: 16 / 10;
     border-radius: 0.85rem;
+  }
+
+  .classroom-footer {
+    order: 2;
   }
 
   .classroom-rail {
@@ -895,6 +900,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
     flex-direction: column;
     gap: 0.4rem;
     padding: 0.5rem;
+    order: 3;
   }
 
   .classroom-rail-list {
@@ -909,8 +915,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   }
 
   .classroom-footer {
-    gap: 0.4rem;
-    order: 3;
+    gap: 0.45rem;
   }
 
   .classroom-dock {
