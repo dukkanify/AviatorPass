@@ -489,15 +489,28 @@ export async function createLiveClass(
   }
 
   {
-    const { getValidInstructorAccessToken, getIntegrationByUserId, isS2SDelegateIntegration } =
-      await import("@/services/zoom/oauth-service");
+    const {
+      getValidInstructorAccessToken,
+      getIntegrationByUserId,
+      isS2SDelegateIntegration,
+      hasPersonalInstructorZoom,
+    } = await import("@/services/zoom/oauth-service");
     const { isMockZoomAllowed } = await import("@/services/classes/zoom-service");
+    const { getPlatformSettings: getZoomPlatformSettings } =
+      await import("@/services/settings/settings-service");
     const instructorToken = await getValidInstructorAccessToken(instructorId);
     const integration = getIntegrationByUserId(instructorId);
-    const personalOAuth = Boolean(instructorToken && !isS2SDelegateIntegration(integration));
+    const platformZoomEmail = getZoomPlatformSettings().zoom.accountEmail;
+    const personalOAuth = Boolean(
+      instructorToken &&
+      !isS2SDelegateIntegration(integration) &&
+      hasPersonalInstructorZoom(integration, platformZoomEmail),
+    );
     if (!personalOAuth && !isMockZoomAllowed()) {
       throw new ClassValidationError(
-        "Please connect your Zoom account before creating a live class.",
+        integration && !hasPersonalInstructorZoom(integration, platformZoomEmail)
+          ? "Connect your own personal Zoom account before creating a live class. The shared platform Zoom account cannot host."
+          : "Please connect your Zoom account before creating a live class.",
         409,
       );
     }

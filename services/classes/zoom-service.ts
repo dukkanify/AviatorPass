@@ -469,12 +469,18 @@ export async function createMeetingForClass(input: {
     getValidInstructorAccessToken,
     getIntegrationByUserId,
     isS2SDelegateIntegration,
+    hasPersonalInstructorZoom,
   } = await import("@/services/zoom/oauth-service");
   const { PermissionError } = await import("@/services/auth/permissions");
 
   const instructorToken = await getValidInstructorAccessToken(input.liveClass.instructorId);
   const integration = getIntegrationByUserId(input.liveClass.instructorId);
-  const personalOAuth = Boolean(instructorToken && !isS2SDelegateIntegration(integration));
+  const platformEmail = getPlatformSettings().zoom.accountEmail;
+  const personalOAuth = Boolean(
+    instructorToken &&
+    !isS2SDelegateIntegration(integration) &&
+    hasPersonalInstructorZoom(integration, platformEmail),
+  );
 
   // Live classes always host on the instructor's personal Zoom OAuth account —
   // never the shared platform host (ceo@aviatorpass.com / S2S).
@@ -1504,9 +1510,9 @@ export async function clearZoomHostLiveMeetings(input?: {
 }
 
 /**
- * A Zoom user can sit in only one started meeting. End orphan / finished
- * leftovers, and only block when another AviatorPass lecture is still inside
- * its live window.
+ * Detect whether the Zoom host already has another live meeting.
+ * Read-only — never ends unrelated meetings on join (Super Admin clear-live
+ * remains the explicit recovery path).
  */
 export async function zoomHostBlockedByAnotherLiveMeeting(
   meetingNumber: string | null | undefined,
@@ -1515,14 +1521,45 @@ export async function zoomHostBlockedByAnotherLiveMeeting(
   try {
     const current = meetingNumberDigits(meetingNumber);
     if (!current) return false;
-    const result = await clearZoomHostLiveMeetings({
-      keepMeetingNumber: current,
-      force: false,
-      instructorUserId,
-    });
-    return result.blocked.length > 0;
+    const token = await resolveClearLiveAccessToken(instructorUserId);
+    if (!token) return false;
+
+    const settings = getPlatformSettings();
+    const keepMeeting = getZoomMeetingByNumber(current);
+    const instructorIntegration = instructorUserId
+      ? getIntegrationByUserId(instructorUserId)
+      : null;
+    // Only probe the meeting owner / instructor Zoom user — not the full fan-out
+    // used by admin clear-live (which can touch unrelated hosts).
+    const hosts = Array.from(
+      new Set(
+        [
+          instructorIntegration?.zoomUserId,
+          instructorIntegration?.zoomEmail,
+          keepMeeting?.hostId,
+          keepMeeting?.hostEmail,
+          "me",
+        ]
+          .map((h) => (h || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    // Prefer instructor identity; fall back to platform account only when listing
+    // returns empty (still never ends meetings here).
+    if (!hosts.includes(settings.zoom.accountEmail || "") && settings.zoom.accountEmail) {
+      /* intentional: do not add platform email — avoids treating CEO live sessions as this instructor */
+    }
+
+    for (const host of hosts) {
+      const meetings = await listZoomLiveMeetingsForHost(token, host);
+      for (const meeting of meetings) {
+        const id = meetingNumberDigits(String(meeting.id ?? ""));
+        if (id && id !== current) return true;
+      }
+    }
+    return false;
   } catch (error) {
-    console.error("Zoom stale meeting cleanup skipped", error);
+    console.error("Zoom live-meeting probe skipped", error);
     return false;
   }
 }

@@ -13,6 +13,7 @@ describe("modern classroom join page", () => {
     expect(join).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(join).toMatch(/next\/dynamic/);
     expect(join).toMatch(/displayName/);
+    expect(join).toMatch(/overflowY:\s*"auto"/);
     expect(join).not.toContain("Passcode");
     expect(join).not.toContain("Waiting room on");
     expect(join).not.toContain('from "@/components/ui/card"');
@@ -47,6 +48,19 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/\.classroom-footer/);
     expect(css).toMatch(/\.classroom-preview-fallback/);
     expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
+    expect(css).toMatch(/position:\s*sticky/);
+    expect(css).toMatch(/safe-area-inset-bottom/);
+  });
+
+  it("does not hard-code Share Screen as always active green", () => {
+    const room = readFileSync(
+      resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
+      "utf8",
+    );
+    expect(room).not.toMatch(/data-share="true"/);
+    expect(room).toMatch(/data-share=\{shareHint/);
+    expect(room).toMatch(/Camera preview only/);
+    expect(room).toMatch(/railPeople/);
   });
 
   it("preconnects the Zoom CDN on the join route", () => {

@@ -4,8 +4,13 @@ import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { listUsersByRole } from "@/services/dashboard/metrics";
+import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getZoomOAuthPublicDiagnostics, isZoomOAuthConfigured } from "@/services/zoom/config";
-import { listInstructorZoomConnectionSummaries } from "@/services/zoom/oauth-service";
+import {
+  getIntegrationByUserId,
+  isSharedPlatformZoomAccount,
+  listInstructorZoomConnectionSummaries,
+} from "@/services/zoom/oauth-service";
 import { publicIntegrationView } from "@/services/zoom/policy";
 
 /** Admin view of instructor Zoom connection status — never returns tokens. */
@@ -19,10 +24,13 @@ export async function GET() {
     );
     const oauthConfigured = isZoomOAuthConfigured();
     const oauth = getZoomOAuthPublicDiagnostics();
+    const platformZoomEmail = getPlatformSettings().zoom.accountEmail;
 
     const data = [...instructors, ...cgi].map((user) => {
       const summary = byUser.get(user.id);
       const view = publicIntegrationView(user.id, oauthConfigured);
+      const integration = getIntegrationByUserId(user.id);
+      const sharedPlatformAccount = isSharedPlatformZoomAccount(integration, platformZoomEmail);
       return {
         userId: user.id,
         instructorName: user.fullName || user.email,
@@ -31,6 +39,9 @@ export async function GET() {
         status: summary?.status ?? view.status,
         zoomEmail: summary?.zoomEmail ?? view.zoomEmail,
         lastSyncAt: summary?.lastSyncAt ?? view.lastSyncAt,
+        /** True when Zoom email is the shared platform host — cannot host live classes. */
+        sharedPlatformAccount,
+        personalZoomReady: Boolean(summary?.connected ?? view.connected) && !sharedPlatformAccount,
       };
     });
 
