@@ -91,6 +91,8 @@ Never hardcode credentials. Set in Vercel / `.env.local` only.
 ```
 ZOOM_CLIENT_ID=
 ZOOM_CLIENT_SECRET=
+ZOOM_INSTRUCTOR_CLIENT_ID=
+ZOOM_INSTRUCTOR_CLIENT_SECRET=
 ZOOM_REDIRECT_URI=https://www.aviatorpass.com/api/integrations/zoom/callback
 ZOOM_BASE_URL=https://api.zoom.us/v2
 ZOOM_SECRET_TOKEN=
@@ -101,18 +103,22 @@ ZOOM_S2S_CLIENT_ID=
 ZOOM_S2S_CLIENT_SECRET=
 ```
 
-| Variable                 | Required for instructor OAuth | Notes                                                |
-| ------------------------ | ----------------------------- | ---------------------------------------------------- |
-| `ZOOM_CLIENT_ID`         | Yes                           | General App Client ID (Meeting SDK JWT + OAuth)      |
-| `ZOOM_CLIENT_SECRET`     | Yes                           | General App Client Secret                            |
-| `ZOOM_REDIRECT_URI`      | Yes in production             | Must match Zoom Marketplace exactly                  |
-| `ZOOM_BASE_URL`          | Optional                      | Defaults to `https://api.zoom.us/v2`                 |
-| `ZOOM_SECRET_TOKEN`      | Webhooks                      | Marketplace Secret Token                             |
-| `ZOOM_WEBHOOK_SECRET`    | Webhooks                      | Alias if Secret Token is stored here                 |
-| `ZOOM_OAUTH_SCOPES`      | Optional                      | Defaults to granular meeting + user read             |
-| `ZOOM_ACCOUNT_ID`        | S2S create/update/delete      | Server-to-Server Account ID                          |
-| `ZOOM_S2S_CLIENT_ID`     | S2S create/update/delete      | Server-to-Server Client ID — never a Meeting SDK JWT |
-| `ZOOM_S2S_CLIENT_SECRET` | S2S create/update/delete      | Server-to-Server Client Secret                       |
+| Variable                        | Required for instructor OAuth | Notes                                                                                                                                                 |
+| ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ZOOM_INSTRUCTOR_CLIENT_ID`     | Yes                           | Instructor OAuth General App (e.g. Marketplace app 29)                                                                                                |
+| `ZOOM_INSTRUCTOR_CLIENT_SECRET` | Yes                           | Instructor OAuth Client Secret — never reuse Meeting SDK secret                                                                                       |
+| `ZOOM_CLIENT_ID`                | Meeting SDK only              | Embedded Meeting SDK JWT `appKey`                                                                                                                     |
+| `ZOOM_CLIENT_SECRET`            | Meeting SDK only              | Embedded Meeting SDK JWT secret                                                                                                                       |
+| `ZOOM_REDIRECT_URI`             | Yes in production             | Must match Zoom Marketplace exactly                                                                                                                   |
+| `ZOOM_BASE_URL`                 | Optional                      | Defaults to `https://api.zoom.us/v2`                                                                                                                  |
+| `ZOOM_SECRET_TOKEN`             | Webhooks                      | Marketplace Secret Token                                                                                                                              |
+| `ZOOM_WEBHOOK_SECRET`           | Webhooks                      | Alias if Secret Token is stored here                                                                                                                  |
+| `ZOOM_OAUTH_SCOPES`             | Optional                      | Defaults: `user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting` (no `meeting:read:list_meetings`) |
+| `ZOOM_ACCOUNT_ID`               | S2S create/update/delete      | Server-to-Server Account ID                                                                                                                           |
+| `ZOOM_S2S_CLIENT_ID`            | S2S create/update/delete      | Server-to-Server Client ID — never a Meeting SDK JWT                                                                                                  |
+| `ZOOM_S2S_CLIENT_SECRET`        | S2S create/update/delete      | Server-to-Server Client Secret                                                                                                                        |
+
+**Invalid scope:** requesting scopes not enabled on the Instructor OAuth app (commonly `meeting:read:list_meetings`) causes Zoom `Invalid scope`. Enable only scopes the app has, or set `ZOOM_OAUTH_SCOPES` to the enabled set.
 
 Tokens are encrypted with AES-256-GCM using a key derived from `AUTH_SECRET`.
 
@@ -177,7 +183,27 @@ Logged via ops + activity (never tokens / start URLs):
 
 Zoom Marketplace (cannot be done from this repo):
 
-- Allowlist the production redirect URI.
+### Development vs Production credentials (critical for error 4,700)
+
+Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Redirect URL + Allow List for **Development** and **Production** (Marketplace environment filter).
+
+| AviatorPass `ZOOM_INSTRUCTOR_CLIENT_ID` belongs to… | Configure OAuth Redirect + Allow List under… |
+| --------------------------------------------------- | -------------------------------------------- |
+| Development Client ID                               | Development environment filter               |
+| Production Client ID                                | Production environment filter                |
+
+- While the app is **Draft / unpublished**, use **Development** Client ID + Secret in Vercel and configure the **Development** Redirect URL + Allow List.
+- For live published Marketplace use, switch Vercel to **Production** credentials and configure the **Production** Redirect URL + Allow List (published apps may require a Marketplace update approval before Production redirect changes apply).
+- Confirm which side Client ID `…` matches via Admin `GET /api/admin/instructors/zoom` → `oauthClientIdSuffix` (last 4 chars only; never log full secrets).
+
+### Exact allowlist entries
+
+- Redirect URI **exactly**: `https://www.aviatorpass.com/api/integrations/zoom/callback` (no trailing slash, must include `www`).
+- Add the same URL to **OAuth Allow List**. Also add `https://www.aviatorpass.com` if using domain-level allowlisting.
+- If **Strict Mode** is enabled, the allow list entry must be the full callback URL character-for-character.
+- If **Subdomain check** is enabled, `https://aviatorpass.com` (apex) does **not** cover `https://www.aviatorpass.com` — list the `www` host explicitly.
+- Instructor AviatorPass email does **not** need to match their personal Zoom email.
+- If Zoom shows `Invalid redirect: …/callback (4,700)`, AviatorPass is already sending the canonical www callback; fix the Marketplace environment that matches the live Client ID. Do not change the AviatorPass callback path to work around this.
 - Grant granular scopes: `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`, `meeting:read:list_meetings`.
 - Event subscriptions: `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 - Optional dashboard metrics scope if live participant counts should appear (otherwise count stays “—”).

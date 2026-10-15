@@ -62,11 +62,14 @@ function resetClasses() {
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "unit-test-auth-secret-value-32chars";
-  process.env.ZOOM_CLIENT_ID = "zoom-client-id";
-  process.env.ZOOM_CLIENT_SECRET = "zoom-client-secret";
+  process.env.ZOOM_CLIENT_ID = "zoom-sdk-client-id";
+  process.env.ZOOM_CLIENT_SECRET = "zoom-sdk-client-secret";
+  process.env.ZOOM_INSTRUCTOR_CLIENT_ID = "zoom-instructor-client-id";
+  process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET = "zoom-instructor-client-secret";
   process.env.ZOOM_REDIRECT_URI = "https://www.aviatorpass.com/api/integrations/zoom/callback";
   process.env.ZOOM_BASE_URL = "https://api.zoom.us/v2";
   process.env.ZOOM_SECRET_TOKEN = "zoom-secret-token";
+  delete process.env.ZOOM_OAUTH_SCOPES;
   resetZoomStoreForTests();
   ensureDemoUsersSeeded();
   resetClasses();
@@ -92,9 +95,41 @@ describe("Zoom OAuth connect + callback", () => {
     const url = buildZoomAuthorizeUrl({ userId: instructor().id });
     const parsed = new URL(url);
     expect(parsed.origin + parsed.pathname).toBe("https://zoom.us/oauth/authorize");
-    expect(parsed.searchParams.get("client_id")).toBe("zoom-client-id");
+    expect(parsed.searchParams.get("client_id")).toBe("zoom-instructor-client-id");
     expect(parsed.searchParams.get("redirect_uri")).toContain("/api/integrations/zoom/callback");
+    expect(parsed.searchParams.get("scope")).toBe(
+      "user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting",
+    );
+    expect(parsed.searchParams.get("scope")).not.toContain("meeting:read:list_meetings");
     expect(parsed.searchParams.get("state")).toBeTruthy();
+  });
+
+  it("does not use Meeting SDK credentials for instructor OAuth", async () => {
+    const { getZoomOAuthConfig, isZoomOAuthConfigured } = await import("@/services/zoom/config");
+    delete process.env.ZOOM_INSTRUCTOR_CLIENT_ID;
+    delete process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET;
+    expect(isZoomOAuthConfigured()).toBe(false);
+    expect(getZoomOAuthConfig().clientId).toBe("");
+    process.env.ZOOM_INSTRUCTOR_CLIENT_ID = "zoom-instructor-client-id";
+    process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET = "zoom-instructor-client-secret";
+    expect(isZoomOAuthConfigured()).toBe(true);
+    expect(getZoomOAuthConfig().clientId).toBe("zoom-instructor-client-id");
+    expect(getZoomOAuthConfig().clientId).not.toBe(process.env.ZOOM_CLIENT_ID);
+  });
+
+  it("normalizes production apex callback to www canonical redirect", async () => {
+    const { resolveZoomOAuthRedirectUri, PRODUCTION_ZOOM_OAUTH_REDIRECT_URI } =
+      await import("@/services/zoom/config");
+    const prevApp = process.env.NEXT_PUBLIC_APP_ENV;
+    const prevVercel = process.env.VERCEL_ENV;
+    process.env.NEXT_PUBLIC_APP_ENV = "production";
+    process.env.VERCEL_ENV = "production";
+    expect(
+      resolveZoomOAuthRedirectUri("https://aviatorpass.com/api/integrations/zoom/callback/"),
+    ).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    expect(resolveZoomOAuthRedirectUri("")).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    process.env.NEXT_PUBLIC_APP_ENV = prevApp;
+    process.env.VERCEL_ENV = prevVercel;
   });
 
   it("exchanges the code and stores encrypted tokens", async () => {

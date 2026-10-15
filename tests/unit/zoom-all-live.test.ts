@@ -133,11 +133,9 @@ describe("live Zoom everywhere", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    const meeting = await ensureLiveMeetingForClass(classId, "actor_live");
-    expect(meeting?.providerMode).toBe("zoom");
-    expect(meeting?.zoomMeetingId).toBe("86524929538");
-    expect(meeting?.startUrl).toContain("zak=live-zak");
-    expect(isPlaceholderZoomMeeting(meeting)).toBe(false);
+    await expect(ensureLiveMeetingForClass(classId, "actor_live")).rejects.toThrow(
+      /connect your Zoom account/i,
+    );
 
     writeClassesDb((db) => {
       db.classes = db.classes.filter((item) => item.id !== classId);

@@ -82,6 +82,8 @@ export function getZoomCredentialInventory() {
     accountId: envPresent("ZOOM_ACCOUNT_ID"),
     clientId: envPresent("ZOOM_CLIENT_ID"),
     clientSecret: envPresent("ZOOM_CLIENT_SECRET"),
+    instructorClientId: envPresent("ZOOM_INSTRUCTOR_CLIENT_ID"),
+    instructorClientSecret: envPresent("ZOOM_INSTRUCTOR_CLIENT_SECRET"),
     s2sClientId: envPresent("ZOOM_S2S_CLIENT_ID"),
     s2sClientSecret: envPresent("ZOOM_S2S_CLIENT_SECRET"),
     webhookSecret: envPresent("ZOOM_WEBHOOK_SECRET"),
@@ -462,14 +464,21 @@ export async function createMeetingForClass(input: {
   actorId?: string | null;
 }): Promise<ZoomMeetingRecord> {
   const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
-  const { assertInstructorZoomConnected, getValidInstructorAccessToken } =
-    await import("@/services/zoom/oauth-service");
+  const {
+    assertInstructorZoomConnected,
+    getValidInstructorAccessToken,
+    getIntegrationByUserId,
+    isS2SDelegateIntegration,
+  } = await import("@/services/zoom/oauth-service");
   const { PermissionError } = await import("@/services/auth/permissions");
-  const { findUserById } = await import("@/services/auth/store");
-  const { ROLES } = await import("@/constants/roles");
 
   const instructorToken = await getValidInstructorAccessToken(input.liveClass.instructorId);
-  if (instructorToken) {
+  const integration = getIntegrationByUserId(input.liveClass.instructorId);
+  const personalOAuth = Boolean(instructorToken && !isS2SDelegateIntegration(integration));
+
+  // Live classes always host on the instructor's personal Zoom OAuth account —
+  // never the shared platform host (ceo@aviatorpass.com / S2S).
+  if (personalOAuth) {
     try {
       const instructorMeeting = await createInstructorZoomMeeting({
         liveClass: input.liveClass,
@@ -487,19 +496,23 @@ export async function createMeetingForClass(input: {
     }
   }
 
-  const actor = input.actorId ? findUserById(input.actorId) : null;
-  const actorIsPlatformAdmin = actor?.role === ROLES.ADMIN || actor?.role === ROLES.SUPER_ADMIN;
-
-  // Instructor classrooms prefer instructor OAuth. Without it, only mock/dev
-  // or platform Server-to-Server provisioning may continue.
-  if (!instructorToken && !isMockZoomAllowed() && !zoomCredsPresent()) {
+  if (!isMockZoomAllowed()) {
     try {
       assertInstructorZoomConnected(input.liveClass.instructorId);
     } catch (error) {
       if (error instanceof PermissionError) {
-        throw new ClassValidationError(error.message, 409);
+        throw new ClassValidationError(
+          "Please connect your Zoom account before creating a live class.",
+          409,
+        );
       }
       throw error;
+    }
+    if (!personalOAuth) {
+      throw new ClassValidationError(
+        "Please connect your Zoom account before creating a live class.",
+        409,
+      );
     }
   }
 
@@ -509,26 +522,14 @@ export async function createMeetingForClass(input: {
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
 
-  let payload = zoomCredsPresent()
-    ? await createZoomApiMeeting(input.liveClass, { waitingRoom, passcode, meetingType })
-    : null;
-
-  if (!payload) {
-    if (!isMockZoomAllowed()) {
-      requireLiveZoom(
-        zoomCredsPresent()
-          ? "Zoom API failed to create a live meeting. Check Server-to-Server OAuth credentials and account scopes."
-          : "Please connect your Zoom account before creating a live class.",
-      );
-    }
-    payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
-  }
+  // Dev/mock only — production live classes never fall back to platform S2S host.
+  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
 
   const now = new Date().toISOString();
   const record: ZoomMeetingRecord = {
     id: generateId(),
     ...payload,
-    oauthUserId: instructorToken ? input.liveClass.instructorId : payload.oauthUserId,
+    oauthUserId: input.liveClass.instructorId,
     createdAt: now,
     updatedAt: now,
   };
@@ -556,8 +557,7 @@ export async function createMeetingForClass(input: {
       liveClassId: input.liveClass.id,
       zoomMeetingId: record.zoomMeetingId,
       providerMode: record.providerMode,
-      via: instructorToken ? "instructor_oauth" : zoomCredsPresent() ? "platform_s2s" : "mock_dev",
-      actorIsPlatformAdmin,
+      via: personalOAuth ? "instructor_oauth" : "mock_dev",
     },
   });
 

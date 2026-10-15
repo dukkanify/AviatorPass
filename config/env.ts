@@ -50,16 +50,22 @@ const serverEnvSchema = z.object({
    */
   ZOOM_S2S_CLIENT_ID: z.string().optional(),
   ZOOM_S2S_CLIENT_SECRET: z.string().optional(),
-  /** General App Client ID — Meeting SDK JWT appKey and instructor OAuth. */
+  /** Meeting SDK General App Client ID — JWT appKey only (never instructor OAuth). */
   ZOOM_CLIENT_ID: z.string().optional(),
   ZOOM_CLIENT_SECRET: z.string().optional(),
+  /**
+   * Instructor OAuth General App (e.g. Marketplace app 29) — Connect Zoom only.
+   * Must not reuse Meeting SDK Client ID/Secret.
+   */
+  ZOOM_INSTRUCTOR_CLIENT_ID: z.string().optional(),
+  ZOOM_INSTRUCTOR_CLIENT_SECRET: z.string().optional(),
   /** Zoom General OAuth (instructor connect) */
   ZOOM_REDIRECT_URI: z.string().url().optional(),
   ZOOM_BASE_URL: z.string().url().optional(),
   ZOOM_OAUTH_SCOPES: z.string().optional(),
   ZOOM_SECRET_TOKEN: z.string().optional(),
   ZOOM_WEBHOOK_SECRET: z.string().optional(),
-  /** General App Client ID/Secret for Meeting SDK join (not S2S, not legacy SDK Key) */
+  /** Legacy aliases — prefer ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET for Meeting SDK */
   ZOOM_SDK_KEY: z.string().optional(),
   ZOOM_SDK_SECRET: z.string().optional(),
   ZOOM_MEETING_SDK_KEY: z.string().optional(),
@@ -152,6 +158,8 @@ export function getServerEnv() {
     ZOOM_S2S_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_S2S_CLIENT_SECRET),
     ZOOM_CLIENT_ID: emptyToUndef(process.env.ZOOM_CLIENT_ID),
     ZOOM_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_CLIENT_SECRET),
+    ZOOM_INSTRUCTOR_CLIENT_ID: emptyToUndef(process.env.ZOOM_INSTRUCTOR_CLIENT_ID),
+    ZOOM_INSTRUCTOR_CLIENT_SECRET: emptyToUndef(process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET),
     ZOOM_REDIRECT_URI: emptyToUndef(process.env.ZOOM_REDIRECT_URI),
     ZOOM_BASE_URL: emptyToUndef(process.env.ZOOM_BASE_URL),
     ZOOM_OAUTH_SCOPES: emptyToUndef(process.env.ZOOM_OAUTH_SCOPES),
