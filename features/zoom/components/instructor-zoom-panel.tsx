@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { zoomOAuthFailureUserMessage } from "@/features/zoom/oauth-error-messages";
 import type { ZoomIntegrationPublic } from "@/types/zoom-oauth";
 
 function formatWhen(value: string | null) {
@@ -51,7 +52,12 @@ function InstructorZoomPanel() {
   React.useEffect(() => {
     const flag = searchParams.get("zoom");
     if (flag === "connected") toast.success("Zoom account connected");
-    if (flag === "error") toast.error("Zoom connection failed. Try again.");
+    if (flag === "error") {
+      const reason = searchParams.get("reason");
+      const cid = searchParams.get("cid");
+      const base = zoomOAuthFailureUserMessage(reason);
+      toast.error(cid ? `${base} Reference: ${cid}` : base);
+    }
   }, [searchParams]);
 
   async function disconnect() {

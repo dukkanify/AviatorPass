@@ -212,7 +212,8 @@ Location: [Zoom Marketplace](https://marketplace.zoom.us/) → **Manage** → Ge
 1. **App credentials** → copy Client ID / Secret into Vercel `ZOOM_INSTRUCTOR_CLIENT_ID` / `ZOOM_INSTRUCTOR_CLIENT_SECRET` (never into `ZOOM_CLIENT_*`).
 2. **OAuth Redirect URL** (exact): `https://www.aviatorpass.com/api/integrations/zoom/callback`
 3. **OAuth Allow List**: same callback URL; with Strict Mode / subdomain check enabled, also list `https://www.aviatorpass.com` if required — apex `https://aviatorpass.com` does **not** cover `www`.
-4. **Scopes** (user-managed): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`. Add `meeting:read:list_meetings` only if enabled on the app.
+4. **Scopes** (user-managed, required): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`.  
+   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.
 5. **Local Test** → “Add App Now” as the **app owner** first. If that works but a personal instructor Zoom account fails, the Client ID is still Development-restricted — switch Vercel to **Production** credentials or add the tester to the Zoom account / request a shareable beta URL.
 6. Event subscriptions (optional): `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 7. Add `http://localhost:3000/api/integrations/zoom/callback` only for local OAuth testing.
