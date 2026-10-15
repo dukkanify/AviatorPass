@@ -97,6 +97,21 @@ describe("Zoom OAuth connect + callback", () => {
     expect(parsed.searchParams.get("state")).toBeTruthy();
   });
 
+  it("normalizes production apex callback to www canonical redirect", async () => {
+    const { resolveZoomOAuthRedirectUri, PRODUCTION_ZOOM_OAUTH_REDIRECT_URI } =
+      await import("@/services/zoom/config");
+    const prevApp = process.env.NEXT_PUBLIC_APP_ENV;
+    const prevVercel = process.env.VERCEL_ENV;
+    process.env.NEXT_PUBLIC_APP_ENV = "production";
+    process.env.VERCEL_ENV = "production";
+    expect(
+      resolveZoomOAuthRedirectUri("https://aviatorpass.com/api/integrations/zoom/callback/"),
+    ).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    expect(resolveZoomOAuthRedirectUri("")).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    process.env.NEXT_PUBLIC_APP_ENV = prevApp;
+    process.env.VERCEL_ENV = prevVercel;
+  });
+
   it("exchanges the code and stores encrypted tokens", async () => {
     const user = instructor();
     const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));

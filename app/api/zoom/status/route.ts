@@ -9,6 +9,7 @@ import {
   refreshZoomCredentialsFlag,
 } from "@/services/classes/zoom-service";
 import { getPlatformSettings } from "@/services/settings/settings-service";
+import { getZoomOAuthPublicDiagnostics } from "@/services/zoom/config";
 import { classErrorResponse } from "@/app/api/classes/_utils";
 
 /** Zoom integration status — never returns secrets. */
@@ -18,6 +19,7 @@ export async function GET() {
     const configured = refreshZoomCredentialsFlag();
     const settings = getPlatformSettings();
     const inventory = getZoomCredentialInventory();
+    const oauth = getZoomOAuthPublicDiagnostics();
     const hostZak = configured
       ? await probeZoomHostZak({ accountEmail: settings.zoom.accountEmail })
       : null;
@@ -32,6 +34,13 @@ export async function GET() {
         defaultPasscode: settings.zoom.defaultPasscode,
         defaultMeetingType: settings.zoom.defaultMeetingType,
         mode: inventory.meetingSdk ? "sdk" : configured ? "zoom" : "mock",
+        instructorOAuth: {
+          configured: oauth.oauthConfigured,
+          redirectUri: oauth.redirectUri,
+          clientIdSuffix: oauth.clientIdSuffix,
+          clientIdLength: oauth.clientIdLength,
+          authorizeHost: oauth.authorizeHost,
+        },
         hostZak: hostZak
           ? {
               ready: hostZak.ready,

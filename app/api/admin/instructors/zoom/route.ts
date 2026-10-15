@@ -4,7 +4,7 @@ import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { listUsersByRole } from "@/services/dashboard/metrics";
-import { isZoomOAuthConfigured } from "@/services/zoom/config";
+import { getZoomOAuthPublicDiagnostics, isZoomOAuthConfigured } from "@/services/zoom/config";
 import { listInstructorZoomConnectionSummaries } from "@/services/zoom/oauth-service";
 import { publicIntegrationView } from "@/services/zoom/policy";
 
@@ -18,6 +18,7 @@ export async function GET() {
       listInstructorZoomConnectionSummaries().map((row) => [row.userId, row] as const),
     );
     const oauthConfigured = isZoomOAuthConfigured();
+    const oauth = getZoomOAuthPublicDiagnostics();
 
     const data = [...instructors, ...cgi].map((user) => {
       const summary = byUser.get(user.id);
@@ -35,7 +36,14 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: { oauthConfigured, instructors: data },
+      data: {
+        oauthConfigured,
+        /** Non-secret: exact redirect_uri production sends to Zoom (for Marketplace matching). */
+        oauthRedirectUri: oauth.redirectUri,
+        /** Non-secret: last 4 of Client ID so Admin can match Dev vs Prod credentials. */
+        oauthClientIdSuffix: oauth.clientIdSuffix,
+        instructors: data,
+      },
       error: null,
     });
   } catch (error) {

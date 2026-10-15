@@ -177,8 +177,27 @@ Logged via ops + activity (never tokens / start URLs):
 
 Zoom Marketplace (cannot be done from this repo):
 
-- Allowlist the production redirect URI **exactly**: `https://www.aviatorpass.com/api/integrations/zoom/callback` (no trailing slash). Add it under both **Redirect URL for OAuth** and **OAuth allow list** / whitelist if the Marketplace UI shows both fields.
-- If Zoom shows `Invalid redirect: …/api/integrations/zoom/callback (4,700)`, the app is sending the correct URI and the Marketplace allowlist is missing or mistyped — fix the Marketplace entry, then retry **Connect Zoom**. Do not change the AviatorPass callback path to work around this.
+### Development vs Production credentials (critical for error 4,700)
+
+Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Redirect URL + Allow List for **Development** and **Production** (Marketplace environment filter).
+
+| AviatorPass `ZOOM_CLIENT_ID` belongs to… | Configure OAuth Redirect + Allow List under… |
+| ---------------------------------------- | -------------------------------------------- |
+| Development Client ID                    | Development environment filter               |
+| Production Client ID                     | Production environment filter                |
+
+- While the app is **Draft / unpublished**, use **Development** Client ID + Secret in Vercel and configure the **Development** Redirect URL + Allow List.
+- For live published Marketplace use, switch Vercel to **Production** credentials and configure the **Production** Redirect URL + Allow List (published apps may require a Marketplace update approval before Production redirect changes apply).
+- Confirm which side Client ID `…` matches via Admin `GET /api/admin/instructors/zoom` → `oauthClientIdSuffix` (last 4 chars only; never log full secrets).
+
+### Exact allowlist entries
+
+- Redirect URI **exactly**: `https://www.aviatorpass.com/api/integrations/zoom/callback` (no trailing slash, must include `www`).
+- Add the same URL to **OAuth Allow List**. Also add `https://www.aviatorpass.com` if using domain-level allowlisting.
+- If **Strict Mode** is enabled, the allow list entry must be the full callback URL character-for-character.
+- If **Subdomain check** is enabled, `https://aviatorpass.com` (apex) does **not** cover `https://www.aviatorpass.com` — list the `www` host explicitly.
+- Instructor AviatorPass email does **not** need to match their personal Zoom email.
+- If Zoom shows `Invalid redirect: …/callback (4,700)`, AviatorPass is already sending the canonical www callback; fix the Marketplace environment that matches the live Client ID. Do not change the AviatorPass callback path to work around this.
 - Grant granular scopes: `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`, `meeting:read:list_meetings`.
 - Event subscriptions: `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 - Optional dashboard metrics scope if live participant counts should appear (otherwise count stays “—”).
