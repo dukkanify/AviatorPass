@@ -195,6 +195,45 @@ describe("Zoom OAuth connect + callback", () => {
     expect(decryptSecret(row.refreshToken)).toBe("refresh-live");
   });
 
+  it("falls back to instructor placeholder when /users/me lacks scopes and JWT has no uid", async () => {
+    const user = instructor();
+    const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));
+    const state = authorize.searchParams.get("state")!;
+
+    globalThis.fetch = vi.fn(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "opaque-access-token",
+            refresh_token: "refresh-live",
+            token_type: "bearer",
+            expires_in: 3600,
+            scope: "meeting:write:meeting",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.endsWith("/users/me")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message:
+              "Invalid access token, does not contain scopes:[user:read:user:admin, user:read:user].",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await completeZoomOAuthCallback({ code: "auth-code", state, error: null });
+    expect(result.redirectTo).toContain("zoom=connected");
+    const status = getInstructorZoomStatus(user.id);
+    expect(status.connected).toBe(true);
+    expect(status.zoomUserId).toBe(`oauth:${user.id}`);
+  });
+
   it("falls back to access-token JWT identity when /users/me lacks user:read:user", async () => {
     const user = instructor();
     const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));
