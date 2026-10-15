@@ -8,6 +8,7 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getZoomOAuthPublicDiagnostics, isZoomOAuthConfigured } from "@/services/zoom/config";
 import {
   getIntegrationByUserId,
+  hasPersonalInstructorZoom,
   isSharedPlatformZoomAccount,
   listInstructorZoomConnectionSummaries,
 } from "@/services/zoom/oauth-service";
@@ -31,17 +32,23 @@ export async function GET() {
       const view = publicIntegrationView(user.id, oauthConfigured);
       const integration = getIntegrationByUserId(user.id);
       const sharedPlatformAccount = isSharedPlatformZoomAccount(integration, platformZoomEmail);
+      const personalZoomReady = hasPersonalInstructorZoom(integration, platformZoomEmail);
+      const connected = summary?.connected ?? view.connected;
       return {
         userId: user.id,
         instructorName: user.fullName || user.email,
         instructorEmail: user.email,
-        connected: summary?.connected ?? view.connected,
-        status: summary?.status ?? view.status,
+        connected,
+        status:
+          sharedPlatformAccount && connected
+            ? "reconnect_required"
+            : (summary?.status ?? view.status),
         zoomEmail: summary?.zoomEmail ?? view.zoomEmail,
         lastSyncAt: summary?.lastSyncAt ?? view.lastSyncAt,
+        meetingReady: view.meetingReady && !sharedPlatformAccount,
         /** True when Zoom email is the shared platform host — cannot host live classes. */
         sharedPlatformAccount,
-        personalZoomReady: Boolean(summary?.connected ?? view.connected) && !sharedPlatformAccount,
+        personalZoomReady,
       };
     });
 
