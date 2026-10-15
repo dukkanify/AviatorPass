@@ -40,7 +40,8 @@ const DATA_FILE = path.join(dataDir(), "aep-email-outbox.json");
 const DEFAULT_MAX_ATTEMPTS = 5;
 /** Lifetime bound so HTML bodies cannot inflate the outbox forever. */
 export const EMAIL_OUTBOX_CAP = 400;
-const EMAIL_OUTBOX_FULL_BODY = 40;
+/** Keep full HTML for enough newest rows that admin fan-out emails do not slim earlier recipients mid-test. */
+export const EMAIL_OUTBOX_FULL_BODY = 120;
 
 function emptyOutbox(): OutboxDb {
   return { messages: [] };
