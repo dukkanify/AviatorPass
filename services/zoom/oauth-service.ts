@@ -460,6 +460,12 @@ export function assertInstructorZoomConnected(instructorId: string): void {
       409,
     );
   }
+  if (row.zoomUserId?.startsWith("oauth:")) {
+    throw new PermissionError(
+      "Zoom connected without a real Zoom user profile. Enable user:read:user on the Instructor OAuth app, then disconnect and Connect Zoom again before hosting live classes.",
+      409,
+    );
+  }
 }
 
 export function listInstructorZoomConnectionSummaries(): Array<{
