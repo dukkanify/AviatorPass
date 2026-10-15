@@ -4,7 +4,18 @@ import "@/styles/classroom.css";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-react";
+import {
+  Ellipsis,
+  MessageSquare,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PhoneOff,
+  Shield,
+  Users,
+  Video,
+  VideoOff,
+} from "lucide-react";
 
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
@@ -317,9 +328,12 @@ interface InAppZoomRoomProps {
   providerMode?: string | null;
   title?: string;
   displayName?: string;
+  instructorName?: string | null;
   leaveHref?: string;
   onLeave?: () => void;
   className?: string;
+  /** Fired when join phase changes so the shell can mirror status/timer. */
+  onPhaseChange?: (phase: "loading" | "classroom" | "sdk" | "error") => void;
 }
 
 interface InAppSession {
@@ -334,6 +348,15 @@ interface InAppSession {
   role: 0 | 1;
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "AP";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function InAppZoomRoom({
   liveClassId = null,
   joinUrl,
@@ -344,9 +367,11 @@ function InAppZoomRoom({
   providerMode = null,
   title = "Live class",
   displayName,
+  instructorName = null,
   leaveHref = routes.dashboard,
   onLeave,
   className,
+  onPhaseChange,
 }: InAppZoomRoomProps) {
   const router = useRouter();
   const stageRef = React.useRef<HTMLDivElement>(null);
@@ -359,6 +384,11 @@ function InAppZoomRoom({
   const [notice, setNotice] = React.useState("Preparing the AviatorPass classroom");
   const [camOn, setCamOn] = React.useState(true);
   const [micOn, setMicOn] = React.useState(true);
+  const [shareHint, setShareHint] = React.useState(false);
+
+  React.useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
 
   const stopLocalMedia = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -662,143 +692,166 @@ function InAppZoomRoom({
     displayName?.trim() ||
     (session?.userName && !/^host$/i.test(session.userName) ? session.userName : "") ||
     (isHost ? "Instructor" : "Student");
-  const controlLine = liveZoom
-    ? isHost
-      ? "You are the host. Mute, camera, share, chat, and record are on the Zoom bar."
-      : "Mute, camera, share, and chat are on the Zoom bar."
-    : "Camera and microphone stay on this page until the meeting opens.";
+  const hostLabel = instructorName?.trim() || (isHost ? personName : "Instructor");
+  const participantCount = 2;
 
   return (
     <div
       className={cn("classroom-stage text-white", liveZoom && "is-live", className)}
       style={{
-        display: "flex",
-        flexDirection: "column",
         width: "100%",
         height: "100%",
         flex: "1 1 auto",
         minHeight: "min(72vh, 820px)",
-        overflow: "hidden",
-        background: "#050b11",
         color: "#fff",
       }}
     >
-      <header className="classroom-chrome" style={{ flex: "0 0 auto", background: "#0c1824" }}>
-        <div className="min-w-0">
-          <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
-            <Radio className="size-3 shrink-0 text-[#CCA04C]" />
-            {personName}
-            {isHost ? " · Host" : ""}
-          </p>
-        </div>
-        <span className="classroom-chip shrink-0 text-[11px] tracking-wide text-white/70">
+      <header className="classroom-chrome" aria-hidden>
+        <p>{title}</p>
+        <span className="classroom-chip">
           {liveZoom ? "In the meeting" : phase === "error" ? "Reconnect" : "Ready"}
         </span>
       </header>
 
-      <div
-        className="classroom-viewport"
-        style={{
-          position: "relative",
-          flex: "1 1 auto",
-          minHeight: 0,
-          overflow: liveZoom ? "visible" : "hidden",
-          background: "#03070c",
-        }}
-      >
-        <div
-          ref={stageRef}
-          className={cn("classroom-sdk-root", liveZoom && "is-live")}
-          aria-hidden={!liveZoom}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-        />
-        {showPreview ? (
-          <>
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              autoPlay
-              className={cn("classroom-preview", !camOn && "is-off")}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                background: "#071018",
-              }}
-            />
-            {!camOn ? (
-              <div className="classroom-preview-fallback">
-                <VideoOff className="size-8 text-[#CCA04C]" />
-                <p>Camera is off</p>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-
-      <div
-        className="classroom-footer"
-        style={{ flex: "0 0 auto", background: "#0c1824", color: "#fff" }}
-      >
-        <div className="classroom-caption">
-          <Shield className="size-4 shrink-0 text-[#CCA04C]" />
-          <div className="min-w-0">
-            <p>{phase === "error" ? notice : controlLine}</p>
-            {shownMeeting && !liveZoom ? (
-              <p className="classroom-caption-meta">Meeting ID {shownMeeting}</p>
-            ) : null}
-          </div>
-        </div>
-        {phase === "error" ? (
-          <button
-            type="button"
-            className="classroom-dock-btn"
-            data-leave="true"
-            onClick={() => {
-              setNotice("Opening the classroom again");
-              setPhase("loading");
-              setAttempt((value) => value + 1);
-            }}
-          >
-            Open classroom again
-          </button>
-        ) : null}
-        <div className="classroom-dock">
+      <div className="classroom-stage-main">
+        <div className="classroom-viewport">
+          <div
+            ref={stageRef}
+            className={cn("classroom-sdk-root", liveZoom && "is-live")}
+            aria-hidden={!liveZoom}
+          />
           {showPreview ? (
             <>
-              <button
-                type="button"
-                className="classroom-dock-btn"
-                data-off={!micOn || undefined}
-                aria-label={micOn ? "Mute" : "Unmute"}
-                onClick={toggleMic}
-              >
-                {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-              </button>
-              <button
-                type="button"
-                className="classroom-dock-btn"
-                data-off={!camOn || undefined}
-                aria-label={camOn ? "Camera off" : "Camera on"}
-                onClick={toggleCamera}
-              >
-                {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-              </button>
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                autoPlay
+                className={cn("classroom-preview", !camOn && "is-off")}
+              />
+              {!camOn ? (
+                <div className="classroom-preview-fallback">
+                  <VideoOff className="size-8 text-[#CCA04C]" />
+                  <p>Camera is off</p>
+                </div>
+              ) : null}
+              <div className="classroom-nameplate" data-host={isHost || undefined}>
+                {personName}
+              </div>
             </>
           ) : null}
-          <button
-            type="button"
-            className="classroom-dock-btn"
-            data-leave="true"
-            onClick={() => void leaveClassroom()}
-          >
-            <PhoneOff className="size-4" />
-            Leave classroom
+        </div>
+      </div>
+
+      <aside className="classroom-rail" aria-label="Participants">
+        <div className="classroom-rail-head">
+          <h2>Participants ({participantCount})</h2>
+          <button type="button" className="classroom-invite">
+            Invite
           </button>
+        </div>
+        <div className="classroom-rail-list">
+          <div className="classroom-tile" aria-label={`${hostLabel} host`}>
+            <div className="classroom-tile-avatar">{initialsOf(hostLabel)}</div>
+            <div className="classroom-tile-label">
+              <span className="truncate">{hostLabel}</span>
+              <span className="classroom-tile-host">Host</span>
+            </div>
+          </div>
+          <div className="classroom-tile" aria-label={personName}>
+            <div className="classroom-tile-avatar">{initialsOf(personName)}</div>
+            <div className="classroom-tile-label">
+              <span className="truncate">{personName}</span>
+              {!micOn ? <MicOff className="size-3.5 text-[#fda4af]" aria-hidden /> : null}
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="classroom-footer">
+        {phase === "error" ? (
+          <div className="classroom-notice" role="status">
+            <Shield className="mt-0.5 size-4 shrink-0 text-[#CCA04C]" />
+            <div className="min-w-0">
+              <p>{notice}</p>
+              {shownMeeting ? <p className="mt-1 opacity-70">Meeting ID {shownMeeting}</p> : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="classroom-dock">
+          <div className="classroom-dock-cluster">
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!micOn || undefined}
+              aria-label={micOn ? "Mute" : "Unmute"}
+              onClick={toggleMic}
+              disabled={liveZoom}
+            >
+              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+              {micOn ? "Mute" : "Unmute"}
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!camOn || undefined}
+              aria-label={camOn ? "Stop Video" : "Start Video"}
+              onClick={toggleCamera}
+              disabled={liveZoom}
+            >
+              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+              {camOn ? "Stop Video" : "Start Video"}
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="Participants">
+              <Users className="size-5" />
+              Participants
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="Chat">
+              <MessageSquare className="size-5" />
+              Chat
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-active={shareHint || undefined}
+              aria-label="Share Screen"
+              onClick={() => setShareHint((value) => !value)}
+            >
+              <MonitorUp className="size-5" />
+              Share Screen
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="More">
+              <Ellipsis className="size-5" />
+              More
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {phase === "error" ? (
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-reconnect="true"
+                onClick={() => {
+                  setNotice("Opening the classroom again");
+                  setPhase("loading");
+                  setAttempt((value) => value + 1);
+                }}
+              >
+                Open classroom again
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-leave="true"
+              onClick={() => void leaveClassroom()}
+            >
+              <PhoneOff className="size-4" />
+              Leave Class
+            </button>
+          </div>
         </div>
       </div>
     </div>

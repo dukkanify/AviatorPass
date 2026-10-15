@@ -1,14 +1,31 @@
-/* Live classroom — immersive Aviator Blue / Gold stage */
+/* Live classroom — AviatorPass identity (Aviator Blue / Gold) matching classroom mockup */
+
+:root {
+  --ap-blue: #143048;
+  --ap-navy: #0b1622;
+  --ap-ink: #050b11;
+  --ap-gold: #cca04c;
+  --ap-gold-light: #f6c36c;
+  --ap-gold-dark: #9e712e;
+  --ap-live: #e11d2e;
+  --ap-live-soft: rgba(225, 29, 46, 0.16);
+  --ap-ok: #22c55e;
+  --ap-ok-soft: rgba(34, 197, 94, 0.16);
+  --ap-panel: #0e1a26;
+  --ap-panel-2: #122334;
+  --ap-line: rgba(255, 255, 255, 0.1);
+  --ap-muted: rgba(255, 255, 255, 0.62);
+}
 
 .classroom-shell {
   position: relative;
   isolation: isolate;
   min-height: 100dvh;
-  background-color: #071018;
+  background-color: var(--ap-ink);
   background-image:
-    radial-gradient(ellipse 90% 70% at 88% -8%, rgba(20, 48, 72, 0.7), transparent 56%),
-    radial-gradient(ellipse 55% 45% at 8% 108%, rgba(204, 160, 76, 0.22), transparent 52%),
-    linear-gradient(165deg, #050b11 0%, #0b1622 46%, #143048 100%);
+    radial-gradient(ellipse 80% 55% at 85% -10%, rgba(20, 48, 72, 0.75), transparent 58%),
+    radial-gradient(ellipse 45% 35% at 5% 100%, rgba(204, 160, 76, 0.14), transparent 55%),
+    linear-gradient(180deg, #050b11 0%, #0a1420 48%, #0d1c2c 100%);
   color: #fff;
 }
 
@@ -18,64 +35,263 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: linear-gradient(180deg, black 0%, transparent 78%);
-  opacity: 0.4;
-}
-
-.classroom-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 100%;
-  height: auto;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  padding: 0.4rem 0.75rem;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  backdrop-filter: blur(16px);
-}
-
-.classroom-chip button {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(180deg, black 0%, transparent 72%);
+  opacity: 0.45;
 }
 
 .classroom-page {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   width: 100%;
   min-height: 0;
   height: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 0.75rem 1.25rem 1rem;
+  gap: 0.75rem;
 }
 
-.classroom-page .classroom-stage {
+/* —— Top brand bar —— */
+.classroom-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.25rem;
+  padding: 0.35rem 0.15rem;
+}
+
+.classroom-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.classroom-topbar-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(204, 160, 76, 0.45);
+  background: linear-gradient(145deg, rgba(204, 160, 76, 0.28), rgba(20, 48, 72, 0.85));
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ap-gold-light);
+}
+
+.classroom-topbar-meta {
+  min-width: 0;
+}
+
+.classroom-topbar-meta strong {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.classroom-topbar-meta span {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--ap-muted);
+}
+
+/* —— Meeting header —— */
+.classroom-meet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--ap-line);
+  background: linear-gradient(180deg, rgba(18, 35, 52, 0.95), rgba(10, 20, 32, 0.92));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+}
+
+.classroom-meet-head-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
   flex: 1 1 auto;
-  height: 100%;
-  min-height: 0 !important;
 }
 
+.classroom-back {
+  display: inline-grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-line);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  transition: background 160ms ease;
+}
+
+.classroom-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.classroom-meet-copy {
+  min-width: 0;
+}
+
+.classroom-meet-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.classroom-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.55rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: var(--ap-live);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.classroom-badge-live::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+
+.classroom-meet-copy h1 {
+  margin: 0;
+  font-family: var(--font-display, "Exo 2", sans-serif);
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.classroom-meet-meta {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  color: var(--ap-muted);
+  font-size: 0.78rem;
+}
+
+.classroom-meet-meta strong {
+  color: var(--ap-gold);
+  font-weight: 600;
+}
+
+.classroom-meet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex: 0 0 auto;
+}
+
+.classroom-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.2rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: var(--ap-ok-soft);
+  color: #86efac;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.classroom-status-pill[data-state="ready"],
+.classroom-status-pill[data-state="loading"] {
+  border-color: rgba(204, 160, 76, 0.35);
+  background: rgba(204, 160, 76, 0.12);
+  color: var(--ap-gold-light);
+}
+
+.classroom-status-pill[data-state="error"],
+.classroom-status-pill[data-state="reconnect"] {
+  border-color: rgba(225, 29, 46, 0.4);
+  background: var(--ap-live-soft);
+  color: #fda4af;
+}
+
+.classroom-status-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
+}
+
+.classroom-timer {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+.classroom-materials-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.2rem;
+  padding: 0 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background 160ms ease;
+}
+
+.classroom-materials-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* —— Stage shell —— */
 .classroom-stage {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 15.5rem;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.75rem;
   width: 100%;
   min-height: min(72vh, 820px);
-  border-radius: 1.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #050b11;
+  padding: 0.75rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--ap-line);
+  background: linear-gradient(180deg, #0a1520 0%, #071018 100%);
   box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 24px 64px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 
 .classroom-stage.is-live {
@@ -83,18 +299,17 @@
   overflow: visible;
 }
 
-.classroom-stage.is-live .classroom-viewport {
-  overflow: visible;
+.classroom-stage-main {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .classroom-chrome {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.15rem 0.9rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: #0c1824;
+  display: none;
 }
 
 .classroom-viewport {
@@ -103,12 +318,15 @@
   flex: 1 1 auto;
   width: auto;
   min-height: 0;
-  margin: 0.75rem 0.85rem;
   overflow: hidden;
-  border-radius: 1.15rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  border: 1px solid var(--ap-line);
   background: #03070c;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.classroom-stage.is-live .classroom-viewport {
+  overflow: visible;
 }
 
 .classroom-sdk-root {
@@ -174,21 +392,11 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-popup] {
   max-width: 100% !important;
 }
 
-/* Zoom Component View often teleports a floating popper onto document.body */
 body:has(.classroom-sdk-root.is-live) [class*="suspension"],
 body:has(.classroom-sdk-root.is-live) [class*="zoom-ui"],
 body:has(.classroom-sdk-root.is-live) [id*="zmmtg"],
 body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
   max-width: none !important;
-}
-
-.classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
-.classroom-sdk-root.is-live [class*="video-player"] {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
 }
 
 body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
@@ -231,63 +439,178 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   font-size: 0.875rem;
 }
 
-.classroom-footer {
+.classroom-nameplate {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.65rem;
+  background: rgba(5, 11, 17, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.classroom-nameplate[data-host="true"]::after {
+  content: "Host";
+  margin-left: 0.15rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ap-gold-dark), var(--ap-gold), var(--ap-gold-light));
+  color: #0b1a24;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* —— Participants rail (desktop) —— */
+.classroom-rail {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
-  flex: 0 0 auto;
   flex-direction: column;
-  gap: 0.9rem;
-  padding: 0.95rem 1.15rem 1.1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: #0c1824;
+  gap: 0.65rem;
+  min-height: 0;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-line);
+  background: var(--ap-panel);
+}
+
+.classroom-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.classroom-rail-head h2 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.classroom-invite {
+  height: 1.7rem;
+  padding: 0 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(204, 160, 76, 0.4);
+  background: rgba(204, 160, 76, 0.12);
+  color: var(--ap-gold-light);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.classroom-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.classroom-tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-line);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 30%, rgba(20, 48, 72, 0.95), transparent 70%), #071018;
+}
+
+.classroom-tile-label {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 0.45rem;
+  background: rgba(5, 11, 17, 0.78);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.classroom-tile-host {
+  color: var(--ap-gold);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.classroom-tile-avatar {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display, "Exo 2", sans-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ap-gold-light);
+}
+
+/* —— Footer / controls —— */
+.classroom-footer {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.15rem 0.15rem 0;
 }
 
 .classroom-caption {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.875rem;
-  line-height: 1.45;
-}
-
-.classroom-caption-meta {
-  margin-top: 0.2rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.48);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.classroom-stage-skeleton {
-  min-height: min(72vh, 760px);
-  border-radius: 1.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  display: none;
 }
 
 .classroom-dock {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(7, 16, 24, 0.62);
-  padding: 0.45rem 0.55rem;
-  backdrop-filter: blur(22px);
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.classroom-dock-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-line);
+  background: rgba(7, 16, 24, 0.78);
+  backdrop-filter: blur(18px);
 }
 
 .classroom-dock-btn {
   display: inline-flex;
-  height: 3.15rem;
-  width: 3.15rem;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  gap: 0.2rem;
+  min-width: 4.35rem;
+  height: 3.55rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   transition:
     background 160ms ease,
     transform 160ms ease,
@@ -295,108 +618,332 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
 }
 
 .classroom-dock-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
   transform: translateY(-1px);
 }
 
 .classroom-dock-btn[data-off="true"] {
-  background: rgba(220, 38, 38, 0.88);
+  background: rgba(225, 29, 46, 0.88);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+.classroom-dock-btn[data-active="true"] {
+  background: rgba(34, 197, 94, 0.9);
+  border-color: rgba(134, 239, 172, 0.35);
+  color: #052e16;
+}
+
 .classroom-dock-btn[data-leave="true"] {
-  width: auto;
+  min-width: 8.5rem;
+  height: 3.55rem;
+  flex-direction: row;
   gap: 0.45rem;
-  padding: 0 1rem;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 0 1.15rem;
+  border-radius: 0.9rem;
+  background: var(--ap-live);
+  border-color: rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
-@keyframes classroom-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(204, 160, 76, 0.45);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(204, 160, 76, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(204, 160, 76, 0);
-  }
+.classroom-dock-btn[data-leave="true"]:hover {
+  background: #c41424;
+  transform: translateY(-1px);
 }
 
-@media (max-width: 720px) {
-  .classroom-page {
-    padding: 0.5rem;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-  }
+.classroom-dock-btn[data-reconnect="true"] {
+  min-width: auto;
+  height: 2.6rem;
+  flex-direction: row;
+  padding: 0 0.9rem;
+  border-radius: 0.75rem;
+  background: rgba(204, 160, 76, 0.18);
+  border-color: rgba(204, 160, 76, 0.4);
+  color: var(--ap-gold-light);
+  font-size: 0.75rem;
+}
 
-  .classroom-page > header {
-    gap: 0.4rem;
-  }
+.classroom-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(225, 29, 46, 0.3);
+  background: rgba(225, 29, 46, 0.1);
+  color: #fecdd3;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
 
-  .classroom-page > header h1 {
-    font-size: 1.05rem;
-    line-height: 1.25;
-  }
+.classroom-notice[data-tone="info"] {
+  border-color: rgba(204, 160, 76, 0.3);
+  background: rgba(204, 160, 76, 0.1);
+  color: #f5e9cf;
+}
 
-  .classroom-page-heading {
-    margin-top: 0.65rem;
-    gap: 0.65rem;
-  }
+/* —— Class info panel —— */
+.classroom-panel {
+  border-radius: 1.1rem;
+  border: 1px solid var(--ap-line);
+  background: linear-gradient(180deg, rgba(14, 26, 38, 0.96), rgba(8, 16, 26, 0.96));
+  overflow: hidden;
+}
 
-  .classroom-page-heading h1 {
-    font-size: 1.35rem;
-    line-height: 1.25;
-  }
+.classroom-tabs {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem 0;
+  border-bottom: 1px solid var(--ap-line);
+  overflow-x: auto;
+}
 
-  .classroom-chrome {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.45rem;
-    padding: 0.65rem 0.75rem;
-  }
+.classroom-tab {
+  position: relative;
+  height: 2.4rem;
+  padding: 0 0.9rem;
+  border: 0;
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
-  .classroom-footer {
-    align-items: stretch;
-    gap: 0.55rem;
-    padding: 0.65rem 0.75rem calc(0.7rem + env(safe-area-inset-bottom));
-  }
+.classroom-tab[data-active="true"] {
+  color: #fff;
+}
 
-  .classroom-dock {
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    width: 100%;
-    border-radius: 1.25rem;
-  }
+.classroom-tab[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ap-gold-dark), var(--ap-gold), var(--ap-gold-light));
+}
 
-  .classroom-dock-btn {
-    height: 2.75rem;
-    width: 2.75rem;
-  }
+.classroom-panel-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(12rem, 0.7fr);
+  gap: 1rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
 
-  .classroom-dock-btn[data-leave="true"] {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
+.classroom-info-main {
+  display: flex;
+  gap: 0.85rem;
+  min-width: 0;
+}
 
-  .classroom-stage,
-  .classroom-stage.is-live {
-    min-height: 0 !important;
-    border-radius: 1rem;
-  }
+.classroom-info-icon {
+  display: grid;
+  place-items: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  flex: 0 0 auto;
+  border-radius: 0.9rem;
+  background: linear-gradient(145deg, rgba(204, 160, 76, 0.28), rgba(20, 48, 72, 0.7));
+  color: var(--ap-gold-light);
+}
 
-  .classroom-viewport {
-    min-height: 0 !important;
-    height: auto !important;
-    flex: 1 1 auto;
-    margin: 0.35rem;
-    border-radius: 0.85rem;
-  }
+.classroom-info-main h2 {
+  margin: 0;
+  font-family: var(--font-display, "Exo 2", sans-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.classroom-info-main p {
+  margin: 0.35rem 0 0;
+  color: var(--ap-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.classroom-info-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-line);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.78rem;
+}
+
+.classroom-info-side div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.classroom-info-side span {
+  color: var(--ap-muted);
+}
+
+.classroom-info-side strong {
+  color: #fff;
+  font-weight: 600;
+  text-align: right;
+}
+
+.classroom-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  height: auto;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  backdrop-filter: blur(16px);
+}
+
+.classroom-stage-skeleton {
+  min-height: min(72vh, 760px);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
 }
 
 .classroom-live-dot {
   height: 0.5rem;
   width: 0.5rem;
   border-radius: 999px;
-  background: #cca04c;
+  background: var(--ap-live);
   animation: classroom-pulse 1.8s ease-out infinite;
+}
+
+@keyframes classroom-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 46, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(225, 29, 46, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 46, 0);
+  }
+}
+
+/* —— Mobile —— */
+@media (max-width: 900px) {
+  .classroom-page {
+    padding: 0.55rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom));
+    gap: 0.55rem;
+  }
+
+  .classroom-topbar {
+    min-height: 2.75rem;
+  }
+
+  .classroom-topbar-user span {
+    display: none;
+  }
+
+  .classroom-meet-head {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem;
+  }
+
+  .classroom-meet-actions {
+    justify-content: flex-start;
+  }
+
+  .classroom-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-height: 0 !important;
+    padding: 0.55rem;
+    border-radius: 1rem;
+  }
+
+  .classroom-stage.is-live {
+    min-height: 0 !important;
+  }
+
+  .classroom-stage-main {
+    flex: 1 1 auto;
+    min-height: 42vh;
+  }
+
+  .classroom-viewport {
+    min-height: 38vh;
+    border-radius: 0.85rem;
+  }
+
+  .classroom-rail {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 0.55rem;
+  }
+
+  .classroom-rail-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .classroom-tile {
+    aspect-ratio: 16 / 10;
+  }
+
+  .classroom-footer {
+    gap: 0.45rem;
+  }
+
+  .classroom-dock {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .classroom-dock-cluster {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    width: 100%;
+    border-radius: 1rem;
+  }
+
+  .classroom-dock-btn {
+    min-width: 0;
+    width: 100%;
+    height: 3.65rem;
+  }
+
+  .classroom-dock-btn[data-leave="true"] {
+    width: 100%;
+    min-width: 0;
+    height: 3.15rem;
+  }
+
+  .classroom-panel-body {
+    grid-template-columns: 1fr;
+    padding: 0.85rem;
+  }
+
+  .classroom-tabs {
+    padding-inline: 0.45rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .classroom-meet-copy h1 {
+    font-size: 1rem;
+  }
+
+  .classroom-materials-btn span {
+    display: none;
+  }
 }
