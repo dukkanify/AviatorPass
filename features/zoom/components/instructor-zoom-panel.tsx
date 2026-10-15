@@ -87,15 +87,29 @@ function InstructorZoomPanel() {
   }
 
   const connected = Boolean(status?.connected);
-  const needsReconnect = Boolean(status?.needsReconnect);
+  const sharedPlatform = Boolean(status?.sharedPlatformAccount);
+  const personalReady = Boolean(status?.personalZoomReady);
+  const needsReconnect = Boolean(status?.needsReconnect) || sharedPlatform;
   const oauthReady = Boolean(status?.oauthConfigured);
   const statusLabel = loading
     ? "Checking"
-    : connected
-      ? "Connected"
-      : needsReconnect
-        ? "Reconnect required"
-        : "Not Connected";
+    : sharedPlatform
+      ? "Shared platform — reconnect"
+      : personalReady
+        ? "Connected"
+        : needsReconnect
+          ? "Reconnect required"
+          : connected
+            ? "Connected"
+            : "Not Connected";
+
+  const badgeVariant = loading
+    ? "outline"
+    : personalReady
+      ? "success"
+      : sharedPlatform || needsReconnect
+        ? "warning"
+        : "outline";
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm">
@@ -108,15 +122,14 @@ function InstructorZoomPanel() {
             </p>
             <CardTitle className="font-display text-xl text-[#143048]">Zoom Account</CardTitle>
             <CardDescription className="max-w-xl text-sm leading-relaxed">
-              {connected
+              {personalReady
                 ? "Your live classes are hosted on this Zoom account. Students join in-app as participants."
-                : "Connect your Zoom account once to create and host your live classes."}
+                : sharedPlatform
+                  ? "Live classes must use your personal Zoom account — not the shared platform host."
+                  : "Connect your personal Zoom account once to create and host your live classes."}
             </CardDescription>
           </div>
-          <Badge
-            variant={connected ? "success" : needsReconnect ? "warning" : "outline"}
-            className="shrink-0"
-          >
+          <Badge variant={badgeVariant} className="shrink-0">
             {statusLabel}
           </Badge>
         </div>
@@ -147,14 +160,31 @@ function InstructorZoomPanel() {
           </div>
         </dl>
 
+        {sharedPlatform ? (
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+            {status?.zoomEmail ? (
+              <>
+                <span className="font-medium">{status.zoomEmail}</span> is the shared platform Zoom
+                account and cannot host live classes. Disconnect, then Connect Zoom with your own
+                personal Zoom login.
+              </>
+            ) : (
+              <>
+                This connection uses the shared platform Zoom account and cannot host live classes.
+                Disconnect, then Connect Zoom with your own personal Zoom login.
+              </>
+            )}
+          </p>
+        ) : null}
+
         {!connected && !needsReconnect ? (
           <p className="rounded-lg border border-[#CCA04C]/35 bg-[#CCA04C]/10 px-3 py-2.5 text-sm text-[#143048]">
-            Connect your Zoom account once to create and host your live classes.
+            Connect your personal Zoom account once to create and host your live classes.
           </p>
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          {!connected ? (
+          {!personalReady ? (
             <Button
               asChild
               disabled={!oauthReady}
@@ -162,7 +192,7 @@ function InstructorZoomPanel() {
             >
               <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
                 <Link2 className="mr-2 h-4 w-4" />
-                {needsReconnect ? "Reconnect Zoom" : "Connect Zoom"}
+                {sharedPlatform || needsReconnect ? "Reconnect personal Zoom" : "Connect Zoom"}
               </a>
             </Button>
           ) : (
@@ -176,7 +206,7 @@ function InstructorZoomPanel() {
             type="button"
             variant="outline"
             onClick={() => void syncNow()}
-            disabled={!connected || busy !== null}
+            disabled={!personalReady || busy !== null}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             {busy === "sync" ? "Syncing…" : "Sync now"}
@@ -185,7 +215,7 @@ function InstructorZoomPanel() {
             type="button"
             variant="ghost"
             onClick={() => void disconnect()}
-            disabled={(!connected && !needsReconnect) || busy !== null}
+            disabled={(!connected && !needsReconnect && !sharedPlatform) || busy !== null}
           >
             <Unplug className="mr-2 h-4 w-4" />
             {busy === "disconnect" ? "Disconnecting…" : "Disconnect Zoom"}

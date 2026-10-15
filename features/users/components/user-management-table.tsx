@@ -70,7 +70,16 @@ function UserManagementTable({
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<UserProfile | null>(null);
   const [zoomByUser, setZoomByUser] = React.useState<
-    Record<string, { connected: boolean; zoomEmail: string | null; lastSyncAt: string | null }>
+    Record<
+      string,
+      {
+        connected: boolean;
+        zoomEmail: string | null;
+        lastSyncAt: string | null;
+        personalZoomReady: boolean;
+        sharedPlatformAccount: boolean;
+      }
+    >
   >({});
   const showZoom = roleFilter === "instructor";
 
@@ -104,18 +113,28 @@ function UserManagementTable({
           connected: boolean;
           zoomEmail: string | null;
           lastSyncAt: string | null;
+          personalZoomReady?: boolean;
+          sharedPlatformAccount?: boolean;
         }>;
       }>("/api/admin/instructors/zoom");
       if (zoom.success && zoom.data?.instructors) {
         const map: Record<
           string,
-          { connected: boolean; zoomEmail: string | null; lastSyncAt: string | null }
+          {
+            connected: boolean;
+            zoomEmail: string | null;
+            lastSyncAt: string | null;
+            personalZoomReady: boolean;
+            sharedPlatformAccount: boolean;
+          }
         > = {};
         for (const row of zoom.data.instructors) {
           map[row.userId] = {
             connected: row.connected,
             zoomEmail: row.zoomEmail,
             lastSyncAt: row.lastSyncAt,
+            personalZoomReady: Boolean(row.personalZoomReady),
+            sharedPlatformAccount: Boolean(row.sharedPlatformAccount),
           };
         }
         setZoomByUser(map);
@@ -201,12 +220,16 @@ function UserManagementTable({
             header: "Zoom",
             cell: (row: UserProfile) => {
               const zoom = zoomByUser[row.id];
-              const connected = Boolean(zoom?.connected);
-              return (
-                <Badge variant={connected ? "success" : "outline"}>
-                  {connected ? "Connected" : "Not Connected"}
-                </Badge>
-              );
+              if (zoom?.personalZoomReady) {
+                return <Badge variant="success">Personal ready</Badge>;
+              }
+              if (zoom?.sharedPlatformAccount) {
+                return <Badge variant="warning">Shared platform</Badge>;
+              }
+              if (zoom?.connected) {
+                return <Badge variant="warning">Reconnect</Badge>;
+              }
+              return <Badge variant="outline">Not Connected</Badge>;
             },
           },
           {

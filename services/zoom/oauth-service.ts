@@ -85,7 +85,20 @@ export function hasPersonalInstructorZoom(
 export { getIntegrationByUserId };
 
 export function getInstructorZoomStatus(userId: string) {
-  return publicIntegrationView(userId, isZoomOAuthConfigured());
+  const view = publicIntegrationView(userId, isZoomOAuthConfigured());
+  const row = getIntegrationByUserId(userId);
+  const platformEmail = getPlatformSettings().zoom.accountEmail;
+  const sharedPlatformAccount = isSharedPlatformZoomAccount(row, platformEmail);
+  const personalZoomReady = hasPersonalInstructorZoom(row, platformEmail);
+  return {
+    ...view,
+    // OAuth may be connected to the shared platform host — still not meeting-ready.
+    meetingReady: view.meetingReady && !sharedPlatformAccount,
+    needsReconnect: view.needsReconnect || sharedPlatformAccount,
+    status: sharedPlatformAccount && view.connected ? ("reconnect_required" as const) : view.status,
+    sharedPlatformAccount,
+    personalZoomReady,
+  };
 }
 
 export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string }): string {

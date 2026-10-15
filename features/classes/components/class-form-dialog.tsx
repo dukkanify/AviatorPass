@@ -92,19 +92,27 @@ function ClassFormDialog({
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    const sharedHint =
+      "Connect your own personal Zoom account before hosting. The shared platform Zoom account cannot host live classes.";
+    const missingHint = "Please connect your Zoom account before creating a live class.";
+
     async function checkZoom() {
       if (lockInstructor) {
         const res = await fetch("/api/integrations/zoom/status", { cache: "no-store" });
         const json = (await res.json()) as {
           success?: boolean;
-          data?: { connected?: boolean; needsReconnect?: boolean };
+          data?: {
+            connected?: boolean;
+            needsReconnect?: boolean;
+            personalZoomReady?: boolean;
+            sharedPlatformAccount?: boolean;
+          };
         };
         if (cancelled) return;
-        const connected = Boolean(json.data?.connected);
-        setZoomReady(connected);
-        setZoomHint(
-          connected ? null : "Please connect your Zoom account before creating a live class.",
-        );
+        const personalReady = Boolean(json.data?.personalZoomReady);
+        const shared = Boolean(json.data?.sharedPlatformAccount);
+        setZoomReady(personalReady);
+        setZoomHint(personalReady ? null : shared ? sharedHint : missingHint);
         return;
       }
       if (instructorId === "none") {
@@ -116,7 +124,12 @@ function ClassFormDialog({
       const json = (await res.json()) as {
         success?: boolean;
         data?: {
-          instructors?: Array<{ userId: string; connected: boolean }>;
+          instructors?: Array<{
+            userId: string;
+            connected: boolean;
+            personalZoomReady?: boolean;
+            sharedPlatformAccount?: boolean;
+          }>;
         };
       };
       if (cancelled) return;
@@ -126,11 +139,10 @@ function ClassFormDialog({
         return;
       }
       const row = json.data?.instructors?.find((item) => item.userId === instructorId);
-      const connected = Boolean(row?.connected);
-      setZoomReady(connected);
-      setZoomHint(
-        connected ? null : "Please connect your Zoom account before creating a live class.",
-      );
+      const personalReady = Boolean(row?.personalZoomReady);
+      const shared = Boolean(row?.sharedPlatformAccount);
+      setZoomReady(personalReady);
+      setZoomHint(personalReady ? null : shared ? sharedHint : missingHint);
     }
     void checkZoom();
     return () => {
@@ -199,7 +211,8 @@ function ClassFormDialog({
         <DialogHeader>
           <DialogTitle>Schedule live class</DialogTitle>
           <DialogDescription>
-            Live meetings are created on the assigned instructor&apos;s connected Zoom account.
+            Live meetings are created on the assigned instructor&apos;s personal Zoom account (not
+            the shared platform host).
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>

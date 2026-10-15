@@ -46,6 +46,16 @@ export interface ZoomIntegrationPublic {
   lastSyncAt: string | null;
   oauthConfigured: boolean;
   needsReconnect: boolean;
+  /** False when Connected used a placeholder Zoom user id — cannot host live meetings yet. */
+  meetingReady: boolean;
+  identitySource: "profile" | "jwt" | "placeholder" | null;
+  /**
+   * True when the connected Zoom identity is the shared platform / CEO host.
+   * Live classes require a personal instructor Zoom account.
+   */
+  sharedPlatformAccount: boolean;
+  /** True when OAuth is connected, identity is real, and not the shared platform host. */
+  personalZoomReady: boolean;
 }
 
 export interface ZoomOAuthTokenResponse {

@@ -95,6 +95,9 @@ export function publicIntegrationView(
   /** False when Connected used a placeholder Zoom user id — cannot host live meetings yet. */
   meetingReady: boolean;
   identitySource: "profile" | "jwt" | "placeholder" | null;
+  /** Filled by getInstructorZoomStatus — defaults false in the base view. */
+  sharedPlatformAccount: boolean;
+  personalZoomReady: boolean;
 } {
   const row = getIntegrationByUserId(userId);
   if (!row) {
@@ -109,6 +112,8 @@ export function publicIntegrationView(
       needsReconnect: false,
       meetingReady: false,
       identitySource: null,
+      sharedPlatformAccount: false,
+      personalZoomReady: false,
     };
   }
   const placeholder = isPlaceholderZoomIdentity(row.zoomUserId);
@@ -120,6 +125,7 @@ export function publicIntegrationView(
     : row.zoomEmail
       ? "profile"
       : "jwt";
+  const meetingReady = rowConnected && !placeholder && Boolean(row.zoomUserId);
   return {
     connected: rowConnected && !placeholder,
     status,
@@ -129,7 +135,11 @@ export function publicIntegrationView(
     lastSyncAt: row.lastSyncAt,
     oauthConfigured,
     needsReconnect: status === "reconnect_required",
-    meetingReady: rowConnected && !placeholder && Boolean(row.zoomUserId),
+    meetingReady,
     identitySource,
+    // Shared-platform / personal readiness are enriched in getInstructorZoomStatus
+    // (needs decrypt + platform settings — avoid policy ↔ oauth cycles).
+    sharedPlatformAccount: false,
+    personalZoomReady: false,
   };
 }
