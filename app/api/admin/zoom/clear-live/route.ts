@@ -12,10 +12,16 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as {
       keepMeetingNumber?: string;
       force?: boolean;
+      instructorUserId?: string;
+      endMeetingNumbers?: string[];
     };
     const result = await clearZoomHostLiveMeetings({
       keepMeetingNumber: body.keepMeetingNumber,
       force: Boolean(body.force),
+      instructorUserId: body.instructorUserId,
+      endMeetingNumbers: Array.isArray(body.endMeetingNumbers)
+        ? body.endMeetingNumbers.map(String)
+        : undefined,
     });
     return NextResponse.json({ success: true, data: result, error: null });
   } catch (error) {

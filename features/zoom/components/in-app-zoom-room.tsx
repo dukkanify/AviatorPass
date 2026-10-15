@@ -4,7 +4,18 @@ import "@/styles/classroom.css";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff, PhoneOff, Radio, Shield, Video, VideoOff } from "lucide-react";
+import {
+  Ellipsis,
+  MessageSquare,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PhoneOff,
+  Shield,
+  Users,
+  Video,
+  VideoOff,
+} from "lucide-react";
 
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
@@ -27,11 +38,29 @@ function zoomFailureText(error: unknown): string {
   return String(error ?? "");
 }
 
-function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
-  return /already has other meetings in progress/i.test(root?.innerText ?? "");
+function zoomStageDialogText(root: HTMLElement | null): string {
+  return root?.innerText ?? "";
 }
 
-/** Join, and fail fast if Zoom paints the "other meeting" dialog without rejecting. */
+function zoomStageShowsHostBusy(root: HTMLElement | null): boolean {
+  return /already has other meetings in progress/i.test(zoomStageDialogText(root));
+}
+
+function zoomStageShowsInvalidSignature(root: HTMLElement | null): boolean {
+  return /signature is invalid/i.test(zoomStageDialogText(root));
+}
+
+function zoomDomJoinError(root: HTMLElement | null): Error | null {
+  if (zoomStageShowsInvalidSignature(root)) {
+    return new Error("3712 Signature is invalid");
+  }
+  if (zoomStageShowsHostBusy(root)) {
+    return new Error("3000 Already has other meetings in progress");
+  }
+  return null;
+}
+
+/** Join, and fail fast if Zoom paints a fatal dialog without rejecting the promise. */
 async function joinEmbeddedMeeting(
   client: ZoomEmbeddedClient,
   payload: {
@@ -46,19 +75,13 @@ async function joinEmbeddedMeeting(
   stage: HTMLElement,
 ): Promise<void> {
   let timer = 0;
-  const observer = new MutationObserver(() => {
-    if (zoomStageShowsHostBusy(stage)) {
-      window.clearInterval(timer);
-    }
-  });
-  observer.observe(stage, { childList: true, subtree: true, characterData: true });
+  const joinedAt = Date.now();
   try {
     const joined = client
       .join(payload)
       .then(() => {
-        if (zoomStageShowsHostBusy(stage)) {
-          throw new Error("3000 Already has other meetings in progress");
-        }
+        const painted = zoomDomJoinError(stage);
+        if (painted) throw painted;
       })
       .catch((error: unknown) => {
         throw error instanceof Error ? error : new Error(zoomFailureText(error));
@@ -67,10 +90,11 @@ async function joinEmbeddedMeeting(
       await Promise.race([
         joined,
         new Promise<void>((_, reject) => {
+          // Give Zoom a moment to settle before treating painted dialog text as final.
           timer = window.setInterval(() => {
-            if (zoomStageShowsHostBusy(stage)) {
-              reject(new Error("3000 Already has other meetings in progress"));
-            }
+            if (Date.now() - joinedAt < 1500) return;
+            const painted = zoomDomJoinError(stage);
+            if (painted) reject(painted);
           }, 250);
         }),
       ]);
@@ -79,7 +103,6 @@ async function joinEmbeddedMeeting(
       throw error;
     }
   } finally {
-    observer.disconnect();
     window.clearInterval(timer);
   }
 }
@@ -305,9 +328,12 @@ interface InAppZoomRoomProps {
   providerMode?: string | null;
   title?: string;
   displayName?: string;
+  instructorName?: string | null;
   leaveHref?: string;
   onLeave?: () => void;
   className?: string;
+  /** Fired when join phase changes so the shell can mirror status/timer. */
+  onPhaseChange?: (phase: "loading" | "classroom" | "sdk" | "error") => void;
 }
 
 interface InAppSession {
@@ -322,6 +348,15 @@ interface InAppSession {
   role: 0 | 1;
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "AP";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function InAppZoomRoom({
   liveClassId = null,
   joinUrl,
@@ -332,9 +367,11 @@ function InAppZoomRoom({
   providerMode = null,
   title = "Live class",
   displayName,
+  instructorName = null,
   leaveHref = routes.dashboard,
   onLeave,
   className,
+  onPhaseChange,
 }: InAppZoomRoomProps) {
   const router = useRouter();
   const stageRef = React.useRef<HTMLDivElement>(null);
@@ -347,6 +384,11 @@ function InAppZoomRoom({
   const [notice, setNotice] = React.useState("Preparing the AviatorPass classroom");
   const [camOn, setCamOn] = React.useState(true);
   const [micOn, setMicOn] = React.useState(true);
+  const [shareHint, setShareHint] = React.useState(false);
+
+  React.useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
 
   const stopLocalMedia = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -481,24 +523,56 @@ function InAppZoomRoom({
           } catch (hostError) {
             if (!active.zak && !active.hostSignature) throw hostError;
             const detail = zoomFailureText(hostError);
-            const staleHostToken = /200|start meeting via tokens|zak/i.test(detail);
+            // Signature failures are credential/JWT issues — retrying as participant
+            // with the same Meeting SDK secret will fail the same way.
+            if (/3712|signature is invalid/i.test(detail)) throw hostError;
+            const staleHostToken = /(?:^|\D)200(?:\D|$)|start meeting via tokens|\bzak\b/i.test(
+              detail,
+            );
             const hostBusy = /3000|other meetings in progress/i.test(detail);
-            if (staleHostToken) {
-              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only");
-            }
-            if (hostBusy) {
-              console.warn("[zoom] Host already in another meeting; joining as participant");
-            }
-            await releaseZoomEmbeddedClient(client);
-            stage.replaceChildren();
-            client = await openZoomEmbeddedClient();
-            if (cancelled) {
+            if (!staleHostToken && !hostBusy) throw hostError;
+
+            const remount = async () => {
               await releaseZoomEmbeddedClient(client);
-              return;
+              stage.replaceChildren();
+              client = await openZoomEmbeddedClient();
+              if (cancelled) {
+                await releaseZoomEmbeddedClient(client);
+                return false;
+              }
+              sdkRef.current = client;
+              await initClient(client);
+              return true;
+            };
+
+            // 1) start_url ZAK rejected → retry host JWT (role 1) without zak
+            if (staleHostToken && active.hostSignature) {
+              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only", detail);
+              if (!(await remount())) return;
+              try {
+                await joinEmbeddedMeeting(
+                  client,
+                  { ...participantJoin, signature: active.hostSignature },
+                  stage,
+                );
+              } catch (hostOnlyError) {
+                const hostOnlyDetail = zoomFailureText(hostOnlyError);
+                if (/3712|signature is invalid/i.test(hostOnlyDetail)) throw hostOnlyError;
+                // Role-1 without a Zoom-accepted ZAK still returns 200 on this account.
+                // Fall through to participant JWT so the instructor can enter the room.
+                console.warn(
+                  "[zoom] Host JWT without ZAK rejected; joining as participant",
+                  hostOnlyDetail,
+                );
+                if (!(await remount())) return;
+                await joinEmbeddedMeeting(client, participantJoin, stage);
+              }
+            } else {
+              // 2) Host already in another meeting → participant JWT only
+              console.warn("[zoom] Host already in another meeting; joining as participant");
+              if (!(await remount())) return;
+              await joinEmbeddedMeeting(client, participantJoin, stage);
             }
-            sdkRef.current = client;
-            await initClient(client);
-            await joinEmbeddedMeeting(client, participantJoin, stage);
           }
           if (cancelled) return;
           stopLocalMedia();
@@ -546,14 +620,17 @@ function InAppZoomRoom({
           await startLocalMedia();
           if (!cancelled) {
             const detail = zoomFailureText(error);
+            const meetingHint = active.meetingNumber ? ` Meeting ID ${active.meetingNumber}.` : "";
             setNotice(
               /3099|registration/i.test(detail)
-                ? "This meeting still asks for registration. Open the classroom again."
+                ? `This meeting still asks for registration. Open the classroom again.${meetingHint}`
                 : /3000|other meetings in progress/i.test(detail)
-                  ? "This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again."
+                  ? `This Zoom account is already inside another meeting. Leave that meeting, then open this classroom again.${meetingHint}`
                   : /3712|signature is invalid/i.test(detail)
-                    ? "Zoom rejected the Meeting SDK signature. An admin must re-copy ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET from the same Meeting SDK app (Production, Embed enabled) — not Instructor OAuth secrets."
-                    : "The classroom could not open the meeting. You can try again.",
+                    ? `Zoom error 3712 — Meeting SDK signature rejected.${meetingHint} Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*).`
+                    : /200|start meeting via tokens|\bzak\b/i.test(detail)
+                      ? `Zoom host token (ZAK) was rejected.${meetingHint} Reconnect Zoom on the instructor profile, then open the classroom again.`
+                      : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).${meetingHint}`,
             );
           }
           return;
@@ -615,143 +692,167 @@ function InAppZoomRoom({
     displayName?.trim() ||
     (session?.userName && !/^host$/i.test(session.userName) ? session.userName : "") ||
     (isHost ? "Instructor" : "Student");
-  const controlLine = liveZoom
-    ? isHost
-      ? "You are the host. Mute, camera, share, chat, and record are on the Zoom bar."
-      : "Mute, camera, share, and chat are on the Zoom bar."
-    : "Camera and microphone stay on this page until the meeting opens.";
+  const hostLabel = instructorName?.trim() || (isHost ? personName : "Instructor");
+  const participantCount = 2;
 
   return (
     <div
       className={cn("classroom-stage text-white", liveZoom && "is-live", className)}
       style={{
-        display: "flex",
-        flexDirection: "column",
         width: "100%",
         height: "100%",
         flex: "1 1 auto",
         minHeight: "min(72vh, 820px)",
-        overflow: "hidden",
-        background: "#050b11",
         color: "#fff",
       }}
     >
-      <header className="classroom-chrome" style={{ flex: "0 0 auto", background: "#0c1824" }}>
-        <div className="min-w-0">
-          <p className="font-display text-lg font-semibold tracking-tight">{title}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-white/70">
-            <Radio className="size-3 shrink-0 text-[#CCA04C]" />
-            {personName}
-            {isHost ? " · Host" : ""}
-          </p>
-        </div>
-        <span className="classroom-chip shrink-0 text-[11px] tracking-wide text-white/70">
+      <header className="classroom-chrome" aria-hidden>
+        <p>{title}</p>
+        <span className="classroom-chip">
           {liveZoom ? "In the meeting" : phase === "error" ? "Reconnect" : "Ready"}
         </span>
       </header>
 
-      <div
-        className="classroom-viewport"
-        style={{
-          position: "relative",
-          flex: "1 1 auto",
-          minHeight: 0,
-          overflow: liveZoom ? "visible" : "hidden",
-          background: "#03070c",
-        }}
-      >
-        <div
-          ref={stageRef}
-          className={cn("classroom-sdk-root", liveZoom && "is-live")}
-          aria-hidden={!liveZoom}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-        />
-        {showPreview ? (
-          <>
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              autoPlay
-              className={cn("classroom-preview", !camOn && "is-off")}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                background: "#071018",
-              }}
-            />
-            {!camOn ? (
-              <div className="classroom-preview-fallback">
-                <VideoOff className="size-8 text-[#CCA04C]" />
-                <p>Camera is off</p>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-
-      <div
-        className="classroom-footer"
-        style={{ flex: "0 0 auto", background: "#0c1824", color: "#fff" }}
-      >
-        <div className="classroom-caption">
-          <Shield className="size-4 shrink-0 text-[#CCA04C]" />
-          <div className="min-w-0">
-            <p>{phase === "error" ? notice : controlLine}</p>
-            {shownMeeting && !liveZoom ? (
-              <p className="classroom-caption-meta">Meeting ID {shownMeeting}</p>
-            ) : null}
-          </div>
-        </div>
-        {phase === "error" ? (
-          <button
-            type="button"
-            className="classroom-dock-btn"
-            data-leave="true"
-            onClick={() => {
-              setNotice("Opening the classroom again");
-              setPhase("loading");
-              setAttempt((value) => value + 1);
-            }}
-          >
-            Open classroom again
-          </button>
-        ) : null}
-        <div className="classroom-dock">
+      <div className="classroom-stage-main">
+        <div className="classroom-viewport">
+          <div
+            ref={stageRef}
+            className={cn("classroom-sdk-root", liveZoom && "is-live")}
+            aria-hidden={!liveZoom}
+          />
           {showPreview ? (
             <>
-              <button
-                type="button"
-                className="classroom-dock-btn"
-                data-off={!micOn || undefined}
-                aria-label={micOn ? "Mute" : "Unmute"}
-                onClick={toggleMic}
-              >
-                {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-              </button>
-              <button
-                type="button"
-                className="classroom-dock-btn"
-                data-off={!camOn || undefined}
-                aria-label={camOn ? "Camera off" : "Camera on"}
-                onClick={toggleCamera}
-              >
-                {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-              </button>
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                autoPlay
+                className={cn("classroom-preview", !camOn && "is-off")}
+              />
+              {!camOn ? (
+                <div className="classroom-preview-fallback">
+                  <VideoOff className="size-8 text-[#CCA04C]" />
+                  <p>Camera is off</p>
+                </div>
+              ) : null}
+              <div className="classroom-nameplate" data-host={isHost || undefined}>
+                {personName}
+              </div>
             </>
           ) : null}
-          <button
-            type="button"
-            className="classroom-dock-btn"
-            data-leave="true"
-            onClick={() => void leaveClassroom()}
-          >
-            <PhoneOff className="size-4" />
-            Leave classroom
+        </div>
+      </div>
+
+      <aside className="classroom-rail" aria-label="Participants">
+        <div className="classroom-rail-head">
+          <h2>Participants ({participantCount})</h2>
+          <button type="button" className="classroom-invite">
+            Invite
           </button>
+        </div>
+        <div className="classroom-rail-list">
+          <div className="classroom-tile" aria-label={`${hostLabel} host`}>
+            <div className="classroom-tile-avatar">{initialsOf(hostLabel)}</div>
+            <div className="classroom-tile-label">
+              <span className="truncate">{hostLabel}</span>
+              <span className="classroom-tile-host">Host</span>
+            </div>
+          </div>
+          <div className="classroom-tile" aria-label={personName}>
+            <div className="classroom-tile-avatar">{initialsOf(personName)}</div>
+            <div className="classroom-tile-label">
+              <span className="truncate">{personName}</span>
+              {!micOn ? <MicOff className="size-3.5 text-[#fda4af]" aria-hidden /> : null}
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="classroom-footer">
+        {phase === "error" ? (
+          <div className="classroom-notice" role="status">
+            <Shield className="mt-0.5 size-4 shrink-0 text-[#CCA04C]" />
+            <div className="min-w-0">
+              <p>{notice}</p>
+              {shownMeeting ? <p className="mt-1 opacity-70">Meeting ID {shownMeeting}</p> : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="classroom-dock">
+          <div className="classroom-dock-cluster">
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!micOn || undefined}
+              aria-label={micOn ? "Mute" : "Unmute"}
+              onClick={toggleMic}
+              disabled={liveZoom}
+            >
+              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+              {micOn ? "Mute" : "Unmute"}
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-off={!camOn || undefined}
+              aria-label={camOn ? "Stop Video" : "Start Video"}
+              onClick={toggleCamera}
+              disabled={liveZoom}
+            >
+              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+              {camOn ? "Stop Video" : "Start Video"}
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="Participants">
+              <Users className="size-5" />
+              Participants
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="Chat">
+              <MessageSquare className="size-5" />
+              Chat
+            </button>
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-share="true"
+              data-active={shareHint || undefined}
+              aria-label="Share Screen"
+              onClick={() => setShareHint((value) => !value)}
+            >
+              <MonitorUp className="size-5" />
+              Share Screen
+            </button>
+            <button type="button" className="classroom-dock-btn" aria-label="More">
+              <Ellipsis className="size-5" />
+              More
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {phase === "error" ? (
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-reconnect="true"
+                onClick={() => {
+                  setNotice("Opening the classroom again");
+                  setPhase("loading");
+                  setAttempt((value) => value + 1);
+                }}
+              >
+                Open classroom again
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="classroom-dock-btn"
+              data-leave="true"
+              onClick={() => void leaveClassroom()}
+            >
+              <PhoneOff className="size-4" />
+              Leave Class
+            </button>
+          </div>
         </div>
       </div>
     </div>

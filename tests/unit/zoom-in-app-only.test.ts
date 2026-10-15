@@ -147,7 +147,9 @@ describe("Zoom stays inside AviatorPass", () => {
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
     expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
+    expect(room).toMatch(/Host JWT without ZAK rejected; joining as participant/);
     expect(room).toMatch(/Host already in another meeting; joining as participant/);
+    expect(room).toMatch(/staleHostToken && active\.hostSignature/);
     expect(
       readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
     ).toMatch(/zoomHostBlockedByAnotherLiveMeeting/);

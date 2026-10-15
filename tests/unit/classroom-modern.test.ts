@@ -28,8 +28,11 @@ describe("modern classroom join page", () => {
     expect(room).toMatch(/classroom-viewport/);
     expect(room).toMatch(/classroom-footer/);
     expect(room).toMatch(/classroom-dock/);
-    expect(room).toMatch(/Leave classroom/);
+    expect(room).toMatch(/Leave Class/);
     expect(room).toMatch(/Open classroom again/);
+    expect(room).toMatch(/Share Screen/);
+    expect(room).toMatch(/classroom-rail/);
+    expect(room).toMatch(/classroom-dock-cluster/);
     expect(room).toMatch(/displayName/);
     expect(room).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(room).toMatch(/startLocalMedia\(\)/);
