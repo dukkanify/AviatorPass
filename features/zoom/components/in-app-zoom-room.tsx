@@ -516,7 +516,18 @@ function InAppZoomRoom({
             }
             sdkRef.current = client;
             await initClient(client);
-            await joinEmbeddedMeeting(client, participantJoin, stage);
+            // Stale ZAK: keep host role JWT (role 1) and omit zak. Only drop to
+            // participant JWT when Zoom reports the account is already in another meeting.
+            await joinEmbeddedMeeting(
+              client,
+              staleHostToken && active.hostSignature
+                ? {
+                    ...participantJoin,
+                    signature: active.hostSignature,
+                  }
+                : participantJoin,
+              stage,
+            );
           }
           if (cancelled) return;
           stopLocalMedia();

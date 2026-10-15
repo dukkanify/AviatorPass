@@ -689,6 +689,13 @@ export async function updateLiveClass(input: {
     syncLectureStaff(next.id, instructorId, next.assistantInstructorId);
   }
 
+  const enrollIds = Array.isArray(input.patch.enrollStudentIds)
+    ? input.patch.enrollStudentIds.map(String).filter(Boolean)
+    : [];
+  if (enrollIds.length) {
+    enrollStudentsInLiveClass(next.id, enrollIds);
+  }
+
   const { liveClassMeetingFieldsChanged } = await import("@/services/zoom/meeting-service");
   if (liveClassMeetingFieldsChanged(existing, next)) {
     await updateMeetingForClass({ liveClass: next, actorId: input.actorId });
