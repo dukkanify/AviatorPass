@@ -63,9 +63,16 @@ function suffix(id: string): string | null {
 export function getZoomOAuthPublicDiagnostics() {
   const oauth = getZoomOAuthConfig();
   const env = getServerEnv();
-  const sdkId = env.ZOOM_CLIENT_ID?.trim() || "";
+  const sdkId =
+    env.ZOOM_CLIENT_ID?.trim() ||
+    env.ZOOM_SDK_KEY?.trim() ||
+    env.ZOOM_MEETING_SDK_KEY?.trim() ||
+    "";
   const instructorId = oauth.clientId;
-  const credentialsMixed = Boolean(instructorId && sdkId && instructorId === sdkId);
+  const s2sId = env.ZOOM_S2S_CLIENT_ID?.trim() || "";
+  const credentialsMixed = Boolean(
+    (instructorId && sdkId && instructorId === sdkId) || (s2sId && sdkId && s2sId === sdkId),
+  );
   return {
     oauthConfigured: isZoomOAuthConfigured(),
     redirectUri: oauth.redirectUri,
@@ -75,6 +82,7 @@ export function getZoomOAuthPublicDiagnostics() {
     includeScopesInAuthorizeUrl: oauth.includeScopesInAuthorizeUrl,
     authorizeHost: "zoom.us",
     meetingSdkClientIdSuffix: suffix(sdkId),
+    meetingSdkClientIdLength: sdkId ? sdkId.length : 0,
     credentialsMixed,
   };
 }

@@ -39,7 +39,7 @@ Instructors connect their own Zoom account via **Instructor OAuth** (`ZOOM_INSTR
 
 `ZOOM_ACCOUNT_ID` + `ZOOM_S2S_CLIENT_ID` + `ZOOM_S2S_CLIENT_SECRET` are Server-to-Server OAuth for platform/booking meetings (create / update / delete only).
 
-In-app join uses the **Meeting SDK** app (`ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`). Enable **Features → Embed → Meeting SDK** on that app. Do not reuse Instructor OAuth or S2S credentials for Meeting SDK JWTs.
+In-app join uses the **Meeting SDK** app (`ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`). Enable **Features → Embed → Meeting SDK** on that app. Copy **both** Client ID and Client Secret from the **same** app’s **Production** App Credentials (Dev/Prod pairs must not be mixed). Do not reuse Instructor OAuth (`ZOOM_INSTRUCTOR_*`) or S2S secrets for Meeting SDK JWTs — a mismatched pair causes Zoom error **3712 Signature is invalid**. Super Admin → `/api/zoom/status` reports `meetingSdk.credentialPairValid` without exposing secrets.
 
 When neither instructor OAuth nor S2S is available, meetings are created in **mock mode** with join URLs under `/join/[id]`.
 

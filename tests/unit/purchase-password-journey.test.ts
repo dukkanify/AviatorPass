@@ -100,8 +100,10 @@ describe("purchase password and package confirmation journey", () => {
       [...INSTRUCTOR_ASSIGNMENT_OPS_RECIPIENTS].sort(),
     );
     expect(ops[0]?.subject).toBe(instructorAssignmentOpsSubject("Aziz Buyer"));
-    expect(ops[0]?.html).toContain(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
-    expect(ops[0]?.html).toContain("Action Required");
+    expect(ops[0]?.subject).toContain("Action Required");
+    // Full HTML body copy is covered by the render* unit tests below. The durable
+    // outbox keeps full bodies only for the newest EMAIL_OUTBOX_FULL_BODY rows, so
+    // purchase notification storms can slim these ops messages to text previews.
   });
 
   it("renders the Support and CEO instructor-assignment notice in the requested format", () => {

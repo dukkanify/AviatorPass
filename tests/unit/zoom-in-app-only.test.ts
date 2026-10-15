@@ -1,13 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ZOOM_EMBEDDED_SDK_LOAD_GROUPS,
   ZOOM_EMBEDDED_SDK_SCRIPTS,
 } from "@/features/zoom/lib/load-embedded-sdk";
-import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
+import {
+  getZoomMeetingSdkCredentials,
+  probeMeetingSdkCredentialPair,
+} from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { linkExistingZoomMeeting } from "@/services/classes/zoom-service";
 import { writeClassesDb } from "@/services/classes/store";
@@ -43,6 +46,10 @@ describe("Zoom stays inside AviatorPass", () => {
   it("extracts the meeting number from Zoom or in-app URLs", () => {
     expect(extractZoomMeetingNumber("https://zoom.us/j/86524929538?pwd=abc")).toBe("86524929538");
     expect(extractZoomMeetingNumber("/join/class-1?mid=123456789", "123456789")).toBe("123456789");
+    expect(extractZoomMeetingNumber(undefined, "818 6630 2161")).toBe("81866302161");
+    // Internal ZoomMeetingRecord UUIDs must never become fake meeting numbers.
+    expect(extractZoomMeetingNumber(undefined, "bdfb10f27fdbba36b2cff5872a38fe97")).toBe("");
+    expect(extractZoomMeetingNumber("/join/class-1?mid=bdfb10f27fdbba36b2cff5872a38fe97")).toBe("");
   });
 
   it("reads the host ZAK from a start URL without exposing it as a navigation target", () => {
@@ -193,6 +200,12 @@ describe("Zoom stays inside AviatorPass", () => {
     expect(decoded.appKey).toBe("general-app-client");
     delete process.env.ZOOM_CLIENT_ID;
     delete process.env.ZOOM_CLIENT_SECRET;
+    expect(getZoomMeetingSdkCredentials()).toEqual({
+      clientId: "legacy-sdk-key",
+      clientSecret: "legacy-sdk-secret",
+    });
+    delete process.env.ZOOM_SDK_KEY;
+    delete process.env.ZOOM_SDK_SECRET;
     expect(getZoomMeetingSdkCredentials()).toBeNull();
     if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
     else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
@@ -208,6 +221,36 @@ describe("Zoom stays inside AviatorPass", () => {
     else process.env.ZOOM_S2S_CLIENT_ID = previous.ZOOM_S2S_CLIENT_ID;
     if (previous.ZOOM_S2S_CLIENT_SECRET === undefined) delete process.env.ZOOM_S2S_CLIENT_SECRET;
     else process.env.ZOOM_S2S_CLIENT_SECRET = previous.ZOOM_S2S_CLIENT_SECRET;
+  });
+
+  it("probes Meeting SDK Client ID/Secret pairs without exposing secrets", async () => {
+    const previous = {
+      ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
+      ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+    };
+    process.env.ZOOM_CLIENT_ID = "sdk-client-id";
+    process.env.ZOOM_CLIENT_SECRET = "sdk-client-secret";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }),
+    ) as typeof fetch;
+    await expect(probeMeetingSdkCredentialPair()).resolves.toMatchObject({
+      configured: true,
+      clientIdSuffix: "t-id",
+      credentialPairValid: true,
+    });
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "invalid_client" }), { status: 401 }),
+    ) as typeof fetch;
+    await expect(probeMeetingSdkCredentialPair()).resolves.toMatchObject({
+      configured: true,
+      credentialPairValid: false,
+    });
+    globalThis.fetch = originalFetch;
+    if (previous.ZOOM_CLIENT_ID === undefined) delete process.env.ZOOM_CLIENT_ID;
+    else process.env.ZOOM_CLIENT_ID = previous.ZOOM_CLIENT_ID;
+    if (previous.ZOOM_CLIENT_SECRET === undefined) delete process.env.ZOOM_CLIENT_SECRET;
+    else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
   });
 
   it("keeps Server-to-Server OAuth off the Meeting SDK JWT path", () => {
