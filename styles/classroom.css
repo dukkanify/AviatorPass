@@ -104,6 +104,7 @@
 
 .classroom-topbar-meta strong {
   display: block;
+  max-width: min(42vw, 14rem);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -906,7 +907,7 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
 
   .classroom-viewport {
     flex: 1 1 auto;
-    min-height: min(42vh, 20rem);
+    min-height: min(36vh, 16rem);
     max-height: none;
     aspect-ratio: auto;
     border-radius: 0.85rem;
@@ -922,14 +923,23 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
     background: linear-gradient(180deg, transparent, rgba(5, 11, 17, 0.92) 28%);
   }
 
+  /* Keep the rail compact on phones so Class Info is not mid-clipped */
   .classroom-rail {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
     padding: 0.45rem;
     order: 3;
-    max-height: 7.5rem;
+    max-height: 5.5rem;
     overflow: auto;
+  }
+
+  .classroom-page > .flex.min-h-0.flex-1 {
+    padding-bottom: 0.35rem;
+  }
+
+  .classroom-panel {
+    scroll-margin-bottom: 1rem;
   }
 
   .classroom-rail-list {
