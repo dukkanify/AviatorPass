@@ -12,12 +12,11 @@ import {
   listProgressForStudent,
 } from "@/services/learning/progress-service";
 import { listHistory } from "@/services/learning/history-service";
-import { listAttemptsForStudent } from "@/services/quizzes/attempt-service";
 import { getAttendanceOverview } from "@/services/classes/attendance-service";
 import { listCertificates } from "@/services/certificates/certificate-service";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { ensureLearningSeeded } from "@/services/learning/seed";
-import { ensureQuizzesSeeded } from "@/services/quizzes/seed";
+import { getStudentAssessmentStats } from "@/services/mock-exams/assessment-scores";
 import type {
   AcademicPerformance,
   ProgressTimelineEvent,
@@ -45,7 +44,6 @@ function studyStreakDays(studentId: string): number {
 
 export function getStudentProgressSnapshot(studentId: string): StudentProgressSnapshot {
   ensureLearningSeeded();
-  ensureQuizzesSeeded();
   ensureCertificatesSeeded();
 
   const overall = getOverallProgress(studentId);
@@ -79,20 +77,10 @@ export function getStudentProgressSnapshot(studentId: string): StudentProgressSn
     }
   });
 
-  const attempts = listAttemptsForStudent(studentId).filter((a) =>
-    ["submitted", "graded", "expired"].includes(a.status),
-  );
-  const scored = attempts.filter((a) => typeof a.percent === "number");
-  const averageQuizScore =
-    scored.length === 0
-      ? 0
-      : Math.round(
-          (scored.reduce((s, a) => s + (a.percent ?? 0), 0) / scored.length) * 10,
-        ) / 10;
-  const quizPassRate =
-    scored.length === 0
-      ? 0
-      : Math.round((scored.filter((a) => a.passed).length / scored.length) * 1000) / 10;
+  // averageQuizScore / quiz* fields retain API names; values are live mock-exam assessments.
+  const assessment = getStudentAssessmentStats(studentId);
+  const averageQuizScore = assessment.averageScore;
+  const quizPassRate = assessment.passRate;
 
   let attendanceRate = 0;
   let liveClassParticipation = 0;
@@ -120,7 +108,7 @@ export function getStudentProgressSnapshot(studentId: string): StudentProgressSn
     studyStreakDays: studyStreakDays(studentId),
     attendanceRate,
     averageQuizScore,
-    quizAttempts: attempts.length,
+    quizAttempts: assessment.attemptCount,
     quizPassRate,
     liveClassParticipation,
     certificatesIssued,
@@ -130,15 +118,12 @@ export function getStudentProgressSnapshot(studentId: string): StudentProgressSn
 
 export function getAcademicPerformance(studentId: string): AcademicPerformance {
   const snap = getStudentProgressSnapshot(studentId);
-  const attempts = listAttemptsForStudent(studentId).filter(
-    (a) => typeof a.percent === "number",
-  );
-  const percents = attempts.map((a) => a.percent as number);
+  const assessment = getStudentAssessmentStats(studentId);
   return {
     studentId,
     averageScore: snap.averageQuizScore,
-    highestScore: percents.length ? Math.max(...percents) : 0,
-    lowestScore: percents.length ? Math.min(...percents) : 0,
+    highestScore: assessment.highestScore,
+    lowestScore: assessment.lowestScore,
     passRate: snap.quizPassRate,
     attendanceRate: snap.attendanceRate,
     completionRate:
@@ -184,17 +169,16 @@ export function getProgressTimeline(studentId: string): ProgressTimelineEvent[] 
     });
   }
 
-  for (const a of listAttemptsForStudent(studentId)) {
-    if (a.passed) {
-      events.push({
-        id: `quiz-${a.id}`,
-        at: a.submittedAt ?? a.updatedAt,
-        type: "quiz_passed",
-        title: "Quiz passed",
-        description: `Score ${a.percent ?? 0}%`,
-        courseId: null,
-      });
-    }
+  const assessment = getStudentAssessmentStats(studentId);
+  if (assessment.passedCount > 0) {
+    events.push({
+      id: `assessment-${studentId}`,
+      at: new Date().toISOString(),
+      type: "quiz_passed",
+      title: "Mock exam passed",
+      description: `${assessment.passedCount} pass(es) · avg ${assessment.averageScore}%`,
+      courseId: null,
+    });
   }
 
   for (const c of listCertificates({ studentId, status: "issued" })) {

@@ -50,7 +50,7 @@ function StudentProgressDashboard() {
             <Stat label="Overall progress" value={`${Math.round(snap.overallPercent)}%`} />
             <Stat label="Learning hours" value={`${snap.learningHours}h`} />
             <Stat label="Study streak" value={`${snap.studyStreakDays}d`} />
-            <Stat label="Quiz average" value={`${snap.averageQuizScore}%`} />
+            <Stat label="Exam average" value={`${snap.averageQuizScore}%`} />
             <Stat label="Attendance" value={`${snap.attendanceRate}%`} />
             <Stat label="Quiz pass rate" value={`${snap.quizPassRate}%`} />
             <Stat label="Certificates" value={snap.certificatesIssued} />

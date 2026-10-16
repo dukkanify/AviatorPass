@@ -37,6 +37,11 @@ import { getOverallProgress } from "@/services/learning/progress-service";
 import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
 import { getCgiDashboardSnapshot } from "@/services/cgi/journey-service";
+import {
+  countExaminerMockExams,
+  getStudentAssessmentStats,
+} from "@/services/mock-exams/assessment-scores";
+import { listCertificates } from "@/services/certificates/certificate-service";
 import type { UserProfile } from "@/types";
 
 export { ensureDemoUsersSeeded };
@@ -335,7 +340,7 @@ export function getInstructorOverview(instructorUserId?: string | null) {
     upcomingClasses: classStats.upcoming,
     students,
     assignments: 0,
-    quizzes: 0,
+    quizzes: countExaminerMockExams(instructor.id),
     earnings: listWallets().find((w) => w.instructorId === instructor.id)?.lifetimeEarned ?? 0,
     walletBalance:
       listWallets().find((w) => w.instructorId === instructor.id)?.availableBalance ?? 0,
@@ -360,15 +365,16 @@ export function getStudentOverview(studentUserId?: string | null) {
   }
   if (student) {
     const overall = getOverallProgress(student.id);
+    const assessment = getStudentAssessmentStats(student.id);
     return {
       currentCourses: overall.activeCourses,
       nextLiveClass: "None scheduled",
       progress: Math.round(overall.progressPercent),
-      certificates: 0,
+      certificates: listCertificates({ studentId: student.id, status: "issued" }).length,
       notifications: 0,
       assignments: 0,
-      quizzes: 0,
-      weeklyProgress: 0,
+      quizzes: assessment.attemptCount,
+      weeklyProgress: Math.round(assessment.averageScore),
       attendance: 0,
       learningHours: overall.learningHours,
     };
