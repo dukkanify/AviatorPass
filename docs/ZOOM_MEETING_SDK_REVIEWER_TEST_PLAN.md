@@ -96,7 +96,21 @@ Checked on 19 October 2026 against deployment `dpl_ZqnnvUECMjy4RvNtZMgqJjRRaoLy`
 - Instructor OAuth and Server-to-Server credentials were not modified.
 - The reviewer instructor cannot create a class until a personal Zoom account is connected on the other application.
 
-The signed-out return to `/join` is new and is verified only after the deployment that contains this page.
+The signed-out return to `/join` is verified on deployment `dpl_8pHrKRy123uaD4BVdvdAEmjyvLEC` (SHA `9062920f6614083f53f47cdac419759bf6d8ee30`).
+
+## Production evidence for this deployment
+
+Checked on 19 October 2026 after the classroom lobby and documentation page were deployed.
+
+- `https://www.aviatorpass.com/integrations/zoom` returns HTTP 200 without sign-in and includes Adding the app, Using the app, and Removing the app.
+- A signed-out visit to `https://www.aviatorpass.com/join` opens `/login?next=%2Fjoin`.
+- The instructor reviewer returns to `/join` and sees **No class is ready**.
+- The student reviewer returns to `/join` and sees **No class is ready**.
+- The student reviewer is sent to `/access-denied` from `/instructor/profile`.
+- `GET /api/zoom/status` still reports Meeting SDK suffix `VGTQ`, length 22, `credentialPairValid: true`. That client is not the instructor OAuth client and not the Server-to-Server client.
+- The reviewer instructor’s class list is empty. Creating a class still depends on the separate instructor OAuth connection.
+- The platform has other classes whose join URLs are on `us02web.zoom.us` and contain a numeric meeting id. Those classes were not opened. They are not assigned to the reviewer accounts, and joining one would enter another person’s meeting.
+- The embedded Meeting SDK was not initialized against a live meeting in this test.
 
 ## Expected results that are not yet verified
 
