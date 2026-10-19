@@ -6,6 +6,7 @@ import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-st
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { getPermissionsForRole, ROLE_DASHBOARD, ROLES, type Role } from "@/constants/roles";
+import { postAuthRedirect } from "@/lib/security/safe-return-path";
 import {
   clearSessionCookies,
   hashSessionToken,
@@ -472,6 +473,7 @@ export async function verifyOtp(input: {
   purpose: OtpChallenge["purpose"];
   deviceFingerprint?: string | null;
   deviceLabel?: string | null;
+  returnTo?: string | null;
   ctx?: RequestContext;
 }): Promise<
   ApiResponse<{
@@ -736,7 +738,7 @@ export async function verifyOtp(input: {
     }
   }
 
-  const redirectTo = postAuthRedirect(profile);
+  const redirectTo = postAuthRedirect(profile, input.returnTo);
 
   return {
     success: true,
@@ -749,13 +751,7 @@ export async function verifyOtp(input: {
   };
 }
 
-export function postAuthRedirect(profile: UserProfile): string {
-  if (profile.mustChangePassword) return "/change-password";
-  if (profile.role === ROLES.INSTRUCTOR && profile.status === ACCOUNT_STATUS.PENDING) {
-    return "/instructor-pending";
-  }
-  return profile.profileComplete ? ROLE_DASHBOARD[profile.role] : "/complete-profile";
-}
+export { postAuthRedirect };
 
 export async function resetPassword(input: {
   email: string;
@@ -1018,6 +1014,7 @@ export async function passwordLogin(input: {
   rememberMe?: boolean;
   deviceFingerprint?: string | null;
   deviceLabel?: string | null;
+  returnTo?: string | null;
   ctx?: RequestContext;
 }): Promise<
   ApiResponse<{
@@ -1135,7 +1132,7 @@ export async function passwordLogin(input: {
     success: true,
     data: {
       user: profile,
-      redirectTo: postAuthRedirect(profile),
+      redirectTo: postAuthRedirect(profile, input.returnTo),
       requiresProfile: !profile.profileComplete,
       mustChangePassword: Boolean(profile.mustChangePassword),
     },
