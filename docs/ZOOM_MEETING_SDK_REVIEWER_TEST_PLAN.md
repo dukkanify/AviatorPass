@@ -137,7 +137,23 @@ When that instructor’s Zoom status is `personalZoomReady`, and the connected Z
 
 Calling it again returns that same class. It does not create a second one and it does not scan other instructors’ meetings.
 
-If the instructor is not personally connected, the action returns HTTP 409 and creates nothing. Current block: `oauth_not_connected`. No dedicated Zoom test-user password is stored in AviatorPass, Vercel, or this repository, so this agent cannot complete Zoom’s sign-in page. The Production Client Secret for `7z2krfWYQWCi20C0FRZ0xA` is still not stored, so the live Connect Zoom request still uses the other instructor client.
+If the instructor is not personally connected, the action returns HTTP 409 and creates nothing.
+
+### Actual class on 19 October 2026
+
+No reviewer class exists. Production `POST /api/admin/zoom/reviewer-classroom` on deployment `dpl_6Uim8ZwadZvRWGJ7d3UT4rU7qitc` returned HTTP 409, block `oauth_not_connected`, and `classId: null`.
+
+| Check                                        | Result                                                                                                                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewer instructor Zoom                     | Disconnected, `personalZoomReady: false`, no Zoom email                                                                                                                |
+| Dedicated Zoom test user in this environment | None. No Zoom email or password is stored, so Zoom’s sign-in page cannot be completed                                                                                  |
+| Connect Zoom request                         | Opens `https://zoom.us/signin` with signed state and the production callback. Client suffix `dhiQ`, length 21. It is not Production Client ID `7z2krfWYQWCi20C0FRZ0xA` |
+| Classes before and after the refused action  | 57 and 57. None added or removed                                                                                                                                       |
+| Instructor host test                         | Not run. There is no class                                                                                                                                             |
+| Student embedded Meeting SDK join            | Not run. There is no meeting                                                                                                                                           |
+| Host and participant roles                   | Not verified                                                                                                                                                           |
+
+The Production Client Secret for `7z2krfWYQWCi20C0FRZ0xA` is still not stored. Authorization of a dedicated Zoom user is blocked until the account owner supplies that secret, or confirms that the current instructor client may be used, and then signs that Zoom user in.
 
 ### Reviewer steps after the Zoom user is connected
 
