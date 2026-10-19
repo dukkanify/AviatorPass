@@ -112,6 +112,45 @@ Checked on 19 October 2026 after the classroom lobby and documentation page were
 - The platform has other classes whose join URLs are on `us02web.zoom.us` and contain a numeric meeting id. Those classes were not opened. They are not assigned to the reviewer accounts, and joining one would enter another person’s meeting.
 - The embedded Meeting SDK was not initialized against a live meeting in this test.
 
+## Isolated reviewer classroom
+
+This workflow does not open, edit, or end any existing customer meeting. It does not create a class until the reviewer instructor has authorized a personal Zoom user on AviatorPass for Zoom.
+
+Super Admin only:
+
+`POST /api/admin/zoom/reviewer-classroom`
+
+The action looks up only these accounts:
+
+- Instructor: `zoom.reviewer.instructor@aviatorpass.com`
+- Student: `zoom.reviewer.student@aviatorpass.com`
+
+When that instructor’s Zoom status is `personalZoomReady`, and the connected Zoom email is not the platform host and not another AviatorPass account, the action creates one class:
+
+| Field     | Value                                             |
+| --------- | ------------------------------------------------- |
+| Title     | Marketplace reviewer classroom — ATPL meteorology |
+| Duration  | 30 minutes                                        |
+| Timezone  | Asia/Kuwait                                       |
+| Enrolment | The reviewer student only                         |
+| Join path | `/join/{classId}` returned by the action          |
+
+Calling it again returns that same class. It does not create a second one and it does not scan other instructors’ meetings.
+
+If the instructor is not personally connected, the action returns HTTP 409 and creates nothing. Current block: `oauth_not_connected`. No dedicated Zoom test-user password is stored in AviatorPass, Vercel, or this repository, so this agent cannot complete Zoom’s sign-in page. The Production Client Secret for `7z2krfWYQWCi20C0FRZ0xA` is still not stored, so the live Connect Zoom request still uses the other instructor client.
+
+### Reviewer steps after the Zoom user is connected
+
+1. Sign in as the reviewer instructor at https://www.aviatorpass.com/instructor/profile and choose Connect Zoom.
+2. On Zoom’s own sign-in page, authorize a dedicated Zoom user. Do not use `ceo@aviatorpass.com` or a customer Zoom account.
+3. Confirm the profile shows that Zoom email, status Connected, and `personalZoomReady` true.
+4. A Super Admin calls `POST /api/admin/zoom/reviewer-classroom`.
+5. Open the returned `/join/{classId}` as the instructor. Expected when the meeting exists: the embedded Meeting SDK starts and the instructor is the host.
+6. In a separate browser session, sign in as the reviewer student and open the same `/join/{classId}`. Expected: the embedded Meeting SDK joins as a participant.
+7. The student still cannot open `/instructor/profile`.
+
+Until both of those live joins have been completed, this plan does not claim an end-to-end Meeting SDK test.
+
 ## Expected results that are not yet verified
 
 - A reviewer instructor creates a Zoom meeting.
