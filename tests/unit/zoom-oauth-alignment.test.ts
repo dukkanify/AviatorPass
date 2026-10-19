@@ -70,9 +70,10 @@ describe("instructor OAuth alignment", () => {
     expect(alignment.instructorIdEqualsMeetingSdkId).toBe(false);
     expect(alignment.instructorSecretEqualsMeetingSdkSecret).toBe(false);
     expect(alignment.configuredInstructorPair.pairAccepted).toBe(true);
-    expect(alignment.expectedClientWithInstructorSecret.pairAccepted).toBe(true);
-    expect(alignment.expectedClientWithMeetingSdkSecret.pairAccepted).toBe(false);
-    expect(alignment.expectedClientWithS2sSecret.pairAccepted).toBe(false);
+    expect(alignment.expectedProductionClientSecretMatch.ZOOM_INSTRUCTOR_CLIENT_SECRET).toBe(true);
+    expect(alignment.expectedProductionClientSecretMatch.ZOOM_CLIENT_SECRET).toBe(false);
+    expect(alignment.expectedProductionClientSecretMatch.ZOOM_S2S_CLIENT_SECRET).toBe(false);
+    expect(alignment.expectedProductionClientSecretMatch.ZOOM_SDK_SECRET).toBeNull();
     expect(JSON.stringify(alignment)).not.toContain("instructor-secret");
     expect(JSON.stringify(alignment)).not.toContain("sdk-secret");
   });

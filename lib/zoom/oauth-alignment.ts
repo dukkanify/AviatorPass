@@ -85,9 +85,8 @@ export type InstructorOAuthAlignment = {
   instructorSecretEqualsMeetingSdkSecret: boolean;
   instructorSecretEqualsS2sSecret: boolean;
   configuredInstructorPair: OAuthPairProbe;
-  expectedClientWithInstructorSecret: OAuthPairProbe;
-  expectedClientWithMeetingSdkSecret: OAuthPairProbe;
-  expectedClientWithS2sSecret: OAuthPairProbe;
+  /** Which configured secret Zoom accepts with the expected Production Client ID. */
+  expectedProductionClientSecretMatch: Record<string, boolean | null>;
 };
 
 function suffix(value: string): string | null {
@@ -112,18 +111,35 @@ export async function getInstructorOAuthAlignment(): Promise<InstructorOAuthAlig
   const s2sId = env.ZOOM_S2S_CLIENT_ID?.trim() || "";
   const s2sSecret = env.ZOOM_S2S_CLIENT_SECRET?.trim() || "";
   const expected = EXPECTED_PRODUCTION_INSTRUCTOR_CLIENT_ID;
+  const secretCandidates: Array<[string, string]> = [
+    ["ZOOM_INSTRUCTOR_CLIENT_SECRET", instructorSecret],
+    ["ZOOM_CLIENT_SECRET", env.ZOOM_CLIENT_SECRET?.trim() || ""],
+    ["ZOOM_SDK_SECRET", env.ZOOM_SDK_SECRET?.trim() || ""],
+    ["ZOOM_MEETING_SDK_SECRET", env.ZOOM_MEETING_SDK_SECRET?.trim() || ""],
+    ["ZOOM_S2S_CLIENT_SECRET", s2sSecret],
+  ];
+  const seenSecrets = new Set<string>();
+  const uniqueCandidates = secretCandidates.filter(([, secret]) => {
+    if (!secret || seenSecrets.has(secret)) return false;
+    seenSecrets.add(secret);
+    return true;
+  });
 
-  const [
-    configuredInstructorPair,
-    expectedClientWithInstructorSecret,
-    expectedClientWithMeetingSdkSecret,
-    expectedClientWithS2sSecret,
-  ] = await Promise.all([
+  const [configuredInstructorPair, ...expectedProbes] = await Promise.all([
     probeOAuthClientPair(instructorId, instructorSecret),
-    probeOAuthClientPair(expected, instructorSecret),
-    probeOAuthClientPair(expected, sdkSecret),
-    probeOAuthClientPair(expected, s2sSecret),
+    ...uniqueCandidates.map(([, secret]) => probeOAuthClientPair(expected, secret)),
   ]);
+  const expectedProductionClientSecretMatch: Record<string, boolean | null> = {};
+  for (const [name] of secretCandidates) expectedProductionClientSecretMatch[name] = null;
+  uniqueCandidates.forEach(([name], index) => {
+    expectedProductionClientSecretMatch[name] = expectedProbes[index]?.pairAccepted ?? null;
+    for (const [otherName, otherSecret] of secretCandidates) {
+      if (otherSecret && otherSecret === uniqueCandidates[index]?.[1]) {
+        expectedProductionClientSecretMatch[otherName] =
+          expectedProbes[index]?.pairAccepted ?? null;
+      }
+    }
+  });
 
   return {
     redirectUri: PRODUCTION_ZOOM_OAUTH_REDIRECT_URI,
@@ -141,8 +157,6 @@ export async function getInstructorOAuthAlignment(): Promise<InstructorOAuthAlig
     ),
     instructorSecretEqualsS2sSecret: Boolean(instructorSecret && instructorSecret === s2sSecret),
     configuredInstructorPair,
-    expectedClientWithInstructorSecret,
-    expectedClientWithMeetingSdkSecret,
-    expectedClientWithS2sSecret,
+    expectedProductionClientSecretMatch,
   };
 }
