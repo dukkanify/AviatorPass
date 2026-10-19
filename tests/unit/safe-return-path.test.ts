@@ -71,6 +71,14 @@ describe("postAuthRedirect return path", () => {
     expect(postAuthRedirect(profile(ROLES.STUDENT), null)).toBe("/student/dashboard");
   });
 
+  it("returns both reviewer roles to the Meeting SDK classroom", () => {
+    expect(roleMayFollowReturnPath(ROLES.INSTRUCTOR, "/join")).toBe(true);
+    expect(roleMayFollowReturnPath(ROLES.STUDENT, "/join")).toBe(true);
+    expect(postAuthRedirect(profile(ROLES.INSTRUCTOR), "/join")).toBe("/join");
+    expect(postAuthRedirect(profile(ROLES.STUDENT), "/join")).toBe("/join");
+    expect(postAuthRedirect(profile(ROLES.STUDENT), "/join/class-1")).toBe("/join/class-1");
+  });
+
   it("does not let a student follow an instructor return path", () => {
     expect(roleMayFollowReturnPath(ROLES.STUDENT, "/instructor/profile")).toBe(false);
     expect(postAuthRedirect(profile(ROLES.STUDENT), "/instructor/profile")).toBe(

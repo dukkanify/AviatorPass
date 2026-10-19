@@ -34,6 +34,7 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 | `DEVELOPER_GUIDE.md`                        | Engineer onboarding               |
 | `ENVIRONMENT_SETUP.md`                      | Env / install                     |
 | `ZOOM_OAUTH_INTEGRATION.md`                 | Instructor Zoom OAuth             |
+| `ZOOM_MEETING_SDK_REVIEWER_TEST_PLAN.md`    | Meeting SDK Marketplace review    |
 | `ZOOM_MARKETPLACE_REVIEWER_GUIDE.md`        | Reviewer test steps               |
 | `ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`        | Review evidence and owner actions |
 | `STRIPE_CHECKOUT.md`                        | Stripe hosted Checkout            |

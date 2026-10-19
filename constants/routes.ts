@@ -23,6 +23,8 @@ export const routes = {
     terms: "/legal/terms",
     privacy: "/legal/privacy",
   },
+  meetingSdkDocs: "/integrations/zoom",
+  classroom: "/join",
 
   // Auth
   login: "/login",

@@ -70,6 +70,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.4,
     },
     {
+      url: `${base}${routes.meetingSdkDocs}`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
       url: `${base}/verify/certificate`,
       lastModified: now,
       changeFrequency: "monthly",
