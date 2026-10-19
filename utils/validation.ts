@@ -74,10 +74,13 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 });
 
+const returnToSchema = z.string().max(512).optional().nullable();
+
 export const passwordLoginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Enter your password"),
   rememberMe: z.boolean().optional().default(false),
+  returnTo: returnToSchema,
 });
 
 export const changePasswordSchema = z
@@ -227,6 +230,7 @@ export const verifyOtpSchema = z.object({
   ]),
   deviceFingerprint: z.string().min(8).max(128).optional().nullable(),
   deviceLabel: z.string().max(120).optional().nullable(),
+  returnTo: returnToSchema,
 });
 
 export const forgotPasswordSchema = z.object({

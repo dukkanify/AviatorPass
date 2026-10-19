@@ -24,6 +24,7 @@ function LoginForm() {
   const router = useRouter();
   const { user, isLoading, signOut, setUser } = useAuth();
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("next");
   const [email, setEmail] = React.useState(searchParams.get("email") ?? "");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -68,6 +69,7 @@ function LoginForm() {
             email: parsed.data.email,
             password,
             rememberMe: parsed.data.rememberMe,
+            returnTo,
           }),
         });
         if (!result.success || !result.data) {
@@ -109,6 +111,7 @@ function LoginForm() {
         email: result.data?.email ?? parsed.data.email,
         purpose: "login",
       });
+      if (returnTo) params.set("next", returnTo);
       router.push(`${routes.verifyOtp}?${params.toString()}`);
     } finally {
       setPending(false);

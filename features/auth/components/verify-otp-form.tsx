@@ -51,6 +51,7 @@ function VerifyOtpForm() {
   const [successFlash, setSuccessFlash] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const purpose = (searchParams.get("purpose") ?? "login") as OtpPurpose;
+  const returnTo = searchParams.get("next");
   const emailFailed = searchParams.get("emailFailed") === "1";
   const isRegistration = purpose === "register";
   const [deliveryFailed, setDeliveryFailed] = React.useState(emailFailed);
@@ -111,6 +112,7 @@ function VerifyOtpForm() {
           ...parsed.data,
           deviceFingerprint,
           deviceLabel,
+          returnTo,
         }),
       });
 
