@@ -6,8 +6,14 @@
 
 export const siteStatic = {
   name: "Aviator Pass",
-  shortName: "Aviator Pass",
-  legalName: "Aviator Pass",
+  shortName: "AviatorPass",
+  /** Product / platform brand shown to learners and Zoom Marketplace listings. */
+  platformName: "AviatorPass",
+  /**
+   * Operating legal business for EU Marketplace and public legal pages.
+   * Must match the entity on submitted Zoom Marketplace legal documentation.
+   */
+  legalName: "EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING",
   description:
     "Aviator Pass — a complete aviation education platform. Live and recorded programmes from Basics of Aviation and Private Pilot License through ATPL theory and ELP mock exams, taught by EASA Certified Instructors.",
   tagline: "YOUR AVIATION JOURNEY STARTS HERE",

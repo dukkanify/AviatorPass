@@ -69,23 +69,25 @@ Required user-managed scopes: `user:read:user`, `meeting:write:meeting`, `meetin
 
 ## EU business identity
 
-Use only the facts below in the Marketplace company profile. Registration numbers are not in this repository and must not be invented.
+Use only the facts below in the Marketplace company profile. They match the public legal pages. Street address, commercial registration, and VAT numbers are not invented here — paste them from the submitted legal pack.
 
-| Field                          | Value stored in AviatorPass               |
-| ------------------------------ | ----------------------------------------- |
-| Product name                   | Aviator Pass                              |
-| Legal name stored in the app   | Aviator Pass                              |
-| Website                        | https://www.aviatorpass.com               |
-| Privacy policy                 | https://www.aviatorpass.com/legal/privacy |
-| Terms                          | https://www.aviatorpass.com/legal/terms   |
-| Support                        | support@aviatorpass.com                   |
-| Controller contact             | info@aviatorpass.com                      |
-| Vendor contact in handover     | dukkanify@gmail.com                       |
-| Governing law in the Terms     | United Arab Emirates                      |
-| Locations named in the product | Dubai, Copenhagen, Kuwait, Qatar          |
-| Hosting account label          | dukkanify-technology-llcs-projects        |
+| Field                          | Value                                                            |
+| ------------------------------ | ---------------------------------------------------------------- |
+| Platform name                  | AviatorPass                                                      |
+| Operating business (legal)     | EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING              |
+| Product display name           | Aviator Pass                                                     |
+| Website                        | https://www.aviatorpass.com                                      |
+| Privacy policy                 | https://www.aviatorpass.com/legal/privacy                        |
+| Terms                          | https://www.aviatorpass.com/legal/terms                          |
+| EU review document (public)    | https://www.aviatorpass.com/integrations/zoom-marketplace-review |
+| Support                        | support@aviatorpass.com                                          |
+| Controller contact             | info@aviatorpass.com                                             |
+| Vendor contact in handover     | dukkanify@gmail.com                                              |
+| Governing law in the Terms     | United Arab Emirates                                             |
+| Locations named in the product | Dubai, Copenhagen, Kuwait, Qatar                                 |
+| Hosting account label          | dukkanify-technology-llcs-projects                               |
 
-Missing, and required from the account owner before the company profile can be completed: the registered legal entity name, the registered address, and the commercial registration or VAT number that Zoom’s EU business-identity form asks for.
+Owner still supplies from the legal pack (not stored in git): registered address, commercial registration number, and VAT number if Zoom’s EU form requires them.
 
 ## Reviewer responses
 
@@ -122,5 +124,5 @@ No. A signed-in student who opens `/instructor/profile` is sent to `/access-deni
 6. Leave `ZOOM_REDIRECT_URI` as `https://www.aviatorpass.com/api/integrations/zoom/callback`, and confirm that exact URL is on the Production OAuth redirect and allow list.
 7. Redeploy production. Then open Super Admin `GET /api/zoom/status` and confirm `configuredMatchesExpectedProductionClientId` is true and `expectedProductionClientSecretMatch.ZOOM_INSTRUCTOR_CLIENT_SECRET` is true before any classroom test.
 8. Sign in as `zoom.reviewer.instructor@aviatorpass.com`, choose Connect Zoom, and authorize a Zoom user that is not `ceo@aviatorpass.com` and not a customer account.
-9. Fill the Marketplace EU business-identity form with the registered legal name, address, and registration or VAT number. Those values are not in the application.
+9. Fill the Marketplace EU business-identity form with Platform name **AviatorPass**, operating business **EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING**, and the address / registration / VAT values from the submitted legal pack.
 10. Do not submit the Marketplace application until you approve the submission.

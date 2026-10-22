@@ -29,7 +29,23 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "2. Production URLs",
+    heading: "2. EU Marketplace business identity",
+    paragraphs: [
+      "Use these values on the Zoom Marketplace EU company / business-identity form. They match the public legal pages on production.",
+    ],
+    bullets: [
+      "Platform name: AviatorPass",
+      "Operating business (legal entity): EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING",
+      "Website: https://www.aviatorpass.com",
+      "Privacy policy: https://www.aviatorpass.com/legal/privacy",
+      "Terms of Service: https://www.aviatorpass.com/legal/terms",
+      "Support: support@aviatorpass.com",
+      "Controller / contact: info@aviatorpass.com",
+      "Registered address, commercial registration, and VAT numbers are supplied by the account owner from the submitted legal pack — they are not invented in this repository.",
+    ],
+  },
+  {
+    heading: "3. Production URLs",
     paragraphs: ["Use these addresses on production only."],
     bullets: [
       "Site: https://www.aviatorpass.com",
@@ -43,7 +59,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "3. Reviewer accounts",
+    heading: "4. Reviewer accounts",
     paragraphs: [
       "Use a fresh browser session for each role. Passwords are not published on this page. The platform owner pastes them only into Zoom’s private Account credentials field.",
     ],
@@ -54,14 +70,14 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "4. Prerequisites",
+    heading: "5. Prerequisites",
     paragraphs: [
       "Both reviewer accounts must be active with complete profiles. The instructor must authorize a personal Zoom user that is not ceo@aviatorpass.com and not a customer Zoom account before a reviewer meeting can be created.",
       "AviatorPass Classroom for Zoom (Meeting SDK) does not create meetings. Meeting creation belongs to AviatorPass for Zoom (Instructor OAuth).",
     ],
   },
   {
-    heading: "5. Meeting creation scopes audit",
+    heading: "6. Meeting creation scopes audit",
     paragraphs: [
       "Zoom Marketplace often shows two Create a Meeting scopes: the user scope meeting:write:meeting and an admin or master variant such as meeting:write:meeting:admin.",
       "AviatorPass Instructor OAuth creates meetings with POST /users/me/meetings using the connected instructor’s user token. It does not manage Zoom sub-accounts and does not call account-level master create APIs for live classes.",
@@ -70,7 +86,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "6. Scopes retained for AviatorPass for Zoom",
+    heading: "7. Scopes retained for AviatorPass for Zoom",
     paragraphs: [
       "These are the only user-managed scopes implemented for Instructor OAuth. Do not enable admin or master duplicates.",
     ],
@@ -83,7 +99,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "7. Scopes removed or never used",
+    heading: "8. Scopes removed or never used",
     paragraphs: ["Remove these from the Marketplace application under review if they appear."],
     bullets: [
       "meeting:write:meeting:admin or any master Create a Meeting scope — not used. Live classes do not create meetings for Zoom sub-accounts.",
@@ -92,7 +108,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "8. Features Surface configuration",
+    heading: "9. Features Surface configuration",
     paragraphs: [
       "AviatorPass Classroom for Zoom opens inside the AviatorPass website, not inside the Zoom Meetings product UI.",
       "Manual change in Zoom Marketplace for that application: Features → Surface → remove Meetings if it is selected. Keep only surfaces that match a browser / embedded Meeting SDK listing. Do not claim an in-client Zoom Meetings surface that the product does not open.",
@@ -100,14 +116,14 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "9. Custom Form",
+    heading: "10. Custom Form",
     paragraphs: [
       "AviatorPass does not use the Zoom Custom Form feature. No registration or intake form is rendered through Zoom Custom Form.",
       "Manual change: Zoom Marketplace → the application under review → Features / Custom Form → remove or disable the Custom Form. Leave AviatorPass pages and APIs unchanged.",
     ],
   },
   {
-    heading: "10. Authorization flow — Instructor OAuth",
+    heading: "11. Authorization flow — Instructor OAuth",
     paragraphs: ["Only AviatorPass for Zoom uses user OAuth."],
     bullets: [
       "Open https://www.aviatorpass.com/instructor/profile while signed out. Expected: /login?next=%2Finstructor%2Fprofile.",
@@ -118,13 +134,13 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "11. Authorization flow — Meeting SDK",
+    heading: "12. Authorization flow — Meeting SDK",
     paragraphs: [
       "AviatorPass Classroom for Zoom has no Zoom OAuth consent screen. After AviatorPass sign-in, the server signs a Meeting SDK JWT for the class the user may enter.",
     ],
   },
   {
-    heading: "12. Instructor workflow",
+    heading: "13. Instructor workflow",
     paragraphs: ["After personal Zoom is connected:"],
     bullets: [
       "Open https://www.aviatorpass.com/join or /instructor/classes.",
@@ -134,7 +150,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "13. Student workflow",
+    heading: "14. Student workflow",
     paragraphs: ["In a separate fresh browser session:"],
     bullets: [
       "Sign in as zoom.reviewer.student@aviatorpass.com.",
@@ -144,21 +160,21 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "14. Meeting SDK embedded joining",
+    heading: "15. Meeting SDK embedded joining",
     paragraphs: [
       "When the class has a numeric Zoom meeting, POST /api/zoom/in-app-session returns a Meeting SDK signature. Role 0 is the participant. Role 1 is the host when a host ZAK is available.",
       "Leave Class closes the embedded session in the browser. It does not delete the AviatorPass account.",
     ],
   },
   {
-    heading: "15. Disconnect and deauthorization",
+    heading: "16. Disconnect and deauthorization",
     paragraphs: [
       "Instructor OAuth: on /instructor/profile choose Disconnect Zoom. Expected: Not Connected. Creating a new live class then returns HTTP 409 until Connect Zoom succeeds again.",
       "Meeting SDK Marketplace remove: removing AviatorPass Classroom for Zoom from a Zoom account does not delete AviatorPass users or classes because that application stores no user OAuth token.",
     ],
   },
   {
-    heading: "16. Expected results already verified",
+    heading: "17. Expected results already verified",
     paragraphs: [
       "Verified on production before this document was published. Live embedded meeting completion remains blocked until personal Zoom authorization succeeds.",
     ],
@@ -174,7 +190,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "17. Known limitations and blockers",
+    heading: "18. Known limitations and blockers",
     paragraphs: [
       "Blocker: the reviewer instructor has not authorized a personal Zoom user, so no isolated reviewer meeting exists and embedded host or participant joins have not been completed.",
       "Owner action required: sign in as zoom.reviewer.instructor@aviatorpass.com, open /instructor/profile, choose Connect Zoom, and approve a dedicated personal Zoom user (not ceo@aviatorpass.com and not a customer account). After Connected, Super Admin may call POST /api/admin/zoom/reviewer-classroom.",
@@ -182,7 +198,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "18. Troubleshooting",
+    heading: "19. Troubleshooting",
     paragraphs: ["Common outcomes and meaning."],
     bullets: [
       "HTTP 409 Please connect your Zoom account — Instructor OAuth not connected.",
@@ -194,7 +210,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     ],
   },
   {
-    heading: "19. Manual Marketplace checklist",
+    heading: "20. Manual Marketplace checklist",
     paragraphs: [
       "Complete these in Zoom Marketplace before resubmission. Do not submit until the account owner approves.",
     ],

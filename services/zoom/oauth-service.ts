@@ -363,6 +363,13 @@ export async function completeZoomOAuthCallback(input: {
     };
   }
 
+  let linkConflict: {
+    zoomUserId: string;
+    zoomEmail: string | null;
+    existingOwnerUserId: string;
+    existingOwnerZoomEmail: string | null;
+  } | null = null;
+
   try {
     const cfg = getZoomOAuthConfig();
     const body = new URLSearchParams({
@@ -384,6 +391,13 @@ export async function completeZoomOAuthCallback(input: {
 
     const taken = getIntegrationByZoomUserId(profile.zoomUserId);
     if (taken && taken.userId !== parsed.userId) {
+      // Stash owner identity for the failure log below (never log tokens).
+      linkConflict = {
+        zoomUserId: profile.zoomUserId,
+        zoomEmail: profile.email || null,
+        existingOwnerUserId: taken.userId,
+        existingOwnerZoomEmail: taken.zoomEmail || null,
+      };
       throw new PermissionError(
         "This Zoom account is already connected to another instructor",
         409,
@@ -428,19 +442,38 @@ export async function completeZoomOAuthCallback(input: {
           ? "OAuth token exchange failed"
           : reason === "missing_user_scope"
             ? "OAuth profile failed — missing user:read:user scope"
-            : "OAuth callback processing failed",
+            : reason === "already_linked"
+              ? "OAuth callback rejected — Zoom account already linked"
+              : "OAuth callback processing failed",
       level: "error",
       details: {
         error: reason,
         correlationId,
         detail: error instanceof Error ? error.message.slice(0, 240) : "failed",
         zoomCode: error instanceof ZoomApiError ? error.code : null,
+        ...(linkConflict
+          ? {
+              zoomUserId: linkConflict.zoomUserId,
+              zoomEmail: linkConflict.zoomEmail,
+              existingOwnerUserId: linkConflict.existingOwnerUserId,
+              existingOwnerZoomEmail: linkConflict.existingOwnerZoomEmail,
+            }
+          : {}),
       },
     });
     await logZoomActivity({
       actorId: parsed.userId,
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
-      metadata: { error: reason, correlationId },
+      metadata: {
+        error: reason,
+        correlationId,
+        ...(linkConflict
+          ? {
+              existingOwnerUserId: linkConflict.existingOwnerUserId,
+              zoomEmail: linkConflict.zoomEmail,
+            }
+          : {}),
+      },
     });
     return {
       redirectTo: zoomErrorRedirect({
