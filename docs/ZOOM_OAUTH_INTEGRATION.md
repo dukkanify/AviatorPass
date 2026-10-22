@@ -197,10 +197,10 @@ Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Re
 | Development Client ID                               | Development environment filter               |
 | Production Client ID                                | Production environment filter                |
 
-- While the app is **Draft / unpublished**, use **Development** Client ID + Secret in Vercel and configure the **Development** Redirect URL + Allow List.
-- **Development / Local Test** OAuth is restricted: only the app owner and users on that Zoom account (or an approved shareable beta URL) can authorize. A random personal Zoom account will land on `marketplace.zoom.us/error` (“Something went wrong”).
-- For any instructor’s personal Zoom account in production, use **Production** Client ID + Secret after the General app is activated/published (or request a shareable beta authorization URL under Marketplace → Production → Beta test).
-- Confirm which side Client ID matches via Admin `GET /api/admin/instructors/zoom` → `oauthClientIdSuffix` (last 4 chars only; never log full secrets). Live Instructor OAuth suffix must **not** equal Meeting SDK `meetingSdkClientIdSuffix`.
+- Production AviatorPass uses the **Production** Client ID `7z2krfWYQWCi20C0FRZ0xA` (length 22, public suffix `Z0xA`) and the Client Secret from that same Production credential card. Put both only in `ZOOM_INSTRUCTOR_CLIENT_ID` and `ZOOM_INSTRUCTOR_CLIENT_SECRET`.
+- Do not put the Development Client ID in production. A Development client can complete a token-pair check and still be the wrong application. Beta testers are not a substitute for the Production pair.
+- The Production Client Secret is not in this repository. If Zoom returns `invalid_client` for `7z2krfWYQWCi20C0FRZ0xA` against every stored secret, leave the current variables unchanged and supply the matching secret through the manual action in `docs/ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`.
+- Confirm the live suffix with Super Admin `GET /api/zoom/status` → `instructorOAuth.alignment` (last 4 characters and lengths only). The instructor suffix must not equal the Meeting SDK suffix or the Server-to-Server suffix.
 
 ### Authorize URL (AviatorPass)
 
@@ -218,8 +218,9 @@ Location: [Zoom Marketplace](https://marketplace.zoom.us/) → **Manage** → Ge
 2. **OAuth Redirect URL** (exact): `https://www.aviatorpass.com/api/integrations/zoom/callback`
 3. **OAuth Allow List**: same callback URL; with Strict Mode / subdomain check enabled, also list `https://www.aviatorpass.com` if required — apex `https://aviatorpass.com` does **not** cover `www`.
 4. **Scopes** (user-managed, required): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`.  
-   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.
-5. **Local Test** → “Add App Now” as the **app owner** first. If that works but a personal instructor Zoom account fails, the Client ID is still Development-restricted — switch Vercel to **Production** credentials or add the tester to the Zoom account / request a shareable beta URL.
+   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.  
+   **Remove** admin or master Create a Meeting scopes (for example `meeting:write:meeting:admin`). Live classes use `POST /users/me/meetings` on the connected instructor only. AviatorPass does not manage Zoom sub-accounts for classroom creation.
+5. Publication path: publish the General app with the Production credential pair and the www callback above. Do not add a beta program in place of that pair, and do not submit the Marketplace application until the account owner approves.
 6. Event subscriptions (optional): `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 7. Add `http://localhost:3000/api/integrations/zoom/callback` only for local OAuth testing.
 

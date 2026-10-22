@@ -109,6 +109,23 @@ describe("Zoom OAuth connect + callback", () => {
     ]);
   });
 
+  it("rejects a callback that arrives without an authorization code or state", async () => {
+    const result = await completeZoomOAuthCallback({ code: null, state: null, error: null });
+    expect(result.redirectTo).toContain("reason=missing_code");
+    expect(result.redirectTo).toContain("cid=zoa_");
+    expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
+  });
+
+  it("rejects an authorization code when Zoom does not return the signed state", async () => {
+    const result = await completeZoomOAuthCallback({
+      code: "auth-code",
+      state: null,
+      error: null,
+    });
+    expect(result.redirectTo).toContain("reason=missing_state");
+    expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
+  });
+
   it("optionally includes scope when ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES=true", () => {
     process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES = "true";
     const url = buildZoomAuthorizeUrl({ userId: instructor().id });

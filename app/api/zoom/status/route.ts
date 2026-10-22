@@ -8,6 +8,7 @@ import {
   probeZoomHostZak,
   refreshZoomCredentialsFlag,
 } from "@/services/classes/zoom-service";
+import { getInstructorOAuthAlignment } from "@/lib/zoom/oauth-alignment";
 import { probeMeetingSdkCredentialPair } from "@/lib/zoom/sdk-credentials";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { getZoomOAuthPublicDiagnostics } from "@/services/zoom/config";
@@ -21,11 +22,12 @@ export async function GET() {
     const settings = getPlatformSettings();
     const inventory = getZoomCredentialInventory();
     const oauth = getZoomOAuthPublicDiagnostics();
-    const [hostZak, meetingSdk] = await Promise.all([
+    const [hostZak, meetingSdk, instructorAlignment] = await Promise.all([
       configured
         ? probeZoomHostZak({ accountEmail: settings.zoom.accountEmail })
         : Promise.resolve(null),
       probeMeetingSdkCredentialPair(),
+      getInstructorOAuthAlignment(),
     ]);
     return NextResponse.json({
       success: true,
@@ -49,6 +51,7 @@ export async function GET() {
           meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
           meetingSdkClientIdLength: oauth.meetingSdkClientIdLength,
           credentialsMixed: oauth.credentialsMixed,
+          alignment: instructorAlignment,
         },
         meetingSdk: {
           configured: meetingSdk.configured,

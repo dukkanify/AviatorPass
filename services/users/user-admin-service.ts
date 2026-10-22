@@ -245,11 +245,16 @@ export async function updateManagedUser(
       db.sessions.forEach((session) => {
         if (session.userId === user.id && !session.revokedAt) session.revokedAt = nowIso();
       });
+      // Admin password reset must clear lockouts immediately. Otherwise the
+      // control panel looks like it "changed" the password while login still
+      // returns "Too many failed attempts" for up to 15 minutes.
       const security = db.securitySettings.find((row) => row.userId === user.id);
       if (security) {
         security.failedLoginCount = 0;
         security.lockedUntil = null;
         security.updatedAt = nowIso();
+      } else {
+        db.securitySettings.push(defaultSecuritySettings(user.id));
       }
     }
     user.profileComplete = isStudentProfileComplete(user);

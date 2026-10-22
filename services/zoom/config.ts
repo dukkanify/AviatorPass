@@ -15,6 +15,10 @@ export const PRODUCTION_ZOOM_OAUTH_REDIRECT_URI = `${PRODUCTION_SITE_URL}/api/in
 /**
  * Minimum user-authorized granular scopes for instructor Connect Zoom:
  * read identity + create/read/update/delete meetings on that Zoom user.
+ * Live classes call POST /users/me/meetings with the instructor’s user token.
+ * Do not enable admin/master Create a Meeting scopes
+ * (for example meeting:write:meeting:admin). AviatorPass does not manage Zoom
+ * sub-accounts for classroom creation.
  * `meeting:read:list_meetings` omitted by default — often missing on new General apps
  * and triggers Zoom "Invalid scope" when requested.
  */
@@ -25,6 +29,13 @@ export const DEFAULT_ZOOM_OAUTH_SCOPES = [
   "meeting:update:meeting",
   "meeting:delete:meeting",
 ].join(" ");
+
+/** Never request these for Instructor OAuth — not used by AviatorPass live classes. */
+export const REJECTED_ZOOM_OAUTH_SCOPES = [
+  "meeting:write:meeting:admin",
+  "meeting:write:admin",
+  "meeting:master",
+] as const;
 
 /** Previously requested; rejected when not enabled on the Instructor OAuth app. */
 export const OPTIONAL_ZOOM_OAUTH_SCOPES = ["meeting:read:list_meetings"] as const;
