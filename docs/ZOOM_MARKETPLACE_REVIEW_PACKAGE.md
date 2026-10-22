@@ -26,11 +26,22 @@ Verified instructor profile: Zoom Account **Not Connected**, connected email emp
 
 Verified student: `/student/dashboard` after login. `/instructor/profile` ends at `/access-denied` and does not show Zoom Account.
 
-## Why production uses a Client ID ending in `dhiQ`
+## Production Client ID status (updated 22 October 2026)
 
-`ZOOM_INSTRUCTOR_CLIENT_ID` on Vercel production (environment id `6Kx6VN99t8NXKvbu`) was created at `2026-10-15T02:36:37.915Z` and has not been updated. Its value is a 21-character Client ID whose public suffix is `dhiQ`.
+Verified on live production after Vercel env updates and redeploy:
 
-`ZOOM_INSTRUCTOR_CLIENT_SECRET` on production (environment id `Di7sgE8nLp5UOqJ4`) was created at `2026-10-15T02:57:26.962Z` and has not been updated. Zoom accepts that secret with the `dhiQ` client (`invalid_grant` on a dummy authorization code). It rejects that secret with Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (`invalid_client`).
+- `ZOOM_INSTRUCTOR_CLIENT_ID` matches Marketplace Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`, length 22).
+- `ZOOM_INSTRUCTOR_CLIENT_SECRET` pairs with that Client ID (`invalid_grant` on a dummy authorization code — not `invalid_client`).
+- Connect Zoom authorize URL uses `client_id=7z2krfWYQWCi20C0FRZ0xA`, `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`, signed `state`, and no `scope` query parameter.
+- Meeting SDK (`VGTQ`) and Server-to-Server secrets remain separate (`credentialsMixed: false`).
+
+The historical note below describes the earlier `dhiQ` Development client that production used before those env updates.
+
+## Historical: why production previously used a Client ID ending in `dhiQ`
+
+`ZOOM_INSTRUCTOR_CLIENT_ID` on Vercel production (environment id `6Kx6VN99t8NXKvbu`) was created at `2026-10-15T02:36:37.915Z` and previously held a 21-character Client ID whose public suffix was `dhiQ`.
+
+`ZOOM_INSTRUCTOR_CLIENT_SECRET` on production (environment id `Di7sgE8nLp5UOqJ4`) was created at `2026-10-15T02:57:26.962Z`. Before the 22 October 2026 update, Zoom accepted that secret with the `dhiQ` client (`invalid_grant` on a dummy authorization code) and rejected it with Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (`invalid_client`).
 
 The same check rejects the Meeting SDK secret and the Server-to-Server secret. `ZOOM_SDK_SECRET` and `ZOOM_MEETING_SDK_SECRET` are unset. The instructor secret is not equal to either of the other stored secrets. The instructor Client ID is not equal to the Meeting SDK Client ID (suffix `VGTQ`) or the Server-to-Server Client ID (suffix `uX3Q`).
 
@@ -42,7 +53,7 @@ The Production Client ID `7z2krfWYQWCi20C0FRZ0xA` was not written into `ZOOM_INS
 
 Signed state is still required. An empty callback is rejected as `missing_code`. A callback that has a code and no state is rejected as `missing_state`. Neither path writes a Zoom connection. Production correlation `zoa_mS97FLBb9LJPtA` (19 October 2026, 06:02 UTC) was an empty callback: no code, no state, and no Zoom error. An earlier callback, `zoa_l7L-G5WOrESBDQ`, arrived with a code and no state and was rejected the same way.
 
-The current Connect request still sends `state` (192 characters), `response_type=code`, and `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`. It does not send `scope`. The client on that request is the `dhiQ` client, not `7z2krfWYQWCi20C0FRZ0xA`.
+The current Connect request sends `state` (192 characters), `response_type=code`, and `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`. It does not send `scope`. The client on that request is Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`).
 
 ## Publication path
 

@@ -42,5 +42,10 @@ Password delivery: Super Admin → Users → set temporary password → paste on
 ## Blockers
 
 1. Instructor personal Zoom not connected → reviewer classroom returns `oauth_not_connected`.
-2. Production Client Secret for `7z2krfWYQWCi20C0FRZ0xA` is not in Vercel → live Connect still uses client suffix `dhiQ`.
-3. Embedded host and participant Meeting SDK joins are not completed until items 1 and 2 are fixed.
+2. Embedded host and participant Meeting SDK joins are not completed until item 1 is fixed.
+
+## Production credential status (verified 22 October 2026 Asia/Dubai)
+
+- `ZOOM_INSTRUCTOR_CLIENT_ID` matches Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`, length 22).
+- `ZOOM_INSTRUCTOR_CLIENT_SECRET` pairs with that Client ID (Zoom returns `invalid_grant` on a dummy code — not `invalid_client`).
+- Connect Zoom authorize URL uses that Client ID, callback `https://www.aviatorpass.com/api/integrations/zoom/callback`, and signed state.

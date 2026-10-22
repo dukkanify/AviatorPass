@@ -169,14 +169,15 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
       "Student cannot open instructor routes.",
       "Meeting SDK Client ID suffix VGTQ with its secret is accepted by Zoom (credentialPairValid true).",
       "POST /api/admin/zoom/reviewer-classroom returns oauth_not_connected and creates no class while the instructor is disconnected. Customer class count is unchanged.",
-      "Connect Zoom reaches Zoom sign-in with signed state. Live client suffix on production was dhiQ, which is not Production Client ID 7z2krfWYQWCi20C0FRZ0xA.",
+      "Connect Zoom authorize URL uses Production Client ID 7z2krfWYQWCi20C0FRZ0xA (suffix Z0xA, length 22), redirect_uri https://www.aviatorpass.com/api/integrations/zoom/callback, signed state, and no scope query parameter.",
+      "ZOOM_INSTRUCTOR_CLIENT_ID matches the Production Client ID. ZOOM_INSTRUCTOR_CLIENT_SECRET pairs with that Client ID (Zoom returns invalid_grant on a dummy code — not invalid_client). Meeting SDK and Server-to-Server secrets are separate.",
     ],
   },
   {
     heading: "17. Known limitations and blockers",
     paragraphs: [
       "Blocker: the reviewer instructor has not authorized a personal Zoom user, so no isolated reviewer meeting exists and embedded host or participant joins have not been completed.",
-      "Blocker: the Production Client Secret for Instructor OAuth Client ID 7z2krfWYQWCi20C0FRZ0xA is not stored in Vercel. Every stored secret returns invalid_client for that Client ID. Meeting SDK and Server-to-Server credentials must not be reused.",
+      "Owner action required: sign in as zoom.reviewer.instructor@aviatorpass.com, open /instructor/profile, choose Connect Zoom, and approve a dedicated personal Zoom user (not ceo@aviatorpass.com and not a customer account). After Connected, Super Admin may call POST /api/admin/zoom/reviewer-classroom.",
       "Do not mark host start, student join, or meeting ownership as successful until both roles complete those steps on production.",
     ],
   },
