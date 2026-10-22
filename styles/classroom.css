@@ -1099,7 +1099,12 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   }
 
   .classroom-viewport {
-    min-height: min(32vh, 14rem);
+    min-height: min(40vh, 16rem);
+  }
+
+  /* Preview rail steals too much height on compact phones before Zoom is live */
+  .classroom-page:not([data-live="true"]) .classroom-rail {
+    display: none;
   }
 }
 
@@ -1111,6 +1116,10 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   .classroom-dock-btn {
     height: 2.65rem;
     font-size: 0.52rem;
+  }
+
+  .classroom-viewport {
+    min-height: min(42vh, 15rem);
   }
 }
 
