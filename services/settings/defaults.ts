@@ -9,8 +9,8 @@ import type { PlatformSettings } from "@/types/settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   general: {
-    platformName: "AviatorPass",
-    companyName: "Aviator Pass",
+    platformName: siteStatic.platformName,
+    companyName: siteStatic.legalName,
     websiteUrl: "https://www.aviatorpass.com",
     contactEmail: siteStatic.contactEmail,
     contactPhone: "",
