@@ -570,20 +570,40 @@ export async function createMeetingForClass(input: {
   return record;
 }
 
+/** Single-flight create/ensure so parallel join requests do not spam Zoom meetings. */
+const ensureMeetingInFlight = new Map<string, Promise<ZoomMeetingRecord | null>>();
+
 export async function ensureLiveMeetingForClass(
   liveClassId: string,
   actorId?: string | null,
 ): Promise<ZoomMeetingRecord | null> {
-  const liveClass = lookupLiveClass(liveClassId);
-  if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
-    return lookupZoomMeetingByClassId(liveClassId);
-  }
-  const existing = lookupZoomMeetingByClassId(liveClassId);
-  if (existing && !isPlaceholderZoomMeeting(existing)) {
-    return ensureInAppJoinSettings(existing);
-  }
-  if (!zoomCredsPresent() && existing) return existing;
-  return createMeetingForClass({ liveClass, actorId });
+  const inflight = ensureMeetingInFlight.get(liveClassId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const liveClass = lookupLiveClass(liveClassId);
+    if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
+      return lookupZoomMeetingByClassId(liveClassId);
+    }
+    const existing = lookupZoomMeetingByClassId(liveClassId);
+    if (existing && !isPlaceholderZoomMeeting(existing)) {
+      return ensureInAppJoinSettings(existing);
+    }
+    if (!zoomCredsPresent() && existing) return existing;
+    // Re-check after any await gap before creating a remote meeting.
+    const raced = lookupZoomMeetingByClassId(liveClassId);
+    if (raced && !isPlaceholderZoomMeeting(raced)) {
+      return ensureInAppJoinSettings(raced);
+    }
+    return createMeetingForClass({ liveClass, actorId });
+  })().finally(() => {
+    if (ensureMeetingInFlight.get(liveClassId) === promise) {
+      ensureMeetingInFlight.delete(liveClassId);
+    }
+  });
+
+  ensureMeetingInFlight.set(liveClassId, promise);
+  return promise;
 }
 
 type ZoomMeetingDetails = {
@@ -1081,10 +1101,10 @@ export function assertCallerMayReceiveInAppZoomSession(input: {
       live.instructorId === input.userId ||
       live.assistantInstructorId === input.userId ||
       academyOversightHost(input.role);
-    const participant = listParticipantsForClass(live.id).some(
-      (p) => p.userId === input.userId && p.role === "participant",
+    const invited = listParticipantsForClass(live.id).some(
+      (p) => p.userId === input.userId && (p.role === "participant" || p.role === "cohost"),
     );
-    if (!isHost && !participant) {
+    if (!isHost && !invited) {
       throw new ClassValidationError("You are not invited to this class");
     }
     return { isHost: Boolean(isHost), liveClassId: live.id };

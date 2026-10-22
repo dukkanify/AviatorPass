@@ -31,6 +31,7 @@ describe("modern classroom join page", () => {
     expect(room).toMatch(/classroom-dock/);
     expect(room).toMatch(/Leave Class/);
     expect(room).toMatch(/Open classroom again/);
+    expect(room).toMatch(/setSession\(null\)/);
     expect(room).toMatch(/Share Screen/);
     expect(room).toMatch(/classroom-rail/);
     expect(room).toMatch(/classroom-dock-cluster/);
@@ -50,6 +51,7 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
     expect(css).toMatch(/position:\s*sticky/);
     expect(css).toMatch(/safe-area-inset-bottom/);
+    expect(css).toMatch(/overflow-x:\s*clip/);
   });
 
   it("does not hard-code Share Screen as always active green", () => {
