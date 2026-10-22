@@ -132,6 +132,19 @@ function UserFormDialog({
       setSaving(false);
       return;
     }
+    const nextPassword = password.trim();
+    if (nextPassword) {
+      if (!confirmPassword.trim()) {
+        setSaving(false);
+        toast.error("Confirm the new password before saving.");
+        return;
+      }
+      if (nextPassword !== confirmPassword) {
+        setSaving(false);
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
     const result = await authFetch<UserProfile>(`${routes.api.users}/${user.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -141,7 +154,7 @@ function UserFormDialog({
         countryCode: countryCode === "none" ? "" : countryCode,
         status,
         role,
-        ...(password.trim() ? { password, confirmPassword } : {}),
+        ...(nextPassword ? { password: nextPassword, confirmPassword } : {}),
       }),
     });
     setSaving(false);
