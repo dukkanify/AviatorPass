@@ -218,7 +218,8 @@ Location: [Zoom Marketplace](https://marketplace.zoom.us/) → **Manage** → Ge
 2. **OAuth Redirect URL** (exact): `https://www.aviatorpass.com/api/integrations/zoom/callback`
 3. **OAuth Allow List**: same callback URL; with Strict Mode / subdomain check enabled, also list `https://www.aviatorpass.com` if required — apex `https://aviatorpass.com` does **not** cover `www`.
 4. **Scopes** (user-managed, required): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`.  
-   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.
+   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.  
+   **Remove** admin or master Create a Meeting scopes (for example `meeting:write:meeting:admin`). Live classes use `POST /users/me/meetings` on the connected instructor only. AviatorPass does not manage Zoom sub-accounts for classroom creation.
 5. Publication path: publish the General app with the Production credential pair and the www callback above. Do not add a beta program in place of that pair, and do not submit the Marketplace application until the account owner approves.
 6. Event subscriptions (optional): `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
 7. Add `http://localhost:3000/api/integrations/zoom/callback` only for local OAuth testing.

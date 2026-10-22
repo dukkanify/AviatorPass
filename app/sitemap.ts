@@ -76,6 +76,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     },
     {
+      url: `${base}${routes.zoomMarketplaceFinalReview}`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.55,
+    },
+    {
       url: `${base}/verify/certificate`,
       lastModified: now,
       changeFrequency: "monthly",

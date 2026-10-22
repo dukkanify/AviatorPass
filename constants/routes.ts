@@ -24,6 +24,7 @@ export const routes = {
     privacy: "/legal/privacy",
   },
   meetingSdkDocs: "/integrations/zoom",
+  zoomMarketplaceFinalReview: "/integrations/zoom-marketplace-review",
   classroom: "/join",
 
   // Auth
