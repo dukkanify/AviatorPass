@@ -7,7 +7,7 @@ export const FINAL_REVIEW_PATH = "/integrations/zoom-marketplace-review";
 
 export const FINAL_REVIEW_TITLE = "AviatorPass Zoom Marketplace — Final Review Test Plan";
 
-export const FINAL_REVIEW_UPDATED = "22 October 2026 (live re-check 19:12 Asia/Dubai)";
+export const FINAL_REVIEW_UPDATED = "22 October 2026 (live re-check 19:50 Asia/Dubai)";
 
 export type ReviewSection = {
   heading: string;
@@ -176,7 +176,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
   {
     heading: "17. Expected results already verified",
     paragraphs: [
-      "Live production re-check on 22 October 2026 (Asia/Dubai). Instructor OAuth credentials and Connect Zoom redirect work. Embedded meeting completion remains blocked until personal Zoom authorization succeeds.",
+      "Live production re-check on 22 October 2026 19:50 Asia/Dubai (deployment gitSha 3a99ac42e560d5588c85a2e3e94f4b7f836fb38e). Instructor OAuth credentials and Connect Zoom redirect work. Embedded meeting completion remains blocked until personal Zoom authorization succeeds on the reviewer instructor.",
     ],
     bullets: [
       "Reviewer instructor and student can sign in.",
@@ -186,17 +186,24 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
       "Meeting SDK Client ID suffix VGTQ with its secret is accepted by Zoom (credentialPairValid true).",
       "Connect Zoom authorize URL uses Production Client ID 7z2krfWYQWCi20C0FRZ0xA (suffix Z0xA, length 22), redirect_uri https://www.aviatorpass.com/api/integrations/zoom/callback, signed state, and no scope query parameter.",
       "ZOOM_INSTRUCTOR_CLIENT_ID matches the Production Client ID. ZOOM_INSTRUCTOR_CLIENT_SECRET pairs with that Client ID (Zoom returns invalid_grant on a dummy code — not invalid_client). Meeting SDK and Server-to-Server secrets are separate.",
-      "Live snapshot 22 October 2026 19:12 Asia/Dubai: reviewer instructor Zoom Account UI and GET /api/integrations/zoom/status both show Not Connected — connected false, personalZoomReady false, zoomEmail null, sharedPlatformAccount false.",
-      "POST /api/admin/zoom/reviewer-classroom returns HTTP 409 block oauth_not_connected and creates no class. No customer meetings were created or modified.",
-      "Instructor host Meeting SDK session, student participant join, and A/V checks were not executed because no reviewer classId exists yet.",
+      "Admin GET /api/admin/instructors/zoom: Riley Okonkwo (zoom.reviewer.instructor@aviatorpass.com) remains connected false, personalZoomReady false, zoomEmail null — same as the other listed instructors.",
+      "Live snapshot 22 October 2026 19:50 Asia/Dubai: instructor profile Zoom Account badge shows Not Connected; GET /api/integrations/zoom/status returns connected false, personalZoomReady false, zoomEmail null, sharedPlatformAccount false; POST /api/integrations/zoom/sync reports Zoom is not connected.",
+      "POST /api/admin/zoom/reviewer-classroom returns HTTP 409 block oauth_not_connected and creates no class. No customer meetings or classes were created or modified.",
+      "Classroom URL: none — no isolated reviewer classId exists yet.",
+      "Instructor host Meeting SDK session: not run (no classId).",
+      "Student participant join / Meeting SDK load: not run (no classId).",
+      "Audio and video checks: not run (no classId).",
+      "Role permissions already verified without a meeting: student cannot open /instructor/profile; unrelated demo student is not used for the reviewer classroom.",
+      "Production runtime (last 24h): OAuth callback processing failed once at 15:20 Asia/Dubai and empty/rejected callbacks at 16:10 Asia/Dubai — no successful Instructor OAuth connect was recorded for the reviewer instructor.",
     ],
   },
   {
     heading: "18. Known limitations and blockers",
     paragraphs: [
-      "Blocker: the reviewer instructor still has personalZoomReady false on production, so no isolated reviewer classroom URL exists and embedded host or participant joins have not been completed.",
+      "Blocker confirmed at 19:50 Asia/Dubai: personalZoomReady is still false for zoom.reviewer.instructor@aviatorpass.com on production. The isolated reviewer classroom URL does not exist. Host start, student join, embedded Meeting SDK load, and A/V checks are therefore not complete.",
+      "If Zoom Marketplace shows an app as authorized, that alone does not set AviatorPass Connected. The instructor must complete Connect Zoom from /instructor/profile so AviatorPass stores the personal Zoom tokens and shows Connected with personalZoomReady true.",
       "Owner action required: while signed in as zoom.reviewer.instructor@aviatorpass.com, open /instructor/profile, choose Connect Zoom, and finish Zoom approval with a dedicated personal Zoom user (not ceo@aviatorpass.com and not a customer account). Wait until the profile badge shows Connected and personalZoomReady is true.",
-      "After Connected: Super Admin calls POST /api/admin/zoom/reviewer-classroom, then re-test host and student on /join/{classId}. Do not mark host start, student join, A/V, or meeting ownership as successful until those steps complete on production.",
+      "After Connected: Super Admin calls POST /api/admin/zoom/reviewer-classroom, then re-test host and student on /join/{classId}. Do not mark host start, student join, A/V, or meeting ownership as successful until those steps complete on production. Do not submit either Marketplace application without owner approval.",
     ],
   },
   {
@@ -204,7 +211,11 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
     paragraphs: ["Common outcomes and meaning."],
     bullets: [
       "HTTP 409 Please connect your Zoom account — Instructor OAuth not connected.",
+      "HTTP 409 oauth_not_connected on POST /api/admin/zoom/reviewer-classroom — reviewer instructor personalZoomReady is false.",
       "Zoom invalid_client on the Production Client ID — matching Production Client Secret is missing from ZOOM_INSTRUCTOR_CLIENT_SECRET.",
+      "OAuth callback processing failed — token exchange or profile fetch failed after Zoom redirected back; retry Connect Zoom in one uninterrupted browser session.",
+      "OAuth callback rejected — empty callback (missing code/state) or cancelled authorize; no AviatorPass connection is written.",
+      "already_linked — that Zoom user id is already stored on another AviatorPass instructor; use a dedicated personal Zoom login for the reviewer.",
       "Zoom error 3712 — Meeting SDK Client ID and Secret are not a matching pair, or Embed is disabled.",
       "Zoom error 3000 — the host Zoom user is already in another meeting.",
       "Access denied — a student opened an instructor route.",
@@ -214,7 +225,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
   {
     heading: "20. Manual Marketplace checklist",
     paragraphs: [
-      "Complete these in Zoom Marketplace before resubmission. Do not submit until the account owner approves.",
+      "Complete these in Zoom Marketplace before resubmission. Do not submit until the account owner approves. Neither application is ready for submission while personalZoomReady remains false and the host/student embedded meeting test is incomplete.",
     ],
     bullets: [
       "AviatorPass for Zoom: keep user scopes listed in section 7. Remove admin or master Create a Meeting.",
@@ -222,6 +233,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
       "AviatorPass for Zoom: OAuth Redirect and Allow List = https://www.aviatorpass.com/api/integrations/zoom/callback.",
       "AviatorPass Classroom for Zoom: name AviatorPass Classroom for Zoom. Landing https://www.aviatorpass.com/join. Docs https://www.aviatorpass.com/integrations/zoom. No OAuth scopes. No Custom Form. Remove Meetings surface if selected.",
       "Both apps: paste reviewer emails into private Account credentials with passwords from the owner’s private handoff only.",
+      "Submission readiness (22 October 2026 19:50 Asia/Dubai): not ready — AviatorPass for Zoom still needs a successful personal Connect Zoom on the reviewer instructor; AviatorPass Classroom for Zoom still needs a completed embedded host and participant join on the isolated reviewer classroom.",
     ],
   },
 ];
