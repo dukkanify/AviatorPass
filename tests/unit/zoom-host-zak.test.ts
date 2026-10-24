@@ -442,45 +442,86 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(ended).toEqual([]);
   });
 
-  it("force clear-live ends ghost meetings known locally when type=live is empty", async () => {
+  it("force clear-live ends cancelled local ghosts but not confirmed upcoming bookings", async () => {
     s2sEnv();
     const ghostId = "99988877766";
+    const customerId = "11122233344";
     writeBookingsDb((db) => {
-      db.bookings.unshift({
-        id: "bk-ghost-clear",
-        studentId: "user_student_one",
-        instructorId: "user_instructor_one",
-        sessionTypeId: "st_coaching",
-        sessionTypeName: "Private Coaching",
-        title: "Ghost clear",
-        notes: "",
-        startsAt: new Date().toISOString(),
-        endsAt: new Date(Date.now() + 3600_000).toISOString(),
-        status: "confirmed",
-        zoom: {
-          meetingNumber: ghostId,
-          joinUrl: `https://us02web.zoom.us/j/${ghostId}`,
-          startUrl: `https://us02web.zoom.us/s/${ghostId}?zak=x`,
-          password: "111111",
-          waitingRoom: false,
-          providerMode: "zoom",
-          provisionedAt: new Date().toISOString(),
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
+      db.bookings.unshift(
+        {
+          id: "bk-ghost-clear",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Ghost clear",
+          notes: "",
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 3600_000).toISOString(),
+          status: "cancelled",
+          zoom: {
+            meetingNumber: ghostId,
+            joinUrl: `https://us02web.zoom.us/j/${ghostId}`,
+            startUrl: `https://us02web.zoom.us/s/${ghostId}?zak=x`,
+            password: "111111",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: "admin",
+          cancelReason: "test",
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
         },
-        guestEmail: null,
-        guestFirstName: null,
-        guestLastName: null,
-        guestVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        cancelledAt: null,
-        cancelledBy: null,
-        cancelReason: null,
-        priceAmountMinor: 0,
-        currency: "KWD",
-        paymentRequired: false,
-        paymentOrderId: null,
-        paidAt: new Date().toISOString(),
-      });
+        {
+          id: "bk-customer-keep",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Customer keep",
+          notes: "",
+          startsAt: new Date(Date.now() + 2 * 3600_000).toISOString(),
+          endsAt: new Date(Date.now() + 3 * 3600_000).toISOString(),
+          status: "confirmed",
+          zoom: {
+            meetingNumber: customerId,
+            joinUrl: `https://us02web.zoom.us/j/${customerId}`,
+            startUrl: `https://us02web.zoom.us/s/${customerId}?zak=x`,
+            password: "222222",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: null,
+          cancelledBy: null,
+          cancelReason: null,
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
+        },
+      );
     });
 
     const ended: string[] = [];
@@ -507,13 +548,16 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
       keepMeetingNumber: "82122854800",
     });
     expect(result.ended).toContain(ghostId);
+    expect(result.ended).not.toContain(customerId);
     expect(ended.some((u) => u.includes(ghostId))).toBe(true);
-    // Local ghosts are ended but not deleted (protects future bookings).
+    expect(ended.some((u) => u.includes(customerId))).toBe(false);
     expect(result.deleted ?? []).not.toContain(ghostId);
     expect(result.liveRemaining).toEqual([]);
 
     writeBookingsDb((db) => {
-      db.bookings = db.bookings.filter((b) => b.id !== "bk-ghost-clear");
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
     });
   });
 });

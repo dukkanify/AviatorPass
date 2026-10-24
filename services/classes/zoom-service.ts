@@ -1449,11 +1449,20 @@ async function listZoomLiveMeetingsForHost(
   return listZoomMeetingsForHost(token, host, "live");
 }
 
-/** Local store meeting numbers that may still hold a Zoom host lock (ghost sessions). */
-function collectRecentPlatformMeetingNumbers(windowMs = 48 * 60 * 60_000): string[] {
+/**
+ * Local meeting numbers safe to end during force clear-live.
+ * Only cancelled/completed (or long-past) sessions — never active upcoming
+ * customer bookings, live classes, or mock exams.
+ */
+function collectSafeGhostMeetingNumbers(windowMs = 48 * 60 * 60_000): string[] {
   const now = Date.now();
   const ids = new Set<string>();
-  const consider = (meetingNumber: string | null | undefined, when: string | null | undefined) => {
+  const consider = (
+    meetingNumber: string | null | undefined,
+    when: string | null | undefined,
+    eligible: boolean,
+  ) => {
+    if (!eligible) return;
     const id = meetingNumberDigits(meetingNumber);
     if (!id) return;
     const t = when ? Date.parse(when) : NaN;
@@ -1461,20 +1470,29 @@ function collectRecentPlatformMeetingNumbers(windowMs = 48 * 60 * 60_000): strin
     ids.add(id);
   };
 
-  for (const meeting of lookupAllLiveClasses()
-    .map((cls) => lookupZoomMeetingByClassId(cls.id))
-    .filter(Boolean)) {
-    consider(meeting!.zoomMeetingId, meeting!.updatedAt || meeting!.createdAt);
+  for (const cls of lookupAllLiveClasses()) {
+    const meeting = lookupZoomMeetingByClassId(cls.id);
+    if (!meeting) continue;
+    const closed = cls.status === "completed" || cls.status === "cancelled";
+    const end = Date.parse(cls.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(meeting.zoomMeetingId, meeting.updatedAt || meeting.createdAt, closed || longPast);
   }
 
   for (const booking of readBookingsDb().bookings) {
     if (booking.zoom?.providerMode !== "zoom") continue;
-    consider(booking.zoom.meetingNumber, booking.startsAt || booking.updatedAt);
+    const closed = booking.status === "cancelled" || booking.status === "completed";
+    const end = Date.parse(booking.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(booking.zoom.meetingNumber, booking.startsAt || booking.updatedAt, closed || longPast);
   }
 
   for (const exam of readMockExamsDb().sessions) {
     if (exam.zoom?.providerMode !== "zoom") continue;
-    consider(exam.zoom.meetingNumber, exam.startsAt || exam.updatedAt);
+    const closed = exam.status === "cancelled" || exam.status === "completed";
+    const end = Date.parse(exam.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(exam.zoom.meetingNumber, exam.startsAt || exam.updatedAt, closed || longPast);
   }
 
   return [...ids];
@@ -1589,34 +1607,20 @@ export async function clearZoomHostLiveMeetings(input?: {
     for (const meeting of live) {
       await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")), { allowDelete: true });
     }
-
-    // Zoom error 3000 often remains after type=live is empty — end upcoming
-    // meetings whose start window has already opened (ghost / stuck hosts).
-    if (input?.force) {
-      const upcoming = await listZoomMeetingsForHost(token, host, "upcoming");
-      for (const meeting of upcoming) {
-        const start = meeting.start_time ? Date.parse(meeting.start_time) : NaN;
-        const durationMs = Math.max(1, Number(meeting.duration) || 60) * 60_000;
-        const opened =
-          Number.isFinite(start) &&
-          now >= start - 15 * 60_000 &&
-          now <= start + durationMs + graceMs;
-        if (opened) {
-          await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")), {
-            allowDelete: true,
-          });
-        }
-      }
-    }
   }
+
+  // Never auto-end Zoom "upcoming" meetings: those are often real customer
+  // bookings. Stuck hosts must appear on type=live, match a safe local ghost,
+  // or be passed explicitly via endMeetingNumbers.
 
   for (const raw of input?.endMeetingNumbers ?? []) {
     await maybeEnd(meetingNumberDigits(raw), { allowDelete: true });
   }
 
-  // Force path: end locally known recent platform meetings Zoom omitted from type=live.
+  // Force path: end only safe local ghosts (cancelled/completed/long-past).
+  // Never PUT-end confirmed upcoming customer bookings/classes/exams from the store.
   if (input?.force) {
-    for (const id of collectRecentPlatformMeetingNumbers()) {
+    for (const id of collectSafeGhostMeetingNumbers()) {
       await maybeEnd(id, { allowDelete: false });
     }
   }
