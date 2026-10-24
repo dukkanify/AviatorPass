@@ -508,6 +508,9 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     });
     expect(result.ended).toContain(ghostId);
     expect(ended.some((u) => u.includes(ghostId))).toBe(true);
+    // Local ghosts are ended but not deleted (protects future bookings).
+    expect(result.deleted ?? []).not.toContain(ghostId);
+    expect(result.liveRemaining).toEqual([]);
 
     writeBookingsDb((db) => {
       db.bookings = db.bookings.filter((b) => b.id !== "bk-ghost-clear");
