@@ -1409,12 +1409,13 @@ export async function refreshStoredZoomStartUrl(
   return session;
 }
 
-async function listZoomLiveMeetingsForHost(
+async function listZoomMeetingsForHost(
   token: string,
   host: string,
+  type: "live" | "upcoming" | "scheduled" | "previous_meetings",
 ): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
   const res = await fetch(
-    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=${type}&page_size=30`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!res.ok) return [];
@@ -1422,6 +1423,44 @@ async function listZoomLiveMeetingsForHost(
     meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
   };
   return json.meetings ?? [];
+}
+
+async function listZoomLiveMeetingsForHost(
+  token: string,
+  host: string,
+): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
+  return listZoomMeetingsForHost(token, host, "live");
+}
+
+/** Local store meeting numbers that may still hold a Zoom host lock (ghost sessions). */
+function collectRecentPlatformMeetingNumbers(windowMs = 48 * 60 * 60_000): string[] {
+  const now = Date.now();
+  const ids = new Set<string>();
+  const consider = (meetingNumber: string | null | undefined, when: string | null | undefined) => {
+    const id = meetingNumberDigits(meetingNumber);
+    if (!id) return;
+    const t = when ? Date.parse(when) : NaN;
+    if (Number.isFinite(t) && Math.abs(now - t) > windowMs) return;
+    ids.add(id);
+  };
+
+  for (const meeting of lookupAllLiveClasses()
+    .map((cls) => lookupZoomMeetingByClassId(cls.id))
+    .filter(Boolean)) {
+    consider(meeting!.zoomMeetingId, meeting!.updatedAt || meeting!.createdAt);
+  }
+
+  for (const booking of readBookingsDb().bookings) {
+    if (booking.zoom?.providerMode !== "zoom") continue;
+    consider(booking.zoom.meetingNumber, booking.startsAt || booking.updatedAt);
+  }
+
+  for (const exam of readMockExamsDb().sessions) {
+    if (exam.zoom?.providerMode !== "zoom") continue;
+    consider(exam.zoom.meetingNumber, exam.startsAt || exam.updatedAt);
+  }
+
+  return [...ids];
 }
 
 async function resolveClearLiveAccessToken(
@@ -1516,14 +1555,38 @@ export async function clearZoomHostLiveMeetings(input?: {
   };
 
   for (const host of hosts) {
-    const meetings = await listZoomLiveMeetingsForHost(token, host);
-    for (const meeting of meetings) {
+    const live = await listZoomLiveMeetingsForHost(token, host);
+    for (const meeting of live) {
       await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")));
+    }
+
+    // Zoom error 3000 often remains after type=live is empty — end upcoming
+    // meetings whose start window has already opened (ghost / stuck hosts).
+    if (input?.force) {
+      const upcoming = await listZoomMeetingsForHost(token, host, "upcoming");
+      for (const meeting of upcoming) {
+        const start = meeting.start_time ? Date.parse(meeting.start_time) : NaN;
+        const durationMs = Math.max(1, Number(meeting.duration) || 60) * 60_000;
+        const opened =
+          Number.isFinite(start) &&
+          now >= start - 15 * 60_000 &&
+          now <= start + durationMs + graceMs;
+        if (opened) {
+          await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")));
+        }
+      }
     }
   }
 
   for (const raw of input?.endMeetingNumbers ?? []) {
     await maybeEnd(meetingNumberDigits(raw));
+  }
+
+  // Force path: end locally known recent platform meetings Zoom omitted from type=live.
+  if (input?.force) {
+    for (const id of collectRecentPlatformMeetingNumbers()) {
+      await maybeEnd(id);
+    }
   }
 
   return { ended, kept, blocked };
