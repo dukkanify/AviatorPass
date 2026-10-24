@@ -570,20 +570,40 @@ export async function createMeetingForClass(input: {
   return record;
 }
 
+/** Single-flight create/ensure so parallel join requests do not spam Zoom meetings. */
+const ensureMeetingInFlight = new Map<string, Promise<ZoomMeetingRecord | null>>();
+
 export async function ensureLiveMeetingForClass(
   liveClassId: string,
   actorId?: string | null,
 ): Promise<ZoomMeetingRecord | null> {
-  const liveClass = lookupLiveClass(liveClassId);
-  if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
-    return lookupZoomMeetingByClassId(liveClassId);
-  }
-  const existing = lookupZoomMeetingByClassId(liveClassId);
-  if (existing && !isPlaceholderZoomMeeting(existing)) {
-    return ensureInAppJoinSettings(existing);
-  }
-  if (!zoomCredsPresent() && existing) return existing;
-  return createMeetingForClass({ liveClass, actorId });
+  const inflight = ensureMeetingInFlight.get(liveClassId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const liveClass = lookupLiveClass(liveClassId);
+    if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
+      return lookupZoomMeetingByClassId(liveClassId);
+    }
+    const existing = lookupZoomMeetingByClassId(liveClassId);
+    if (existing && !isPlaceholderZoomMeeting(existing)) {
+      return ensureInAppJoinSettings(existing);
+    }
+    if (!zoomCredsPresent() && existing) return existing;
+    // Re-check after any await gap before creating a remote meeting.
+    const raced = lookupZoomMeetingByClassId(liveClassId);
+    if (raced && !isPlaceholderZoomMeeting(raced)) {
+      return ensureInAppJoinSettings(raced);
+    }
+    return createMeetingForClass({ liveClass, actorId });
+  })().finally(() => {
+    if (ensureMeetingInFlight.get(liveClassId) === promise) {
+      ensureMeetingInFlight.delete(liveClassId);
+    }
+  });
+
+  ensureMeetingInFlight.set(liveClassId, promise);
+  return promise;
 }
 
 type ZoomMeetingDetails = {
@@ -837,10 +857,27 @@ async function endZoomMeetingInstance(token: string, meetingId: string): Promise
       body: JSON.stringify({ action: "end" }),
     });
     if (!res.ok && res.status !== 404) {
-      console.error("Zoom meeting restart skipped", res.status);
+      console.error("Zoom meeting end skipped", res.status, await res.text().catch(() => ""));
     }
   } catch (error) {
-    console.error("Zoom meeting restart skipped", error);
+    console.error("Zoom meeting end skipped", error);
+  }
+}
+
+/** DELETE meeting as a stronger unlock when PUT end leaves host error 3000. */
+async function deleteZoomMeetingInstance(token: string, meetingId: string): Promise<void> {
+  const id = String(meetingId).replace(/\D/g, "");
+  if (!id) return;
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok && res.status !== 404) {
+      console.error("Zoom meeting delete skipped", res.status, await res.text().catch(() => ""));
+    }
+  } catch (error) {
+    console.error("Zoom meeting delete skipped", error);
   }
 }
 
@@ -1081,10 +1118,10 @@ export function assertCallerMayReceiveInAppZoomSession(input: {
       live.instructorId === input.userId ||
       live.assistantInstructorId === input.userId ||
       academyOversightHost(input.role);
-    const participant = listParticipantsForClass(live.id).some(
-      (p) => p.userId === input.userId && p.role === "participant",
+    const invited = listParticipantsForClass(live.id).some(
+      (p) => p.userId === input.userId && (p.role === "participant" || p.role === "cohost"),
     );
-    if (!isHost && !participant) {
+    if (!isHost && !invited) {
       throw new ClassValidationError("You are not invited to this class");
     }
     return { isHost: Boolean(isHost), liveClassId: live.id };
@@ -1389,12 +1426,13 @@ export async function refreshStoredZoomStartUrl(
   return session;
 }
 
-async function listZoomLiveMeetingsForHost(
+async function listZoomMeetingsForHost(
   token: string,
   host: string,
+  type: "live" | "upcoming" | "scheduled" | "previous_meetings",
 ): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
   const res = await fetch(
-    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=${type}&page_size=30`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!res.ok) return [];
@@ -1402,6 +1440,62 @@ async function listZoomLiveMeetingsForHost(
     meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
   };
   return json.meetings ?? [];
+}
+
+async function listZoomLiveMeetingsForHost(
+  token: string,
+  host: string,
+): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
+  return listZoomMeetingsForHost(token, host, "live");
+}
+
+/**
+ * Local meeting numbers safe to end during force clear-live.
+ * Only cancelled/completed (or long-past) sessions — never active upcoming
+ * customer bookings, live classes, or mock exams.
+ */
+function collectSafeGhostMeetingNumbers(windowMs = 48 * 60 * 60_000): string[] {
+  const now = Date.now();
+  const ids = new Set<string>();
+  const consider = (
+    meetingNumber: string | null | undefined,
+    when: string | null | undefined,
+    eligible: boolean,
+  ) => {
+    if (!eligible) return;
+    const id = meetingNumberDigits(meetingNumber);
+    if (!id) return;
+    const t = when ? Date.parse(when) : NaN;
+    if (Number.isFinite(t) && Math.abs(now - t) > windowMs) return;
+    ids.add(id);
+  };
+
+  for (const cls of lookupAllLiveClasses()) {
+    const meeting = lookupZoomMeetingByClassId(cls.id);
+    if (!meeting) continue;
+    const closed = cls.status === "completed" || cls.status === "cancelled";
+    const end = Date.parse(cls.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(meeting.zoomMeetingId, meeting.updatedAt || meeting.createdAt, closed || longPast);
+  }
+
+  for (const booking of readBookingsDb().bookings) {
+    if (booking.zoom?.providerMode !== "zoom") continue;
+    const closed = booking.status === "cancelled" || booking.status === "completed";
+    const end = Date.parse(booking.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(booking.zoom.meetingNumber, booking.startsAt || booking.updatedAt, closed || longPast);
+  }
+
+  for (const exam of readMockExamsDb().sessions) {
+    if (exam.zoom?.providerMode !== "zoom") continue;
+    const closed = exam.status === "cancelled" || exam.status === "completed";
+    const end = Date.parse(exam.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(exam.zoom.meetingNumber, exam.startsAt || exam.updatedAt, closed || longPast);
+  }
+
+  return [...ids];
 }
 
 async function resolveClearLiveAccessToken(
@@ -1432,12 +1526,19 @@ export async function clearZoomHostLiveMeetings(input?: {
   force?: boolean;
   instructorUserId?: string | null;
   endMeetingNumbers?: string[] | null;
-}): Promise<{ ended: string[]; kept: string[]; blocked: string[] }> {
+}): Promise<{
+  ended: string[];
+  kept: string[];
+  blocked: string[];
+  deleted: string[];
+  liveRemaining: string[];
+}> {
   const ended: string[] = [];
   const kept: string[] = [];
   const blocked: string[] = [];
+  const deleted: string[] = [];
   const token = await resolveClearLiveAccessToken(input?.instructorUserId);
-  if (!token) return { ended, kept, blocked };
+  if (!token) return { ended, kept, blocked, deleted, liveRemaining: [] };
 
   const keep = meetingNumberDigits(input?.keepMeetingNumber);
   const settings = getPlatformSettings();
@@ -1467,7 +1568,7 @@ export async function clearZoomHostLiveMeetings(input?: {
   const now = Date.now();
   const graceMs = 15 * 60_000;
 
-  const maybeEnd = async (id: string) => {
+  const maybeEnd = async (id: string, opts?: { allowDelete?: boolean }) => {
     if (!id || seen.has(id)) return;
     seen.add(id);
     if (keep && id === keep) {
@@ -1493,20 +1594,46 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     await endZoomMeetingInstance(token, id);
     ended.push(id);
+    // Only DELETE meetings Zoom reported as live (or explicitly listed).
+    // Local upcoming booking IDs are ended, not deleted, so future sessions survive.
+    if (input?.force && opts?.allowDelete) {
+      await deleteZoomMeetingInstance(token, id);
+      deleted.push(id);
+    }
   };
 
   for (const host of hosts) {
-    const meetings = await listZoomLiveMeetingsForHost(token, host);
-    for (const meeting of meetings) {
-      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")));
+    const live = await listZoomLiveMeetingsForHost(token, host);
+    for (const meeting of live) {
+      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")), { allowDelete: true });
     }
   }
 
+  // Never auto-end Zoom "upcoming" meetings: those are often real customer
+  // bookings. Stuck hosts must appear on type=live, match a safe local ghost,
+  // or be passed explicitly via endMeetingNumbers.
+
   for (const raw of input?.endMeetingNumbers ?? []) {
-    await maybeEnd(meetingNumberDigits(raw));
+    await maybeEnd(meetingNumberDigits(raw), { allowDelete: true });
   }
 
-  return { ended, kept, blocked };
+  // Force path: end only safe local ghosts (cancelled/completed/long-past).
+  // Never PUT-end confirmed upcoming customer bookings/classes/exams from the store.
+  if (input?.force) {
+    for (const id of collectSafeGhostMeetingNumbers()) {
+      await maybeEnd(id, { allowDelete: false });
+    }
+  }
+
+  const liveRemaining = new Set<string>();
+  for (const host of hosts) {
+    for (const meeting of await listZoomLiveMeetingsForHost(token, host)) {
+      const id = meetingNumberDigits(String(meeting.id ?? ""));
+      if (id) liveRemaining.add(id);
+    }
+  }
+
+  return { ended, kept, blocked, deleted, liveRemaining: [...liveRemaining] };
 }
 
 /**

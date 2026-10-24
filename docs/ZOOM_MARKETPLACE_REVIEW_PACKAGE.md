@@ -26,11 +26,22 @@ Verified instructor profile: Zoom Account **Not Connected**, connected email emp
 
 Verified student: `/student/dashboard` after login. `/instructor/profile` ends at `/access-denied` and does not show Zoom Account.
 
-## Why production uses a Client ID ending in `dhiQ`
+## Production Client ID status (updated 22 October 2026)
 
-`ZOOM_INSTRUCTOR_CLIENT_ID` on Vercel production (environment id `6Kx6VN99t8NXKvbu`) was created at `2026-10-15T02:36:37.915Z` and has not been updated. Its value is a 21-character Client ID whose public suffix is `dhiQ`.
+Verified on live production after Vercel env updates and redeploy:
 
-`ZOOM_INSTRUCTOR_CLIENT_SECRET` on production (environment id `Di7sgE8nLp5UOqJ4`) was created at `2026-10-15T02:57:26.962Z` and has not been updated. Zoom accepts that secret with the `dhiQ` client (`invalid_grant` on a dummy authorization code). It rejects that secret with Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (`invalid_client`).
+- `ZOOM_INSTRUCTOR_CLIENT_ID` matches Marketplace Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`, length 22).
+- `ZOOM_INSTRUCTOR_CLIENT_SECRET` pairs with that Client ID (`invalid_grant` on a dummy authorization code — not `invalid_client`).
+- Connect Zoom authorize URL uses `client_id=7z2krfWYQWCi20C0FRZ0xA`, `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`, signed `state`, and no `scope` query parameter.
+- Meeting SDK (`VGTQ`) and Server-to-Server secrets remain separate (`credentialsMixed: false`).
+
+The historical note below describes the earlier `dhiQ` Development client that production used before those env updates.
+
+## Historical: why production previously used a Client ID ending in `dhiQ`
+
+`ZOOM_INSTRUCTOR_CLIENT_ID` on Vercel production (environment id `6Kx6VN99t8NXKvbu`) was created at `2026-10-15T02:36:37.915Z` and previously held a 21-character Client ID whose public suffix was `dhiQ`.
+
+`ZOOM_INSTRUCTOR_CLIENT_SECRET` on production (environment id `Di7sgE8nLp5UOqJ4`) was created at `2026-10-15T02:57:26.962Z`. Before the 22 October 2026 update, Zoom accepted that secret with the `dhiQ` client (`invalid_grant` on a dummy authorization code) and rejected it with Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (`invalid_client`).
 
 The same check rejects the Meeting SDK secret and the Server-to-Server secret. `ZOOM_SDK_SECRET` and `ZOOM_MEETING_SDK_SECRET` are unset. The instructor secret is not equal to either of the other stored secrets. The instructor Client ID is not equal to the Meeting SDK Client ID (suffix `VGTQ`) or the Server-to-Server Client ID (suffix `uX3Q`).
 
@@ -42,7 +53,7 @@ The Production Client ID `7z2krfWYQWCi20C0FRZ0xA` was not written into `ZOOM_INS
 
 Signed state is still required. An empty callback is rejected as `missing_code`. A callback that has a code and no state is rejected as `missing_state`. Neither path writes a Zoom connection. Production correlation `zoa_mS97FLBb9LJPtA` (19 October 2026, 06:02 UTC) was an empty callback: no code, no state, and no Zoom error. An earlier callback, `zoa_l7L-G5WOrESBDQ`, arrived with a code and no state and was rejected the same way.
 
-The current Connect request still sends `state` (192 characters), `response_type=code`, and `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`. It does not send `scope`. The client on that request is the `dhiQ` client, not `7z2krfWYQWCi20C0FRZ0xA`.
+The current Connect request sends `state` (192 characters), `response_type=code`, and `redirect_uri=https://www.aviatorpass.com/api/integrations/zoom/callback`. It does not send `scope`. The client on that request is Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`).
 
 ## Publication path
 
@@ -58,23 +69,25 @@ Required user-managed scopes: `user:read:user`, `meeting:write:meeting`, `meetin
 
 ## EU business identity
 
-Use only the facts below in the Marketplace company profile. Registration numbers are not in this repository and must not be invented.
+Use only the facts below in the Marketplace company profile. They match the public legal pages. Street address, commercial registration, and VAT numbers are not invented here — paste them from the submitted legal pack.
 
-| Field                          | Value stored in AviatorPass               |
-| ------------------------------ | ----------------------------------------- |
-| Product name                   | Aviator Pass                              |
-| Legal name stored in the app   | Aviator Pass                              |
-| Website                        | https://www.aviatorpass.com               |
-| Privacy policy                 | https://www.aviatorpass.com/legal/privacy |
-| Terms                          | https://www.aviatorpass.com/legal/terms   |
-| Support                        | support@aviatorpass.com                   |
-| Controller contact             | info@aviatorpass.com                      |
-| Vendor contact in handover     | dukkanify@gmail.com                       |
-| Governing law in the Terms     | United Arab Emirates                      |
-| Locations named in the product | Dubai, Copenhagen, Kuwait, Qatar          |
-| Hosting account label          | dukkanify-technology-llcs-projects        |
+| Field                          | Value                                                            |
+| ------------------------------ | ---------------------------------------------------------------- |
+| Platform name                  | AviatorPass                                                      |
+| Operating business (legal)     | EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING              |
+| Product display name           | Aviator Pass                                                     |
+| Website                        | https://www.aviatorpass.com                                      |
+| Privacy policy                 | https://www.aviatorpass.com/legal/privacy                        |
+| Terms                          | https://www.aviatorpass.com/legal/terms                          |
+| EU review document (public)    | https://www.aviatorpass.com/integrations/zoom-marketplace-review |
+| Support                        | support@aviatorpass.com                                          |
+| Controller contact             | info@aviatorpass.com                                             |
+| Vendor contact in handover     | dukkanify@gmail.com                                              |
+| Governing law in the Terms     | United Arab Emirates                                             |
+| Locations named in the product | Dubai, Copenhagen, Kuwait, Qatar                                 |
+| Hosting account label          | dukkanify-technology-llcs-projects                               |
 
-Missing, and required from the account owner before the company profile can be completed: the registered legal entity name, the registered address, and the commercial registration or VAT number that Zoom’s EU business-identity form asks for.
+Owner still supplies from the legal pack (not stored in git): registered address, commercial registration number, and VAT number if Zoom’s EU form requires them.
 
 ## Reviewer responses
 
@@ -111,5 +124,5 @@ No. A signed-in student who opens `/instructor/profile` is sent to `/access-deni
 6. Leave `ZOOM_REDIRECT_URI` as `https://www.aviatorpass.com/api/integrations/zoom/callback`, and confirm that exact URL is on the Production OAuth redirect and allow list.
 7. Redeploy production. Then open Super Admin `GET /api/zoom/status` and confirm `configuredMatchesExpectedProductionClientId` is true and `expectedProductionClientSecretMatch.ZOOM_INSTRUCTOR_CLIENT_SECRET` is true before any classroom test.
 8. Sign in as `zoom.reviewer.instructor@aviatorpass.com`, choose Connect Zoom, and authorize a Zoom user that is not `ceo@aviatorpass.com` and not a customer account.
-9. Fill the Marketplace EU business-identity form with the registered legal name, address, and registration or VAT number. Those values are not in the application.
+9. Fill the Marketplace EU business-identity form with Platform name **AviatorPass**, operating business **EAGER PILOTS FOR AVIATION CONSULTATION AND TRAINING**, and the address / registration / VAT values from the submitted legal pack.
 10. Do not submit the Marketplace application until you approve the submission.

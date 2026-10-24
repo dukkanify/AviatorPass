@@ -6,7 +6,10 @@ import { requireAuth } from "@/services/auth/guards";
 import { assertPermission } from "@/services/auth/permissions";
 import { getJoinInfoForUser } from "@/services/classes/class-service";
 import { markJoin, notifyStudentsInstructorIsWaiting } from "@/services/classes/attendance-service";
-import { ensureLiveMeetingForClass } from "@/services/classes/zoom-service";
+import {
+  assertCallerMayReceiveInAppZoomSession,
+  ensureLiveMeetingForClass,
+} from "@/services/classes/zoom-service";
 import { classErrorResponse } from "@/app/api/classes/_utils";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,6 +22,12 @@ export async function GET(_request: Request, { params }: Params) {
     else if (user.role === ROLES.INSTRUCTOR) assertPermission(user, PERMISSIONS.ZOOM_SESSIONS);
     else assertPermission(user, PERMISSIONS.CLASSES_MANAGE);
 
+    // Authorize roster membership before any Zoom meeting provision/refresh.
+    assertCallerMayReceiveInAppZoomSession({
+      userId: user.id,
+      role: user.role,
+      liveClassId: id,
+    });
     await ensureLiveMeetingForClass(id, user.id);
     const info = getJoinInfoForUser(id, user.id);
     return NextResponse.json({ success: true, data: info, error: null });
@@ -35,6 +44,12 @@ export async function POST(_request: Request, { params }: Params) {
     else if (user.role === ROLES.INSTRUCTOR) assertPermission(user, PERMISSIONS.ZOOM_SESSIONS);
     else assertPermission(user, PERMISSIONS.CLASSES_MANAGE);
 
+    // Authorize roster membership before any Zoom meeting provision/refresh.
+    assertCallerMayReceiveInAppZoomSession({
+      userId: user.id,
+      role: user.role,
+      liveClassId: id,
+    });
     await ensureLiveMeetingForClass(id, user.id);
     const info = getJoinInfoForUser(id, user.id);
     if (user.role === ROLES.STUDENT) {

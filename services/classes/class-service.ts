@@ -1049,10 +1049,10 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
     findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = listParticipantsForClass(liveClassId).some(
-    (p) => p.userId === userId && p.role === "participant",
+  const invited = listParticipantsForClass(liveClassId).some(
+    (p) => p.userId === userId && (p.role === "participant" || p.role === "cohost"),
   );
-  if (!isHost && !participant) {
+  if (!isHost && !invited) {
     throw new ClassValidationError("You are not invited to this class");
   }
 

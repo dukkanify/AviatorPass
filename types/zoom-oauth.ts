@@ -60,7 +60,8 @@ export interface ZoomIntegrationPublic {
 
 export interface ZoomOAuthTokenResponse {
   access_token: string;
-  refresh_token: string;
+  /** Omitted on some Zoom refresh responses; callers must preserve the prior token. */
+  refresh_token?: string;
   token_type: string;
   expires_in: number;
   scope?: string;

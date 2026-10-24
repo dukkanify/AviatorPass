@@ -183,12 +183,12 @@ function InstructorZoomPanel() {
           </p>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
           {!personalReady ? (
             <Button
               asChild
               disabled={!oauthReady}
-              className="bg-[#143048] text-white hover:bg-[#0f2538]"
+              className="min-h-11 w-full bg-[#143048] text-white hover:bg-[#0f2538] sm:w-auto"
             >
               <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
                 <Link2 className="mr-2 h-4 w-4" />
@@ -196,7 +196,7 @@ function InstructorZoomPanel() {
               </a>
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
               <a href="/api/integrations/zoom/connect?returnTo=/instructor/profile">
                 <Video className="mr-2 h-4 w-4" /> Reconnect Zoom
               </a>
@@ -205,6 +205,7 @@ function InstructorZoomPanel() {
           <Button
             type="button"
             variant="outline"
+            className="min-h-11 w-full sm:w-auto"
             onClick={() => void syncNow()}
             disabled={!personalReady || busy !== null}
           >
@@ -214,6 +215,7 @@ function InstructorZoomPanel() {
           <Button
             type="button"
             variant="ghost"
+            className="min-h-11 w-full sm:w-auto"
             onClick={() => void disconnect()}
             disabled={(!connected && !needsReconnect && !sharedPlatform) || busy !== null}
           >

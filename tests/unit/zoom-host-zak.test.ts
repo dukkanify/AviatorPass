@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { generateMeetingSdkSignature } from "@/lib/zoom/meeting-sdk";
 import { writeClassesDb } from "@/services/classes/store";
 import {
+  clearZoomHostLiveMeetings,
   fetchZoomHostZak,
   probeZoomHostZak,
   resetZoomS2STokenCacheForTests,
@@ -10,6 +11,7 @@ import {
   updateMeetingForClass,
   zoomHostBlockedByAnotherLiveMeeting,
 } from "@/services/classes/zoom-service";
+import { writeBookingsDb } from "@/services/bookings/store";
 import type { LiveClass } from "@/types/classes";
 
 describe("Zoom host ZAK for in-app Meeting SDK", () => {
@@ -438,5 +440,124 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     // unrelated meetings from the join path (Super Admin clear-live is explicit).
     await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(true);
     expect(ended).toEqual([]);
+  });
+
+  it("force clear-live ends cancelled local ghosts but not confirmed upcoming bookings", async () => {
+    s2sEnv();
+    const ghostId = "99988877766";
+    const customerId = "11122233344";
+    writeBookingsDb((db) => {
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
+      db.bookings.unshift(
+        {
+          id: "bk-ghost-clear",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Ghost clear",
+          notes: "",
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 3600_000).toISOString(),
+          status: "cancelled",
+          zoom: {
+            meetingNumber: ghostId,
+            joinUrl: `https://us02web.zoom.us/j/${ghostId}`,
+            startUrl: `https://us02web.zoom.us/s/${ghostId}?zak=x`,
+            password: "111111",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: "admin",
+          cancelReason: "test",
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
+        },
+        {
+          id: "bk-customer-keep",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Customer keep",
+          notes: "",
+          startsAt: new Date(Date.now() + 2 * 3600_000).toISOString(),
+          endsAt: new Date(Date.now() + 3 * 3600_000).toISOString(),
+          status: "confirmed",
+          zoom: {
+            meetingNumber: customerId,
+            joinUrl: `https://us02web.zoom.us/j/${customerId}`,
+            startUrl: `https://us02web.zoom.us/s/${customerId}?zak=x`,
+            password: "222222",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: null,
+          cancelledBy: null,
+          cancelReason: null,
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
+        },
+      );
+    });
+
+    const ended: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/users/") && url.includes("/meetings") && method === "GET") {
+        return new Response(JSON.stringify({ meetings: [] }), { status: 200 });
+      }
+      if (method === "PUT" && url.includes("/meetings/") && url.includes("/status")) {
+        ended.push(url);
+        return new Response(null, { status: 204 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await clearZoomHostLiveMeetings({
+      force: true,
+      keepMeetingNumber: "82122854800",
+    });
+    expect(result.ended).toContain(ghostId);
+    expect(result.ended).not.toContain(customerId);
+    expect(ended.some((u) => u.includes(ghostId))).toBe(true);
+    expect(ended.some((u) => u.includes(customerId))).toBe(false);
+    expect(result.deleted ?? []).not.toContain(ghostId);
+    expect(result.liveRemaining).toEqual([]);
+
+    writeBookingsDb((db) => {
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
+    });
   });
 });

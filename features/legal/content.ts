@@ -11,7 +11,7 @@ export type LegalSection = {
   bullets?: string[];
 };
 
-export const LEGAL_UPDATED_LABEL = "9 September 2026";
+export const LEGAL_UPDATED_LABEL = "22 October 2026";
 
 export const TERMS_TITLE = "Terms of Service";
 export const TERMS_DESCRIPTION =
@@ -25,7 +25,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "1. Who we are",
     paragraphs: [
-      `These Terms of Service (“Terms”) govern access to ${siteStatic.name} at https://www.aviatorpass.com (the “Platform”). The Platform is operated by ${siteStatic.legalName}.`,
+      `These Terms of Service (“Terms”) govern access to the ${siteStatic.platformName} platform (${siteStatic.name}) at https://www.aviatorpass.com (the “Platform”). The Platform is operated by ${siteStatic.legalName}.`,
       `Questions about these Terms: ${siteStatic.contactEmail}. Student support: ${siteStatic.supportEmail}. Training locations we serve include ${siteStatic.locations.join(", ")}.`,
     ],
   },
@@ -89,7 +89,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "1. Scope",
     paragraphs: [
-      `This Privacy Policy explains how ${siteStatic.name} collects and uses personal data when you visit the website, create an account, verify your email, enrol on a course, or contact support.`,
+      `This Privacy Policy explains how ${siteStatic.platformName} (${siteStatic.name}), operated by ${siteStatic.legalName}, collects and uses personal data when you visit the website, create an account, verify your email, enrol on a course, or contact support.`,
       `Controller contact: ${siteStatic.contactEmail}. Privacy and student support: ${siteStatic.supportEmail}.`,
     ],
   },
