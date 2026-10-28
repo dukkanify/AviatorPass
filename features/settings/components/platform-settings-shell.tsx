@@ -1899,6 +1899,12 @@ function PlatformSettingsShell() {
                       ended: string[];
                       kept: string[];
                       blocked: string[];
+                      liveListReadable?: boolean;
+                      liveListErrors?: Array<{
+                        host: string;
+                        status: number;
+                        error: string | null;
+                      }>;
                     }>("/api/admin/zoom/clear-live", {
                       method: "POST",
                       body: JSON.stringify({ force: true }),
@@ -1908,11 +1914,18 @@ function PlatformSettingsShell() {
                       toast.error(result.error ?? "Clear live failed");
                       return;
                     }
-                    const { ended, kept, blocked } = result.data;
+                    const { ended, kept, blocked, liveListReadable, liveListErrors } = result.data;
+                    if (liveListReadable === false) {
+                      const detail =
+                        liveListErrors?.[0]?.error?.slice(0, 160) ||
+                        "Zoom live list is not readable (often missing meeting:read:list_meetings on CEO S2S). Empty ended[] is not proof the host is free.";
+                      toast.error(`Live list unread · ${detail}`);
+                    }
                     toast.success(
                       `Cleared ${ended.length} live meeting(s)` +
                         (kept.length ? ` · kept ${kept.length}` : "") +
-                        (blocked.length ? ` · blocked ${blocked.length}` : ""),
+                        (blocked.length ? ` · blocked ${blocked.length}` : "") +
+                        (liveListReadable === false ? " · live list unread" : ""),
                     );
                   })();
                 }}

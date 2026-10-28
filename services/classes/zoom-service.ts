@@ -230,7 +230,26 @@ async function chooseZoomHostUser(
 ): Promise<string> {
   const hosts = await listZoomHostCandidates(token);
   const free = hosts.find((host) => !zoomHostBusy(host, liveClass));
-  return free?.id || fallback;
+  if (free?.id) return free.id;
+
+  // Never silently assign a busy shared host — that yields Meeting SDK Error 3000.
+  const fallbackHost: ZoomHostCandidate = {
+    id: fallback,
+    email: fallback.includes("@") ? fallback : "",
+  };
+  if (zoomHostBusy(fallbackHost, liveClass)) {
+    throw new ClassValidationError(
+      "The platform Zoom host already has another AviatorPass class in this time window. Reschedule so live classes do not overlap on the shared host (avoids Zoom Error 3000). Customer meetings are not ended automatically.",
+      409,
+    );
+  }
+  if (hosts.length > 0) {
+    throw new ClassValidationError(
+      "Every licensed Zoom host in the account is booked for an overlapping AviatorPass class. Reschedule to avoid concurrent meetings on the same Zoom user.",
+      409,
+    );
+  }
+  return fallback;
 }
 
 function requireLiveZoom(reason: string): never {

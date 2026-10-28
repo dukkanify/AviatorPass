@@ -28,31 +28,33 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 
 ## Technical
 
-| Doc                                               | Topic                                               |
-| ------------------------------------------------- | --------------------------------------------------- |
-| `ARCHITECTURE.md`                                 | System overview                                     |
-| `DEVELOPER_GUIDE.md`                              | Engineer onboarding                                 |
-| `ENVIRONMENT_SETUP.md`                            | Env / install                                       |
-| `ZOOM_OAUTH_INTEGRATION.md`                       | Instructor Zoom OAuth                               |
-| `ZOOM_MEETING_SDK_REVIEWER_TEST_PLAN.md`          | Meeting SDK Marketplace review                      |
-| `ZOOM_MARKETPLACE_FINAL_REVIEW_TEST_PLAN.md`      | October 22 consolidated review                      |
-| `ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | Classroom Meeting SDK functional review (Oct 22/27) |
-| `ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md` | Classroom Marketplace final readiness (NOT READY) |
-| `ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md` | Classroom empty-Scopes portal blocker resolution |
+| Doc                                                   | Topic                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------- |
+| `ARCHITECTURE.md`                                     | System overview                                       |
+| `DEVELOPER_GUIDE.md`                                  | Engineer onboarding                                   |
+| `ENVIRONMENT_SETUP.md`                                | Env / install                                         |
+| `ZOOM_OAUTH_INTEGRATION.md`                           | Instructor Zoom OAuth                                 |
+| `ZOOM_MEETING_SDK_REVIEWER_TEST_PLAN.md`              | Meeting SDK Marketplace review                        |
+| `ZOOM_MARKETPLACE_FINAL_REVIEW_TEST_PLAN.md`          | October 22 consolidated review                        |
+| `ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md`     | Classroom Meeting SDK functional review (Oct 22/27)   |
+| `ZOOM_CLASSROOM_MARKETPLACE_REVIEWER_ONEPAGER.md`     | Classroom VGTQ reviewer steps (Z0xA separate)         |
+| `ZOOM_S2S_MEETING_READ_SCOPE_PLAN.md`                 | CEO S2S list-live scope plan — awaiting approval      |
+| `ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md`       | Classroom Marketplace final readiness (NOT READY)     |
+| `ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md`      | Classroom empty-Scopes portal blocker resolution      |
 | `ZOOM_CLASSROOM_MARKETPLACE_FINAL_SUBMISSION_PREP.md` | Final submission prep — Support email, notes, verdict |
-| `ZOOM_MARKETPLACE_REVIEWER_GUIDE.md`              | Reviewer test steps                                 |
-| `ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`              | Review evidence and owner actions                   |
-| `STRIPE_CHECKOUT.md`                              | Stripe hosted Checkout                              |
-| `TAMARA.md`                                       | Tamara hosted checkout                              |
-| `TALY.md`                                         | Taly hosted checkout                                |
-| `EMAIL.md`                                        | Resend / SMTP / DNS                                 |
-| `DEPLOYMENT.md` / `PRODUCTION.md`                 | Deploy                                              |
-| `API_OVERVIEW.md` / `MOBILE_API.md`               | APIs                                                |
-| `DATABASE_SCHEMA.md` / `database/README.md`       | Schema                                              |
-| `SECURITY.md` / `SECURITY_REVIEW_022.md`          | Security                                            |
-| `BACKUP_DISASTER_RECOVERY.md`                     | Backup / restore                                    |
-| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md`       | Ops                                                 |
-| `TESTING.md` / `CODING_STANDARDS.md`              | Quality                                             |
+| `ZOOM_MARKETPLACE_REVIEWER_GUIDE.md`                  | Reviewer test steps                                   |
+| `ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`                  | Review evidence and owner actions                     |
+| `STRIPE_CHECKOUT.md`                                  | Stripe hosted Checkout                                |
+| `TAMARA.md`                                           | Tamara hosted checkout                                |
+| `TALY.md`                                             | Taly hosted checkout                                  |
+| `EMAIL.md`                                            | Resend / SMTP / DNS                                   |
+| `DEPLOYMENT.md` / `PRODUCTION.md`                     | Deploy                                                |
+| `API_OVERVIEW.md` / `MOBILE_API.md`                   | APIs                                                  |
+| `DATABASE_SCHEMA.md` / `database/README.md`           | Schema                                                |
+| `SECURITY.md` / `SECURITY_REVIEW_022.md`              | Security                                              |
+| `BACKUP_DISASTER_RECOVERY.md`                         | Backup / restore                                      |
+| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md`           | Ops                                                   |
+| `TESTING.md` / `CODING_STANDARDS.md`                  | Quality                                               |
 
 ## Closure, enterprise & release
 

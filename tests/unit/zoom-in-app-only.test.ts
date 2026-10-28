@@ -144,6 +144,16 @@ describe("Zoom stays inside AviatorPass", () => {
     ).toBe("Instructor: Khalid Al Rashid\nStudents: Omar Khalil");
   });
 
+  it("refuses to assign a busy shared Zoom host (Error 3000 prevention)", () => {
+    const zoomService = readFileSync(
+      resolve(process.cwd(), "services/classes/zoom-service.ts"),
+      "utf8",
+    );
+    expect(zoomService).toMatch(/Never silently assign a busy shared host/);
+    expect(zoomService).toMatch(/already has another AviatorPass class in this time window/);
+    expect(zoomService).toMatch(/liveListReadable/);
+  });
+
   it("does not open Zoom in a new tab from join surfaces", () => {
     for (const rel of JOIN_SURFACES) {
       const src = readFileSync(resolve(process.cwd(), rel), "utf8");
