@@ -123,7 +123,8 @@ export function isPlaceholderZoomMeeting(
   return /zak=mock/i.test(start) || /zak=mock/i.test(join);
 }
 
-function zoomCredsPresent(): boolean {
+/** True when platform Server-to-Server Zoom credentials are configured. */
+export function zoomCredsPresent(): boolean {
   try {
     return Boolean(getZoomS2SCredentials());
   } catch {
@@ -465,25 +466,24 @@ export async function createMeetingForClass(input: {
 }): Promise<ZoomMeetingRecord> {
   const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
   const {
-    assertInstructorZoomConnected,
     getValidInstructorAccessToken,
     getIntegrationByUserId,
     isS2SDelegateIntegration,
     hasPersonalInstructorZoom,
   } = await import("@/services/zoom/oauth-service");
-  const { PermissionError } = await import("@/services/auth/permissions");
 
   const instructorToken = await getValidInstructorAccessToken(input.liveClass.instructorId);
   const integration = getIntegrationByUserId(input.liveClass.instructorId);
-  const platformEmail = getPlatformSettings().zoom.accountEmail;
+  const settings = getPlatformSettings();
+  const platformEmail = settings.zoom.accountEmail;
   const personalOAuth = Boolean(
     instructorToken &&
     !isS2SDelegateIntegration(integration) &&
     hasPersonalInstructorZoom(integration, platformEmail),
   );
 
-  // Live classes always host on the instructor's personal Zoom OAuth account —
-  // never the shared platform host (ceo@aviatorpass.com / S2S).
+  // Optional personal Instructor OAuth — used when the instructor has connected a
+  // dedicated Zoom user. Remains supported for future per-instructor hosting.
   if (personalOAuth) {
     try {
       const instructorMeeting = await createInstructorZoomMeeting({
@@ -502,40 +502,78 @@ export async function createMeetingForClass(input: {
     }
   }
 
-  if (!isMockZoomAllowed()) {
-    try {
-      assertInstructorZoomConnected(input.liveClass.instructorId);
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        throw new ClassValidationError(
-          "Please connect your Zoom account before creating a live class.",
-          409,
-        );
-      }
-      throw error;
-    }
-    if (!personalOAuth) {
-      throw new ClassValidationError(
-        "Please connect your Zoom account before creating a live class.",
-        409,
-      );
-    }
-  }
-
-  const settings = getPlatformSettings();
   const waitingRoom = false;
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
 
-  // Dev/mock only — production live classes never fall back to platform S2S host.
-  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
+  // Centralized platform hosting (Server-to-Server / CEO Zoom user). Instructors
+  // never receive CEO passwords, S2S secrets, or raw unrestricted host credentials.
+  // Host ZAK is derived server-side from meeting start_url for authorized hosts only.
+  if (zoomCredsPresent()) {
+    const apiPayload = await createZoomApiMeeting(input.liveClass, {
+      waitingRoom,
+      passcode,
+      meetingType,
+    });
+    if (!apiPayload) {
+      throw new ClassValidationError(
+        "Zoom API failed to create a live meeting on the platform host. Check Server-to-Server OAuth credentials, account scopes, and concurrent meeting limits.",
+        503,
+      );
+    }
+    const now = new Date().toISOString();
+    const record: ZoomMeetingRecord = {
+      id: generateId(),
+      ...apiPayload,
+      // Platform-hosted — not owned by instructor OAuth.
+      oauthUserId: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    writeClassesDb((d) => {
+      d.zoomMeetings = d.zoomMeetings.filter((z) => z.liveClassId !== input.liveClass.id);
+      d.zoomMeetings.push(record);
+      const idx = d.classes.findIndex((c) => c.id === input.liveClass.id);
+      if (idx >= 0) {
+        const current = d.classes[idx]!;
+        d.classes[idx] = {
+          ...current,
+          zoomMeetingId: record.id,
+          updatedAt: now,
+        };
+      }
+    });
+    await logActivity({
+      actorId: input.actorId ?? null,
+      action: ACTIVITY_ACTIONS.ZOOM_MEETING_CREATED,
+      entityType: "zoom_meeting",
+      entityId: record.id,
+      metadata: {
+        liveClassId: input.liveClass.id,
+        zoomMeetingId: record.zoomMeetingId,
+        providerMode: record.providerMode,
+        via: "platform_s2s",
+        hostEmail: record.hostEmail,
+      },
+    });
+    return record;
+  }
 
+  if (!isMockZoomAllowed()) {
+    throw new ClassValidationError(
+      "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
+      503,
+    );
+  }
+
+  // Dev/mock only when S2S credentials are absent.
+  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
   const now = new Date().toISOString();
   const record: ZoomMeetingRecord = {
     id: generateId(),
     ...payload,
-    oauthUserId: input.liveClass.instructorId,
+    oauthUserId: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -563,7 +601,7 @@ export async function createMeetingForClass(input: {
       liveClassId: input.liveClass.id,
       zoomMeetingId: record.zoomMeetingId,
       providerMode: record.providerMode,
-      via: personalOAuth ? "instructor_oauth" : "mock_dev",
+      via: "mock_dev",
     },
   });
 

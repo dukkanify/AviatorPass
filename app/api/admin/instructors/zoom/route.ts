@@ -5,6 +5,7 @@ import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
 import { listUsersByRole } from "@/services/dashboard/metrics";
 import { getPlatformSettings } from "@/services/settings/settings-service";
+import { zoomCredsPresent } from "@/services/classes/zoom-service";
 import { getZoomOAuthPublicDiagnostics, isZoomOAuthConfigured } from "@/services/zoom/config";
 import {
   getIntegrationByUserId,
@@ -26,6 +27,7 @@ export async function GET() {
     const oauthConfigured = isZoomOAuthConfigured();
     const oauth = getZoomOAuthPublicDiagnostics();
     const platformZoomEmail = getPlatformSettings().zoom.accountEmail;
+    const platformHostingReady = zoomCredsPresent();
 
     const data = [...instructors, ...cgi].map((user) => {
       const summary = byUser.get(user.id);
@@ -46,7 +48,7 @@ export async function GET() {
         zoomEmail: summary?.zoomEmail ?? view.zoomEmail,
         lastSyncAt: summary?.lastSyncAt ?? view.lastSyncAt,
         meetingReady: view.meetingReady && !sharedPlatformAccount,
-        /** True when Zoom email is the shared platform host — cannot host live classes. */
+        /** True when Zoom email is the shared platform host — personal OAuth path blocked. */
         sharedPlatformAccount,
         personalZoomReady,
       };
@@ -56,6 +58,8 @@ export async function GET() {
       success: true,
       data: {
         oauthConfigured,
+        /** Centralized CEO/platform S2S hosting available for live classes. */
+        platformHostingReady,
         /** Non-secret: exact redirect_uri production sends to Zoom (for Marketplace matching). */
         oauthRedirectUri: oauth.redirectUri,
         /** Non-secret: last 4 of Instructor OAuth Client ID (not Meeting SDK). */

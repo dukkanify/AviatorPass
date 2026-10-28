@@ -71,7 +71,7 @@ describe("production Zoom mock ban", () => {
     );
   });
 
-  it("rejects live class creation when the instructor Zoom account is not connected", async () => {
+  it("rejects live class creation when neither platform S2S nor personal Zoom is available", async () => {
     process.env.NEXT_PUBLIC_APP_ENV = "production";
     process.env.VERCEL_ENV = "production";
     delete process.env.ALLOW_ZOOM_MOCK;
@@ -86,7 +86,7 @@ describe("production Zoom mock ban", () => {
     ).toISOString();
     await expect(
       createLiveClass({
-        title: `Schedule without instructor Zoom ${startsAt}`,
+        title: `Schedule without platform Zoom ${startsAt}`,
         instructorId: instructor!.id,
         startsAt,
         durationMinutes: 60,
@@ -94,8 +94,8 @@ describe("production Zoom mock ban", () => {
         actorId: instructor!.id,
       }),
     ).rejects.toMatchObject({
-      message: "Please connect your Zoom account before creating a live class.",
-      status: 409,
+      message: expect.stringMatching(/Zoom is not configured/i),
+      status: 503,
     });
   });
 });

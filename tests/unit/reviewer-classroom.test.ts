@@ -38,7 +38,7 @@ function cls(
 }
 
 describe("reviewer classroom guard", () => {
-  it("blocks creation until a personal Zoom account is authorized", () => {
+  it("allows platform S2S hosting without personal instructor OAuth", () => {
     const result = assessReviewerClassroom({
       instructorFound: true,
       studentFound: true,
@@ -46,6 +46,23 @@ describe("reviewer classroom guard", () => {
       sharedPlatformAccount: false,
       zoomEmail: null,
       protectedEmails: ["ceo@aviatorpass.com"],
+      platformS2SReady: true,
+      platformHostEmail: "ceo@aviatorpass.com",
+    });
+    expect(result.ready).toBe(true);
+    expect(result.block).toBeNull();
+    expect(result.zoomEmail).toBe("ceo@aviatorpass.com");
+  });
+
+  it("blocks creation when neither platform S2S nor personal Zoom is available", () => {
+    const result = assessReviewerClassroom({
+      instructorFound: true,
+      studentFound: true,
+      personalZoomReady: false,
+      sharedPlatformAccount: false,
+      zoomEmail: null,
+      protectedEmails: ["ceo@aviatorpass.com"],
+      platformS2SReady: false,
     });
     expect(result.ready).toBe(false);
     expect(result.block).toBe("oauth_not_connected");

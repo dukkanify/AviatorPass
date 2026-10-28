@@ -56,7 +56,7 @@ describe("Zoom S2S meeting create host fallback", () => {
     }
   });
 
-  it("does not create live-class meetings on the shared platform S2S host", async () => {
+  it("creates live-class meetings on the platform S2S host when personal OAuth is absent", async () => {
     process.env.ZOOM_ACCOUNT_ID = "acct_test";
     process.env.ZOOM_S2S_CLIENT_ID = "s2s_client_test";
     process.env.ZOOM_S2S_CLIENT_SECRET = "s2s_secret_test";
@@ -66,42 +66,83 @@ describe("Zoom S2S meeting create host fallback", () => {
 
     previousHost = getPlatformSettings().zoom.accountEmail;
     await updatePlatformSettings({
-      patch: { zoom: { enabled: true, accountEmail: PROJECT_SUPPORT_EMAIL } },
+      patch: { zoom: { enabled: true, accountEmail: "ceo@aviatorpass.com" } },
       actorId: "test-actor",
     });
-    expect(getPlatformSettings().zoom.accountEmail).toBe(PROJECT_SUPPORT_EMAIL);
+
+    const posts: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/users?") && (!init || init.method === undefined || init.method === "GET")) {
+        return new Response(
+          JSON.stringify({ users: [{ id: "ceo-user", email: "ceo@aviatorpass.com", type: 2 }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.includes("/settings") && (!init || !init.method || init.method === "GET" || init.method === "PATCH")) {
+        return new Response(JSON.stringify({ in_meeting: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/meetings") && init?.method === "POST") {
+        posts.push(url);
+        return new Response(
+          JSON.stringify({
+            id: 82122854801,
+            uuid: "uuid-s2s",
+            join_url: "https://zoom.us/j/82122854801",
+            start_url: "https://zoom.us/s/82122854801?zak=platform-zak-token",
+            password: "pass123",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "ceo-user",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof fetch;
 
     const startsAt = new Date(Date.now() + 60 * 60_000).toISOString();
-    await expect(
-      createMeetingForClass({
-        liveClass: {
-          id: "cls_s2s_host",
-          title: "S2S host fallback",
-          description: "",
-          courseId: null,
-          moduleId: null,
-          lessonId: null,
-          instructorId: "instructor_missing",
-          assistantInstructorId: null,
-          startsAt,
-          endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString(),
-          durationMinutes: 30,
-          timezone: "Asia/Kuwait",
-          maxStudents: 10,
-          meetingType: "meeting",
-          status: "scheduled",
-          zoomMeetingId: null,
-          recurringRuleId: null,
-          parentClassId: null,
-          cancelledAt: null,
-          cancelReason: null,
-          rescheduledFromId: null,
-          createdById: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
-        },
-      }),
-    ).rejects.toThrow(/connect your Zoom account/i);
+    const meeting = await createMeetingForClass({
+      liveClass: {
+        id: "cls_s2s_host",
+        title: "S2S host fallback",
+        description: "",
+        courseId: null,
+        moduleId: null,
+        lessonId: null,
+        instructorId: "instructor_missing",
+        assistantInstructorId: null,
+        startsAt,
+        endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString(),
+        durationMinutes: 30,
+        timezone: "Asia/Kuwait",
+        maxStudents: 10,
+        meetingType: "meeting",
+        status: "scheduled",
+        zoomMeetingId: null,
+        recurringRuleId: null,
+        parentClassId: null,
+        cancelledAt: null,
+        cancelReason: null,
+        rescheduledFromId: null,
+        createdById: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      },
+    });
+    expect(meeting.zoomMeetingId).toBe("82122854801");
+    expect(meeting.hostEmail).toBe("ceo@aviatorpass.com");
+    expect(meeting.oauthUserId).toBeNull();
+    expect(meeting.startUrl).toContain("zak=");
+    expect(posts.some((url) => url.includes("/users/"))).toBe(true);
   });
 });

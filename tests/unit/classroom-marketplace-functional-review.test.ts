@@ -70,10 +70,12 @@ describe("Classroom Meeting SDK Marketplace functional review", () => {
     expect(openManual.map((n) => n.id)).toEqual([1, 2, 3]);
   });
 
-  it("records final readiness as not ready and rejects CEO provisioning", () => {
+  it("records final readiness as not ready and documents centralized CEO/S2S hosting", () => {
     expect(CLASSROOM_REVIEW_READINESS.verdict).toBe("NOT_READY");
-    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionSupported).toBe(false);
+    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionSupported).toBe(true);
     expect(CLASSROOM_REVIEW_READINESS.blockers.length).toBeGreaterThan(0);
-    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionReason).toMatch(/never falls back/i);
+    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionReason).toMatch(
+      /Server-to-Server|platform/i,
+    );
   });
 });

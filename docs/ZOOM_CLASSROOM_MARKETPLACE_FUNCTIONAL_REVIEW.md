@@ -3,11 +3,12 @@
 **Public URL:** https://www.aviatorpass.com/integrations/zoom-classroom-review  
 **Updated:** 28 October 2026 (Asia/Dubai)  
 **Source of truth in repo:** `features/zoom/content/classroom-marketplace-functional-review.ts`  
-**Final readiness:** `docs/ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md` — **NOT READY for resubmission**
+**Final readiness:** `docs/ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md` — **NOT READY for resubmission**  
+**Hosting plan:** `docs/ZOOM_CENTRALIZED_HOSTING_PLAN.md`
 
 This document is the operator index for the October 22 functional review notes (notification referenced 27 October 2026). It contains **no passwords, OAuth secrets, access tokens, or ZAK values**.
 
-Do **not** submit Marketplace updates until the account owner approves **and** the readiness blockers are cleared. Do **not** disconnect `ceo@aviatorpass.com`.
+Do **not** submit Marketplace updates until the account owner approves **and** the readiness blockers are cleared. Do **not** disconnect `ceo@aviatorpass.com`. Do **not** modify Marketplace / CEO / customer settings without approval.
 
 ## Related public pages
 
@@ -17,7 +18,7 @@ Do **not** submit Marketplace updates until the account owner approves **and** t
 | Combined final review (both apps) | https://www.aviatorpass.com/integrations/zoom-marketplace-review |
 | Classroom functional review (this package) | https://www.aviatorpass.com/integrations/zoom-classroom-review |
 | Classroom landing | https://www.aviatorpass.com/join |
-| Instructor OAuth landing | https://www.aviatorpass.com/instructor/profile |
+| Instructor OAuth landing (optional) | https://www.aviatorpass.com/instructor/profile |
 
 ## Six notes — which remain open
 
@@ -30,19 +31,29 @@ Do **not** rework items that are already satisfied in repo/production. Of the si
 | 3 | Custom Form | **OPEN** (Marketplace console) | Owner removes unused Custom Form |
 | 4 | Meeting SDK test instructions | **Resolved in repo** | Owner links public docs URL after deploy |
 | 5 | Reviewer credentials | **Accounts verified** | Owner pastes passwords into Zoom private Account credentials only |
-| 6 | Consolidated English document | **Resolved in repo** | Owner links `/integrations/zoom-classroom-review` after deploy (production was 404 at readiness probe) |
+| 6 | Consolidated English document | **Resolved in repo** | Owner links `/integrations/zoom-classroom-review` after deploy |
 
 Paste text for Zoom reviewer response fields: export `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` in `features/zoom/content/classroom-marketplace-functional-review.ts` (no passwords).
+
+## Architecture this release
+
+| Integration | Role |
+| --- | --- |
+| CEO / S2S (`ceo@aviatorpass.com`) | Create live-class + booking meetings; supply `start_url` for host ZAK |
+| Classroom Meeting SDK (suffix `VGTQ`) | JWT signatures for `/join` embed only |
+| Instructor OAuth (suffix `Z0xA`) | Optional future per-instructor hosting — code/credentials retained |
+
+Instructors never receive CEO passwords, S2S secrets, or unrestricted host credentials. Ownership checks on `/join/{classId}` remain (assigned instructor / enrolled student only).
 
 ## Production verification snapshot (28 October 2026 Asia/Dubai)
 
 - Meeting SDK Client ID suffix `VGTQ`, `credentialPairValid: true`
 - Instructor OAuth suffix `Z0xA`, scopes without admin create; S2S suffix `uX3Q`
-- S2S host `ceo@aviatorpass.com`, `hostZak.ready: true` — **not** used for reviewer live-class create
+- S2S host `ceo@aviatorpass.com`, `hostZak.ready: true` — **centralized live-class host** for this release
 - Reviewer instructor + student AviatorPass logins: success
-- `personalZoomReady`: still **false** → reviewer classroom **409** `oauth_not_connected`
-- Working `/join/{classId}`: **missing**
-- CEO / S2S provisioning of reviewer classroom: **not supported** by design
+- Personal Connect Zoom: **not required** when platform S2S is configured
+- Isolated reviewer classroom + host/student `/join/{classId}`: **re-verify after deploy**
+- Concurrent licensing: one licensed Zoom user typically hosts one concurrent meeting; AviatorPass blocks same-instructor schedule overlap
 
 ## Owner Marketplace checklist (manual)
 
@@ -52,5 +63,5 @@ Paste text for Zoom reviewer response fields: export `CLASSROOM_REVIEW_ZOOM_PAST
 4. Confirm Embed → Meeting SDK is on.  
 5. Paste reviewer emails/passwords into **private** Account credentials only.  
 6. Deploy + link https://www.aviatorpass.com/integrations/zoom-classroom-review in documentation fields.  
-7. Connect Zoom for the reviewer instructor (dedicated personal Zoom user), create the isolated classroom, verify host/student join.  
+7. After deploy: `POST /api/admin/zoom/reviewer-classroom`, then verify host/student join on `/join/{classId}` (no personal Connect Zoom required).  
 8. Submit only after owner approval and after classroom proof succeeds.

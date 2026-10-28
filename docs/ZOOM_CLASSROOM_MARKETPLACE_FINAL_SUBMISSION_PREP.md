@@ -122,20 +122,17 @@ support@aviatorpass.com
 | CEO `hostZak.ready` | PASS (`ceo@aviatorpass.com`) |
 | Reviewer instructor login | PASS |
 | Reviewer student login | PASS |
-| `personalZoomReady` | **false** |
-| `POST /api/admin/zoom/reviewer-classroom` | **409** `oauth_not_connected` |
-| Working `/join/{classId}` | **MISSING** |
-| Host/student embedded Meeting SDK E2E | **NOT RUN** — do not claim success |
+| Centralized S2S hosting (product) | ENABLED — personal Connect Zoom optional |
+| Working `/join/{classId}` | Re-verify after deploy |
+| Host/student embedded Meeting SDK E2E | Re-verify after deploy — do not claim success |
 | Real two-way A/V | **NOT CLAIMED** |
 
-**Exact owner authorization step (required — do not bypass):**
+**Exact classroom step (centralized hosting — do not bypass ownership):**
 
-1. Sign in as `zoom.reviewer.instructor@aviatorpass.com`  
-2. Open `https://www.aviatorpass.com/instructor/profile`  
-3. **Connect Zoom** with a dedicated personal Zoom user (**not** `ceo@aviatorpass.com`, **not** a customer account) using **AviatorPass for Zoom** (`Z0xA`)  
-4. Confirm Connected + `personalZoomReady: true`  
-5. Super Admin `POST /api/admin/zoom/reviewer-classroom` (or instructor creates the isolated class)  
-6. Test host + student on `https://www.aviatorpass.com/join/{classId}`
+1. Confirm platform S2S credentials are present (CEO host `ceo@aviatorpass.com` intact).  
+2. Super Admin `POST /api/admin/zoom/reviewer-classroom` (creates only the isolated reviewer class).  
+3. Test host + student on `https://www.aviatorpass.com/join/{classId}` from `joinPath`.  
+4. Personal Connect Zoom remains optional for future per-instructor hosting; do not authorize `ceo@aviatorpass.com` on the instructor profile.
 
 ---
 
@@ -145,64 +142,18 @@ support@aviatorpass.com
 2. Confirm portal: Meeting SDK ON; Meetings surface OFF; Custom Form removed; Create a Meeting gone.  
 3. **Do not** add scopes until Zoom confirms; then obtain owner approval before any architecture change.  
 4. Paste reviewer passwords into Zoom **private** Account credentials only.  
-5. Complete Connect Zoom + isolated reviewer classroom + host/student proof.  
+5. After deploy: create isolated reviewer classroom + host/student proof (no personal Connect Zoom required).  
 6. Deploy classroom review docs page so `/integrations/zoom-classroom-review` is 200; link in Marketplace docs.  
-7. Paste final reviewer response (§7) into Zoom review notes **only after** owner approval to submit.  
-8. Submit Marketplace **only** after owner explicit approval.
+7. Paste final reviewer response from `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` into Zoom review notes **only after** owner approval to submit.  
+8. Submit Marketplace **only** after owner explicit approval.  
+9. Do not modify CEO connection, customer meetings, or Marketplace settings without approval.
 
 ---
 
 ## 7. Exact final reviewer response (paste when owner approves submit)
 
-```text
-AviatorPass Classroom for Zoom — Marketplace reviewer response
-Updated: 28 October 2026 (Asia/Dubai)
-
-APPLICATION
-General App with Features → Embed → Meeting SDK enabled.
-Direct Landing URL: https://www.aviatorpass.com/join
-Documentation: https://www.aviatorpass.com/integrations/zoom
-Functional review package: https://www.aviatorpass.com/integrations/zoom-classroom-review
-Support: support@aviatorpass.com
-Production Meeting SDK Client ID suffix: VGTQ (credentials preserved; app not recreated).
-
-ARCHITECTURE (credentials not mixed)
-1) AviatorPass Classroom for Zoom — Meeting SDK JWT signing only on this Client ID. Does not create meetings via this app’s OAuth credentials. Does not currently implement user-managed OAuth on this Client ID.
-2) AviatorPass for Zoom — separate user-managed OAuth (Client ID suffix Z0xA) for instructor Connect Zoom and meeting create/read/update/delete (user-level scopes only; no admin/master Create a Meeting).
-3) CEO Server-to-Server OAuth — platform host ceo@aviatorpass.com only. Unchanged. Not part of this Classroom Marketplace user flow.
-
-SCOPES / REVIEWER NOTE ON CREATE A MEETING
-Per Zoom functional review, duplicate Create a Meeting admin/master scopes were removed from this Classroom app and will not be reintroduced.
-Production Scopes then showed “Select at least one scope”. We are requesting written confirmation from Zoom Marketplace Support (integration.testers@zoom.us) on whether a Meeting SDK JWT-only General App may publish with zero OAuth scopes, and which exact scope (if any) is mandatory for this architecture.
-We will not add unused Create a Meeting, admin, master, division, or token/ZAK scopes merely to clear portal validation.
-If Zoom confirms a specific scope is mandatory, we will document that requirement and obtain owner approval before any authorization-architecture change.
-
-MEETINGS SURFACE / CUSTOM FORM
-Product opens inside AviatorPass browser pages (/join), not inside the Zoom Meetings client. Meetings surface should remain disabled. Custom Form is unused and should remain removed. Embed → Meeting SDK remains enabled.
-
-REVIEWER ACCOUNTS (passwords only in Zoom private Account credentials)
-Instructor: Riley Okonkwo — zoom.reviewer.instructor@aviatorpass.com
-Student: Jordan Hale — zoom.reviewer.student@aviatorpass.com
-
-PREREQUISITE FOR ISOLATED CLASSROOM
-Reviewer instructor must Connect Zoom on https://www.aviatorpass.com/instructor/profile using a dedicated personal Zoom user (not ceo@aviatorpass.com). Until personalZoomReady is true, classroom create returns HTTP 409 oauth_not_connected by design. We do not bypass instructor authorization or meeting ownership.
-
-TEST WORKFLOW (after Connect Zoom succeeds)
-1) Instructor creates/isolated class (or Super Admin POST /api/admin/zoom/reviewer-classroom) and enrolls the student reviewer.
-2) Host: https://www.aviatorpass.com/join/{classId} — embedded Meeting SDK host controls when join succeeds.
-3) Student (separate browser): same /join/{classId} — participant join (role 0); no host start URL.
-4) Controls: Mute / Stop Video / Participants / Leave Class as provided by the embedded SDK.
-5) Real two-way mic/camera confirmation is a manual reviewer check on physical devices; automated environments do not claim A/V pass.
-
-EXPECTED RESULTS (verified unless noted)
-- Meeting SDK credential pair VGTQ: PASS
-- Instructor OAuth Z0xA separate from Meeting SDK and S2S: PASS
-- CEO host intact: PASS — do not disconnect
-- Reviewer AviatorPass logins: PASS
-- Isolated reviewer classroom /join/{classId}: PENDING Connect Zoom (409 oauth_not_connected until then)
-- Embedded host/student join: NOT claimed until classroom exists
-- Create a Meeting scopes on Classroom app: intentionally absent pending Zoom Support written guidance on empty Scopes validation
-```
+Source of truth: export `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` in
+`features/zoom/content/classroom-marketplace-functional-review.ts` (centralized S2S hosting; Connect Zoom optional). Paste that string verbatim into Zoom reviewer response fields — no passwords.
 
 ---
 
@@ -214,11 +165,12 @@ EXPECTED RESULTS (verified unless noted)
 | No unnecessary scopes added | **PASS** |
 | Create a Meeting not reintroduced | **PASS** |
 | Credentials / CEO / customer meetings untouched | **PASS** |
+| Centralized S2S hosting (product) | **ENABLED** (personal OAuth optional) |
 | Zoom Support written confirmation | **PENDING (owner must send §1)** |
 | Portal scope configuration justified by Zoom confirmation | **PENDING** |
-| Reviewer classroom E2E | **FAIL / BLOCKED** (`oauth_not_connected`) |
+| Reviewer classroom E2E | **Re-verify after deploy** |
 | Marketplace submit | **NOT APPROVED / NOT PERFORMED** |
 
 ### Overall: **NOT READY for Marketplace submission**
 
-Acceptance criterion not met until: (1) Zoom’s written scope guidance is recorded, (2) Marketplace scopes match that guidance without unused permissions, (3) reviewer classroom exists and host/student join is verified, (4) owner explicitly approves submit.
+Acceptance criterion not met until: (1) Zoom’s written scope guidance is recorded, (2) Marketplace scopes match that guidance without unused permissions, (3) reviewer classroom exists and host/student join is verified after deploy, (4) owner explicitly approves submit.

@@ -495,7 +495,7 @@ export async function createLiveClass(
       isS2SDelegateIntegration,
       hasPersonalInstructorZoom,
     } = await import("@/services/zoom/oauth-service");
-    const { isMockZoomAllowed } = await import("@/services/classes/zoom-service");
+    const { isMockZoomAllowed, zoomCredsPresent } = await import("@/services/classes/zoom-service");
     const { getPlatformSettings: getZoomPlatformSettings } =
       await import("@/services/settings/settings-service");
     const instructorToken = await getValidInstructorAccessToken(instructorId);
@@ -506,12 +506,13 @@ export async function createLiveClass(
       !isS2SDelegateIntegration(integration) &&
       hasPersonalInstructorZoom(integration, platformZoomEmail),
     );
-    if (!personalOAuth && !isMockZoomAllowed()) {
+    // Centralized S2S platform hosting is the default release path. Personal
+    // Instructor OAuth remains optional when connected.
+    const platformHostReady = zoomCredsPresent();
+    if (!personalOAuth && !platformHostReady && !isMockZoomAllowed()) {
       throw new ClassValidationError(
-        integration && !hasPersonalInstructorZoom(integration, platformZoomEmail)
-          ? "Connect your own personal Zoom account before creating a live class. The shared platform Zoom account cannot host."
-          : "Please connect your Zoom account before creating a live class.",
-        409,
+        "Zoom is not configured. Set platform Server-to-Server Zoom credentials, or connect a personal Zoom account.",
+        503,
       );
     }
   }
