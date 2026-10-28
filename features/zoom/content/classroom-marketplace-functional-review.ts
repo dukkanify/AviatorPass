@@ -10,7 +10,25 @@ export const CLASSROOM_REVIEW_TITLE =
   "AviatorPass Classroom for Zoom — Marketplace Functional Review";
 
 export const CLASSROOM_REVIEW_UPDATED =
-  "28 October 2026 (Asia/Dubai) — October 22 notes + October 27 notification";
+  "28 October 2026 (Asia/Dubai) — final readiness: NOT READY for resubmission";
+
+/** Marketplace resubmission readiness — verified against production; no invented results. */
+export const CLASSROOM_REVIEW_READINESS = {
+  verdict: "NOT_READY" as const,
+  label: "NOT READY for Marketplace resubmission",
+  checkedAtLabel: "28 October 2026 (Asia/Dubai)",
+  blockers: [
+    "Reviewer instructor personalZoomReady is false → POST /api/admin/zoom/reviewer-classroom returns HTTP 409 oauth_not_connected.",
+    "No isolated reviewer classroom exists; there is no working /join/{classId} for reviewers.",
+    "Embedded host/student Meeting SDK join was not run.",
+    "Public /integrations/zoom-classroom-review returns 404 until this package is deployed to production.",
+    "Zoom Marketplace portal scopes, Meetings surface, and Custom Form cannot be verified from AviatorPass — owner console confirmation required.",
+    "Real two-way audio/video is not claimed as passed.",
+  ],
+  ceoPlatformProvisionSupported: false,
+  ceoPlatformProvisionReason:
+    "Production live classes require the instructor’s personal Zoom OAuth. createMeetingForClass never falls back to ceo@aviatorpass.com / S2S. Reviewer classroom also rejects shared_platform_zoom. Do not bypass authorization.",
+} as const;
 
 export type ClassroomReviewSection = {
   heading: string;
@@ -68,13 +86,15 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
     heading: "4. Reviewer prerequisites",
     paragraphs: [
       "Both reviewer AviatorPass accounts must be active with complete profiles. Passwords are delivered only through Zoom Marketplace private Account credentials — never on this page, GitHub, or public listing text.",
+      "Final readiness (28 October 2026 Asia/Dubai): NOT READY for Marketplace resubmission. An isolated reviewer classroom cannot be created through the CEO / Server-to-Server platform meeting workflow. Personal instructor Zoom authorization is required by design and must not be bypassed.",
     ],
     bullets: [
       "Instructor — Riley Okonkwo — zoom.reviewer.instructor@aviatorpass.com",
       "Student — Jordan Hale — zoom.reviewer.student@aviatorpass.com",
       "Use a fresh browser (or separate profiles) for instructor and student.",
-      "Before an isolated reviewer classroom can be created, the instructor must Connect Zoom on /instructor/profile using a dedicated personal Zoom user that is not ceo@aviatorpass.com and not a customer Zoom account.",
-      "Verified 28 October 2026 Asia/Dubai: both AviatorPass reviewer logins succeed. personalZoomReady remains false until that Connect Zoom step is completed. POST /api/admin/zoom/reviewer-classroom returns HTTP 409 oauth_not_connected until then.",
+      "Required before any working classroom URL: Connect Zoom on /instructor/profile with a dedicated personal Zoom user that is not ceo@aviatorpass.com and not a customer Zoom account. Confirm Connected and personalZoomReady true.",
+      "Verified 28 October 2026 Asia/Dubai: both AviatorPass reviewer logins succeed. personalZoomReady is still false. POST /api/admin/zoom/reviewer-classroom returns HTTP 409 oauth_not_connected. No reviewer classId exists yet.",
+      "Working classroom URL: unavailable until the prerequisite above succeeds. After create, use https://www.aviatorpass.com/join/{classId} from the API response joinPath.",
       "Marketplace Features for this Classroom app: disable Meetings surface (the product does not open inside the Zoom Meetings client). Remove Custom Form (unused).",
       "Features → Embed → Meeting SDK must be enabled on this Classroom application.",
     ],
@@ -123,17 +143,21 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
   },
   {
     heading: "8. Expected results",
-    paragraphs: ["Verified on production as of 28 October 2026 Asia/Dubai unless noted."],
+    paragraphs: [
+      "Verified on production as of 28 October 2026 Asia/Dubai unless noted. Overall Marketplace resubmission readiness: NOT READY.",
+    ],
     bullets: [
       "Reviewer instructor and student AviatorPass logins: PASS.",
       "Meeting SDK credential pair (suffix VGTQ): PASS (credentialPairValid true).",
-      "Instructor OAuth Production Client ID suffix Z0xA separate from Meeting SDK VGTQ and S2S: PASS (credentialsMixed false).",
-      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS — do not disconnect.",
-      "Classroom app has no AviatorPass-side user OAuth scopes in code: PASS.",
-      "Isolated reviewer classroom create: BLOCKED until personalZoomReady true (HTTP 409 oauth_not_connected).",
-      "Embedded host/participant join on reviewer classroom: NOT RUN until classroom exists.",
+      "Instructor OAuth Production Client ID suffix Z0xA separate from Meeting SDK VGTQ and S2S (uX3Q): PASS (credentialsMixed false).",
+      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS — do not disconnect; not used to host reviewer live classes.",
+      "Classroom Meeting SDK JWT path only (no user OAuth scopes in product): PASS.",
+      "CEO / S2S provisioning of reviewer classroom: NOT SUPPORTED by design — do not bypass.",
+      "Isolated reviewer classroom create: BLOCKED (HTTP 409 oauth_not_connected). Working /join/{classId}: MISSING.",
+      "Embedded host/participant join on reviewer classroom: NOT RUN.",
       "Real two-way audio/video between humans: NOT CLAIMED as passed.",
-      "Student denied instructor routes: PASS (/access-denied).",
+      "Student denied instructor routes: PASS (307 → /access-denied).",
+      "Customer meetings / CEO credentials / existing Zoom connections: unchanged by this readiness review.",
     ],
   },
   {
@@ -238,6 +262,7 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
  */
 export const CLASSROOM_REVIEW_ZOOM_PASTE_TEXT = `AviatorPass Classroom for Zoom — Marketplace reviewer response
 Updated: 28 October 2026 (Asia/Dubai)
+READINESS: NOT READY for Marketplace resubmission until the reviewer instructor completes Connect Zoom and an isolated /join/{classId} is verified.
 
 APPLICATION
 AviatorPass Classroom for Zoom embeds a scheduled AviatorPass live class in the browser through the Zoom Meeting SDK.
@@ -275,9 +300,11 @@ Instructor: Riley Okonkwo — zoom.reviewer.instructor@aviatorpass.com
 Student: Jordan Hale — zoom.reviewer.student@aviatorpass.com
 Verified 28 October 2026 Asia/Dubai: both AviatorPass logins succeed. Passwords are pasted only into Zoom’s private Account credentials field — never into public listing text or GitHub.
 
-PREREQUISITE — instructor authorization still required
+PREREQUISITE — personal instructor authorization is required (CEO / S2S cannot provision this classroom)
+Live classes always host on the instructor’s personal Zoom OAuth account. Production never falls back to ceo@aviatorpass.com / Server-to-Server for reviewer or customer live classes. Do not bypass this check.
 Before an isolated reviewer classroom can be created, the instructor must Connect Zoom on https://www.aviatorpass.com/instructor/profile using a dedicated personal Zoom user that is NOT ceo@aviatorpass.com and NOT a customer Zoom account.
 Until personalZoomReady is true, POST /api/admin/zoom/reviewer-classroom returns HTTP 409 oauth_not_connected by design.
+Working classroom URL: none yet. After Connect Zoom succeeds, create the classroom and use https://www.aviatorpass.com/join/{classId}.
 
 INSTRUCTOR WORKFLOW
 1. Sign in at https://www.aviatorpass.com/login as zoom.reviewer.instructor@aviatorpass.com
@@ -298,15 +325,17 @@ AUDIO / VIDEO / CONTROLS
 Reviewers should enable mic and camera when prompted and confirm two-way media on real devices when available.
 AviatorPass does NOT claim that automated Cloud Agent runs completed real two-way human audio/video validation. Treat live mic/camera confirmation as a manual reviewer check.
 
-EXPECTED RESULTS (verified unless noted)
+EXPECTED RESULTS (verified unless noted) — overall NOT READY
 - Reviewer instructor + student AviatorPass logins: PASS (28 Oct 2026 Asia/Dubai)
 - Meeting SDK credential pair (suffix VGTQ): PASS
-- Instructor OAuth (suffix Z0xA) separate from Meeting SDK and S2S: PASS
-- CEO host ceo@aviatorpass.com intact: PASS — do not disconnect
-- Classroom app has no AviatorPass-side user OAuth scopes: PASS
-- Isolated reviewer classroom create: BLOCKED until Connect Zoom (409 oauth_not_connected)
-- Embedded host/participant join on reviewer classroom: NOT RUN until classroom exists
+- Instructor OAuth (suffix Z0xA) separate from Meeting SDK (VGTQ) and S2S (uX3Q): PASS
+- CEO host ceo@aviatorpass.com intact: PASS — do not disconnect; not used to host reviewer live classes
+- Classroom Meeting SDK JWT path only (no user OAuth scopes in product): PASS
+- CEO/S2S provisioning of reviewer classroom: NOT SUPPORTED
+- Isolated reviewer classroom create: BLOCKED (409 oauth_not_connected); /join/{classId}: MISSING
+- Embedded host/participant join: NOT RUN
 - Real two-way A/V: NOT CLAIMED as passed
+- Customer meetings / CEO credentials / existing connections: unchanged
 
 TROUBLESHOOTING
 - 3712: Meeting SDK Client ID/Secret mismatch or Embed disabled

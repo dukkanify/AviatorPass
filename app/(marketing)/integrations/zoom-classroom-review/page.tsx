@@ -6,6 +6,7 @@ import { siteStatic } from "@/config/site-static";
 import {
   CLASSROOM_REVIEW_NOTE_MATRIX,
   CLASSROOM_REVIEW_PATH,
+  CLASSROOM_REVIEW_READINESS,
   CLASSROOM_REVIEW_SECTIONS,
   CLASSROOM_REVIEW_TITLE,
   CLASSROOM_REVIEW_UPDATED,
@@ -54,10 +55,27 @@ export default function ZoomClassroomMarketplaceReviewPage() {
             Functional review package for the Meeting SDK application. Updated{" "}
             {CLASSROOM_REVIEW_UPDATED}. Passwords are not published here.
           </p>
+          <p className="mt-4 max-w-2xl text-sm font-medium text-accent sm:text-base">
+            {CLASSROOM_REVIEW_READINESS.label} — checked {CLASSROOM_REVIEW_READINESS.checkedAtLabel}.
+          </p>
         </div>
       </section>
 
       <section className="container-app space-y-14 py-14 sm:py-16">
+        <article className="max-w-3xl">
+          <h2 className="font-display text-2xl font-semibold text-primary sm:text-3xl">
+            Resubmission readiness
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+            {CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionReason}
+          </p>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-base leading-relaxed text-muted-foreground">
+            {CLASSROOM_REVIEW_READINESS.blockers.map((blocker) => (
+              <li key={blocker.slice(0, 72)}>{blocker}</li>
+            ))}
+          </ul>
+        </article>
+
         {CLASSROOM_REVIEW_SECTIONS.map((section) => (
           <article key={section.heading} className="max-w-3xl">
             <h2 className="font-display text-2xl font-semibold text-primary sm:text-3xl">

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLASSROOM_REVIEW_NOTE_MATRIX,
   CLASSROOM_REVIEW_PATH,
+  CLASSROOM_REVIEW_READINESS,
   CLASSROOM_REVIEW_SECTIONS,
   CLASSROOM_REVIEW_TITLE,
   CLASSROOM_REVIEW_ZOOM_PASTE_TEXT,
@@ -62,8 +63,16 @@ describe("Classroom Meeting SDK Marketplace functional review", () => {
     expect(CLASSROOM_REVIEW_ZOOM_PASTE_TEXT).toMatch(/zoom\.reviewer\.instructor@aviatorpass\.com/);
     expect(CLASSROOM_REVIEW_ZOOM_PASTE_TEXT).toMatch(/zoom-classroom-review/);
     expect(CLASSROOM_REVIEW_ZOOM_PASTE_TEXT).toMatch(/Do NOT submit/);
+    expect(CLASSROOM_REVIEW_ZOOM_PASTE_TEXT).toMatch(/NOT READY/);
     expect(CLASSROOM_REVIEW_ZOOM_PASTE_TEXT).not.toMatch(/Aa1!|DemoPass|password:\s*\S+|zak=/i);
     const openManual = CLASSROOM_REVIEW_NOTE_MATRIX.filter((n) => n.status.startsWith("open_"));
     expect(openManual.map((n) => n.id)).toEqual([1, 2, 3]);
+  });
+
+  it("records final readiness as not ready and rejects CEO provisioning", () => {
+    expect(CLASSROOM_REVIEW_READINESS.verdict).toBe("NOT_READY");
+    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionSupported).toBe(false);
+    expect(CLASSROOM_REVIEW_READINESS.blockers.length).toBeGreaterThan(0);
+    expect(CLASSROOM_REVIEW_READINESS.ceoPlatformProvisionReason).toMatch(/never falls back/i);
   });
 });
