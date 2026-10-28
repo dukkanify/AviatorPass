@@ -12,7 +12,7 @@ import { DEFAULT_PLATFORM_SETTINGS } from "@/services/settings/defaults";
 describe("final client review copy", () => {
   it("brands the platform as Aviator Pass", () => {
     expect(siteStatic.name).toBe("Aviator Pass");
-    expect(siteStatic.shortName).toBe("Aviator Pass");
+    expect(siteStatic.shortName).toBe("AviatorPass");
     expect(HERO.primaryCta).toBe("Explore Online Courses");
     expect(ABOUT.whoWeAre).toMatch(/complete aviation education platform/i);
     expect(ABOUT.whoWeAre).not.toMatch(/focused exclusively on Airline Transport Pilot License/i);

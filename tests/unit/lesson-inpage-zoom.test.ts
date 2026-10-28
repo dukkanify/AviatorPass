@@ -50,7 +50,7 @@ describe("lesson live class stays on the same page", () => {
     );
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/3099\|registration/);
     expect(src("services/classes/class-service.ts")).not.toMatch(/enrolledInCourse/);
-    expect(src("services/classes/class-service.ts")).toMatch(/if \(!isHost && !participant\)/);
+    expect(src("services/classes/class-service.ts")).toMatch(/if \(!isHost && !invited\)/);
     expect(src("services/classes/zoom-service.ts")).toMatch(/current\.waitingRoom === true/);
     expect(src("services/zoom/meeting-service.ts")).toMatch(/waitingRoom: false/);
   });

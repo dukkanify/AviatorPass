@@ -36,7 +36,7 @@ describe("super admin password and wrapped classroom", () => {
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/MutationObserver/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/pinZoomWindowToStage\(/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/innerCenter/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/min\(72vh, 820px\)/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/CLASSROOM_NARROW_PX/);
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain(
       'import "@/styles/classroom.css"',
     );
