@@ -40,5 +40,19 @@ describe("public legal pages", () => {
     expect(blob).toContain("one-time code");
     expect(blob).toContain("password hash");
     expect(blob).toContain(siteStatic.contactEmail);
+    expect(blob).toMatch(/Zoom integrations|AviatorPass for Zoom/i);
+    expect(blob).toMatch(/encrypted at rest|Disconnect Zoom/i);
   });
 });
+
+describe("JSON-LD serialization", () => {
+  it("escapes script-breaking characters", async () => {
+    const { serializeJsonLd } = await import("@/lib/seo/serialize-json-ld");
+    const html = serializeJsonLd({
+      name: "</script><img src=x onerror=alert(1)>",
+    });
+    expect(html).not.toContain("</script>");
+    expect(html).toContain("\\u003c");
+  });
+});
+

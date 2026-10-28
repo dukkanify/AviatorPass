@@ -88,6 +88,15 @@ describe("Zoom token encryption", () => {
     expect(cipher).not.toContain("zoom-access-token-value");
     expect(decryptSecret(cipher)).toBe("zoom-access-token-value");
   });
+
+  it("rejects truncated GCM authentication tags", () => {
+    const cipher = encryptSecret("zoom-access-token-value");
+    const parts = cipher.split(":");
+    // Truncate the auth tag segment to simulate a short-tag forgery attempt.
+    const shortTag = Buffer.from(parts[2]!, "base64url").subarray(0, 8).toString("base64url");
+    const forged = [parts[0], parts[1], shortTag, parts[3]].join(":");
+    expect(() => decryptSecret(forged)).toThrow(/authentication tag length/i);
+  });
 });
 
 describe("Zoom OAuth connect + callback", () => {
