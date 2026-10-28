@@ -39,6 +39,7 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 | `ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | Classroom Meeting SDK functional review (Oct 22/27) |
 | `ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md` | Classroom Marketplace final readiness (NOT READY) |
 | `ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md` | Classroom empty-Scopes portal blocker resolution |
+| `ZOOM_CLASSROOM_MARKETPLACE_FINAL_SUBMISSION_PREP.md` | Final submission prep — Support email, notes, verdict |
 | `ZOOM_MARKETPLACE_REVIEWER_GUIDE.md`              | Reviewer test steps                                 |
 | `ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`              | Review evidence and owner actions                   |
 | `STRIPE_CHECKOUT.md`                              | Stripe hosted Checkout                              |
