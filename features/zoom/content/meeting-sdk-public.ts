@@ -68,6 +68,22 @@ export const MEETING_SDK_DOC_SECTIONS: MeetingSdkDocSection[] = [
     ],
   },
   {
+    heading: "Detailed Meeting SDK test (host and participant)",
+    paragraphs: [
+      "Use two browsers. Complete instructor Connect Zoom on the separate AviatorPass for Zoom integration before creating a class. This Classroom application does not create meetings.",
+      "Automated Cloud Agent environments cannot claim real two-way human audio and video. Reviewers should confirm microphone and camera on physical devices when available.",
+    ],
+    bullets: [
+      "Instructor login: https://www.aviatorpass.com/login as zoom.reviewer.instructor@aviatorpass.com → /instructor/profile → Connect Zoom with a dedicated personal Zoom user (not ceo@aviatorpass.com).",
+      "Create an isolated class (or Super Admin POST /api/admin/zoom/reviewer-classroom after personalZoomReady is true) and enroll zoom.reviewer.student@aviatorpass.com.",
+      "Host start: open https://www.aviatorpass.com/join/{classId}. Expect embedded Meeting SDK with HOST controls when join succeeds.",
+      "Student join: separate session as zoom.reviewer.student@aviatorpass.com → same /join/{classId}. Expect participant join without host start URL.",
+      "Controls: Mute, Stop Video, Participants, Chat, Leave Class as provided by the embedded SDK.",
+      "End meeting: Leave Class on host and student. AviatorPass accounts remain.",
+      "If personalZoomReady is false, classroom create returns HTTP 409 oauth_not_connected — that is expected until Connect Zoom completes.",
+    ],
+  },
+  {
     heading: "Removing the app",
     paragraphs: [
       "Inside a class, choose Leave Class. That closes the embedded meeting in this browser. It does not delete your AviatorPass account, enrolment, or class record.",

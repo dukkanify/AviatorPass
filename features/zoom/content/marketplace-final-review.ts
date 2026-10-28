@@ -8,7 +8,7 @@ export const FINAL_REVIEW_PATH = "/integrations/zoom-marketplace-review";
 export const FINAL_REVIEW_TITLE = "AviatorPass Zoom Marketplace — Final Review Test Plan";
 
 export const FINAL_REVIEW_UPDATED =
-  "23 October 2026 (CEO platform vs reviewer personal Zoom clarified)";
+  "28 October 2026 (Classroom functional review package linked; CEO vs reviewer clarified)";
 
 export type ReviewSection = {
   heading: string;
@@ -54,6 +54,7 @@ export const FINAL_REVIEW_SECTIONS: ReviewSection[] = [
       "Instructor OAuth landing: https://www.aviatorpass.com/instructor/profile",
       "Meeting SDK documentation: https://www.aviatorpass.com/integrations/zoom",
       "This final review document: https://www.aviatorpass.com/integrations/zoom-marketplace-review",
+      "Classroom Meeting SDK functional review: https://www.aviatorpass.com/integrations/zoom-classroom-review",
       "Privacy: https://www.aviatorpass.com/legal/privacy",
       "Terms: https://www.aviatorpass.com/legal/terms",
       "OAuth callback (Instructor OAuth only): https://www.aviatorpass.com/api/integrations/zoom/callback",
