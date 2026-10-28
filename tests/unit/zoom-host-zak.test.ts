@@ -24,7 +24,9 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     resetZoomS2STokenCacheForTests();
     writeClassesDb((db) => {
       db.classes = db.classes.filter((item) => item.id !== "cls-host-1");
-      db.zoomMeetings = db.zoomMeetings.filter((item) => item.zoomMeetingId !== "82122854800");
+      db.zoomMeetings = db.zoomMeetings.filter(
+        (item) => item.zoomMeetingId !== "82122854800" && item.zoomMeetingId !== "89991112233",
+      );
     });
   });
 
@@ -140,6 +142,119 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.ready).toBe(false);
     expect(resolved.source).toBe("meeting-start-url");
     expect(resolved.error).toMatch(/start_url has no host ZAK/i);
+  });
+
+  it("recreates the meeting when start_url ZAK JWT is expired and GET refresh is unavailable", async () => {
+    s2sEnv();
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expiredZak = `eyJ0eXAiOiJKV1QifQ.${Buffer.from(
+      JSON.stringify({
+        iss: "web",
+        mnum: "82122854800",
+        exp: nowSec - 600,
+        iat: nowSec - 7800,
+      }),
+    ).toString("base64url")}.sig`;
+    storedMeeting(`https://us02web.zoom.us/s/82122854800?zak=${expiredZak}`);
+    writeClassesDb((db) => {
+      db.classes.push({
+        id: "cls-host-1",
+        title: "ATPL Air Law",
+        description: "",
+        courseId: null,
+        moduleId: null,
+        lessonId: null,
+        instructorId: "instructor-app-user",
+        assistantInstructorId: null,
+        startsAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 55 * 60_000).toISOString(),
+        durationMinutes: 60,
+        timezone: "Asia/Kuwait",
+        maxStudents: 10,
+        meetingType: "meeting",
+        status: "scheduled",
+        zoomMeetingId: "zm-host-1",
+        recurringRuleId: null,
+        parentClassId: null,
+        cancelledAt: null,
+        cancelReason: null,
+        rescheduledFromId: null,
+        createdById: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      } satisfies LiveClass);
+    });
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "s2s-token",
+            expires_in: 3600,
+            scope: "meeting:write:meeting:admin",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "PATCH") return new Response(null, { status: 204 });
+      if (method === "DELETE") return new Response(null, { status: 204 });
+      // Simulate S2S without meeting:read — GET meeting fails.
+      if (method === "GET" && url.includes("/meetings/")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message: "Invalid access token, does not contain scopes:[meeting:read:meeting:admin].",
+          }),
+          { status: 400 },
+        );
+      }
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 89991112233,
+            uuid: "uuid-new",
+            join_url: "https://us02web.zoom.us/j/89991112233",
+            start_url: "https://us02web.zoom.us/s/89991112233?zak=fresh-create-zak",
+            password: "654321",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
+        );
+      }
+      if (url.includes("/users/") && url.includes("/settings")) {
+        return new Response(
+          JSON.stringify({
+            in_meeting: {
+              who_can_share_screen: "all",
+              who_can_share_screen_when_someone_is_sharing: "all",
+              request_permission_to_unmute_participants: false,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const resolved = await resolveZoomHostZak({
+      meetingNumber: "82122854800",
+      forceRefreshStartUrl: true,
+    });
+    expect(resolved.zak).toBe("fresh-create-zak");
+    expect(resolved.ready).toBe(true);
+    expect(resolved.error).toBeNull();
   });
 
   it("returns null when no meeting start_url is stored", async () => {

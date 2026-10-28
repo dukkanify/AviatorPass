@@ -62,6 +62,27 @@ export function zakFromStartUrl(startUrl?: string | null): string | null {
   }
 }
 
+/**
+ * Zoom start_url ZAK JWTs expire (~2h). Opaque/non-JWT tokens (tests, mocks)
+ * are treated as still usable — age-based refresh handles those separately.
+ */
+export function isZoomZakExpired(zak: string | null | undefined, nowMs = Date.now()): boolean {
+  if (!zak) return true;
+  const parts = zak.split(".");
+  if (parts.length < 2 || !parts[1]) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as {
+      exp?: unknown;
+    };
+    const exp = Number(payload.exp);
+    if (!Number.isFinite(exp)) return false;
+    // 60s skew — reject tokens that are already expired or about to expire.
+    return exp * 1000 <= nowMs + 60_000;
+  } catch {
+    return false;
+  }
+}
+
 const ZOOM_NAME_MAX = 64;
 const ZOOM_TOPIC_MAX = 200;
 const ZOOM_AGENDA_MAX = 2000;

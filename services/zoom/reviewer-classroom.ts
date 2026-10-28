@@ -229,6 +229,33 @@ export async function prepareReviewerClassroom(actorId: string): Promise<Reviewe
   if (existing) {
     const enrolled = (participantMap.get(existing.id) ?? []).includes(student.id);
     if (!enrolled) enrollStudentsInLiveClass(existing.id, [student.id]);
+
+    // Keep the isolated reviewer classroom joinable for Marketplace reviewers:
+    // when the scheduled window has ended, nudge the schedule forward and refresh
+    // the Zoom meeting so host ZAK / Meeting SDK join stay valid.
+    const ended = Date.parse(existing.endsAt) <= Date.now();
+    if (ended) {
+      const { updateLiveClass } = await import("@/services/classes/class-service");
+      const { cancelMeetingForClass, createMeetingForClass } =
+        await import("@/services/classes/zoom-service");
+      const startsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+      await updateLiveClass({
+        id: existing.id,
+        patch: {
+          startsAt,
+          durationMinutes: Math.max(30, existing.durationMinutes || 30),
+          status: "scheduled",
+        },
+        actorId,
+      });
+      const refreshed = lookupAllLiveClasses().find((row) => row.id === existing.id) ?? existing;
+      // updateLiveClass may PATCH Zoom times, but S2S without meeting:read cannot
+      // rotate start_url ZAK — recreate so create response supplies a fresh host token.
+      await cancelMeetingForClass({ liveClassId: refreshed.id, actorId });
+      await createMeetingForClass({ liveClass: refreshed, actorId });
+      return resultFromClass(assessment, refreshed, false, student.id);
+    }
+
     return resultFromClass(assessment, existing, false, student.id);
   }
 

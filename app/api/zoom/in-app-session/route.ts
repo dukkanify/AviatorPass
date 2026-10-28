@@ -84,6 +84,20 @@ export async function POST(request: Request) {
             forceRefreshStartUrl: true,
           })
         : null;
+    // Host ZAK refresh may recreate the Zoom meeting when start_url ZAK is
+    // expired and GET rotation is unavailable (S2S write without meeting:read).
+    // Re-read join info so JWT mn/password match the live meeting.
+    if (authz.liveClassId && mayHost) {
+      const refreshedJoin = getPublicJoinInfo(authz.liveClassId, true);
+      if (refreshedJoin) {
+        meetingNumber =
+          extractZoomMeetingNumber(refreshedJoin.joinUrl, refreshedJoin.zoomMeetingId) ||
+          meetingNumber;
+        password = refreshedJoin.password || password;
+        startUrl = refreshedJoin.startUrl;
+        providerMode = refreshedJoin.providerMode || providerMode;
+      }
+    }
     const role: 0 | 1 = zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber

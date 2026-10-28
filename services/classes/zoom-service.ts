@@ -11,6 +11,7 @@ import {
 } from "@/lib/branding/legacy-client-identity";
 import {
   displayMeetingName,
+  isZoomZakExpired,
   zakFromStartUrl,
   zoomLectureAgenda,
   zoomLectureTopic,
@@ -1268,9 +1269,11 @@ export function startUrlNeedsRefresh(
   session: { startUrl?: string | null; updatedAt?: string | null } | null | undefined,
 ): boolean {
   if (!session) return true;
-  if (!zakFromStartUrl(session.startUrl)) return true;
+  const zak = zakFromStartUrl(session.startUrl);
+  if (!zak || isZoomZakExpired(zak)) return true;
   const issued = Date.parse(session.updatedAt ?? "");
-  if (!Number.isFinite(issued)) return false;
+  // Missing updatedAt must refresh — otherwise a stale start_url can linger forever.
+  if (!Number.isFinite(issued)) return true;
   return Date.now() - issued > START_URL_REFRESH_MS;
 }
 
@@ -1437,6 +1440,7 @@ export async function refreshStoredZoomStartUrl(
   const session = findStoredZoomSession(meetingNumber);
   if (!session) return session;
 
+  const currentZak = zakFromStartUrl(session.startUrl);
   let token: string | null = null;
   if (session.oauthUserId) {
     const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
@@ -1447,20 +1451,53 @@ export async function refreshStoredZoomStartUrl(
   }
   if (!token) return session;
 
+  const liveClass = session.liveClassId ? lookupLiveClass(session.liveClassId) : null;
+  const touchBody =
+    liveClass && !liveClass.deletedAt && liveClass.status !== "cancelled"
+      ? {
+          start_time: liveClass.startsAt,
+          duration: liveClass.durationMinutes,
+          timezone: liveClass.timezone,
+        }
+      : {};
+
   await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(session.meetingNumber)}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(touchBody),
   }).catch((error) => console.error("Zoom start_url touch failed", error));
 
   const refreshed = await fetchZoomMeetingStartUrl(token, session.meetingNumber);
-  if (refreshed && zakFromStartUrl(refreshed)) {
+  const refreshedZak = refreshed ? zakFromStartUrl(refreshed) : null;
+  if (refreshed && refreshedZak && !isZoomZakExpired(refreshedZak)) {
     persistRefreshedStartUrl(session.meetingNumber, refreshed);
     return findStoredZoomSession(session.meetingNumber);
   }
+
+  // Platform S2S often has meeting:write without meeting:read, so GET cannot
+  // rotate start_url ZAK. Recreate via POST (create response includes start_url)
+  // only when the stored host token is missing or expired — never for a still-valid ZAK.
+  if ((!currentZak || isZoomZakExpired(currentZak)) && liveClass) {
+    if (!liveClass.deletedAt && liveClass.status !== "cancelled") {
+      try {
+        await cancelMeetingForClass({ liveClassId: liveClass.id });
+        const created = await createMeetingForClass({ liveClass });
+        console.warn(
+          "Zoom start_url ZAK expired and GET refresh unavailable; recreated meeting",
+          session.meetingNumber,
+          "→",
+          created.zoomMeetingId,
+        );
+        return findStoredZoomSession(created.zoomMeetingId);
+      } catch (error) {
+        console.error("Zoom start_url recreate failed", error);
+      }
+    }
+  }
+
   return session;
 }
 
@@ -1753,8 +1790,11 @@ export async function resolveZoomHostZak(
     if (shouldRefresh && (zoomCredsPresent() || input.instructorUserId)) {
       session = (await refreshStoredZoomStartUrl(session!.meetingNumber)) ?? session;
     }
-    const classMeeting = getZoomMeetingByNumber(input.meetingNumber);
-    const zak = zakFromStartUrl(session?.startUrl ?? input.startUrl);
+    // Meeting number may change when an expired ZAK forced a recreate.
+    const resolvedMeetingNumber = session?.meetingNumber || input.meetingNumber;
+    const classMeeting = getZoomMeetingByNumber(resolvedMeetingNumber);
+    const rawZak = zakFromStartUrl(session?.startUrl ?? input.startUrl);
+    const zak = rawZak && !isZoomZakExpired(rawZak) ? rawZak : null;
     const usedInstructorOAuth = Boolean(
       input.instructorUserId &&
       classMeeting?.oauthUserId &&
@@ -1770,9 +1810,13 @@ export async function resolveZoomHostZak(
         (zak ? "meeting-start-url" : null),
       error: zak
         ? null
-        : session || input.startUrl
-          ? "Stored Zoom start_url has no host ZAK"
-          : "No stored Zoom meeting start_url",
+        : !rawZak
+          ? session || input.startUrl
+            ? "Stored Zoom start_url has no host ZAK"
+            : "No stored Zoom meeting start_url"
+          : isZoomZakExpired(rawZak)
+            ? "Stored Zoom start_url ZAK is expired"
+            : "Stored Zoom start_url has no host ZAK",
       source: "meeting-start-url",
       scopes: getZoomS2STokenScopes(),
       hasZakScope: false,
