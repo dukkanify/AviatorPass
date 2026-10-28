@@ -32,6 +32,7 @@ describe("Classroom Meeting SDK Marketplace functional review", () => {
     expect(text).toMatch(/zoom\.reviewer\.instructor@aviatorpass\.com/);
     expect(text).toMatch(/Custom Form/);
     expect(text).toMatch(/Meetings surface|Surface/);
+    expect(text).toMatch(/user:read:zak|Select at least one scope/);
     expect(text).not.toMatch(/Aa1!|DemoPass|password:\s*\S+|zak=/i);
   });
 

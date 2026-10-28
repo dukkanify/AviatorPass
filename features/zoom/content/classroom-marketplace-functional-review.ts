@@ -68,8 +68,10 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
   {
     heading: "3. Required scopes and testing instructions",
     paragraphs: [
-      "AviatorPass Classroom for Zoom must not list user-managed OAuth scopes. The server signs a Meeting SDK JSON Web Token that names the meeting number and role (participant 0 or host 1).",
-      "If the Marketplace Scopes page for this Classroom application still shows Create a Meeting (user or admin/master), those entries do not match the product and must be removed in Zoom Marketplace by the account owner.",
+      "AviatorPass Classroom for Zoom signs a Meeting SDK JSON Web Token that names the meeting number and role (participant 0 or host 1). Product code does not run user OAuth on the Classroom Client ID.",
+      "Zoom Marketplace Production Scopes shows “Select at least one scope” when the list is empty. That is a portal validation gate. Meeting SDK JWT signing does not require REST scopes at runtime.",
+      "Do not re-add Create a Meeting user/admin/master scopes on this Classroom app. Those were correctly removed after Zoom’s functional review.",
+      "Official Meeting SDK credential guidance for user-managed apps documents User → View a user's zak token (user:read:zak) as the Meeting SDK–oriented scope. Ask Zoom Marketplace Support whether zero scopes are allowed for a JWT-only Meeting SDK app that obtains host ZAK via a separate Instructor OAuth app. If Support confirms a scope is mandatory, add only user:read:zak — never meeting create/admin/master.",
       "Scopes that belong only to AviatorPass for Zoom (Instructor OAuth) — not this Classroom app:",
     ],
     bullets: [
@@ -79,7 +81,8 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "meeting:update:meeting — Purpose: PATCH /meetings/{id} when a class is rescheduled.",
       "meeting:delete:meeting — Purpose: DELETE /meetings/{id} when a class is cancelled.",
       "Rejected on Instructor OAuth (never enable for AviatorPass live classes): meeting:write:meeting:admin, meeting:write:admin, meeting:master.",
-      "Classroom Meeting SDK retained “scopes”: none. Testing instruction: open an assigned class; POST /api/zoom/in-app-session returns a signature without a Zoom OAuth consent screen for this app.",
+      "Classroom Meeting SDK runtime: POST /api/zoom/in-app-session returns a Meeting SDK signature without a Zoom OAuth consent screen for this app. Host ZAK today comes from the separate Instructor OAuth / start_url path.",
+      "Operator resolution plan: docs/ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md",
     ],
   },
   {
@@ -182,16 +185,17 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
   {
     id: 1,
     title: "Duplicate Create a Meeting scopes",
-    concern: "Marketplace shows more than one Create a Meeting scope (user plus admin/master).",
+    concern:
+      "Marketplace showed duplicate Create a Meeting scopes (user plus admin/master). After removal, Production Scopes shows Select at least one scope.",
     current:
-      "Classroom Meeting SDK code uses JWT only — no user OAuth scopes. Instructor OAuth defaults keep meeting:write:meeting and reject meeting:write:meeting:admin.",
+      "Classroom product uses Meeting SDK JWT only. Create a Meeting scopes correctly removed. Empty Scopes list fails Zoom portal validation. Instructor OAuth keeps meeting:write:meeting and rejects admin/master.",
     correction:
-      "In Zoom Marketplace for AviatorPass Classroom for Zoom: remove all user OAuth scopes including any Create a Meeting entries. On AviatorPass for Zoom (separate app): keep user meeting:write:meeting only; remove admin/master duplicates.",
+      "Do not re-add Create a Meeting. Ask Zoom Marketplace Support whether JWT-only Meeting SDK apps may publish with zero scopes. If a scope is mandatory, add only user-managed user:read:zak per Zoom Meeting SDK get-credentials guidance, with honest testing disclosure. Keep Instructor OAuth scopes unchanged.",
     evidence:
-      "services/zoom/config.ts DEFAULT_ZOOM_OAUTH_SCOPES / REJECTED_ZOOM_OAUTH_SCOPES; production instructorOAuth.scopes string without admin create; Meeting SDK docs state no user scopes.",
+      "docs/ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md; Zoom Meeting SDK get-credentials (View a user's zak token); production Meeting SDK VGTQ JWT path; instructor scopes without admin create.",
     status: "open_manual_marketplace" as const,
     manualAction:
-      "Owner confirms and edits Scopes on both Marketplace apps. Code side already rejects admin create for Instructor OAuth.",
+      "Owner sends Support clarification (or adds only user:read:zak if Support confirms). Never re-add Create a Meeting admin/master. Do not recreate the app.",
   },
   {
     id: 2,
@@ -279,8 +283,10 @@ SEPARATE INTEGRATIONS (do not mix)
 3) CEO Server-to-Server OAuth — platform booking host only (ceo@aviatorpass.com). Not part of this Classroom Marketplace review. Do not disconnect it.
 
 SCOPES
-Classroom Meeting SDK: no user-managed OAuth scopes. The server signs a Meeting SDK JWT for meeting number + role (participant 0 / host 1).
-If this Classroom app’s Scopes page still lists Create a Meeting (user or admin/master), those entries do not match the product and must be removed.
+Classroom Meeting SDK runtime: Meeting SDK JWT only (participant 0 / host 1). Product code does not run user OAuth on this Client ID.
+Create a Meeting user/admin/master scopes were correctly removed per Zoom review. An empty Production Scopes list now shows “Select at least one scope” (portal validation).
+Do NOT re-add Create a Meeting. Preferred: ask Zoom Marketplace Support whether JWT-only Meeting SDK apps may publish with zero scopes.
+If Support confirms a scope is mandatory, add only user-managed user:read:zak (User → View a user's zak token) per Zoom Meeting SDK get-credentials guidance — with honest disclosure that host ZAK today comes from the separate Instructor OAuth app.
 Instructor OAuth (separate app) retains only:
 - user:read:user — identity after Connect Zoom
 - meeting:write:meeting — POST /users/me/meetings
@@ -343,11 +349,12 @@ TROUBLESHOOTING
 - 409 oauth_not_connected / Please connect your Zoom account: Instructor OAuth not connected
 
 OWNER MARKETPLACE ACTIONS STILL REQUIRED (not applied by code deploy)
-1. Classroom app → remove all user OAuth / Create a Meeting scopes if present
-2. Classroom app → disable Meetings surface
-3. Classroom app → remove Custom Form
-4. Confirm Embed → Meeting SDK is enabled
+1. Keep Create a Meeting user/admin/master REMOVED on Classroom app
+2. Send Zoom Marketplace Support clarification on empty Scopes vs Meeting SDK JWT-only architecture (see docs/ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md)
+3. If Support requires one scope: add only user:read:zak (user-managed) — never meeting create/admin/master; do not recreate the app
+4. Classroom app → disable Meetings surface; remove Custom Form; keep Embed → Meeting SDK on
 5. Paste reviewer emails/passwords into private Account credentials only
-6. Link https://www.aviatorpass.com/integrations/zoom-classroom-review in documentation fields
-7. Do NOT submit Marketplace updates until the account owner approves
-8. Do NOT disconnect ceo@aviatorpass.com`;
+6. Link https://www.aviatorpass.com/integrations/zoom-classroom-review in documentation fields after deploy
+7. Complete reviewer instructor Connect Zoom + isolated /join/{classId} proof
+8. Do NOT submit Marketplace updates until the account owner approves
+9. Do NOT disconnect ceo@aviatorpass.com`;
