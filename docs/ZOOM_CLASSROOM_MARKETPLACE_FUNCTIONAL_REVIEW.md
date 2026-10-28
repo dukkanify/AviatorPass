@@ -29,9 +29,9 @@ Do **not** rework items that are already satisfied in repo/production. Of the si
 | 1 | Duplicate Create a Meeting scopes | **OPEN** (portal conflict) | Create a Meeting correctly removed; empty Scopes now fails “Select at least one scope”. See `ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md` — Support first; if required add only `user:read:zak` |
 | 2 | Meetings surface | **OPEN** (Marketplace console) | Owner disables Meetings surface (app opens in AviatorPass browser only) |
 | 3 | Custom Form | **OPEN** (Marketplace console) | Owner removes unused Custom Form |
-| 4 | Meeting SDK test instructions | **Resolved in repo** | Owner links public docs URL after deploy |
-| 5 | Reviewer credentials | **Accounts verified** | Owner pastes passwords into Zoom private Account credentials only |
-| 6 | Consolidated English document | **Resolved in repo** | Owner links `/integrations/zoom-classroom-review` after deploy |
+| 4 | Meeting SDK test instructions | **Resolved** | Login + host/student steps + `/join/{classId}` verified; owner links docs URL |
+| 5 | Reviewer credentials | **Resolved (accounts)** | Logins + classroom UI verified; owner pastes passwords into Zoom private Account credentials only |
+| 6 | Consolidated English document | **Resolved** | Live at `/integrations/zoom-classroom-review` |
 
 Paste text for Zoom reviewer response fields: export `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` in `features/zoom/content/classroom-marketplace-functional-review.ts` (no passwords).
 

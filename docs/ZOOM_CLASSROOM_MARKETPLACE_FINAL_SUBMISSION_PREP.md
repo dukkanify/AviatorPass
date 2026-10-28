@@ -35,7 +35,7 @@ Docs: https://www.aviatorpass.com/integrations/zoom
 Architecture (three separate integrations — credentials are not mixed):
 1) This Classroom Meeting SDK app signs Meeting SDK JWTs with its Client ID/Secret. It does not create Zoom meetings on this Client ID and does not currently implement user-managed OAuth on this Client ID.
 2) Separate user-managed OAuth app “AviatorPass for Zoom” (Client ID suffix Z0xA) handles instructor Connect Zoom and meeting create/read/update/delete with user-level scopes only (no admin/master Create a Meeting).
-3) Separate Server-to-Server OAuth (platform host ceo@aviatorpass.com) is unrelated to this Marketplace Classroom submission and must remain unchanged.
+3) Separate Server-to-Server OAuth (platform host ceo@aviatorpass.com) creates live-class meetings and supplies meeting start_url for host ZAK. It is not this Marketplace app and must remain unchanged (no disconnect / no credential rotation).
 
 Review history:
 - Functional review asked us to remove duplicate Create a Meeting admin/master scopes. We removed those unnecessary scopes.
@@ -43,11 +43,12 @@ Review history:
 - We will not reintroduce Create a Meeting / admin / master / division / unused meeting scopes merely to clear validation.
 - We will not add user:read:zak merely to bypass validation unless Zoom confirms it is mandatory for this architecture.
 - We must preserve the existing application and Production Meeting SDK credentials (no recreate / no Client ID rotation).
+- Isolated reviewer classroom host start + student join inside AviatorPass was verified on production using centralized S2S hosting.
 
 Questions requiring written confirmation:
 1) Can a Meeting SDK-enabled General App be published without OAuth scopes when it only signs Meeting SDK JWTs?
 2) If the Marketplace build flow requires a scope, which exact scope is appropriate for this architecture?
-3) Is user:read:zak acceptable when the Classroom application does not currently call the ZAK API itself (host ZAK is obtained via the separate Instructor OAuth app / meeting start_url)?
+3) Is user:read:zak acceptable when the Classroom application does not call the ZAK API on this Client ID (host ZAK comes from meeting start_url via the separate CEO S2S / optional Instructor OAuth path)?
 4) Can the mandatory scope validation (“Select at least one scope”) be removed or resolved without adding unused permissions?
 5) Can the existing application and Production Meeting SDK credentials be preserved?
 6) Are any additional changes required to satisfy the functional reviewer for this Meeting SDK embed use case?
