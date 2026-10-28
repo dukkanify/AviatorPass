@@ -110,7 +110,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "1. Open https://www.aviatorpass.com/login",
       "2. Sign in as zoom.reviewer.instructor@aviatorpass.com (password from Zoom private Account credentials).",
       "3. Open https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3",
-      "4. Enter the embedded classroom and start as host. Expect LIVE, HOST on the instructor tile, Mute / Stop Video / Participants / Chat / Share Screen / Leave Class.",
+      "4. Enter the embedded classroom and start as host. Expect LIVE, HOST on the instructor tile, Leave Class on the AviatorPass dock, and Zoom’s own mute/video/share/chat/participants toolbar once the Meeting SDK is live.",
       "5. Leave Class ends the browser session only; the AviatorPass account remains.",
     ],
   },
@@ -134,8 +134,8 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "AviatorPass does not claim that automated Cloud Agent runs have completed real two-way human audio/video validation. Treat live mic/camera confirmation as a reviewer manual check.",
     ],
     bullets: [
-      "Host expected: role 1 when ZAK is present; Mute / Stop Video / Share Screen / Leave Class visible.",
-      "Participant expected: role 0; no host start URL; can use mute/video controls appropriate to participant permissions.",
+      "Host expected: role 1 when ZAK is present; Leave Class on the AviatorPass dock; Zoom Meeting SDK toolbar for mute/video/share/chat/participants.",
+      "Participant expected: role 0; no host start URL; Zoom participant mute/video controls as permitted by the host.",
       "Troubleshooting Zoom error 3712: Meeting SDK Client ID and Secret mismatch or Embed disabled.",
       "Troubleshooting Zoom error 3000: host Zoom user already in another meeting — Super Admin clear-live recovery ends live/ghost sessions without disconnecting CEO OAuth. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
       "Troubleshooting HTTP 409 oauth_not_connected: only when platform S2S credentials are missing and the instructor has not connected personal Zoom. With platform S2S configured, Connect Zoom is not required.",
@@ -252,7 +252,8 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
     id: 6,
     title: "Consolidated review documentation",
     concern: "Need one English document covering architecture, scopes, workflows, limits, support.",
-    current: "This page and docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md (live on production).",
+    current:
+      "This page and docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md (live on production).",
     correction: "Ship consolidated Classroom-focused functional review package.",
     evidence: "Public URL https://www.aviatorpass.com/integrations/zoom-classroom-review",
     status: "resolved_in_repo" as const,
@@ -326,7 +327,7 @@ INSTRUCTOR WORKFLOW
 1. https://www.aviatorpass.com/login → zoom.reviewer.instructor@aviatorpass.com
 2. Open https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3
 3. Start as host in the embedded Meeting SDK
-4. Expect LIVE + HOST + Mute / Stop Video / Participants / Leave Class
+4. Expect LIVE + HOST + Leave Class (AviatorPass) + Zoom SDK mute/video/share/chat/participants
 5. Leave Class ends browser session only
 
 STUDENT WORKFLOW
