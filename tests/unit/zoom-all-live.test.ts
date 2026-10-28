@@ -116,6 +116,14 @@ describe("live Zoom everywhere", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       if (url.includes("/meetings")) {
         return new Response(
           JSON.stringify({
@@ -133,9 +141,14 @@ describe("live Zoom everywhere", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    await expect(ensureLiveMeetingForClass(classId, "actor_live")).rejects.toThrow(
-      /connect your Zoom account/i,
-    );
+    // Centralized S2S hosting: mock placeholders upgrade onto the platform host
+    // without requiring personal instructor OAuth.
+    const live = await ensureLiveMeetingForClass(classId, "actor_live");
+    expect(live?.providerMode).toBe("zoom");
+    expect(live?.zoomMeetingId).toBe("86524929538");
+    expect(live?.hostEmail).toBe("ceo@aviatorpass.com");
+    expect(live?.oauthUserId).toBeNull();
+    expect(isPlaceholderZoomMeeting(live)).toBe(false);
 
     writeClassesDb((db) => {
       db.classes = db.classes.filter((item) => item.id !== classId);

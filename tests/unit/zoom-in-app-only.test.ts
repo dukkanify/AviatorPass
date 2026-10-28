@@ -20,6 +20,7 @@ import {
   generateMeetingSdkSignature,
   isExternalZoomUrl,
   resolveInAppMeetingMode,
+  isZoomZakExpired,
   zakFromStartUrl,
   zoomLectureAgenda,
   zoomLectureTopic,
@@ -55,6 +56,18 @@ describe("Zoom stays inside AviatorPass", () => {
   it("reads the host ZAK from a start URL without exposing it as a navigation target", () => {
     expect(zakFromStartUrl("https://us02web.zoom.us/s/111?zak=secret-token")).toBe("secret-token");
     expect(zakFromStartUrl("https://www.aviatorpass.com/join/class-1?host=1")).toBeNull();
+  });
+
+  it("detects expired Zoom start_url ZAK JWTs and ignores opaque mock tokens", () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const encode = (exp: number) => {
+      const payload = Buffer.from(JSON.stringify({ exp }), "utf8").toString("base64url");
+      return `hdr.${payload}.sig`;
+    };
+    expect(isZoomZakExpired(null)).toBe(true);
+    expect(isZoomZakExpired("opaque-mock-zak")).toBe(false);
+    expect(isZoomZakExpired(encode(nowSec - 120))).toBe(true);
+    expect(isZoomZakExpired(encode(nowSec + 3600))).toBe(false);
   });
 
   it("uses the first-party classroom unless live Zoom SDK credentials exist", () => {

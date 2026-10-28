@@ -101,6 +101,6 @@ The instructor password is for AviatorPass only. Zoom authorization uses the rev
 ## Known limitations
 
 - Creating or hosting a meeting is blocked until the instructor completes **Connect Zoom** with a personal Zoom user. The production API returns `409` with `Please connect your Zoom account before creating a live class.` No sample meeting was created, so host and student join could not be executed.
-- The live Instructor OAuth client is separate from the Meeting SDK client. Its public suffix is `dhiQ` (length 21). The Marketplace Production Client ID is `7z2krfWYQWCi20C0FRZ0xA` (length 22, public suffix `Z0xA`). Production is not using that Client ID. The matching Production Client Secret is not stored in Vercel, so the variables were left unchanged. The OAuth callback remains `https://www.aviatorpass.com/api/integrations/zoom/callback`.
-- Connect Zoom currently opens Zoom’s sign-in page for the `dhiQ` client. That is a different valid OAuth pair, not a beta-tester gate. Host, student join, and end-meeting cannot be reviewed until the Production pair is installed and an instructor authorizes a personal Zoom user.
+- Instructor OAuth Production Client ID `7z2krfWYQWCi20C0FRZ0xA` (suffix `Z0xA`, length 22) is installed in Vercel `ZOOM_INSTRUCTOR_*` and pairs with its Production secret. Meeting SDK (`VGTQ`) and Server-to-Server credentials remain separate. The OAuth callback is `https://www.aviatorpass.com/api/integrations/zoom/callback`.
+- Connect Zoom opens Zoom’s authorize/sign-in page for Client ID `7z2krfWYQWCi20C0FRZ0xA` with signed state. Host, student join, and end-meeting cannot be reviewed until the instructor authorizes a dedicated personal Zoom user.
 - This guide does not submit or edit the Marketplace application.

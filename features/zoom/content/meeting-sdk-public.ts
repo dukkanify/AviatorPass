@@ -18,7 +18,7 @@ export const MEETING_SDK_INDEPENDENCE =
 export const MEETING_SDK_LISTING_PARAGRAPHS = [
   "AviatorPass Classroom for Zoom opens a scheduled AviatorPass class in the browser. The meeting runs inside AviatorPass through the Zoom Meeting SDK.",
   "AviatorPass is an independent aviation training platform. Zoom Video Communications does not own, operate, or endorse AviatorPass.",
-  "Students join as participants. An instructor can start a class as host when that class already has a meeting on the instructor’s own Zoom account. Creating that meeting uses a different AviatorPass integration and is not part of this application.",
+  "Students join as participants. An instructor can start a class as host when that class already has a Zoom meeting. Creating that meeting uses a different AviatorPass integration (platform Server-to-Server hosting by default) and is not part of this application.",
   "This application does not ask the user to authorize Zoom scopes. AviatorPass signs a Meeting SDK token on the server for the class that person is allowed to enter.",
 ] as const;
 
@@ -68,6 +68,22 @@ export const MEETING_SDK_DOC_SECTIONS: MeetingSdkDocSection[] = [
     ],
   },
   {
+    heading: "Detailed Meeting SDK test (host and participant)",
+    paragraphs: [
+      "Use two browsers. Current release creates live-class Zoom meetings on the platform Server-to-Server host. This Classroom Meeting SDK application signs JWTs for /join; it does not create meetings via user OAuth on the Meeting SDK Client ID.",
+      "Automated Cloud Agent environments cannot claim real two-way human audio and video. Reviewers should confirm microphone and camera on physical devices when available.",
+    ],
+    bullets: [
+      "Instructor login: https://www.aviatorpass.com/login as zoom.reviewer.instructor@aviatorpass.com (Connect Zoom is optional for this release).",
+      "Create an isolated class (or Super Admin POST /api/admin/zoom/reviewer-classroom when platform S2S is configured) and enroll zoom.reviewer.student@aviatorpass.com.",
+      "Host start: open https://www.aviatorpass.com/join/{classId}. Expect embedded Meeting SDK with HOST controls when join succeeds.",
+      "Student join: separate session as zoom.reviewer.student@aviatorpass.com → same /join/{classId}. Expect participant join without host start URL.",
+      "Controls: Mute, Stop Video, Participants, Chat, Leave Class as provided by the embedded SDK.",
+      "End meeting: Leave Class on host and student. AviatorPass accounts remain.",
+      "Do not authorize ceo@aviatorpass.com on the instructor Connect Zoom panel — that shared-platform row is unnecessary for centralized hosting.",
+    ],
+  },
+  {
     heading: "Removing the app",
     paragraphs: [
       "Inside a class, choose Leave Class. That closes the embedded meeting in this browser. It does not delete your AviatorPass account, enrolment, or class record.",
@@ -95,7 +111,7 @@ export const MEETING_SDK_DOC_SECTIONS: MeetingSdkDocSection[] = [
     ],
     bullets: [
       "Unable to join: the class is missing, cancelled, or your account is not assigned to it.",
-      "Please connect your Zoom account before creating a live class: the instructor has not connected a personal Zoom account on the separate instructor OAuth application. This Meeting SDK page cannot create that meeting.",
+      "Zoom hosting unavailable when creating a live class: platform Server-to-Server Zoom is not configured and the instructor has not connected optional personal Zoom. This Meeting SDK page cannot create that meeting.",
       "Zoom error 3712: the Meeting SDK Client ID and Client Secret on the server are not a matching pair, or Embed is not enabled on that Zoom application.",
       "Zoom error 3000: the host Zoom account is already in another meeting.",
       "The page stays in classroom mode without the embedded meeting: the class has no numeric Zoom meeting number yet.",

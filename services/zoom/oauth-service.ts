@@ -3,6 +3,7 @@
  */
 
 import { generateId, generateToken, signPayload, verifySignature } from "@/lib/security/crypto";
+import { sanitizeReturnPath } from "@/lib/security/safe-return-path";
 import { getServerEnv } from "@/config/env";
 import { PermissionError } from "@/services/auth/permissions";
 import { findUserById } from "@/services/auth/store";
@@ -108,7 +109,8 @@ export function buildZoomAuthorizeUrl(input: { userId: string; returnTo?: string
   const cfg = getZoomOAuthConfig();
   const nonce = generateToken(16);
   const expiresAt = new Date(Date.now() + STATE_TTL_MS).toISOString();
-  const returnTo = input.returnTo || "/instructor/profile";
+  // Defense in depth: never persist an open-redirect returnTo in pending OAuth state.
+  const returnTo = sanitizeReturnPath(input.returnTo) || "/instructor/profile";
   writeZoomDb((db) => {
     db.pendingStates = db.pendingStates.filter((s) => Date.parse(s.expiresAt) > Date.now());
     db.pendingStates.push({
@@ -197,13 +199,19 @@ function persistTokens(
 ): ZoomIntegrationRecord {
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + input.tokens.expires_in * 1000).toISOString();
+  const nextRefresh = String(input.tokens.refresh_token || "").trim();
+  // Zoom sometimes omits refresh_token on refresh; keep the previous ciphertext.
+  const refreshToken = nextRefresh ? encryptSecret(nextRefresh) : (existing?.refreshToken ?? "");
+  if (!input.tokens.access_token) {
+    throw new PermissionError("Zoom token response missing access_token", 502);
+  }
   return upsertIntegration({
     id: existing?.id ?? generateId(),
     userId: input.userId,
     zoomUserId: input.profile.zoomUserId,
     zoomEmail: input.profile.email,
     accessToken: encryptSecret(input.tokens.access_token),
-    refreshToken: encryptSecret(input.tokens.refresh_token),
+    refreshToken,
     expiresAt,
     connectedAt: existing?.connectedAt ?? now,
     lastSyncAt: now,
@@ -363,6 +371,13 @@ export async function completeZoomOAuthCallback(input: {
     };
   }
 
+  let linkConflict: {
+    zoomUserId: string;
+    zoomEmail: string | null;
+    existingOwnerUserId: string;
+    existingOwnerZoomEmail: string | null;
+  } | null = null;
+
   try {
     const cfg = getZoomOAuthConfig();
     const body = new URLSearchParams({
@@ -384,6 +399,13 @@ export async function completeZoomOAuthCallback(input: {
 
     const taken = getIntegrationByZoomUserId(profile.zoomUserId);
     if (taken && taken.userId !== parsed.userId) {
+      // Stash owner identity for the failure log below (never log tokens).
+      linkConflict = {
+        zoomUserId: profile.zoomUserId,
+        zoomEmail: profile.email || null,
+        existingOwnerUserId: taken.userId,
+        existingOwnerZoomEmail: taken.zoomEmail || null,
+      };
       throw new PermissionError(
         "This Zoom account is already connected to another instructor",
         409,
@@ -415,7 +437,7 @@ export async function completeZoomOAuthCallback(input: {
       metadata: { zoomEmail: profile.email || null, correlationId },
     });
 
-    const dest = pending.returnTo.startsWith("/") ? pending.returnTo : "/instructor/profile";
+    const dest = sanitizeReturnPath(pending.returnTo) || "/instructor/profile";
     const sep = dest.includes("?") ? "&" : "?";
     return { redirectTo: `${dest}${sep}zoom=connected`, userId: parsed.userId };
   } catch (error) {
@@ -428,19 +450,38 @@ export async function completeZoomOAuthCallback(input: {
           ? "OAuth token exchange failed"
           : reason === "missing_user_scope"
             ? "OAuth profile failed — missing user:read:user scope"
-            : "OAuth callback processing failed",
+            : reason === "already_linked"
+              ? "OAuth callback rejected — Zoom account already linked"
+              : "OAuth callback processing failed",
       level: "error",
       details: {
         error: reason,
         correlationId,
         detail: error instanceof Error ? error.message.slice(0, 240) : "failed",
         zoomCode: error instanceof ZoomApiError ? error.code : null,
+        ...(linkConflict
+          ? {
+              zoomUserId: linkConflict.zoomUserId,
+              zoomEmail: linkConflict.zoomEmail,
+              existingOwnerUserId: linkConflict.existingOwnerUserId,
+              existingOwnerZoomEmail: linkConflict.existingOwnerZoomEmail,
+            }
+          : {}),
       },
     });
     await logZoomActivity({
       actorId: parsed.userId,
       action: ZOOM_ACTIVITY.OAUTH_FAILED,
-      metadata: { error: reason, correlationId },
+      metadata: {
+        error: reason,
+        correlationId,
+        ...(linkConflict
+          ? {
+              existingOwnerUserId: linkConflict.existingOwnerUserId,
+              zoomEmail: linkConflict.zoomEmail,
+            }
+          : {}),
+      },
     });
     return {
       redirectTo: zoomErrorRedirect({
@@ -533,7 +574,10 @@ export function listInstructorZoomConnectionSummaries(): Array<{
   }));
 }
 
-export async function refreshInstructorAccessToken(userId: string): Promise<string> {
+/** Per-instructor single-flight so parallel join/create/sync cannot clobber tokens. */
+const instructorRefreshInFlight = new Map<string, Promise<string>>();
+
+async function refreshInstructorAccessTokenUnlocked(userId: string): Promise<string> {
   const row = getIntegrationByUserId(userId);
   if (!row) throw new PermissionError("Zoom is not connected", 409);
 
@@ -559,6 +603,8 @@ export async function refreshInstructorAccessToken(userId: string): Promise<stri
     });
     return accessToken;
   }
+
+  const refreshCipherAtStart = row.refreshToken;
 
   try {
     const body = new URLSearchParams({
@@ -591,11 +637,15 @@ export async function refreshInstructorAccessToken(userId: string): Promise<stri
     return tokens.access_token;
   } catch (error) {
     const now = new Date().toISOString();
-    upsertIntegration({
-      ...row,
-      status: "reconnect_required",
-      updatedAt: now,
-    });
+    const latest = getIntegrationByUserId(userId);
+    // Only mark reconnect when the failing refresh token is still the stored one.
+    if (latest && latest.refreshToken === refreshCipherAtStart) {
+      upsertIntegration({
+        ...latest,
+        status: "reconnect_required",
+        updatedAt: now,
+      });
+    }
     emitZoomEvent({
       event: "zoom.api.error",
       userId,
@@ -605,6 +655,18 @@ export async function refreshInstructorAccessToken(userId: string): Promise<stri
     });
     throw new PermissionError("Zoom connection expired. Reconnect your Zoom account.", 409);
   }
+}
+
+export async function refreshInstructorAccessToken(userId: string): Promise<string> {
+  const existing = instructorRefreshInFlight.get(userId);
+  if (existing) return existing;
+  const promise = refreshInstructorAccessTokenUnlocked(userId).finally(() => {
+    if (instructorRefreshInFlight.get(userId) === promise) {
+      instructorRefreshInFlight.delete(userId);
+    }
+  });
+  instructorRefreshInFlight.set(userId, promise);
+  return promise;
 }
 
 export async function getValidInstructorAccessToken(userId: string): Promise<string | null> {

@@ -11,6 +11,7 @@ import {
 } from "@/lib/branding/legacy-client-identity";
 import {
   displayMeetingName,
+  isZoomZakExpired,
   zakFromStartUrl,
   zoomLectureAgenda,
   zoomLectureTopic,
@@ -123,7 +124,8 @@ export function isPlaceholderZoomMeeting(
   return /zak=mock/i.test(start) || /zak=mock/i.test(join);
 }
 
-function zoomCredsPresent(): boolean {
+/** True when platform Server-to-Server Zoom credentials are configured. */
+export function zoomCredsPresent(): boolean {
   try {
     return Boolean(getZoomS2SCredentials());
   } catch {
@@ -465,25 +467,24 @@ export async function createMeetingForClass(input: {
 }): Promise<ZoomMeetingRecord> {
   const { createInstructorZoomMeeting } = await import("@/services/zoom/meeting-service");
   const {
-    assertInstructorZoomConnected,
     getValidInstructorAccessToken,
     getIntegrationByUserId,
     isS2SDelegateIntegration,
     hasPersonalInstructorZoom,
   } = await import("@/services/zoom/oauth-service");
-  const { PermissionError } = await import("@/services/auth/permissions");
 
   const instructorToken = await getValidInstructorAccessToken(input.liveClass.instructorId);
   const integration = getIntegrationByUserId(input.liveClass.instructorId);
-  const platformEmail = getPlatformSettings().zoom.accountEmail;
+  const settings = getPlatformSettings();
+  const platformEmail = settings.zoom.accountEmail;
   const personalOAuth = Boolean(
     instructorToken &&
     !isS2SDelegateIntegration(integration) &&
     hasPersonalInstructorZoom(integration, platformEmail),
   );
 
-  // Live classes always host on the instructor's personal Zoom OAuth account —
-  // never the shared platform host (ceo@aviatorpass.com / S2S).
+  // Optional personal Instructor OAuth — used when the instructor has connected a
+  // dedicated Zoom user. Remains supported for future per-instructor hosting.
   if (personalOAuth) {
     try {
       const instructorMeeting = await createInstructorZoomMeeting({
@@ -502,40 +503,78 @@ export async function createMeetingForClass(input: {
     }
   }
 
-  if (!isMockZoomAllowed()) {
-    try {
-      assertInstructorZoomConnected(input.liveClass.instructorId);
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        throw new ClassValidationError(
-          "Please connect your Zoom account before creating a live class.",
-          409,
-        );
-      }
-      throw error;
-    }
-    if (!personalOAuth) {
-      throw new ClassValidationError(
-        "Please connect your Zoom account before creating a live class.",
-        409,
-      );
-    }
-  }
-
-  const settings = getPlatformSettings();
   const waitingRoom = false;
   const passcode = input.passcode ?? settings.zoom.defaultPasscode;
   const meetingType =
     input.meetingType ?? settings.zoom.defaultMeetingType ?? input.liveClass.meetingType;
 
-  // Dev/mock only — production live classes never fall back to platform S2S host.
-  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
+  // Centralized platform hosting (Server-to-Server / CEO Zoom user). Instructors
+  // never receive CEO passwords, S2S secrets, or raw unrestricted host credentials.
+  // Host ZAK is derived server-side from meeting start_url for authorized hosts only.
+  if (zoomCredsPresent()) {
+    const apiPayload = await createZoomApiMeeting(input.liveClass, {
+      waitingRoom,
+      passcode,
+      meetingType,
+    });
+    if (!apiPayload) {
+      throw new ClassValidationError(
+        "Zoom API failed to create a live meeting on the platform host. Check Server-to-Server OAuth credentials, account scopes, and concurrent meeting limits.",
+        503,
+      );
+    }
+    const now = new Date().toISOString();
+    const record: ZoomMeetingRecord = {
+      id: generateId(),
+      ...apiPayload,
+      // Platform-hosted — not owned by instructor OAuth.
+      oauthUserId: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    writeClassesDb((d) => {
+      d.zoomMeetings = d.zoomMeetings.filter((z) => z.liveClassId !== input.liveClass.id);
+      d.zoomMeetings.push(record);
+      const idx = d.classes.findIndex((c) => c.id === input.liveClass.id);
+      if (idx >= 0) {
+        const current = d.classes[idx]!;
+        d.classes[idx] = {
+          ...current,
+          zoomMeetingId: record.id,
+          updatedAt: now,
+        };
+      }
+    });
+    await logActivity({
+      actorId: input.actorId ?? null,
+      action: ACTIVITY_ACTIONS.ZOOM_MEETING_CREATED,
+      entityType: "zoom_meeting",
+      entityId: record.id,
+      metadata: {
+        liveClassId: input.liveClass.id,
+        zoomMeetingId: record.zoomMeetingId,
+        providerMode: record.providerMode,
+        via: "platform_s2s",
+        hostEmail: record.hostEmail,
+      },
+    });
+    return record;
+  }
 
+  if (!isMockZoomAllowed()) {
+    throw new ClassValidationError(
+      "Zoom is not configured for production. Set ZOOM_ACCOUNT_ID, ZOOM_S2S_CLIENT_ID, and ZOOM_S2S_CLIENT_SECRET, or connect an instructor Zoom account.",
+      503,
+    );
+  }
+
+  // Dev/mock only when S2S credentials are absent.
+  const payload = mockMeeting(input.liveClass, { waitingRoom, passcode, meetingType });
   const now = new Date().toISOString();
   const record: ZoomMeetingRecord = {
     id: generateId(),
     ...payload,
-    oauthUserId: input.liveClass.instructorId,
+    oauthUserId: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -563,27 +602,47 @@ export async function createMeetingForClass(input: {
       liveClassId: input.liveClass.id,
       zoomMeetingId: record.zoomMeetingId,
       providerMode: record.providerMode,
-      via: personalOAuth ? "instructor_oauth" : "mock_dev",
+      via: "mock_dev",
     },
   });
 
   return record;
 }
 
+/** Single-flight create/ensure so parallel join requests do not spam Zoom meetings. */
+const ensureMeetingInFlight = new Map<string, Promise<ZoomMeetingRecord | null>>();
+
 export async function ensureLiveMeetingForClass(
   liveClassId: string,
   actorId?: string | null,
 ): Promise<ZoomMeetingRecord | null> {
-  const liveClass = lookupLiveClass(liveClassId);
-  if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
-    return lookupZoomMeetingByClassId(liveClassId);
-  }
-  const existing = lookupZoomMeetingByClassId(liveClassId);
-  if (existing && !isPlaceholderZoomMeeting(existing)) {
-    return ensureInAppJoinSettings(existing);
-  }
-  if (!zoomCredsPresent() && existing) return existing;
-  return createMeetingForClass({ liveClass, actorId });
+  const inflight = ensureMeetingInFlight.get(liveClassId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const liveClass = lookupLiveClass(liveClassId);
+    if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
+      return lookupZoomMeetingByClassId(liveClassId);
+    }
+    const existing = lookupZoomMeetingByClassId(liveClassId);
+    if (existing && !isPlaceholderZoomMeeting(existing)) {
+      return ensureInAppJoinSettings(existing);
+    }
+    if (!zoomCredsPresent() && existing) return existing;
+    // Re-check after any await gap before creating a remote meeting.
+    const raced = lookupZoomMeetingByClassId(liveClassId);
+    if (raced && !isPlaceholderZoomMeeting(raced)) {
+      return ensureInAppJoinSettings(raced);
+    }
+    return createMeetingForClass({ liveClass, actorId });
+  })().finally(() => {
+    if (ensureMeetingInFlight.get(liveClassId) === promise) {
+      ensureMeetingInFlight.delete(liveClassId);
+    }
+  });
+
+  ensureMeetingInFlight.set(liveClassId, promise);
+  return promise;
 }
 
 type ZoomMeetingDetails = {
@@ -837,10 +896,27 @@ async function endZoomMeetingInstance(token: string, meetingId: string): Promise
       body: JSON.stringify({ action: "end" }),
     });
     if (!res.ok && res.status !== 404) {
-      console.error("Zoom meeting restart skipped", res.status);
+      console.error("Zoom meeting end skipped", res.status, await res.text().catch(() => ""));
     }
   } catch (error) {
-    console.error("Zoom meeting restart skipped", error);
+    console.error("Zoom meeting end skipped", error);
+  }
+}
+
+/** DELETE meeting as a stronger unlock when PUT end leaves host error 3000. */
+async function deleteZoomMeetingInstance(token: string, meetingId: string): Promise<void> {
+  const id = String(meetingId).replace(/\D/g, "");
+  if (!id) return;
+  try {
+    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok && res.status !== 404) {
+      console.error("Zoom meeting delete skipped", res.status, await res.text().catch(() => ""));
+    }
+  } catch (error) {
+    console.error("Zoom meeting delete skipped", error);
   }
 }
 
@@ -1081,10 +1157,10 @@ export function assertCallerMayReceiveInAppZoomSession(input: {
       live.instructorId === input.userId ||
       live.assistantInstructorId === input.userId ||
       academyOversightHost(input.role);
-    const participant = listParticipantsForClass(live.id).some(
-      (p) => p.userId === input.userId && p.role === "participant",
+    const invited = listParticipantsForClass(live.id).some(
+      (p) => p.userId === input.userId && (p.role === "participant" || p.role === "cohost"),
     );
-    if (!isHost && !participant) {
+    if (!isHost && !invited) {
       throw new ClassValidationError("You are not invited to this class");
     }
     return { isHost: Boolean(isHost), liveClassId: live.id };
@@ -1193,9 +1269,11 @@ export function startUrlNeedsRefresh(
   session: { startUrl?: string | null; updatedAt?: string | null } | null | undefined,
 ): boolean {
   if (!session) return true;
-  if (!zakFromStartUrl(session.startUrl)) return true;
+  const zak = zakFromStartUrl(session.startUrl);
+  if (!zak || isZoomZakExpired(zak)) return true;
   const issued = Date.parse(session.updatedAt ?? "");
-  if (!Number.isFinite(issued)) return false;
+  // Missing updatedAt must refresh — otherwise a stale start_url can linger forever.
+  if (!Number.isFinite(issued)) return true;
   return Date.now() - issued > START_URL_REFRESH_MS;
 }
 
@@ -1362,6 +1440,7 @@ export async function refreshStoredZoomStartUrl(
   const session = findStoredZoomSession(meetingNumber);
   if (!session) return session;
 
+  const currentZak = zakFromStartUrl(session.startUrl);
   let token: string | null = null;
   if (session.oauthUserId) {
     const { getValidInstructorAccessToken } = await import("@/services/zoom/oauth-service");
@@ -1372,29 +1451,63 @@ export async function refreshStoredZoomStartUrl(
   }
   if (!token) return session;
 
+  const liveClass = session.liveClassId ? lookupLiveClass(session.liveClassId) : null;
+  const touchBody =
+    liveClass && !liveClass.deletedAt && liveClass.status !== "cancelled"
+      ? {
+          start_time: liveClass.startsAt,
+          duration: liveClass.durationMinutes,
+          timezone: liveClass.timezone,
+        }
+      : {};
+
   await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(session.meetingNumber)}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(touchBody),
   }).catch((error) => console.error("Zoom start_url touch failed", error));
 
   const refreshed = await fetchZoomMeetingStartUrl(token, session.meetingNumber);
-  if (refreshed && zakFromStartUrl(refreshed)) {
+  const refreshedZak = refreshed ? zakFromStartUrl(refreshed) : null;
+  if (refreshed && refreshedZak && !isZoomZakExpired(refreshedZak)) {
     persistRefreshedStartUrl(session.meetingNumber, refreshed);
     return findStoredZoomSession(session.meetingNumber);
   }
+
+  // Platform S2S often has meeting:write without meeting:read, so GET cannot
+  // rotate start_url ZAK. Recreate via POST (create response includes start_url)
+  // only when the stored host token is missing or expired — never for a still-valid ZAK.
+  if ((!currentZak || isZoomZakExpired(currentZak)) && liveClass) {
+    if (!liveClass.deletedAt && liveClass.status !== "cancelled") {
+      try {
+        await cancelMeetingForClass({ liveClassId: liveClass.id });
+        const created = await createMeetingForClass({ liveClass });
+        console.warn(
+          "Zoom start_url ZAK expired and GET refresh unavailable; recreated meeting",
+          session.meetingNumber,
+          "→",
+          created.zoomMeetingId,
+        );
+        return findStoredZoomSession(created.zoomMeetingId);
+      } catch (error) {
+        console.error("Zoom start_url recreate failed", error);
+      }
+    }
+  }
+
   return session;
 }
 
-async function listZoomLiveMeetingsForHost(
+async function listZoomMeetingsForHost(
   token: string,
   host: string,
+  type: "live" | "upcoming" | "scheduled" | "previous_meetings",
 ): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
   const res = await fetch(
-    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=live&page_size=30`,
+    `https://api.zoom.us/v2/users/${encodeURIComponent(host)}/meetings?type=${type}&page_size=30`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!res.ok) return [];
@@ -1402,6 +1515,62 @@ async function listZoomLiveMeetingsForHost(
     meetings?: Array<{ id?: number | string; start_time?: string; duration?: number }>;
   };
   return json.meetings ?? [];
+}
+
+async function listZoomLiveMeetingsForHost(
+  token: string,
+  host: string,
+): Promise<Array<{ id?: number | string; start_time?: string; duration?: number }>> {
+  return listZoomMeetingsForHost(token, host, "live");
+}
+
+/**
+ * Local meeting numbers safe to end during force clear-live.
+ * Only cancelled/completed (or long-past) sessions — never active upcoming
+ * customer bookings, live classes, or mock exams.
+ */
+function collectSafeGhostMeetingNumbers(windowMs = 48 * 60 * 60_000): string[] {
+  const now = Date.now();
+  const ids = new Set<string>();
+  const consider = (
+    meetingNumber: string | null | undefined,
+    when: string | null | undefined,
+    eligible: boolean,
+  ) => {
+    if (!eligible) return;
+    const id = meetingNumberDigits(meetingNumber);
+    if (!id) return;
+    const t = when ? Date.parse(when) : NaN;
+    if (Number.isFinite(t) && Math.abs(now - t) > windowMs) return;
+    ids.add(id);
+  };
+
+  for (const cls of lookupAllLiveClasses()) {
+    const meeting = lookupZoomMeetingByClassId(cls.id);
+    if (!meeting) continue;
+    const closed = cls.status === "completed" || cls.status === "cancelled";
+    const end = Date.parse(cls.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(meeting.zoomMeetingId, meeting.updatedAt || meeting.createdAt, closed || longPast);
+  }
+
+  for (const booking of readBookingsDb().bookings) {
+    if (booking.zoom?.providerMode !== "zoom") continue;
+    const closed = booking.status === "cancelled" || booking.status === "completed";
+    const end = Date.parse(booking.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(booking.zoom.meetingNumber, booking.startsAt || booking.updatedAt, closed || longPast);
+  }
+
+  for (const exam of readMockExamsDb().sessions) {
+    if (exam.zoom?.providerMode !== "zoom") continue;
+    const closed = exam.status === "cancelled" || exam.status === "completed";
+    const end = Date.parse(exam.endsAt);
+    const longPast = Number.isFinite(end) && now > end + 60 * 60_000;
+    consider(exam.zoom.meetingNumber, exam.startsAt || exam.updatedAt, closed || longPast);
+  }
+
+  return [...ids];
 }
 
 async function resolveClearLiveAccessToken(
@@ -1432,12 +1601,19 @@ export async function clearZoomHostLiveMeetings(input?: {
   force?: boolean;
   instructorUserId?: string | null;
   endMeetingNumbers?: string[] | null;
-}): Promise<{ ended: string[]; kept: string[]; blocked: string[] }> {
+}): Promise<{
+  ended: string[];
+  kept: string[];
+  blocked: string[];
+  deleted: string[];
+  liveRemaining: string[];
+}> {
   const ended: string[] = [];
   const kept: string[] = [];
   const blocked: string[] = [];
+  const deleted: string[] = [];
   const token = await resolveClearLiveAccessToken(input?.instructorUserId);
-  if (!token) return { ended, kept, blocked };
+  if (!token) return { ended, kept, blocked, deleted, liveRemaining: [] };
 
   const keep = meetingNumberDigits(input?.keepMeetingNumber);
   const settings = getPlatformSettings();
@@ -1467,7 +1643,7 @@ export async function clearZoomHostLiveMeetings(input?: {
   const now = Date.now();
   const graceMs = 15 * 60_000;
 
-  const maybeEnd = async (id: string) => {
+  const maybeEnd = async (id: string, opts?: { allowDelete?: boolean; explicit?: boolean }) => {
     if (!id || seen.has(id)) return;
     seen.add(id);
     if (keep && id === keep) {
@@ -1476,7 +1652,10 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     const stored = getZoomMeetingByNumber(id);
     const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-    if (!input?.force && cls) {
+    // Explicit Super Admin endMeetingNumbers always PUT-ends the live instance
+    // (releases host error 3000) even while the AviatorPass class window is open.
+    // Auto clear still protects in-window customer classes unless force=true.
+    if (!input?.force && !opts?.explicit && cls) {
       const closed = cls.status === "completed" || cls.status === "cancelled";
       const start = Date.parse(cls.startsAt);
       const end = Date.parse(cls.endsAt);
@@ -1493,20 +1672,46 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     await endZoomMeetingInstance(token, id);
     ended.push(id);
+    // DELETE only for Zoom-reported live ghosts when force=true — never for
+    // explicit endMeetingNumbers (those must keep the scheduled meeting).
+    if (input?.force && opts?.allowDelete) {
+      await deleteZoomMeetingInstance(token, id);
+      deleted.push(id);
+    }
   };
 
   for (const host of hosts) {
-    const meetings = await listZoomLiveMeetingsForHost(token, host);
-    for (const meeting of meetings) {
-      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")));
+    const live = await listZoomLiveMeetingsForHost(token, host);
+    for (const meeting of live) {
+      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")), { allowDelete: true });
     }
   }
 
+  // Never auto-end Zoom "upcoming" meetings: those are often real customer
+  // bookings. Stuck hosts must appear on type=live, match a safe local ghost,
+  // or be passed explicitly via endMeetingNumbers.
+
   for (const raw of input?.endMeetingNumbers ?? []) {
-    await maybeEnd(meetingNumberDigits(raw));
+    await maybeEnd(meetingNumberDigits(raw), { explicit: true, allowDelete: false });
   }
 
-  return { ended, kept, blocked };
+  // Force path: end only safe local ghosts (cancelled/completed/long-past).
+  // Never PUT-end confirmed upcoming customer bookings/classes/exams from the store.
+  if (input?.force) {
+    for (const id of collectSafeGhostMeetingNumbers()) {
+      await maybeEnd(id, { allowDelete: false });
+    }
+  }
+
+  const liveRemaining = new Set<string>();
+  for (const host of hosts) {
+    for (const meeting of await listZoomLiveMeetingsForHost(token, host)) {
+      const id = meetingNumberDigits(String(meeting.id ?? ""));
+      if (id) liveRemaining.add(id);
+    }
+  }
+
+  return { ended, kept, blocked, deleted, liveRemaining: [...liveRemaining] };
 }
 
 /**
@@ -1588,8 +1793,11 @@ export async function resolveZoomHostZak(
     if (shouldRefresh && (zoomCredsPresent() || input.instructorUserId)) {
       session = (await refreshStoredZoomStartUrl(session!.meetingNumber)) ?? session;
     }
-    const classMeeting = getZoomMeetingByNumber(input.meetingNumber);
-    const zak = zakFromStartUrl(session?.startUrl ?? input.startUrl);
+    // Meeting number may change when an expired ZAK forced a recreate.
+    const resolvedMeetingNumber = session?.meetingNumber || input.meetingNumber;
+    const classMeeting = getZoomMeetingByNumber(resolvedMeetingNumber);
+    const rawZak = zakFromStartUrl(session?.startUrl ?? input.startUrl);
+    const zak = rawZak && !isZoomZakExpired(rawZak) ? rawZak : null;
     const usedInstructorOAuth = Boolean(
       input.instructorUserId &&
       classMeeting?.oauthUserId &&
@@ -1605,9 +1813,13 @@ export async function resolveZoomHostZak(
         (zak ? "meeting-start-url" : null),
       error: zak
         ? null
-        : session || input.startUrl
-          ? "Stored Zoom start_url has no host ZAK"
-          : "No stored Zoom meeting start_url",
+        : !rawZak
+          ? session || input.startUrl
+            ? "Stored Zoom start_url has no host ZAK"
+            : "No stored Zoom meeting start_url"
+          : isZoomZakExpired(rawZak)
+            ? "Stored Zoom start_url ZAK is expired"
+            : "Stored Zoom start_url has no host ZAK",
       source: "meeting-start-url",
       scopes: getZoomS2STokenScopes(),
       hasZakScope: false,

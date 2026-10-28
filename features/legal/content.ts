@@ -11,7 +11,7 @@ export type LegalSection = {
   bullets?: string[];
 };
 
-export const LEGAL_UPDATED_LABEL = "9 September 2026";
+export const LEGAL_UPDATED_LABEL = "28 October 2026";
 
 export const TERMS_TITLE = "Terms of Service";
 export const TERMS_DESCRIPTION =
@@ -25,7 +25,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "1. Who we are",
     paragraphs: [
-      `These Terms of Service (“Terms”) govern access to ${siteStatic.name} at https://www.aviatorpass.com (the “Platform”). The Platform is operated by ${siteStatic.legalName}.`,
+      `These Terms of Service (“Terms”) govern access to the ${siteStatic.platformName} platform (${siteStatic.name}) at https://www.aviatorpass.com (the “Platform”). The Platform is operated by ${siteStatic.legalName}.`,
       `Questions about these Terms: ${siteStatic.contactEmail}. Student support: ${siteStatic.supportEmail}. Training locations we serve include ${siteStatic.locations.join(", ")}.`,
     ],
   },
@@ -89,7 +89,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "1. Scope",
     paragraphs: [
-      `This Privacy Policy explains how ${siteStatic.name} collects and uses personal data when you visit the website, create an account, verify your email, enrol on a course, or contact support.`,
+      `This Privacy Policy explains how ${siteStatic.platformName} (${siteStatic.name}), operated by ${siteStatic.legalName}, collects and uses personal data when you visit the website, create an account, verify your email, enrol on a course, or contact support.`,
       `Controller contact: ${siteStatic.contactEmail}. Privacy and student support: ${siteStatic.supportEmail}.`,
     ],
   },
@@ -130,26 +130,39 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "6. Retention and security",
+    heading: "6. Zoom integrations",
     paragraphs: [
-      "We keep account, enrolment, and certificate records for as long as you have an account and for a reasonable period afterwards where we must retain training or tax records. Pending registrations and unused verification codes expire automatically (typically within hours).",
-      "Access to admin tools is restricted. No method of transmission is completely secure; please use a unique password and never share your verification code.",
+      "AviatorPass uses Zoom to schedule and run live training. These integrations are separate credential paths and are described accurately here for Marketplace and instructor transparency.",
+    ],
+    bullets: [
+      "AviatorPass for Zoom (Instructor User-managed OAuth): when an instructor chooses Connect Zoom, Zoom may share the instructor’s Zoom user identity (for example Zoom user id and email) and OAuth access/refresh tokens scoped to meeting create/read/update/delete and user identity. Tokens are stored encrypted at rest on AviatorPass servers and are used only to manage that instructor’s class meetings. Disconnect Zoom on the instructor profile revokes the local connection; instructors should also remove the app in Zoom if they want to withdraw Zoom-side authorization.",
+      "Platform Server-to-Server Zoom (ceo@aviatorpass.com account): AviatorPass may create live-class meetings on the platform Zoom host for centralized hosting. Meeting metadata (meeting number, join/start URLs, host email) is stored with the class record. Instructors and students do not receive CEO Zoom passwords or unrestricted host credentials.",
+      "AviatorPass Classroom for Zoom (Meeting SDK): embeds a scheduled class in the browser using a server-signed Meeting SDK JWT. This path does not run a user OAuth consent flow on the Meeting SDK Client ID.",
+      "Students joining a class receive join information appropriate to participants (not host start URLs or host tokens).",
+      "Deletion: disconnecting Instructor OAuth removes stored instructor Zoom tokens from AviatorPass. Class/meeting records follow the retention rules below. Support can assist with account closure requests.",
     ],
   },
   {
-    heading: "7. Your rights",
+    heading: "7. Retention and security",
     paragraphs: [
-      "Depending on where you live, you may ask to access, correct, or delete personal data, or to withdraw optional marketing consent. Email support with the address on your account. Some records (for example issued certificates or invoices) may be retained where the law requires it.",
+      "We keep account, enrolment, and certificate records for as long as you have an account and for a reasonable period afterwards where we must retain training or tax records. Pending registrations and unused verification codes expire automatically (typically within hours). Zoom OAuth tokens are retained only while the instructor connection remains active.",
+      "Access to admin tools is restricted. Transport uses TLS. No method of transmission is completely secure; please use a unique password and never share your verification code.",
     ],
   },
   {
-    heading: "8. Children",
+    heading: "8. Your rights",
+    paragraphs: [
+      "Depending on where you live, you may ask to access, correct, or delete personal data, withdraw optional marketing consent, or disconnect Zoom. Email support with the address on your account. Some records (for example issued certificates or invoices) may be retained where the law requires it.",
+    ],
+  },
+  {
+    heading: "9. Children",
     paragraphs: [
       "The Platform is intended for adult aviation students and instructors. If you believe a child has created an account, contact support and we will delete it.",
     ],
   },
   {
-    heading: "9. Updates",
+    heading: "10. Updates",
     paragraphs: [
       `We may update this Policy. The latest version is always published at https://www.aviatorpass.com/legal/privacy. Last updated ${LEGAL_UPDATED_LABEL}.`,
     ],

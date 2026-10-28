@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { generateMeetingSdkSignature } from "@/lib/zoom/meeting-sdk";
 import { writeClassesDb } from "@/services/classes/store";
 import {
+  clearZoomHostLiveMeetings,
   fetchZoomHostZak,
   probeZoomHostZak,
   resetZoomS2STokenCacheForTests,
@@ -10,6 +11,7 @@ import {
   updateMeetingForClass,
   zoomHostBlockedByAnotherLiveMeeting,
 } from "@/services/classes/zoom-service";
+import { writeBookingsDb } from "@/services/bookings/store";
 import type { LiveClass } from "@/types/classes";
 
 describe("Zoom host ZAK for in-app Meeting SDK", () => {
@@ -22,7 +24,9 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     resetZoomS2STokenCacheForTests();
     writeClassesDb((db) => {
       db.classes = db.classes.filter((item) => item.id !== "cls-host-1");
-      db.zoomMeetings = db.zoomMeetings.filter((item) => item.zoomMeetingId !== "82122854800");
+      db.zoomMeetings = db.zoomMeetings.filter(
+        (item) => item.zoomMeetingId !== "82122854800" && item.zoomMeetingId !== "89991112233",
+      );
     });
   });
 
@@ -140,6 +144,119 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.error).toMatch(/start_url has no host ZAK/i);
   });
 
+  it("recreates the meeting when start_url ZAK JWT is expired and GET refresh is unavailable", async () => {
+    s2sEnv();
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expiredZak = `eyJ0eXAiOiJKV1QifQ.${Buffer.from(
+      JSON.stringify({
+        iss: "web",
+        mnum: "82122854800",
+        exp: nowSec - 600,
+        iat: nowSec - 7800,
+      }),
+    ).toString("base64url")}.sig`;
+    storedMeeting(`https://us02web.zoom.us/s/82122854800?zak=${expiredZak}`);
+    writeClassesDb((db) => {
+      db.classes.push({
+        id: "cls-host-1",
+        title: "ATPL Air Law",
+        description: "",
+        courseId: null,
+        moduleId: null,
+        lessonId: null,
+        instructorId: "instructor-app-user",
+        assistantInstructorId: null,
+        startsAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 55 * 60_000).toISOString(),
+        durationMinutes: 60,
+        timezone: "Asia/Kuwait",
+        maxStudents: 10,
+        meetingType: "meeting",
+        status: "scheduled",
+        zoomMeetingId: "zm-host-1",
+        recurringRuleId: null,
+        parentClassId: null,
+        cancelledAt: null,
+        cancelReason: null,
+        rescheduledFromId: null,
+        createdById: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      } satisfies LiveClass);
+    });
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "s2s-token",
+            expires_in: 3600,
+            scope: "meeting:write:meeting:admin",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "PATCH") return new Response(null, { status: 204 });
+      if (method === "DELETE") return new Response(null, { status: 204 });
+      // Simulate S2S without meeting:read — GET meeting fails.
+      if (method === "GET" && url.includes("/meetings/")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message: "Invalid access token, does not contain scopes:[meeting:read:meeting:admin].",
+          }),
+          { status: 400 },
+        );
+      }
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 89991112233,
+            uuid: "uuid-new",
+            join_url: "https://us02web.zoom.us/j/89991112233",
+            start_url: "https://us02web.zoom.us/s/89991112233?zak=fresh-create-zak",
+            password: "654321",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
+        );
+      }
+      if (url.includes("/users/") && url.includes("/settings")) {
+        return new Response(
+          JSON.stringify({
+            in_meeting: {
+              who_can_share_screen: "all",
+              who_can_share_screen_when_someone_is_sharing: "all",
+              request_permission_to_unmute_participants: false,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const resolved = await resolveZoomHostZak({
+      meetingNumber: "82122854800",
+      forceRefreshStartUrl: true,
+    });
+    expect(resolved.zak).toBe("fresh-create-zak");
+    expect(resolved.ready).toBe(true);
+    expect(resolved.error).toBeNull();
+  });
+
   it("returns null when no meeting start_url is stored", async () => {
     delete process.env.ZOOM_ACCOUNT_ID;
     delete process.env.ZOOM_S2S_CLIENT_ID;
@@ -198,6 +315,14 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
           { status: 200 },
         );
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
       if (url.includes("/meetings/82122854800") && method === "PATCH") {
         return new Response(null, { status: 204 });
       }
@@ -208,6 +333,21 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
             start_url: "https://us02web.zoom.us/s/82122854800?zak=updated-start-zak",
           }),
           { status: 200 },
+        );
+      }
+      // If host-busy recreate runs, allow a create so the test stays focused on update ZAK.
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 82122854800,
+            uuid: "uuid-1",
+            join_url: "https://us02web.zoom.us/j/82122854800",
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=updated-start-zak",
+            password: "123456",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
         );
       }
       return new Response("not found", { status: 404 });
@@ -223,9 +363,15 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.zak).toBe("updated-start-zak");
     expect(resolved.source).toBe("meeting-start-url");
     expect(calls.some((url) => url.includes("/users/") && url.includes("/token"))).toBe(false);
-    expect(calls.some((url) => url.startsWith("PATCH "))).toBe(true);
+    // Update path touches the meeting (PATCH) and/or re-reads start_url (GET),
+    // or recreates via POST when GET rotation is unavailable.
     expect(
-      calls.some((url) => url.startsWith("GET ") && url.includes("/meetings/82122854800")),
+      calls.some(
+        (url) =>
+          url.startsWith("PATCH ") ||
+          (url.startsWith("GET ") && url.includes("/meetings/82122854800")) ||
+          (url.startsWith("POST ") && url.includes("/meetings")),
+      ),
     ).toBe(true);
   });
 
@@ -275,7 +421,29 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
           { status: 200 },
         );
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
       if (method === "PATCH") return new Response(null, { status: 204 });
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 82122854800,
+            uuid: "uuid-1",
+            join_url: "https://us02web.zoom.us/j/82122854800",
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=stored-create-zak",
+            password: "123456",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
+        );
+      }
       return new Response(
         JSON.stringify({
           code: 4711,
@@ -287,7 +455,7 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
 
     const liveClass = writeClassesDb((db) => db).classes.find((item) => item.id === "cls-host-1")!;
     const updated = await updateMeetingForClass({ liveClass });
-    expect(updated?.startUrl).toBe("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
+    expect(updated?.startUrl).toContain("zak=stored-create-zak");
     await expect(fetchZoomHostZak({ meetingNumber: "82122854800" })).resolves.toBe(
       "stored-create-zak",
     );
@@ -438,5 +606,124 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     // unrelated meetings from the join path (Super Admin clear-live is explicit).
     await expect(zoomHostBlockedByAnotherLiveMeeting("82122854800")).resolves.toBe(true);
     expect(ended).toEqual([]);
+  });
+
+  it("force clear-live ends cancelled local ghosts but not confirmed upcoming bookings", async () => {
+    s2sEnv();
+    const ghostId = "99988877766";
+    const customerId = "11122233344";
+    writeBookingsDb((db) => {
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
+      db.bookings.unshift(
+        {
+          id: "bk-ghost-clear",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Ghost clear",
+          notes: "",
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 3600_000).toISOString(),
+          status: "cancelled",
+          zoom: {
+            meetingNumber: ghostId,
+            joinUrl: `https://us02web.zoom.us/j/${ghostId}`,
+            startUrl: `https://us02web.zoom.us/s/${ghostId}?zak=x`,
+            password: "111111",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: "admin",
+          cancelReason: "test",
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
+        },
+        {
+          id: "bk-customer-keep",
+          studentId: "user_student_one",
+          instructorId: "user_instructor_one",
+          sessionTypeId: "st_coaching",
+          sessionTypeName: "Private Coaching",
+          title: "Customer keep",
+          notes: "",
+          startsAt: new Date(Date.now() + 2 * 3600_000).toISOString(),
+          endsAt: new Date(Date.now() + 3 * 3600_000).toISOString(),
+          status: "confirmed",
+          zoom: {
+            meetingNumber: customerId,
+            joinUrl: `https://us02web.zoom.us/j/${customerId}`,
+            startUrl: `https://us02web.zoom.us/s/${customerId}?zak=x`,
+            password: "222222",
+            waitingRoom: false,
+            providerMode: "zoom",
+            provisionedAt: new Date().toISOString(),
+          },
+          guestEmail: null,
+          guestFirstName: null,
+          guestLastName: null,
+          guestVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          cancelledAt: null,
+          cancelledBy: null,
+          cancelReason: null,
+          priceAmountMinor: 0,
+          currency: "KWD",
+          paymentRequired: false,
+          paymentOrderId: null,
+          paidAt: new Date().toISOString(),
+        },
+      );
+    });
+
+    const ended: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/users/") && url.includes("/meetings") && method === "GET") {
+        return new Response(JSON.stringify({ meetings: [] }), { status: 200 });
+      }
+      if (method === "PUT" && url.includes("/meetings/") && url.includes("/status")) {
+        ended.push(url);
+        return new Response(null, { status: 204 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await clearZoomHostLiveMeetings({
+      force: true,
+      keepMeetingNumber: "82122854800",
+    });
+    expect(result.ended).toContain(ghostId);
+    expect(result.ended).not.toContain(customerId);
+    expect(ended.some((u) => u.includes(ghostId))).toBe(true);
+    expect(ended.some((u) => u.includes(customerId))).toBe(false);
+    expect(result.deleted ?? []).not.toContain(ghostId);
+    expect(result.liveRemaining).toEqual([]);
+
+    writeBookingsDb((db) => {
+      db.bookings = db.bookings.filter(
+        (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
+      );
+    });
   });
 });

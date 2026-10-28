@@ -1,7 +1,8 @@
 /**
  * Isolated Marketplace reviewer classroom.
- * Creates one class for the dedicated reviewer instructor and student only
- * after that instructor has authorized a personal Zoom account.
+ * Creates one class for the dedicated reviewer instructor and student only.
+ * Prefer platform Server-to-Server hosting (no personal instructor OAuth).
+ * Personal Instructor OAuth remains an optional fallback when S2S is absent.
  * Never reads or updates any other class.
  */
 
@@ -49,6 +50,9 @@ export function assessReviewerClassroom(input: {
   sharedPlatformAccount: boolean;
   zoomEmail: string | null;
   protectedEmails: string[];
+  /** When true, live classes use centralized CEO/platform S2S hosting. */
+  platformS2SReady?: boolean;
+  platformHostEmail?: string | null;
 }): ReviewerClassroomAssessment {
   if (!input.instructorFound) {
     return {
@@ -66,12 +70,25 @@ export function assessReviewerClassroom(input: {
       zoomEmail: null,
     };
   }
+
+  // Release default: platform Server-to-Server hosting — no personal instructor OAuth required.
+  if (input.platformS2SReady) {
+    const platformHost = normalizeEmail(input.platformHostEmail) || PLATFORM_ZOOM_EMAILS[0]!;
+    return {
+      ready: true,
+      block: null,
+      message:
+        "Platform Server-to-Server Zoom hosting is available. The isolated reviewer classroom will be created on the platform host without instructor personal OAuth.",
+      zoomEmail: platformHost,
+    };
+  }
+
   if (input.sharedPlatformAccount) {
     return {
       ready: false,
       block: "shared_platform_zoom",
       message:
-        "The reviewer instructor is connected to the shared platform Zoom account. Connect a dedicated Zoom user instead. The platform account cannot host this classroom.",
+        "The reviewer instructor is connected to the shared platform Zoom account. Disconnect that row, or enable platform Server-to-Server hosting.",
       zoomEmail: input.zoomEmail,
     };
   }
@@ -80,7 +97,7 @@ export function assessReviewerClassroom(input: {
       ready: false,
       block: "oauth_not_connected",
       message:
-        "The reviewer instructor has not authorized a personal Zoom account. Connect Zoom on the instructor profile with a dedicated Zoom user before creating the reviewer classroom.",
+        "Platform Server-to-Server Zoom is not configured, and the reviewer instructor has not authorized a personal Zoom account.",
       zoomEmail: input.zoomEmail,
     };
   }
@@ -182,6 +199,8 @@ export async function prepareReviewerClassroom(actorId: string): Promise<Reviewe
   const instructorFound = Boolean(instructor && instructor.role === ROLES.INSTRUCTOR);
   const studentFound = Boolean(student && student.role === ROLES.STUDENT);
   const status = instructorFound && instructor ? getInstructorZoomStatus(instructor.id) : null;
+  const { zoomCredsPresent } = await import("@/services/classes/zoom-service");
+  const platformHostEmail = getPlatformSettings().zoom.accountEmail;
   const assessment = assessReviewerClassroom({
     instructorFound,
     studentFound,
@@ -189,6 +208,8 @@ export async function prepareReviewerClassroom(actorId: string): Promise<Reviewe
     sharedPlatformAccount: Boolean(status?.sharedPlatformAccount),
     zoomEmail: status?.zoomEmail ?? null,
     protectedEmails: protectedAccountEmails(),
+    platformS2SReady: zoomCredsPresent(),
+    platformHostEmail,
   });
 
   if (!assessment.ready || !instructor || !student) {
@@ -208,6 +229,33 @@ export async function prepareReviewerClassroom(actorId: string): Promise<Reviewe
   if (existing) {
     const enrolled = (participantMap.get(existing.id) ?? []).includes(student.id);
     if (!enrolled) enrollStudentsInLiveClass(existing.id, [student.id]);
+
+    // Keep the isolated reviewer classroom joinable for Marketplace reviewers:
+    // when the scheduled window has ended, nudge the schedule forward and refresh
+    // the Zoom meeting so host ZAK / Meeting SDK join stay valid.
+    const ended = Date.parse(existing.endsAt) <= Date.now();
+    if (ended) {
+      const { updateLiveClass } = await import("@/services/classes/class-service");
+      const { cancelMeetingForClass, createMeetingForClass } =
+        await import("@/services/classes/zoom-service");
+      const startsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+      await updateLiveClass({
+        id: existing.id,
+        patch: {
+          startsAt,
+          durationMinutes: Math.max(30, existing.durationMinutes || 30),
+          status: "scheduled",
+        },
+        actorId,
+      });
+      const refreshed = lookupAllLiveClasses().find((row) => row.id === existing.id) ?? existing;
+      // updateLiveClass may PATCH Zoom times, but S2S without meeting:read cannot
+      // rotate start_url ZAK — recreate so create response supplies a fresh host token.
+      await cancelMeetingForClass({ liveClassId: refreshed.id, actorId });
+      await createMeetingForClass({ liveClass: refreshed, actorId });
+      return resultFromClass(assessment, refreshed, false, student.id);
+    }
+
     return resultFromClass(assessment, existing, false, student.id);
   }
 

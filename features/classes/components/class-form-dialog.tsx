@@ -93,8 +93,9 @@ function ClassFormDialog({
     if (!open) return;
     let cancelled = false;
     const sharedHint =
-      "Connect your own personal Zoom account before hosting. The shared platform Zoom account cannot host live classes.";
-    const missingHint = "Please connect your Zoom account before creating a live class.";
+      "Platform Zoom hosting is unavailable and this connection uses the shared platform Zoom account. Ask an admin to enable Server-to-Server Zoom, or reconnect a personal Zoom account.";
+    const missingHint =
+      "Platform Zoom hosting is unavailable. Ask an admin to configure Server-to-Server Zoom, or connect a personal Zoom account.";
 
     async function checkZoom() {
       if (lockInstructor) {
@@ -106,13 +107,21 @@ function ClassFormDialog({
             needsReconnect?: boolean;
             personalZoomReady?: boolean;
             sharedPlatformAccount?: boolean;
+            platformHostingReady?: boolean;
           };
         };
         if (cancelled) return;
         const personalReady = Boolean(json.data?.personalZoomReady);
-        const shared = Boolean(json.data?.sharedPlatformAccount);
-        setZoomReady(personalReady);
-        setZoomHint(personalReady ? null : shared ? sharedHint : missingHint);
+        const platformReady = Boolean(json.data?.platformHostingReady);
+        const canHost = personalReady || platformReady;
+        setZoomReady(canHost);
+        setZoomHint(
+          canHost
+            ? null
+            : json.data?.sharedPlatformAccount
+              ? sharedHint
+              : missingHint,
+        );
         return;
       }
       if (instructorId === "none") {
@@ -124,6 +133,7 @@ function ClassFormDialog({
       const json = (await res.json()) as {
         success?: boolean;
         data?: {
+          platformHostingReady?: boolean;
           instructors?: Array<{
             userId: string;
             connected: boolean;
@@ -140,9 +150,12 @@ function ClassFormDialog({
       }
       const row = json.data?.instructors?.find((item) => item.userId === instructorId);
       const personalReady = Boolean(row?.personalZoomReady);
-      const shared = Boolean(row?.sharedPlatformAccount);
-      setZoomReady(personalReady);
-      setZoomHint(personalReady ? null : shared ? sharedHint : missingHint);
+      const platformReady = Boolean(json.data?.platformHostingReady);
+      const canHost = personalReady || platformReady;
+      setZoomReady(canHost);
+      setZoomHint(
+        canHost ? null : row?.sharedPlatformAccount ? sharedHint : missingHint,
+      );
     }
     void checkZoom();
     return () => {

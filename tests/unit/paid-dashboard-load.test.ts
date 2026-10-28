@@ -170,7 +170,7 @@ describe("paid student dashboard load", () => {
     expect(body).toContain("getOverallProgress");
     expect(body).not.toContain("getLearningDashboard");
     expect(body).not.toContain("listWrittenAttempts");
-    expect(body).not.toContain("listCertificates");
+    expect(body).toContain("listCertificates");
     const route = src("app/api/dashboard/metrics/route.ts");
     const student = route.slice(
       route.indexOf("if (scope === ROLES.STUDENT)"),

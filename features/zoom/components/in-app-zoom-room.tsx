@@ -502,7 +502,8 @@ function InAppZoomRoom({
     return () => {
       cancelled = true;
     };
-  }, [isHost, joinUrl, liveClassId, meetingNumber, password, providerMode, startUrl]);
+    // `attempt` forces a fresh signature/ZAK mint when the user taps reconnect.
+  }, [attempt, isHost, joinUrl, liveClassId, meetingNumber, password, providerMode, startUrl]);
 
   React.useEffect(() => {
     if (!session) return;
@@ -887,6 +888,7 @@ function InAppZoomRoom({
                 onClick={() => {
                   setNotice("Opening the classroom again");
                   setPhase("loading");
+                  setSession(null);
                   setAttempt((value) => value + 1);
                 }}
               >
