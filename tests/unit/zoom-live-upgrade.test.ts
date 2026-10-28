@@ -84,7 +84,7 @@ describe("upcoming Zoom placeholder upgrade", () => {
     expect(result).toEqual({ upgraded: 0, failed: 0 });
   });
 
-  it("does not upgrade live-class mocks via shared platform S2S", async () => {
+  it("upgrades live-class mocks via centralized platform S2S", async () => {
     process.env.ZOOM_ACCOUNT_ID = "acct_live";
     process.env.ZOOM_S2S_CLIENT_ID = "s2s_client_live";
     process.env.ZOOM_S2S_CLIENT_SECRET = "s2s_secret_live";
@@ -101,6 +101,14 @@ describe("upcoming Zoom placeholder upgrade", () => {
           status: 200,
         });
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
       if (url.includes("/meetings")) {
         return new Response(
           JSON.stringify({
@@ -109,6 +117,8 @@ describe("upcoming Zoom placeholder upgrade", () => {
             join_url: "https://us02web.zoom.us/j/86524929538",
             start_url: "https://us02web.zoom.us/s/86524929538?zak=live-zak",
             password: "LivePass1",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host",
           }),
           { status: 201 },
         );
@@ -116,15 +126,15 @@ describe("upcoming Zoom placeholder upgrade", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    await upgradeUpcomingPlaceholderMeetings({ limit: 200 });
-    // Live-class meetings must never upgrade onto the shared S2S host.
-    // (Bookings/mock-exams may still use platform S2S — that is out of scope here.)
+    const result = await upgradeUpcomingPlaceholderMeetings({ limit: 200 });
+    expect(result.upgraded).toBeGreaterThanOrEqual(1);
     const meeting = (await import("@/services/classes/store"))
       .readClassesDb()
       .zoomMeetings.find((item) => item.liveClassId === "cls_upgrade_soon");
-    expect(meeting?.providerMode).toBe("mock");
-    expect(meeting?.zoomMeetingId).toBe("111222333");
-    expect(isPlaceholderZoomMeeting(meeting)).toBe(true);
+    expect(meeting?.providerMode).toBe("zoom");
+    expect(meeting?.zoomMeetingId).toBe("86524929538");
+    expect(meeting?.hostEmail).toBe("ceo@aviatorpass.com");
+    expect(isPlaceholderZoomMeeting(meeting)).toBe(false);
   });
 
   it("upgrades an upcoming mock class meeting via instructor personal OAuth", async () => {

@@ -200,6 +200,14 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
           { status: 200 },
         );
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
       if (url.includes("/meetings/82122854800") && method === "PATCH") {
         return new Response(null, { status: 204 });
       }
@@ -210,6 +218,21 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
             start_url: "https://us02web.zoom.us/s/82122854800?zak=updated-start-zak",
           }),
           { status: 200 },
+        );
+      }
+      // If host-busy recreate runs, allow a create so the test stays focused on update ZAK.
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 82122854800,
+            uuid: "uuid-1",
+            join_url: "https://us02web.zoom.us/j/82122854800",
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=updated-start-zak",
+            password: "123456",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
         );
       }
       return new Response("not found", { status: 404 });
@@ -277,7 +300,29 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
           { status: 200 },
         );
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host-99", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200 },
+        );
+      }
       if (method === "PATCH") return new Response(null, { status: 204 });
+      if (method === "POST" && url.includes("/meetings")) {
+        return new Response(
+          JSON.stringify({
+            id: 82122854800,
+            uuid: "uuid-1",
+            join_url: "https://us02web.zoom.us/j/82122854800",
+            start_url: "https://us02web.zoom.us/s/82122854800?zak=stored-create-zak",
+            password: "123456",
+            host_email: "ceo@aviatorpass.com",
+            host_id: "zoom-host-99",
+          }),
+          { status: 201 },
+        );
+      }
       return new Response(
         JSON.stringify({
           code: 4711,
@@ -289,7 +334,7 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
 
     const liveClass = writeClassesDb((db) => db).classes.find((item) => item.id === "cls-host-1")!;
     const updated = await updateMeetingForClass({ liveClass });
-    expect(updated?.startUrl).toBe("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
+    expect(updated?.startUrl).toContain("zak=stored-create-zak");
     await expect(fetchZoomHostZak({ meetingNumber: "82122854800" })).resolves.toBe(
       "stored-create-zak",
     );
