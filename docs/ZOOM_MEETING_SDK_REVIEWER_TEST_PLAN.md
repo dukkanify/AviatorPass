@@ -125,7 +125,9 @@ The action looks up only these accounts:
 - Instructor: `zoom.reviewer.instructor@aviatorpass.com`
 - Student: `zoom.reviewer.student@aviatorpass.com`
 
-When that instructor’s Zoom status is `personalZoomReady`, and the connected Zoom email is not the platform host and not another AviatorPass account, the action creates one class:
+**Centralized Classroom (current):** when platform Server-to-Server Zoom is configured, the action creates the isolated class on the platform host. `personalZoomReady` is **not** required.
+
+**Personal OAuth fallback only:** if S2S is absent, the instructor must be `personalZoomReady` with a Zoom email that is not the platform host and not another AviatorPass account.
 
 | Field     | Value                                             |
 | --------- | ------------------------------------------------- |
@@ -137,7 +139,7 @@ When that instructor’s Zoom status is `personalZoomReady`, and the connected Z
 
 Calling it again returns that same class. It does not create a second one and it does not scan other instructors’ meetings.
 
-If the instructor is not personally connected, the action returns HTTP 409 and creates nothing.
+HTTP 409 `oauth_not_connected` occurs only when platform S2S is missing **and** the instructor is not personally connected.
 
 ### Actual class on 19 October 2026
 
@@ -155,17 +157,21 @@ No reviewer class exists. Production `POST /api/admin/zoom/reviewer-classroom` o
 
 The Production Client Secret for `7z2krfWYQWCi20C0FRZ0xA` is still not stored. Authorization of a dedicated Zoom user is blocked until the account owner supplies that secret, or confirms that the current instructor client may be used, and then signs that Zoom user in.
 
-### Reviewer steps after the Zoom user is connected
+### Reviewer steps (Classroom VGTQ — centralized)
+
+1. Super Admin calls `POST /api/admin/zoom/reviewer-classroom` (platform S2S required; personal Connect Zoom optional).
+2. Sign in as the reviewer instructor and open the returned `/join/{classId}`. Expected: Meeting SDK starts with the instructor as **host**.
+3. In a separate browser session, sign in as the reviewer student and open the same `/join/{classId}`. Expected: Meeting SDK joins as a **participant**.
+4. Confirm Mute / Video / Participants / Chat / Share Screen / Leave Class via Zoom’s toolbar; Leave Class via AviatorPass dock; rejoin.
+5. The student still cannot open `/instructor/profile`.
+
+### Optional Z0xA steps (Instructor OAuth — separate app)
 
 1. Sign in as the reviewer instructor at https://www.aviatorpass.com/instructor/profile and choose Connect Zoom.
-2. On Zoom’s own sign-in page, authorize a dedicated Zoom user. Do not use `ceo@aviatorpass.com` or a customer Zoom account.
-3. Confirm the profile shows that Zoom email, status Connected, and `personalZoomReady` true.
-4. A Super Admin calls `POST /api/admin/zoom/reviewer-classroom`.
-5. Open the returned `/join/{classId}` as the instructor. Expected when the meeting exists: the embedded Meeting SDK starts and the instructor is the host.
-6. In a separate browser session, sign in as the reviewer student and open the same `/join/{classId}`. Expected: the embedded Meeting SDK joins as a participant.
-7. The student still cannot open `/instructor/profile`.
+2. Authorize a dedicated personal Zoom user (never `ceo@aviatorpass.com`, never a customer Zoom account).
+3. Confirm Connected and `personalZoomReady` true — required for Z0xA proof only, not for centralized Classroom VGTQ.
 
-Until both of those live joins have been completed, this plan does not claim an end-to-end Meeting SDK test.
+Until host + student live joins have been completed with A/V, this plan does not claim an end-to-end Meeting SDK PASS.
 
 ## Expected results that are not yet verified
 

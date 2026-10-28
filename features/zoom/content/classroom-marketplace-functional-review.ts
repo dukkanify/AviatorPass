@@ -137,7 +137,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "Host expected: role 1 when ZAK is present; Leave Class on the AviatorPass dock; Zoom Meeting SDK toolbar for mute/video/share/chat/participants.",
       "Participant expected: role 0; no host start URL; Zoom participant mute/video controls as permitted by the host.",
       "Troubleshooting Zoom error 3712: Meeting SDK Client ID and Secret mismatch or Embed disabled.",
-      "Troubleshooting Zoom error 3000: host Zoom user already in another meeting — Super Admin clear-live recovery ends live/ghost sessions without disconnecting CEO OAuth. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
+      "Troubleshooting Zoom error 3000: Meeting SDK reports the platform host already has another meeting in progress. Host join releases only THIS class meeting instance and retries once. Empty clear-live liveRemaining is not proof the host is free when Server-to-Server cannot read type=live (often missing meeting:read). Do not end customer meetings. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
       "Troubleshooting HTTP 409 oauth_not_connected: only when platform S2S credentials are missing and the instructor has not connected personal Zoom. With platform S2S configured, Connect Zoom is not required.",
     ],
   },
@@ -359,7 +359,7 @@ EXPECTED RESULTS (verified unless noted) — overall NOT READY
 
 TROUBLESHOOTING
 - 3712: Meeting SDK Client ID/Secret mismatch or Embed disabled
-- 3000: host already in another meeting (Super Admin clear-live for ghosts; does not disconnect CEO)
+- 3000: host already in another meeting (release this class instance + retry; clear-live ghosts only; does not disconnect CEO; empty live list ≠ free when meeting:read missing)
 - 409 oauth_not_connected: only when platform S2S is missing and personal Zoom is not connected
 
 OWNER MARKETPLACE ACTIONS STILL REQUIRED (not applied by code deploy)

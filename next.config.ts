@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
+/** Enforcing CSP tuned for Zoom Meeting SDK embed (source.zoom.us + *.zoom.us frames). */
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://source.zoom.us https://*.zoom.us",
@@ -11,6 +12,9 @@ const contentSecurityPolicy = [
   "connect-src 'self' https: wss:",
   "media-src 'self' blob: mediastream:",
   "worker-src 'self' blob:",
+  "frame-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
+  "child-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
+  "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -106,7 +110,7 @@ const nextConfig: NextConfig = {
         value: inAppMediaPolicy,
       },
       {
-        key: "Content-Security-Policy-Report-Only",
+        key: "Content-Security-Policy",
         value: contentSecurityPolicy,
       },
       { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },

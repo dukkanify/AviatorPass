@@ -159,14 +159,16 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
-    expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
-    expect(room).toMatch(/Host JWT without ZAK rejected; joining as participant/);
-    expect(room).toMatch(/Host already in another meeting; joining as participant/);
-    expect(room).toMatch(/staleHostToken && active\.hostSignature/);
+    expect(room).toMatch(/release-host-lock/);
+    expect(room).toMatch(/Error 3000 from Meeting SDK/);
+    expect(room).toMatch(/no participant fallback/);
+    expect(room).not.toMatch(/joining as participant/);
     expect(
       readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
     ).toMatch(/zoomHostBlockedByAnotherLiveMeeting/);
-    expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/release-host-lock/route.ts"), "utf8"),
+    ).toMatch(/releaseHostLockForLiveClass/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
