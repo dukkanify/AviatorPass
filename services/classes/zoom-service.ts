@@ -1643,7 +1643,7 @@ export async function clearZoomHostLiveMeetings(input?: {
   const now = Date.now();
   const graceMs = 15 * 60_000;
 
-  const maybeEnd = async (id: string, opts?: { allowDelete?: boolean }) => {
+  const maybeEnd = async (id: string, opts?: { allowDelete?: boolean; explicit?: boolean }) => {
     if (!id || seen.has(id)) return;
     seen.add(id);
     if (keep && id === keep) {
@@ -1652,7 +1652,10 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     const stored = getZoomMeetingByNumber(id);
     const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-    if (!input?.force && cls) {
+    // Explicit Super Admin endMeetingNumbers always PUT-ends the live instance
+    // (releases host error 3000) even while the AviatorPass class window is open.
+    // Auto clear still protects in-window customer classes unless force=true.
+    if (!input?.force && !opts?.explicit && cls) {
       const closed = cls.status === "completed" || cls.status === "cancelled";
       const start = Date.parse(cls.startsAt);
       const end = Date.parse(cls.endsAt);
@@ -1669,8 +1672,8 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     await endZoomMeetingInstance(token, id);
     ended.push(id);
-    // Only DELETE meetings Zoom reported as live (or explicitly listed).
-    // Local upcoming booking IDs are ended, not deleted, so future sessions survive.
+    // DELETE only for Zoom-reported live ghosts when force=true — never for
+    // explicit endMeetingNumbers (those must keep the scheduled meeting).
     if (input?.force && opts?.allowDelete) {
       await deleteZoomMeetingInstance(token, id);
       deleted.push(id);
@@ -1689,7 +1692,7 @@ export async function clearZoomHostLiveMeetings(input?: {
   // or be passed explicitly via endMeetingNumbers.
 
   for (const raw of input?.endMeetingNumbers ?? []) {
-    await maybeEnd(meetingNumberDigits(raw), { allowDelete: true });
+    await maybeEnd(meetingNumberDigits(raw), { explicit: true, allowDelete: false });
   }
 
   // Force path: end only safe local ghosts (cancelled/completed/long-past).

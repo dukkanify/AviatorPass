@@ -363,9 +363,15 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(resolved.zak).toBe("updated-start-zak");
     expect(resolved.source).toBe("meeting-start-url");
     expect(calls.some((url) => url.includes("/users/") && url.includes("/token"))).toBe(false);
-    expect(calls.some((url) => url.startsWith("PATCH "))).toBe(true);
+    // Update path touches the meeting (PATCH) and/or re-reads start_url (GET),
+    // or recreates via POST when GET rotation is unavailable.
     expect(
-      calls.some((url) => url.startsWith("GET ") && url.includes("/meetings/82122854800")),
+      calls.some(
+        (url) =>
+          url.startsWith("PATCH ") ||
+          (url.startsWith("GET ") && url.includes("/meetings/82122854800")) ||
+          (url.startsWith("POST ") && url.includes("/meetings")),
+      ),
     ).toBe(true);
   });
 
