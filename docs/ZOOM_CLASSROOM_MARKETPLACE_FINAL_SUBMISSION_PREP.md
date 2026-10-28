@@ -173,7 +173,7 @@ ARCHITECTURE (credentials not mixed)
 
 SCOPES / REVIEWER NOTE ON CREATE A MEETING
 Per Zoom functional review, duplicate Create a Meeting admin/master scopes were removed from this Classroom app and will not be reintroduced.
-Production Scopes then showed “Select at least one scope”. We have contacted Zoom Marketplace Support (integration.testers@zoom.us) for written confirmation whether a Meeting SDK JWT-only General App may publish with zero OAuth scopes, and which exact scope (if any) is mandatory for this architecture.
+Production Scopes then showed “Select at least one scope”. We are requesting written confirmation from Zoom Marketplace Support (integration.testers@zoom.us) on whether a Meeting SDK JWT-only General App may publish with zero OAuth scopes, and which exact scope (if any) is mandatory for this architecture.
 We will not add unused Create a Meeting, admin, master, division, or token/ZAK scopes merely to clear portal validation.
 If Zoom confirms a specific scope is mandatory, we will document that requirement and obtain owner approval before any authorization-architecture change.
 
