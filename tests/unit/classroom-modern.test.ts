@@ -35,6 +35,8 @@ describe("modern classroom join page", () => {
     expect(room).toMatch(/Share Screen/);
     expect(room).toMatch(/classroom-rail/);
     expect(room).toMatch(/classroom-dock-cluster/);
+    expect(room).toMatch(/is-live-sdk/);
+    expect(room).toMatch(/!liveZoom \? \(/);
     expect(room).toMatch(/displayName/);
     expect(room).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(room).toMatch(/startLocalMedia\(\)/);
@@ -49,6 +51,7 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/\.classroom-footer/);
     expect(css).toMatch(/\.classroom-preview-fallback/);
     expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
+    expect(css).toMatch(/\.classroom-dock\.is-live-sdk/);
     expect(css).toMatch(/position:\s*sticky/);
     expect(css).toMatch(/safe-area-inset-bottom/);
     expect(css).toMatch(/overflow-x:\s*clip/);

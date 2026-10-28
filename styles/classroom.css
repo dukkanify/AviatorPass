@@ -595,6 +595,18 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
   width: 100%;
 }
 
+/* Live Meeting SDK: Zoom owns mute/video/share/chat — keep only Leave / reconnect */
+.classroom-dock.is-live-sdk {
+  justify-content: flex-end;
+}
+
+.classroom-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .classroom-dock-cluster {
   display: flex;
   flex-wrap: wrap;

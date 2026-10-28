@@ -825,61 +825,67 @@ function InAppZoomRoom({
           </div>
         ) : null}
 
-        <div className="classroom-dock">
-          <div className="classroom-dock-cluster">
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!micOn || undefined}
-              aria-label={micOn ? "Mute" : "Unmute"}
-              onClick={toggleMic}
-              disabled={liveZoom}
-            >
-              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-              <span>{micOn ? "Mute" : "Unmute"}</span>
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!camOn || undefined}
-              aria-label={camOn ? "Stop Video" : "Start Video"}
-              onClick={toggleCamera}
-              disabled={liveZoom}
-            >
-              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-              <span>{camOn ? "Stop Video" : "Start Video"}</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="Participants">
-              <Users className="size-5" />
-              <span>Participants</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="Chat">
-              <MessageSquare className="size-5" />
-              <span>Chat</span>
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-share={shareHint || undefined}
-              data-active={shareHint || undefined}
-              aria-label="Share Screen"
-              onClick={() => setShareHint((value) => !value)}
-              title={
-                liveZoom
-                  ? "Use Zoom’s Share control inside the meeting when available"
-                  : "Share Screen is available after you join the live meeting"
-              }
-            >
-              <MonitorUp className="size-5" />
-              <span>Share Screen</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="More">
-              <Ellipsis className="size-5" />
-              <span>More</span>
-            </button>
-          </div>
+        <div className={cn("classroom-dock", liveZoom && "is-live-sdk")}>
+          {/*
+            When Meeting SDK is live, Zoom’s own toolbar owns mute/video/share/chat.
+            Keep the AviatorPass dock only for local preview / reconnect — otherwise
+            two overlapping control bars fight for the same job.
+          */}
+          {!liveZoom ? (
+            <div className="classroom-dock-cluster">
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!micOn || undefined}
+                aria-label={micOn ? "Mute" : "Unmute"}
+                onClick={toggleMic}
+              >
+                {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+                <span>{micOn ? "Mute" : "Unmute"}</span>
+              </button>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!camOn || undefined}
+                aria-label={camOn ? "Stop Video" : "Start Video"}
+                onClick={toggleCamera}
+              >
+                {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+                <span>{camOn ? "Stop Video" : "Start Video"}</span>
+              </button>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                aria-label="Participants"
+                disabled
+              >
+                <Users className="size-5" />
+                <span>Participants</span>
+              </button>
+              <button type="button" className="classroom-dock-btn" aria-label="Chat" disabled>
+                <MessageSquare className="size-5" />
+                <span>Chat</span>
+              </button>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-share={shareHint || undefined}
+                data-active={shareHint || undefined}
+                aria-label="Share Screen"
+                onClick={() => setShareHint((value) => !value)}
+                title="Share Screen is available after you join the live meeting"
+              >
+                <MonitorUp className="size-5" />
+                <span>Share Screen</span>
+              </button>
+              <button type="button" className="classroom-dock-btn" aria-label="More" disabled>
+                <Ellipsis className="size-5" />
+                <span>More</span>
+              </button>
+            </div>
+          ) : null}
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="classroom-dock-actions">
             {phase === "error" ? (
               <button
                 type="button"
