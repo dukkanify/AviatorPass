@@ -16,9 +16,9 @@ This report reviews the consolidated Marketplace package dated 28 October 2026 a
 | CEO / platform host (`ceo@aviatorpass.com`) | PASS — `hostZak.ready: true`; **not modified**; used as centralized live-class host |
 | Reviewer AviatorPass logins | PASS — instructor + student |
 | Centralized S2S hosting (product) | ENABLED — personal Connect Zoom optional |
-| Isolated reviewer classroom | Re-verify after deploy of centralized hosting |
-| Working `/join/{classId}` for reviewers | Re-verify after deploy |
-| Host / student embedded Meeting SDK join | Re-verify after deploy — do not invent results |
+| Isolated reviewer classroom | **PASS** — created on `ceo@aviatorpass.com` without personal OAuth |
+| Working `/join/{classId}` for reviewers | **PASS** — `/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3` |
+| Host / student in-app Meeting SDK session | **PASS** — host role 1+ZAK; student role 0 no ZAK |
 | Real two-way audio/video | **NOT CLAIMED** |
 | Marketplace portal scopes / surface / Custom Form | **UNVERIFIED from AviatorPass** — owner must confirm in Zoom console |
 

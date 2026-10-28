@@ -33,9 +33,26 @@
 4. Export `zoomCredsPresent`; expose `platformHostingReady` on status APIs; class form allows create when platform hosting is ready.  
 5. Reviewer docs updated to the tested centralized workflow.
 
+## Production verification (28 October 2026 Asia/Dubai)
+
+Deploy `693de2c` → `dpl_5aKr21vwdpssstiWdQCyPTd5BQdB` on www.aviatorpass.com.
+
+| Check | Result |
+| --- | --- |
+| `platformHostingReady` | true |
+| Reviewer classroom without personal OAuth | PASS — meeting on `ceo@aviatorpass.com` |
+| Host `POST /api/zoom/in-app-session` | role 1, signature + ZAK |
+| Student participant session | role 0, signature, no ZAK |
+| Student host attempt | no ZAK / no hostSignature |
+| Working join URL | `/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3` |
+| Marketplace submit | **not performed** |
+
+Evidence: `/opt/cursor/artifacts/centralized-hosting-prod-probe.json`
+
 ## Not changed
 
 - CEO connection / S2S secrets  
 - Customer meetings (except creating the isolated reviewer class when requested)  
 - Marketplace portal settings / submit  
 - Personal OAuth codepaths and credentials  
+
