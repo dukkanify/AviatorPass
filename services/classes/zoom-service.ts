@@ -1700,11 +1700,17 @@ async function resolveClearLiveAccessToken(
 }
 
 /**
- * End live Zoom meetings for the classroom host account.
- * Prefers the instructor OAuth token when available so cleanup targets the
- * same Zoom user that owns the Meeting SDK host ZAK (not only S2S "me").
- * Keeps `keepMeetingNumber` when provided. `endMeetingNumbers` force-ends
- * specific meetings even when Zoom's live list is empty (ghost sessions).
+ * Clear / inventory Zoom live meetings for the classroom host account.
+ *
+ * Safety rules (customer protection):
+ * - The Zoom live list is **read-only inventory** — never auto-ended.
+ * - `endMeetingNumbers` ends **only** those explicit meeting numbers.
+ * - `force: true` ends **only** local safe ghosts (cancelled / completed /
+ *   long-past classes, bookings, exams in AviatorPass) — never unknown Zoom
+ *   live IDs and never confirmed upcoming customer sessions.
+ * - Keeps `keepMeetingNumber` when provided.
+ * - Prefers the instructor OAuth token when available so inventory targets the
+ *   same Zoom user that owns the Meeting SDK host ZAK (not only S2S "me").
  */
 export async function clearZoomHostLiveMeetings(input?: {
   keepMeetingNumber?: string | null;
@@ -1766,19 +1772,26 @@ export async function clearZoomHostLiveMeetings(input?: {
   const now = Date.now();
   const graceMs = 15 * 60_000;
 
-  const maybeEnd = async (id: string, opts?: { allowDelete?: boolean; explicit?: boolean }) => {
+  const maybeEnd = async (
+    id: string,
+    opts: { explicit?: boolean; localGhost?: boolean },
+  ) => {
     if (!id || seen.has(id)) return;
     seen.add(id);
     if (keep && id === keep) {
       kept.push(id);
       return;
     }
+    // Hard gate: only explicit Super Admin numbers or known local ghosts may end.
+    if (!opts.explicit && !opts.localGhost) {
+      return;
+    }
     const stored = getZoomMeetingByNumber(id);
     const cls = stored?.liveClassId ? lookupLiveClass(stored.liveClassId) : null;
-    // Explicit Super Admin endMeetingNumbers always PUT-ends the live instance
-    // (releases host error 3000) even while the AviatorPass class window is open.
-    // Auto clear still protects in-window customer classes unless force=true.
-    if (!input?.force && !opts?.explicit && cls) {
+    // Explicit endMeetingNumbers may release THIS number while its class window
+    // is open (Error 3000 recovery). Local-ghost force never ends in-window
+    // customer classes — even if mis-classified upstream.
+    if (!opts.explicit && cls) {
       const closed = cls.status === "completed" || cls.status === "cancelled";
       const start = Date.parse(cls.startsAt);
       const end = Date.parse(cls.endsAt);
@@ -1795,58 +1808,50 @@ export async function clearZoomHostLiveMeetings(input?: {
     }
     await endZoomMeetingInstance(token, id);
     ended.push(id);
-    // DELETE only for Zoom-reported live ghosts when force=true — never for
-    // explicit endMeetingNumbers (those must keep the scheduled meeting).
-    if (input?.force && opts?.allowDelete) {
-      await deleteZoomMeetingInstance(token, id);
-      deleted.push(id);
-    }
   };
 
+  // Inventory live meetings — never end from this list alone.
   let liveListReadable = true;
-  for (const host of hosts) {
-    const live = await listZoomLiveMeetingsForHost(token, host);
-    if (!live.readable) {
-      liveListReadable = false;
-      liveListErrors.push({ host: live.host, status: live.status, error: live.error });
-      continue;
+  const collectLive = async () => {
+    const liveRemaining = new Set<string>();
+    for (const host of hosts) {
+      const live = await listZoomLiveMeetingsForHost(token, host);
+      if (!live.readable) {
+        liveListReadable = false;
+        if (!liveListErrors.some((row) => row.host === live.host && row.status === live.status)) {
+          liveListErrors.push({ host: live.host, status: live.status, error: live.error });
+        }
+        continue;
+      }
+      for (const meeting of live.meetings) {
+        const id = meetingNumberDigits(String(meeting.id ?? ""));
+        if (id) liveRemaining.add(id);
+      }
     }
-    for (const meeting of live.meetings) {
-      await maybeEnd(meetingNumberDigits(String(meeting.id ?? "")), { allowDelete: true });
-    }
-  }
+    return liveRemaining;
+  };
+
+  await collectLive();
 
   // Never auto-end Zoom "upcoming" meetings: those are often real customer
-  // bookings. Stuck hosts must appear on type=live, match a safe local ghost,
-  // or be passed explicitly via endMeetingNumbers.
+  // bookings. Stuck hosts must match a safe local ghost or be passed explicitly
+  // via endMeetingNumbers.
 
   for (const raw of input?.endMeetingNumbers ?? []) {
-    await maybeEnd(meetingNumberDigits(raw), { explicit: true, allowDelete: false });
+    await maybeEnd(meetingNumberDigits(raw), { explicit: true });
   }
 
   // Force path: end only safe local ghosts (cancelled/completed/long-past).
-  // Never PUT-end confirmed upcoming customer bookings/classes/exams from the store.
+  // Never PUT-end confirmed upcoming customer bookings/classes/exams, and never
+  // end unknown Zoom live IDs that are absent from the AviatorPass store.
   if (input?.force) {
     for (const id of collectSafeGhostMeetingNumbers()) {
-      await maybeEnd(id, { allowDelete: false });
+      await maybeEnd(id, { localGhost: true });
     }
   }
 
-  const liveRemaining = new Set<string>();
-  for (const host of hosts) {
-    const live = await listZoomLiveMeetingsForHost(token, host);
-    if (!live.readable) {
-      liveListReadable = false;
-      if (!liveListErrors.some((row) => row.host === live.host && row.status === live.status)) {
-        liveListErrors.push({ host: live.host, status: live.status, error: live.error });
-      }
-      continue;
-    }
-    for (const meeting of live.meetings) {
-      const id = meetingNumberDigits(String(meeting.id ?? ""));
-      if (id) liveRemaining.add(id);
-    }
-  }
+  // Re-list after targeted ends so liveRemaining reflects current Zoom state.
+  const liveRemaining = await collectLive();
 
   return {
     ended,

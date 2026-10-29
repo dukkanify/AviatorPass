@@ -1882,9 +1882,10 @@ function PlatformSettingsShell() {
             <CardHeader>
               <CardTitle>Clear live meetings</CardTitle>
               <CardDescription>
-                Ends leftover live Zoom meetings on the platform host (and optional instructor
-                hosts). Use when classroom join hits Error 3000 from a stuck shared session. Does
-                not replace instructors reconnecting a personal Zoom account.
+                Lists live Zoom meetings on the platform host, then ends only known local ghosts
+                (cancelled / completed / long-past AviatorPass sessions). Never ends unknown Zoom
+                live IDs or in-window customer classes. To end a specific number, use an explicit
+                endMeetingNumbers request. Use when Error 3000 points at a stuck shared session.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
