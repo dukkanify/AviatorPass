@@ -922,23 +922,6 @@ async function endZoomMeetingInstance(token: string, meetingId: string): Promise
   }
 }
 
-/** DELETE meeting as a stronger unlock when PUT end leaves host error 3000. */
-async function deleteZoomMeetingInstance(token: string, meetingId: string): Promise<void> {
-  const id = String(meetingId).replace(/\D/g, "");
-  if (!id) return;
-  try {
-    const res = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok && res.status !== 404) {
-      console.error("Zoom meeting delete skipped", res.status, await res.text().catch(() => ""));
-    }
-  } catch (error) {
-    console.error("Zoom meeting delete skipped", error);
-  }
-}
-
 export async function updateMeetingForClass(input: {
   liveClass: LiveClass;
   actorId?: string | null;
@@ -1772,10 +1755,7 @@ export async function clearZoomHostLiveMeetings(input?: {
   const now = Date.now();
   const graceMs = 15 * 60_000;
 
-  const maybeEnd = async (
-    id: string,
-    opts: { explicit?: boolean; localGhost?: boolean },
-  ) => {
+  const maybeEnd = async (id: string, opts: { explicit?: boolean; localGhost?: boolean }) => {
     if (!id || seen.has(id)) return;
     seen.add(id);
     if (keep && id === keep) {

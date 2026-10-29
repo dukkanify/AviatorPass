@@ -1900,6 +1900,7 @@ function PlatformSettingsShell() {
                       ended: string[];
                       kept: string[];
                       blocked: string[];
+                      liveRemaining?: string[];
                       liveListReadable?: boolean;
                       liveListErrors?: Array<{
                         host: string;
@@ -1908,14 +1909,23 @@ function PlatformSettingsShell() {
                       }>;
                     }>("/api/admin/zoom/clear-live", {
                       method: "POST",
-                      body: JSON.stringify({ force: true }),
+                      // Inventory only — never mass-end. Explicit endMeetingNumbers or a
+                      // deliberate force ghosts call is required to terminate sessions.
+                      body: JSON.stringify({ force: false }),
                     });
                     setClearingLive(false);
                     if (!result.success || !result.data) {
                       toast.error(result.error ?? "Clear live failed");
                       return;
                     }
-                    const { ended, kept, blocked, liveListReadable, liveListErrors } = result.data;
+                    const {
+                      ended,
+                      kept,
+                      blocked,
+                      liveRemaining,
+                      liveListReadable,
+                      liveListErrors,
+                    } = result.data;
                     if (liveListReadable === false) {
                       const detail =
                         liveListErrors?.[0]?.error?.slice(0, 160) ||
@@ -1923,7 +1933,8 @@ function PlatformSettingsShell() {
                       toast.error(`Live list unread · ${detail}`);
                     }
                     toast.success(
-                      `Cleared ${ended.length} live meeting(s)` +
+                      `Live inventory · remaining ${(liveRemaining ?? []).length}` +
+                        (ended.length ? ` · ended ${ended.length}` : " · ended 0") +
                         (kept.length ? ` · kept ${kept.length}` : "") +
                         (blocked.length ? ` · blocked ${blocked.length}` : "") +
                         (liveListReadable === false ? " · live list unread" : ""),
@@ -1936,7 +1947,7 @@ function PlatformSettingsShell() {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                {clearingLive ? "Clearing…" : "Clear live meetings now"}
+                {clearingLive ? "Checking…" : "Check live meetings (no end)"}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Requires `system.zoom`. Prefer clearing after instructors disconnect a shared
