@@ -98,6 +98,8 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   );
   const [panelTab, setPanelTab] = React.useState<"info" | "chat" | "notes" | "resources">("info");
   const joinedAtRef = React.useRef<number | null>(null);
+  const hasJoinPayloadRef = React.useRef(false);
+  const liveSdkRef = React.useRef(false);
   const [elapsedMs, setElapsedMs] = React.useState(0);
 
   React.useEffect(() => {
@@ -107,16 +109,26 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
     let cancelled = false;
     async function load() {
-      setLoading(true);
-      setGate({ kind: "ok" });
+      // Never flip the full-page skeleton after the first successful payload —
+      // that unmounts InAppZoomRoom and forces Meeting SDK leave + re-join
+      // (Connecting loop). Soft-refresh keeps the room mounted.
+      if (!hasJoinPayloadRef.current) setLoading(true);
+      if (!hasJoinPayloadRef.current) setGate({ kind: "ok" });
       const result = await classFetch<NonNullable<typeof data>>(`/api/classes/${classId}/join`, {
         method: "POST",
         body: "{}",
       });
       if (cancelled) return;
       if (!result.success || !result.data) {
-        setData(null);
         const message = result.error ?? "Unable to join";
+        // Keep a live Meeting SDK session mounted on transient refresh failures.
+        if (hasJoinPayloadRef.current && liveSdkRef.current) {
+          console.warn("[join] class refresh failed while Zoom is live; keeping room", message);
+          setLoading(false);
+          return;
+        }
+        setData(null);
+        hasJoinPayloadRef.current = false;
         const unauthorized =
           result.status === 401 || /authentication required|sign in|unauthorized/i.test(message);
         const forbidden =
@@ -130,7 +142,28 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
           setGate({ kind: "error", message });
         }
       } else {
-        setData(result.data);
+        setData((prev) => {
+          // While Zoom is live, freeze join identity (URLs/password) so parent
+          // re-renders / soft refreshes cannot change props and re-trigger join.
+          if (
+            prev?.join &&
+            result.data.join &&
+            liveSdkRef.current &&
+            prev.join.zoomMeetingId === result.data.join.zoomMeetingId
+          ) {
+            return {
+              ...result.data,
+              join: {
+                ...result.data.join,
+                joinUrl: prev.join.joinUrl,
+                startUrl: prev.join.startUrl,
+                password: prev.join.password,
+              },
+            };
+          }
+          return result.data;
+        });
+        hasJoinPayloadRef.current = true;
         setGate({ kind: "ok" });
         if (result.data.join?.providerMode === "zoom") prefetchZoomEmbeddedSdk();
       }
@@ -144,8 +177,14 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
 
   React.useEffect(() => {
     if (roomPhase === "sdk") {
+      liveSdkRef.current = true;
       if (!joinedAtRef.current) joinedAtRef.current = Date.now();
-    } else if (roomPhase === "loading") {
+      return;
+    }
+    // "loading" from Zoom recovery must NOT clear the live timer / live flag —
+    // only a true leave/error/classroom fallback ends the live session marker.
+    if (roomPhase === "error" || roomPhase === "classroom") {
+      liveSdkRef.current = false;
       joinedAtRef.current = null;
       setElapsedMs(0);
     }
@@ -180,7 +219,9 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     };
   }, [gate.kind, loginHref]);
 
-  if (authLoading || loading || gate.kind === "auth") {
+  // Auth/loading skeleton only before the first join payload. Once Zoom is
+  // mounted, never replace the tree with a skeleton (that leaves the meeting).
+  if (gate.kind === "auth" || ((authLoading || loading) && !data)) {
     return (
       <div
         className="classroom-shell relative overflow-hidden"
