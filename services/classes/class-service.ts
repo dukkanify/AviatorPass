@@ -1054,7 +1054,7 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     (p) => p.userId === userId && (p.role === "participant" || p.role === "cohost"),
   );
   if (!isHost && !invited) {
-    throw new ClassValidationError("You are not invited to this class");
+    throw new ClassValidationError("You are not invited to this class", 403);
   }
 
   const closed = cls.status === "completed" || cls.status === "cancelled";

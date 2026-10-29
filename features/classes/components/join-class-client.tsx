@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { ROLE_DASHBOARD, type Role } from "@/constants/roles";
 import { routes } from "@/constants/routes";
+import { authFetch } from "@/features/auth/services/auth-api";
 import { useAuth } from "@/providers/auth-provider";
 import { classFetch } from "@/features/classes/lib/api";
 import { prefetchZoomEmbeddedSdk } from "@/features/zoom/lib/load-embedded-sdk";
@@ -64,12 +65,19 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+type JoinGate =
+  | { kind: "ok" }
+  | { kind: "auth" }
+  | { kind: "forbidden"; message: string }
+  | { kind: "error"; message: string };
+
 function JoinClassClient({ classId }: JoinClassClientProps) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const leaveHref =
     user && user.role in ROLE_DASHBOARD
       ? ROLE_DASHBOARD[user.role as Role]
       : routes.studentDashboard;
+  const loginHref = `${routes.login}?next=${encodeURIComponent(`/join/${classId}`)}`;
   const [data, setData] = React.useState<{
     class: LiveClassListItem;
     join: {
@@ -84,7 +92,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     audienceStatus?: "Upcoming" | "Live" | "Finished" | "Cancelled";
   } | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [gate, setGate] = React.useState<JoinGate>({ kind: "ok" });
   const [roomPhase, setRoomPhase] = React.useState<"loading" | "classroom" | "sdk" | "error">(
     "loading",
   );
@@ -93,20 +101,37 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const [elapsedMs, setElapsedMs] = React.useState(0);
 
   React.useEffect(() => {
+    // Wait for AuthProvider to finish — never bounce to Login while session
+    // resolution is still in flight.
+    if (authLoading) return;
+
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setGate({ kind: "ok" });
       const result = await classFetch<NonNullable<typeof data>>(`/api/classes/${classId}/join`, {
         method: "POST",
         body: "{}",
       });
       if (cancelled) return;
       if (!result.success || !result.data) {
-        setError(result.error ?? "Unable to join");
         setData(null);
+        const message = result.error ?? "Unable to join";
+        const unauthorized =
+          result.status === 401 || /authentication required|sign in|unauthorized/i.test(message);
+        const forbidden =
+          result.status === 403 ||
+          /not invited|access denied|forbidden|inactive|suspended/i.test(message);
+        if (unauthorized) {
+          setGate({ kind: "auth" });
+        } else if (forbidden) {
+          setGate({ kind: "forbidden", message });
+        } else {
+          setGate({ kind: "error", message });
+        }
       } else {
         setData(result.data);
-        setError(null);
+        setGate({ kind: "ok" });
         if (result.data.join?.providerMode === "zoom") prefetchZoomEmbeddedSdk();
       }
       setLoading(false);
@@ -115,7 +140,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [classId]);
+  }, [classId, authLoading]);
 
   React.useEffect(() => {
     if (roomPhase === "sdk") {
@@ -137,7 +162,25 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     return () => window.clearInterval(id);
   }, [roomPhase]);
 
-  if (loading) {
+  React.useEffect(() => {
+    if (gate.kind !== "auth") return;
+    let cancelled = false;
+    // Clear a stale JWT (middleware-valid / API-401) before Login so
+    // middleware does not bounce ?next=/join straight back into a loop.
+    void (async () => {
+      try {
+        await authFetch(routes.api.auth.logout, { method: "POST", body: "{}" });
+      } catch {
+        /* ignore — still send the user to Login with return path */
+      }
+      if (!cancelled) window.location.replace(loginHref);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gate.kind, loginHref]);
+
+  if (authLoading || loading || gate.kind === "auth") {
     return (
       <div
         className="classroom-shell relative overflow-hidden"
@@ -151,18 +194,40 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     );
   }
 
-  if (error || !data) {
+  if (gate.kind === "forbidden") {
     return (
       <div
         className="classroom-shell relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 text-center"
         style={{ backgroundColor: "#071018", color: "#fff" }}
       >
         <div className="relative z-10 max-w-md">
-          <BrandLogo variant="dark" href="/login" priority />
-          <h1 className="mt-8 font-display text-3xl font-semibold">Unable to join</h1>
-          <p className="mt-3 text-sm text-white/65">{error ?? "Class not available"}</p>
+          <BrandLogo variant="dark" href={leaveHref} priority />
+          <h1 className="mt-8 font-display text-3xl font-semibold">Access denied</h1>
+          <p className="mt-3 text-sm text-white/65">
+            {gate.message || "You are signed in, but you are not allowed to enter this class."}
+          </p>
           <Button asChild className="mt-8" variant="accent">
-            <Link href="/login">Sign in</Link>
+            <Link href={leaveHref}>Back to dashboard</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gate.kind === "error" || !data) {
+    return (
+      <div
+        className="classroom-shell relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 text-center"
+        style={{ backgroundColor: "#071018", color: "#fff" }}
+      >
+        <div className="relative z-10 max-w-md">
+          <BrandLogo variant="dark" href={leaveHref} priority />
+          <h1 className="mt-8 font-display text-3xl font-semibold">Unable to join</h1>
+          <p className="mt-3 text-sm text-white/65">
+            {gate.kind === "error" ? gate.message : "Class not available"}
+          </p>
+          <Button asChild className="mt-8" variant="accent">
+            <Link href={leaveHref}>Back to dashboard</Link>
           </Button>
         </div>
       </div>

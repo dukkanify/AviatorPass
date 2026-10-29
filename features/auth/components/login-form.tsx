@@ -15,6 +15,7 @@ import { loginSchema } from "@/utils/validation";
 import { sanitizeEmail } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
 import { routes } from "@/constants/routes";
+import { roleMayFollowReturnPath, sanitizeReturnPath } from "@/lib/security/safe-return-path";
 import { useAuth } from "@/providers/auth-provider";
 import type { UserProfile } from "@/types";
 
@@ -36,9 +37,18 @@ function LoginForm() {
   React.useEffect(() => {
     if (loginNavigationLocked || completingRef.current || pending) return;
     if (isLoading || !user) return;
+    // Preserve an active session when Login was opened with a safe return path
+    // (e.g. /login?next=/join/{classId}). Only clear the session for explicit
+    // account switching on bare /login.
+    const safe = sanitizeReturnPath(returnTo);
+    if (safe && roleMayFollowReturnPath(user.role, safe)) {
+      completingRef.current = true;
+      router.replace(safe);
+      return;
+    }
     setClearedPriorSession(true);
     void signOut();
-  }, [isLoading, user, signOut, pending]);
+  }, [isLoading, user, signOut, pending, returnTo, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

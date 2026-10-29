@@ -1163,7 +1163,7 @@ export function assertCallerMayReceiveInAppZoomSession(input: {
       (p) => p.userId === input.userId && (p.role === "participant" || p.role === "cohost"),
     );
     if (!isHost && !invited) {
-      throw new ClassValidationError("You are not invited to this class");
+      throw new ClassValidationError("You are not invited to this class", 403);
     }
     return { isHost: Boolean(isHost), liveClassId: live.id };
   }
