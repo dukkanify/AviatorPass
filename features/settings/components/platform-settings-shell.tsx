@@ -1882,9 +1882,10 @@ function PlatformSettingsShell() {
             <CardHeader>
               <CardTitle>Clear live meetings</CardTitle>
               <CardDescription>
-                Ends leftover live Zoom meetings on the platform host (and optional instructor
-                hosts). Use when classroom join hits Error 3000 from a stuck shared session. Does
-                not replace instructors reconnecting a personal Zoom account.
+                Lists live Zoom meetings on the platform host, then ends only known local ghosts
+                (cancelled / completed / long-past AviatorPass sessions). Never ends unknown Zoom
+                live IDs or in-window customer classes. To end a specific number, use an explicit
+                endMeetingNumbers request. Use when Error 3000 points at a stuck shared session.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1899,20 +1900,44 @@ function PlatformSettingsShell() {
                       ended: string[];
                       kept: string[];
                       blocked: string[];
+                      liveRemaining?: string[];
+                      liveListReadable?: boolean;
+                      liveListErrors?: Array<{
+                        host: string;
+                        status: number;
+                        error: string | null;
+                      }>;
                     }>("/api/admin/zoom/clear-live", {
                       method: "POST",
-                      body: JSON.stringify({ force: true }),
+                      // Inventory only — never mass-end. Explicit endMeetingNumbers or a
+                      // deliberate force ghosts call is required to terminate sessions.
+                      body: JSON.stringify({ force: false }),
                     });
                     setClearingLive(false);
                     if (!result.success || !result.data) {
                       toast.error(result.error ?? "Clear live failed");
                       return;
                     }
-                    const { ended, kept, blocked } = result.data;
+                    const {
+                      ended,
+                      kept,
+                      blocked,
+                      liveRemaining,
+                      liveListReadable,
+                      liveListErrors,
+                    } = result.data;
+                    if (liveListReadable === false) {
+                      const detail =
+                        liveListErrors?.[0]?.error?.slice(0, 160) ||
+                        "Zoom live list is not readable (often missing meeting:read:list_meetings on CEO S2S). Empty ended[] is not proof the host is free.";
+                      toast.error(`Live list unread · ${detail}`);
+                    }
                     toast.success(
-                      `Cleared ${ended.length} live meeting(s)` +
+                      `Live inventory · remaining ${(liveRemaining ?? []).length}` +
+                        (ended.length ? ` · ended ${ended.length}` : " · ended 0") +
                         (kept.length ? ` · kept ${kept.length}` : "") +
-                        (blocked.length ? ` · blocked ${blocked.length}` : ""),
+                        (blocked.length ? ` · blocked ${blocked.length}` : "") +
+                        (liveListReadable === false ? " · live list unread" : ""),
                     );
                   })();
                 }}
@@ -1922,7 +1947,7 @@ function PlatformSettingsShell() {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                {clearingLive ? "Clearing…" : "Clear live meetings now"}
+                {clearingLive ? "Checking…" : "Check live meetings (no end)"}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Requires `system.zoom`. Prefer clearing after instructors disconnect a shared

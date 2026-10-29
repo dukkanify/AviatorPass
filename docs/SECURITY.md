@@ -30,7 +30,7 @@ Browser clients use `authFetch` which attaches the CSRF header.
 
 - React escapes by default
 - `utils/sanitize.ts` for free-text
-- CSP report-only in `next.config.ts` (tighten to enforcing after report review)
+- CSP enforcing in `next.config.ts` (Meeting SDK: `frame-src`/`child-src` allow `source.zoom.us` + `*.zoom.us`; residual `unsafe-inline`/`unsafe-eval` for Zoom embed)
 - Parameterized SQL when using Postgres migrations (no string-concat queries)
 
 ## File security

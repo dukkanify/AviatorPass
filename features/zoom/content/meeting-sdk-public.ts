@@ -78,7 +78,7 @@ export const MEETING_SDK_DOC_SECTIONS: MeetingSdkDocSection[] = [
       "Create an isolated class (or Super Admin POST /api/admin/zoom/reviewer-classroom when platform S2S is configured) and enroll zoom.reviewer.student@aviatorpass.com.",
       "Host start: open https://www.aviatorpass.com/join/{classId}. Expect embedded Meeting SDK with HOST controls when join succeeds.",
       "Student join: separate session as zoom.reviewer.student@aviatorpass.com → same /join/{classId}. Expect participant join without host start URL.",
-      "Controls: Mute, Stop Video, Participants, Chat, Leave Class as provided by the embedded SDK.",
+      "Controls: Zoom Meeting SDK toolbar for mute/video/share/chat/participants; AviatorPass Leave Class ends the browser session only.",
       "End meeting: Leave Class on host and student. AviatorPass accounts remain.",
       "Do not authorize ceo@aviatorpass.com on the instructor Connect Zoom panel — that shared-platform row is unnecessary for centralized hosting.",
     ],

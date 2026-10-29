@@ -89,7 +89,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
     paragraphs: [
       "Both reviewer AviatorPass accounts must be active with complete profiles.",
       "Passwords: paste only into Zoom Marketplace → private Account credentials. Never put passwords on this page, GitHub, or public listing text.",
-      "Final readiness (28 October 2026 Asia/Dubai): classroom host/student embed verified on centralized S2S. Marketplace resubmission still blocked on portal Scopes Support confirmation + Meetings surface / Custom Form owner checks.",
+      "Final readiness (29 October 2026 Asia/Dubai): classroom host/student embed verified on centralized S2S (no personalZoomReady). Marketplace resubmission still blocked on portal Scopes “Select at least one scope” + Meetings surface / Custom Form owner checks + explicit Submit approval.",
     ],
     bullets: [
       "Exact login URL: https://www.aviatorpass.com/login",
@@ -110,7 +110,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "1. Open https://www.aviatorpass.com/login",
       "2. Sign in as zoom.reviewer.instructor@aviatorpass.com (password from Zoom private Account credentials).",
       "3. Open https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3",
-      "4. Enter the embedded classroom and start as host. Expect LIVE, HOST on the instructor tile, Mute / Stop Video / Participants / Chat / Share Screen / Leave Class.",
+      "4. Enter the embedded classroom and start as host. Expect LIVE, HOST on the instructor tile, Leave Class on the AviatorPass dock, and Zoom’s own mute/video/share/chat/participants toolbar once the Meeting SDK is live.",
       "5. Leave Class ends the browser session only; the AviatorPass account remains.",
     ],
   },
@@ -134,32 +134,31 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "AviatorPass does not claim that automated Cloud Agent runs have completed real two-way human audio/video validation. Treat live mic/camera confirmation as a reviewer manual check.",
     ],
     bullets: [
-      "Host expected: role 1 when ZAK is present; Mute / Stop Video / Share Screen / Leave Class visible.",
-      "Participant expected: role 0; no host start URL; can use mute/video controls appropriate to participant permissions.",
+      "Host expected: role 1 when ZAK is present; Leave Class on the AviatorPass dock; Zoom Meeting SDK toolbar for mute/video/share/chat/participants.",
+      "Participant expected: role 0; no host start URL; Zoom participant mute/video controls as permitted by the host.",
       "Troubleshooting Zoom error 3712: Meeting SDK Client ID and Secret mismatch or Embed disabled.",
-      "Troubleshooting Zoom error 3000: host Zoom user already in another meeting — Super Admin clear-live recovery ends live/ghost sessions without disconnecting CEO OAuth. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
+      "Troubleshooting Zoom error 3000: Meeting SDK reports the platform host already has another meeting in progress. Host join releases only THIS class meeting instance and retries once. With meeting:read:list_meetings:admin on CEO S2S, clear-live can list live meetings; it ends only known local ghosts or explicit meeting numbers — never unknown Zoom live IDs or in-window customer classes. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
       "Troubleshooting HTTP 409 oauth_not_connected: only when platform S2S credentials are missing and the instructor has not connected personal Zoom. With platform S2S configured, Connect Zoom is not required.",
     ],
   },
   {
     heading: "8. Expected results",
     paragraphs: [
-      "Verified on production as of 28 October 2026 Asia/Dubai unless noted. Overall Marketplace resubmission readiness: NOT READY.",
+      "Verified on production as of 29 October 2026 Asia/Dubai unless noted. Overall Marketplace resubmission readiness: NOT READY until owner portal actions + Submit approval.",
     ],
     bullets: [
       "Reviewer instructor and student AviatorPass logins: PASS.",
       "Meeting SDK credential pair (suffix VGTQ): PASS (credentialPairValid true).",
-      "Instructor OAuth Production Client ID suffix Z0xA separate from Meeting SDK VGTQ and S2S (uX3Q): PASS (credentialsMixed false).",
-      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS — do not disconnect; used as centralized live-class host for this release.",
+      "Instructor OAuth Production Client ID suffix Z0xA separate from Meeting SDK VGTQ and S2S (uX3Q): PASS (credentialsMixed false). Z0xA must not block Classroom delivery.",
+      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS — do not disconnect; used as centralized live-class host for this release. S2S includes meeting:read:list_meetings:admin (live list readable).",
       "Classroom Meeting SDK JWT path only (no user OAuth scopes in product): PASS.",
-      "Centralized platform S2S hosting for live classes: ENABLED in product (personal OAuth optional).",
-      "Isolated reviewer classroom create on ceo@aviatorpass.com without personal Connect Zoom: PASS (28 Oct 2026 Asia/Dubai).",
-      "Host in-app session (role 1, signature + ZAK): PASS. Student participant (role 0, signature, no ZAK): PASS. Student host attempt receives no ZAK: PASS.",
-      "Host UI start embedded Meeting SDK (LIVE + HOST controls): PASS. Student UI join same classroom (2 participants): PASS (28 Oct 2026 Asia/Dubai).",
+      "Centralized platform S2S hosting for live classes: ENABLED in product (personalZoomReady not required).",
+      "Isolated reviewer classroom create on ceo@aviatorpass.com without personal Connect Zoom: PASS.",
+      "Host UI start embedded Meeting SDK + student participant join (same class): PASS (29 Oct 2026 Asia/Dubai acceptance). Leave Class + student rejoin: PASS.",
       "Working classroom URL: https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3 (isolated reviewer class).",
-      "Real two-way audio/video between humans: NOT CLAIMED as passed.",
+      "Real two-way audio/video between humans on physical devices: NOT TESTED / NOT CLAIMED as passed.",
       "Student denied instructor routes: PASS (307 → /access-denied).",
-      "Customer meetings / CEO credentials: must remain unchanged; instructors never receive CEO secrets.",
+      "Customer meetings / CEO credentials: must remain unchanged; instructors never receive CEO secrets. clear-live does not mass-end unknown Zoom live IDs.",
       "Licensing: one licensed Zoom user typically hosts one concurrent meeting — stagger schedules or add licensed hosts on the S2S account for simultaneous classes.",
     ],
   },
@@ -252,7 +251,8 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
     id: 6,
     title: "Consolidated review documentation",
     concern: "Need one English document covering architecture, scopes, workflows, limits, support.",
-    current: "This page and docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md (live on production).",
+    current:
+      "This page and docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md (live on production).",
     correction: "Ship consolidated Classroom-focused functional review package.",
     evidence: "Public URL https://www.aviatorpass.com/integrations/zoom-classroom-review",
     status: "resolved_in_repo" as const,
@@ -267,7 +267,7 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
  */
 export const CLASSROOM_REVIEW_ZOOM_PASTE_TEXT = `AviatorPass Classroom for Zoom — Marketplace reviewer response
 Updated: 28 October 2026 (Asia/Dubai)
-READINESS: NOT READY for Marketplace resubmission until owner portal/scope actions are complete (Support confirmation, Meetings surface, Custom Form). Isolated /join host+student in-app session verified on centralized hosting.
+READINESS: NOT READY for Marketplace resubmission until owner portal/scope actions are complete (Support confirmation on “Select at least one scope”, Meetings surface off, Custom Form removed) and owner Submit approval. Isolated /join host+student in-app session verified on centralized S2S hosting (29 Oct 2026 Asia/Dubai). Real two-way A/V on physical devices: NOT TESTED.
 
 APPLICATION
 AviatorPass Classroom for Zoom embeds a scheduled AviatorPass live class in the browser through the Zoom Meeting SDK.
@@ -326,7 +326,7 @@ INSTRUCTOR WORKFLOW
 1. https://www.aviatorpass.com/login → zoom.reviewer.instructor@aviatorpass.com
 2. Open https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3
 3. Start as host in the embedded Meeting SDK
-4. Expect LIVE + HOST + Mute / Stop Video / Participants / Leave Class
+4. Expect LIVE + HOST + Leave Class (AviatorPass) + Zoom SDK mute/video/share/chat/participants
 5. Leave Class ends browser session only
 
 STUDENT WORKFLOW
@@ -358,7 +358,7 @@ EXPECTED RESULTS (verified unless noted) — overall NOT READY
 
 TROUBLESHOOTING
 - 3712: Meeting SDK Client ID/Secret mismatch or Embed disabled
-- 3000: host already in another meeting (Super Admin clear-live for ghosts; does not disconnect CEO)
+- 3000: host already in another meeting (release this class instance + retry; clear-live ghosts only; does not disconnect CEO; empty live list ≠ free when meeting:read missing)
 - 409 oauth_not_connected: only when platform S2S is missing and personal Zoom is not connected
 
 OWNER MARKETPLACE ACTIONS STILL REQUIRED (not applied by code deploy)

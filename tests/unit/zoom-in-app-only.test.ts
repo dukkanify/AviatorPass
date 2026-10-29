@@ -144,6 +144,16 @@ describe("Zoom stays inside AviatorPass", () => {
     ).toBe("Instructor: Khalid Al Rashid\nStudents: Omar Khalil");
   });
 
+  it("refuses to assign a busy shared Zoom host (Error 3000 prevention)", () => {
+    const zoomService = readFileSync(
+      resolve(process.cwd(), "services/classes/zoom-service.ts"),
+      "utf8",
+    );
+    expect(zoomService).toMatch(/Never silently assign a busy shared host/);
+    expect(zoomService).toMatch(/already has another AviatorPass class in this time window/);
+    expect(zoomService).toMatch(/liveListReadable/);
+  });
+
   it("does not open Zoom in a new tab from join surfaces", () => {
     for (const rel of JOIN_SURFACES) {
       const src = readFileSync(resolve(process.cwd(), rel), "utf8");
@@ -159,14 +169,16 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
-    expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
-    expect(room).toMatch(/Host JWT without ZAK rejected; joining as participant/);
-    expect(room).toMatch(/Host already in another meeting; joining as participant/);
-    expect(room).toMatch(/staleHostToken && active\.hostSignature/);
+    expect(room).toMatch(/release-host-lock/);
+    expect(room).toMatch(/Error 3000 from Meeting SDK/);
+    expect(room).toMatch(/no participant fallback/);
+    expect(room).not.toMatch(/joining as participant/);
     expect(
       readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
     ).toMatch(/zoomHostBlockedByAnotherLiveMeeting/);
-    expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/release-host-lock/route.ts"), "utf8"),
+    ).toMatch(/releaseHostLockForLiveClass/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {

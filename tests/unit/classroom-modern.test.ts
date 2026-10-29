@@ -32,12 +32,19 @@ describe("modern classroom join page", () => {
     expect(room).toMatch(/Leave Class/);
     expect(room).toMatch(/Open classroom again/);
     expect(room).toMatch(/setSession\(null\)/);
-    expect(room).toMatch(/Share Screen/);
     expect(room).toMatch(/classroom-rail/);
     expect(room).toMatch(/classroom-dock-cluster/);
+    expect(room).toMatch(/is-live-sdk/);
+    expect(room).toMatch(/!liveZoom \? \(/);
     expect(room).toMatch(/displayName/);
     expect(room).toMatch(/prefetchZoomEmbeddedSdk/);
     expect(room).toMatch(/startLocalMedia\(\)/);
+    expect(room).not.toMatch(/Share Screen/);
+    expect(room).not.toMatch(/aria-label="Chat"/);
+    expect(room).not.toMatch(/aria-label="More"/);
+    expect(room).not.toMatch(/aria-label="Share Screen"/);
+    // Side rail may label the roster; dock must not fake a Participants button.
+    expect(room).not.toMatch(/classroom-dock-btn"[\s\S]*?aria-label="Participants"/);
     expect(room).not.toContain("Passcode ${");
     expect(room).not.toContain("from-black/80");
     expect(room).not.toContain("bottom-24");
@@ -49,20 +56,23 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/\.classroom-footer/);
     expect(css).toMatch(/\.classroom-preview-fallback/);
     expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
+    expect(css).toMatch(/\.classroom-dock\.is-live-sdk/);
     expect(css).toMatch(/position:\s*sticky/);
     expect(css).toMatch(/safe-area-inset-bottom/);
     expect(css).toMatch(/overflow-x:\s*clip/);
   });
 
-  it("does not hard-code Share Screen as always active green", () => {
+  it("keeps preview A/V only — Zoom owns share/chat/participants after join", () => {
     const room = readFileSync(
       resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
       "utf8",
     );
-    expect(room).not.toMatch(/data-share="true"/);
-    expect(room).toMatch(/data-share=\{shareHint/);
+    expect(room).not.toMatch(/data-share=/);
+    expect(room).not.toMatch(/shareHint/);
     expect(room).toMatch(/Camera preview only/);
     expect(room).toMatch(/railPeople/);
+    expect(room).toMatch(/toggleMic/);
+    expect(room).toMatch(/toggleCamera/);
   });
 
   it("preconnects the Zoom CDN on the join route", () => {

@@ -4,18 +4,7 @@ import "@/styles/classroom.css";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  Ellipsis,
-  MessageSquare,
-  Mic,
-  MicOff,
-  MonitorUp,
-  PhoneOff,
-  Shield,
-  Users,
-  Video,
-  VideoOff,
-} from "lucide-react";
+import { Mic, MicOff, PhoneOff, Shield, Video, VideoOff } from "lucide-react";
 
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
@@ -36,6 +25,16 @@ function zoomFailureText(error: unknown): string {
       .join(" ");
   }
   return String(error ?? "");
+}
+
+function zoomErrorCodeOf(error: unknown): number | null {
+  if (error && typeof error === "object" && "errorCode" in error) {
+    const code = Number((error as { errorCode?: unknown }).errorCode);
+    return Number.isFinite(code) ? code : null;
+  }
+  const text = zoomFailureText(error);
+  const match = text.match(/\b(3000|3712|200|3099)\b/);
+  return match ? Number(match[1]) : null;
 }
 
 function zoomStageDialogText(root: HTMLElement | null): string {
@@ -416,7 +415,8 @@ function InAppZoomRoom({
   const [notice, setNotice] = React.useState("Preparing the AviatorPass classroom");
   const [camOn, setCamOn] = React.useState(true);
   const [micOn, setMicOn] = React.useState(true);
-  const [shareHint, setShareHint] = React.useState(false);
+  /** Automatic host recovery attempts (ZAK refresh / Error 3000 release). Cap avoids loops. */
+  const hostRecoveryRef = React.useRef(0);
 
   React.useEffect(() => {
     onPhaseChange?.(phase);
@@ -515,7 +515,7 @@ function InAppZoomRoom({
     async function enter() {
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
-          let client = await openZoomEmbeddedClient();
+          const client = await openZoomEmbeddedClient();
           if (cancelled) {
             await releaseZoomEmbeddedClient(client);
             return;
@@ -543,69 +543,89 @@ function InAppZoomRoom({
             userEmail: active.userEmail,
             tk: "",
           };
+          const hostJoinPayload = {
+            ...participantJoin,
+            signature: active.hostSignature || active.signature,
+            zak: active.zak || undefined,
+          };
           try {
-            await joinEmbeddedMeeting(
-              client,
-              {
-                ...participantJoin,
-                signature: active.hostSignature || active.signature,
-                zak: active.zak || undefined,
-              },
-              stage,
-            );
-          } catch (hostError) {
-            if (!active.zak && !active.hostSignature) throw hostError;
-            const detail = zoomFailureText(hostError);
-            // Signature failures are credential/JWT issues — retrying as participant
-            // with the same Meeting SDK secret will fail the same way.
-            if (/3712|signature is invalid/i.test(detail)) throw hostError;
-            const staleHostToken = /(?:^|\D)200(?:\D|$)|start meeting via tokens|\bzak\b/i.test(
-              detail,
-            );
-            const hostBusy = /3000|other meetings in progress/i.test(detail);
-            if (!staleHostToken && !hostBusy) throw hostError;
-
-            const remount = async () => {
-              await releaseZoomEmbeddedClient(client);
-              stage.replaceChildren();
-              client = await openZoomEmbeddedClient();
-              if (cancelled) {
-                await releaseZoomEmbeddedClient(client);
-                return false;
-              }
-              sdkRef.current = client;
-              await initClient(client);
-              return true;
-            };
-
-            // 1) start_url ZAK rejected → retry host JWT (role 1) without zak
-            if (staleHostToken && active.hostSignature) {
-              console.warn("[zoom] Host ZAK rejected; joining with General App JWT only", detail);
-              if (!(await remount())) return;
-              try {
-                await joinEmbeddedMeeting(
-                  client,
-                  { ...participantJoin, signature: active.hostSignature },
-                  stage,
-                );
-              } catch (hostOnlyError) {
-                const hostOnlyDetail = zoomFailureText(hostOnlyError);
-                if (/3712|signature is invalid/i.test(hostOnlyDetail)) throw hostOnlyError;
-                // Role-1 without a Zoom-accepted ZAK still returns 200 on this account.
-                // Fall through to participant JWT so the instructor can enter the room.
-                console.warn(
-                  "[zoom] Host JWT without ZAK rejected; joining as participant",
-                  hostOnlyDetail,
-                );
-                if (!(await remount())) return;
-                await joinEmbeddedMeeting(client, participantJoin, stage);
-              }
+            if (isHost || active.hostSignature || active.zak) {
+              await joinEmbeddedMeeting(client, hostJoinPayload, stage);
             } else {
-              // 2) Host already in another meeting → participant JWT only
-              console.warn("[zoom] Host already in another meeting; joining as participant");
-              if (!(await remount())) return;
               await joinEmbeddedMeeting(client, participantJoin, stage);
             }
+          } catch (hostError) {
+            const detail = zoomFailureText(hostError);
+            const code = zoomErrorCodeOf(hostError);
+            console.error("[zoom] Meeting SDK join error", { code, detail });
+
+            // Signature failures are credential/JWT issues — do not demote host.
+            if (code === 3712 || /3712|signature is invalid/i.test(detail)) throw hostError;
+
+            const hostBusy = code === 3000 || /3000|other meetings in progress/i.test(detail);
+            const staleHostToken =
+              code === 200 || /(?:^|\D)200(?:\D|$)|start meeting via tokens|\bzak\b/i.test(detail);
+
+            // Assigned hosts must stay hosts for Marketplace proof. Never fall back
+            // to participant JWT — that hid Error 3000 and broke HOST verification.
+            if (isHost || active.zak || active.hostSignature) {
+              if (hostBusy && liveClassId && hostRecoveryRef.current < 2) {
+                hostRecoveryRef.current += 1;
+                console.warn(
+                  "[zoom] Error 3000 from Meeting SDK — releasing this class meeting instance only",
+                  detail,
+                );
+                const release = await authFetch<{
+                  released?: boolean;
+                  liveListReadable?: boolean;
+                  liveListErrors?: Array<{ host: string; status: number; error: string | null }>;
+                  otherLiveMeetings?: string[];
+                  rootCauseHint?: string;
+                  meetingNumber?: string | null;
+                }>("/api/zoom/release-host-lock", {
+                  method: "POST",
+                  body: JSON.stringify({ liveClassId, meetingNumber: active.meetingNumber }),
+                });
+                console.warn("[zoom] release-host-lock", {
+                  success: release.success,
+                  released: release.data?.released,
+                  liveListReadable: release.data?.liveListReadable,
+                  otherLiveCount: release.data?.otherLiveMeetings?.length ?? 0,
+                  hint: release.data?.rootCauseHint,
+                  errors: release.data?.liveListErrors,
+                });
+                setNotice(
+                  release.data?.liveListReadable === false
+                    ? "Zoom Error 3000 — host concurrency blocked. Zoom live lists are not readable with the current Server-to-Server token (often missing meeting:read), so empty clear-live is not proof the host is free. Retrying this classroom meeting only."
+                    : "Zoom Error 3000 — ended this classroom meeting instance and retrying as host.",
+                );
+                setSession(null);
+                setPhase("loading");
+                setAttempt((value) => value + 1);
+                return;
+              }
+              if (hostBusy) {
+                const evidence = `Zoom Error 3000 — Already has other meetings in progress (SDK code ${code ?? 3000}).`;
+                console.error("[zoom]", evidence, detail);
+                throw new Error(
+                  `${evidence} AviatorPass ended only this classroom meeting on the first retry. If it persists, another live session is holding the platform Zoom host (ceo@aviatorpass.com), or Server-to-Server cannot list live meetings (meeting:read). Leave other Zoom clients for that host; do not end customer meetings from here.`,
+                );
+              }
+              if (staleHostToken && hostRecoveryRef.current < 2) {
+                hostRecoveryRef.current += 1;
+                console.warn(
+                  "[zoom] Host ZAK rejected — refreshing host session (no participant fallback)",
+                  detail,
+                );
+                setNotice("Host Zoom token was rejected. Opening the classroom again as host.");
+                setSession(null);
+                setPhase("loading");
+                setAttempt((value) => value + 1);
+                return;
+              }
+              throw hostError;
+            }
+            throw hostError;
           }
           if (cancelled) return;
           stopLocalMedia();
@@ -658,11 +678,11 @@ function InAppZoomRoom({
               /3099|registration/i.test(detail)
                 ? "This meeting still asks for registration. Open the classroom again."
                 : /3000|other meetings in progress/i.test(detail)
-                  ? "Zoom error 3000 — this Zoom host account is already inside another meeting. Leave that meeting in the Zoom app or web client, then open this classroom again. AviatorPass does not end your other Zoom meetings automatically."
+                  ? "Zoom Error 3000 — Already has other meetings in progress. AviatorPass released only this classroom meeting once and kept you as host. If it persists, another live Zoom session is holding the platform host, or Server-to-Server cannot list live meetings (meeting:read). Leave other Zoom clients for that host; customer meetings are not ended here."
                   : /3712|signature is invalid/i.test(detail)
                     ? "Zoom error 3712 — Meeting SDK signature rejected. Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*)."
                     : /200|start meeting via tokens|\bzak\b/i.test(detail)
-                      ? "Zoom error 200 — host token (ZAK) was rejected. Reconnect your personal Zoom account on the instructor profile, then open the classroom again."
+                      ? "Zoom error 200 — host token (ZAK) was rejected. Open the classroom again so AviatorPass can refresh the host session. Do not connect ceo@aviatorpass.com on the instructor profile."
                       : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).`,
             );
           }
@@ -686,7 +706,7 @@ function InAppZoomRoom({
       void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
     };
-  }, [attempt, session, startLocalMedia, stopLocalMedia]);
+  }, [attempt, isHost, liveClassId, session, startLocalMedia, stopLocalMedia]);
 
   function toggleCamera() {
     const next = !camOn;
@@ -825,61 +845,37 @@ function InAppZoomRoom({
           </div>
         ) : null}
 
-        <div className="classroom-dock">
-          <div className="classroom-dock-cluster">
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!micOn || undefined}
-              aria-label={micOn ? "Mute" : "Unmute"}
-              onClick={toggleMic}
-              disabled={liveZoom}
-            >
-              {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-              <span>{micOn ? "Mute" : "Unmute"}</span>
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-off={!camOn || undefined}
-              aria-label={camOn ? "Stop Video" : "Start Video"}
-              onClick={toggleCamera}
-              disabled={liveZoom}
-            >
-              {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-              <span>{camOn ? "Stop Video" : "Start Video"}</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="Participants">
-              <Users className="size-5" />
-              <span>Participants</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="Chat">
-              <MessageSquare className="size-5" />
-              <span>Chat</span>
-            </button>
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-share={shareHint || undefined}
-              data-active={shareHint || undefined}
-              aria-label="Share Screen"
-              onClick={() => setShareHint((value) => !value)}
-              title={
-                liveZoom
-                  ? "Use Zoom’s Share control inside the meeting when available"
-                  : "Share Screen is available after you join the live meeting"
-              }
-            >
-              <MonitorUp className="size-5" />
-              <span>Share Screen</span>
-            </button>
-            <button type="button" className="classroom-dock-btn" aria-label="More">
-              <Ellipsis className="size-5" />
-              <span>More</span>
-            </button>
-          </div>
+        <div className={cn("classroom-dock", liveZoom && "is-live-sdk")}>
+          {/*
+            When Meeting SDK is live, Zoom’s toolbar owns mute/video/share/chat/participants.
+            Preview dock only toggles local camera/mic before join — no fake Zoom duplicates.
+          */}
+          {!liveZoom ? (
+            <div className="classroom-dock-cluster">
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!micOn || undefined}
+                aria-label={micOn ? "Mute" : "Unmute"}
+                onClick={toggleMic}
+              >
+                {micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+                <span>{micOn ? "Mute" : "Unmute"}</span>
+              </button>
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-off={!camOn || undefined}
+                aria-label={camOn ? "Stop Video" : "Start Video"}
+                onClick={toggleCamera}
+              >
+                {camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+                <span>{camOn ? "Stop Video" : "Start Video"}</span>
+              </button>
+            </div>
+          ) : null}
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="classroom-dock-actions">
             {phase === "error" ? (
               <button
                 type="button"

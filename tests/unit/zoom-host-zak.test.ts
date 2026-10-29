@@ -608,6 +608,51 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(ended).toEqual([]);
   });
 
+  it("never auto-ends unknown Zoom live meetings without explicit endMeetingNumbers", async () => {
+    s2sEnv();
+    const unknownLive = "89346388072";
+    const ended: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/users/") && url.includes("/meetings") && method === "GET") {
+        return new Response(JSON.stringify({ meetings: [{ id: Number(unknownLive) }] }), {
+          status: 200,
+        });
+      }
+      if (method === "PUT" && url.includes("/meetings/") && url.includes("/status")) {
+        ended.push(url);
+        return new Response(null, { status: 204 });
+      }
+      if (method === "DELETE" && url.includes("/meetings/")) {
+        ended.push(`DELETE:${url}`);
+        return new Response(null, { status: 204 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const inventory = await clearZoomHostLiveMeetings({ force: false });
+    expect(inventory.ended).toEqual([]);
+    expect(inventory.liveRemaining).toContain(unknownLive);
+    expect(ended).toEqual([]);
+
+    const forced = await clearZoomHostLiveMeetings({ force: true });
+    expect(forced.ended).not.toContain(unknownLive);
+    expect(forced.liveRemaining).toContain(unknownLive);
+    expect(ended.some((u) => u.includes(unknownLive))).toBe(false);
+
+    const explicit = await clearZoomHostLiveMeetings({
+      endMeetingNumbers: [unknownLive],
+    });
+    expect(explicit.ended).toContain(unknownLive);
+    expect(ended.some((u) => u.includes(unknownLive))).toBe(true);
+  });
+
   it("force clear-live ends cancelled local ghosts but not confirmed upcoming bookings", async () => {
     s2sEnv();
     const ghostId = "99988877766";
@@ -719,11 +764,41 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     expect(ended.some((u) => u.includes(customerId))).toBe(false);
     expect(result.deleted ?? []).not.toContain(ghostId);
     expect(result.liveRemaining).toEqual([]);
+    expect(result.liveListReadable).toBe(true);
+    expect(result.liveListErrors).toEqual([]);
 
     writeBookingsDb((db) => {
       db.bookings = db.bookings.filter(
         (b) => b.id !== "bk-ghost-clear" && b.id !== "bk-customer-keep",
       );
     });
+  });
+
+  it("does not treat unread Zoom live lists as empty (meeting:read failures)", async () => {
+    s2sEnv();
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/users/") && url.includes("/meetings") && method === "GET") {
+        return new Response(
+          JSON.stringify({ code: 4711, message: "Invalid access token scopes." }),
+          {
+            status: 400,
+          },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await clearZoomHostLiveMeetings({ force: false });
+    expect(result.liveRemaining).toEqual([]);
+    expect(result.liveListReadable).toBe(false);
+    expect(result.liveListErrors.length).toBeGreaterThan(0);
+    expect(result.liveListErrors[0]?.status).toBe(400);
   });
 });
