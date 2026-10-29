@@ -45,6 +45,24 @@ describe("join session gate", () => {
     expect(join).not.toMatch(/<Link href="\/login">Sign in<\/Link>/);
   });
 
+  it("never unmounts Zoom behind a skeleton after the first join payload", () => {
+    const join = src("features/classes/components/join-class-client.tsx");
+    expect(join).toMatch(/hasJoinPayloadRef/);
+    expect(join).toMatch(/liveSdkRef/);
+    expect(join).toMatch(/\(authLoading \|\| loading\) && !data/);
+    expect(join).toMatch(/keeping room/);
+  });
+
+  it("joins Meeting SDK once per session fingerprint, not per object identity", () => {
+    const room = src("features/zoom/components/in-app-zoom-room.tsx");
+    expect(room).toMatch(/sessionJoinKey/);
+    expect(room).toMatch(/joinedKeyRef/);
+    expect(room).toMatch(/joinedKeyRef\.current === sessionJoinKey/);
+    expect(room).not.toMatch(
+      /}, \[attempt, isHost, liveClassId, session, startLocalMedia, stopLocalMedia\]\);/,
+    );
+  });
+
   it("production session cookies share Domain=.aviatorpass.com", () => {
     const cookies = src("lib/security/cookies.ts");
     expect(cookies).toMatch(/\.aviatorpass\.com/);

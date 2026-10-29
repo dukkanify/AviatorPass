@@ -417,8 +417,28 @@ function InAppZoomRoom({
   const [micOn, setMicOn] = React.useState(true);
   /** Automatic host recovery attempts (ZAK refresh / Error 3000 release). Cap avoids loops. */
   const hostRecoveryRef = React.useRef(0);
+  /** Last Meeting SDK join fingerprint that successfully reached phase=sdk. */
+  const joinedKeyRef = React.useRef<string | null>(null);
+  const sessionRef = React.useRef<InAppSession | null>(null);
+  sessionRef.current = session;
+
+  // Fingerprint identity — not object reference — so boot's setSession(...) does
+  // not tear down a live client when the payload is unchanged.
+  const sessionJoinKey = session
+    ? [
+        session.mode,
+        session.meetingNumber,
+        session.signature ?? "",
+        session.hostSignature ?? "",
+        session.zak ?? "",
+        String(attempt),
+      ].join("|")
+    : null;
 
   React.useEffect(() => {
+    // Keep shell "In the meeting" while Zoom is already live; only push
+    // Connecting before the first successful join (or after a real leave/error).
+    if (phase === "loading" && joinedKeyRef.current) return;
     onPhaseChange?.(phase);
   }, [phase, onPhaseChange]);
 
@@ -506,13 +526,24 @@ function InAppZoomRoom({
   }, [attempt, isHost, joinUrl, liveClassId, meetingNumber, password, providerMode, startUrl]);
 
   React.useEffect(() => {
-    if (!session) return;
-    const active = session;
+    if (!sessionJoinKey || !sessionRef.current) return;
+    const active = sessionRef.current;
     let cancelled = false;
     let resizeObserver: ResizeObserver | null = null;
     let mutationObserver: MutationObserver | null = null;
 
     async function enter() {
+      // Same meeting+signature already joined — do not leave/init/join again.
+      if (
+        joinedKeyRef.current === sessionJoinKey &&
+        sdkRef.current &&
+        active.mode === "sdk" &&
+        active.signature
+      ) {
+        setPhase("sdk");
+        return;
+      }
+
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
           const client = await openZoomEmbeddedClient();
@@ -599,6 +630,7 @@ function InAppZoomRoom({
                     ? "Zoom Error 3000 — host concurrency blocked. Zoom live lists are not readable with the current Server-to-Server token (often missing meeting:read), so empty clear-live is not proof the host is free. Retrying this classroom meeting only."
                     : "Zoom Error 3000 — ended this classroom meeting instance and retrying as host.",
                 );
+                joinedKeyRef.current = null;
                 setSession(null);
                 setPhase("loading");
                 setAttempt((value) => value + 1);
@@ -618,6 +650,7 @@ function InAppZoomRoom({
                   detail,
                 );
                 setNotice("Host Zoom token was rejected. Opening the classroom again as host.");
+                joinedKeyRef.current = null;
                 setSession(null);
                 setPhase("loading");
                 setAttempt((value) => value + 1);
@@ -629,6 +662,7 @@ function InAppZoomRoom({
           }
           if (cancelled) return;
           stopLocalMedia();
+          joinedKeyRef.current = sessionJoinKey;
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
           console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
@@ -667,6 +701,7 @@ function InAppZoomRoom({
           console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
           const failedClient = sdkRef.current;
           sdkRef.current = null;
+          joinedKeyRef.current = null;
           await releaseZoomEmbeddedClient(failedClient);
           if (stageRef.current) stageRef.current.replaceChildren();
           setPhase("error");
@@ -701,12 +736,15 @@ function InAppZoomRoom({
       cancelled = true;
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
+      // Unmount or join-key change: leave once. Same-key identity is handled by
+      // sessionJoinKey (effect does not re-run) + joinedKeyRef early return.
       const client = sdkRef.current;
       sdkRef.current = null;
+      joinedKeyRef.current = null;
       void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
     };
-  }, [attempt, isHost, liveClassId, session, startLocalMedia, stopLocalMedia]);
+  }, [sessionJoinKey, isHost, liveClassId, startLocalMedia, stopLocalMedia]);
 
   function toggleCamera() {
     const next = !camOn;
@@ -725,7 +763,9 @@ function InAppZoomRoom({
   }
 
   async function leaveClassroom() {
-    await sdkRef.current?.leave?.().catch(() => undefined);
+    joinedKeyRef.current = null;
+    sdkRef.current = null;
+    await releaseZoomEmbeddedClient();
     stopLocalMedia();
     if (onLeave) {
       onLeave();
@@ -882,6 +922,7 @@ function InAppZoomRoom({
                 className="classroom-dock-btn"
                 data-reconnect="true"
                 onClick={() => {
+                  joinedKeyRef.current = null;
                   setNotice("Opening the classroom again");
                   setPhase("loading");
                   setSession(null);
