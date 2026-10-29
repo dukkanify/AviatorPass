@@ -142,30 +142,31 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
           setGate({ kind: "error", message });
         }
       } else {
+        const next = result.data;
         setData((prev) => {
           // While Zoom is live, freeze join identity (URLs/password) so parent
           // re-renders / soft refreshes cannot change props and re-trigger join.
           if (
             prev?.join &&
-            result.data.join &&
+            next.join &&
             liveSdkRef.current &&
-            prev.join.zoomMeetingId === result.data.join.zoomMeetingId
+            prev.join.zoomMeetingId === next.join.zoomMeetingId
           ) {
             return {
-              ...result.data,
+              ...next,
               join: {
-                ...result.data.join,
+                ...next.join,
                 joinUrl: prev.join.joinUrl,
                 startUrl: prev.join.startUrl,
                 password: prev.join.password,
               },
             };
           }
-          return result.data;
+          return next;
         });
         hasJoinPayloadRef.current = true;
         setGate({ kind: "ok" });
-        if (result.data.join?.providerMode === "zoom") prefetchZoomEmbeddedSdk();
+        if (next.join?.providerMode === "zoom") prefetchZoomEmbeddedSdk();
       }
       setLoading(false);
     }
