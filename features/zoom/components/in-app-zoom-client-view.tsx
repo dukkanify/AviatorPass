@@ -211,9 +211,10 @@ function InAppZoomClientView({
               ? `${window.location.origin}${leaveHref}`
               : leaveHref;
 
-        // Client View init/join can hang without a callback on some WebViews —
-        // bound each step so the lobby surfaces a retry instead of spinning.
-        const withTimeout = <T,>(promise: Promise<T>, label: string, ms = 45000) =>
+        // Init can hang without #zmmtg-root — bound it. join() paints Zoom's own
+        // preview/Join screen and resolves only after the participant enters;
+        // do not race-fail that interactive step.
+        const withTimeout = <T,>(promise: Promise<T>, label: string, ms: number) =>
           Promise.race([
             promise,
             new Promise<T>((_, reject) =>
@@ -221,7 +222,7 @@ function InAppZoomClientView({
             ),
           ]);
 
-        await withTimeout(initZoomClientViewMeeting(mtg, { leaveUrl }), "Client View init");
+        await withTimeout(initZoomClientViewMeeting(mtg, { leaveUrl }), "Client View init", 30000);
         if (cancelled) return;
 
         const joinPayload = {
@@ -234,7 +235,7 @@ function InAppZoomClientView({
           ...(active.zak ? { zak: active.zak } : {}),
         };
 
-        await withTimeout(joinZoomClientViewMeeting(mtg, joinPayload), "Client View join");
+        await joinZoomClientViewMeeting(mtg, joinPayload);
         if (cancelled) return;
 
         joinedKeyRef.current = sessionJoinKey;
