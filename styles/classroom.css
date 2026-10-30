@@ -1238,3 +1238,105 @@ body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
     overflow-x: clip;
   }
 }
+
+/* —— Mobile Client View lobby (ZoomMtg full-page after join) —— */
+.classroom-client-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.classroom-client-lobby {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: min(52dvh, 28rem);
+  padding: 0.35rem;
+}
+
+.classroom-client-lobby-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 32rem;
+  margin: auto 0;
+  padding: 1.15rem 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 1.15rem;
+  border: 1px solid var(--ap-line);
+  background: linear-gradient(180deg, rgba(18, 35, 52, 0.98), rgba(7, 16, 24, 0.96));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+
+.classroom-client-eyebrow {
+  margin: 0;
+  color: var(--ap-gold-light);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.classroom-client-lobby-card h2 {
+  margin: 0;
+  font-family: var(--font-display, "Exo 2", sans-serif);
+  font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.classroom-client-meta {
+  margin: 0;
+  color: var(--ap-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.classroom-client-copy {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.classroom-client-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.classroom-client-actions .classroom-dock-btn {
+  width: 100%;
+  min-height: 2.85rem;
+}
+
+.classroom-client-footnote {
+  margin: 0.15rem 0 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.classroom-page[data-sdk-view="client"][data-live="true"] {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.classroom-page[data-sdk-view="client"] .classroom-client-view:not(.is-live) {
+  min-height: min(58dvh, 32rem);
+}
+
+@media (min-width: 1025px) {
+  /* Desktop keeps Component View; Client View lobby unused unless ?sdkView=client */
+  .classroom-client-lobby-card {
+    max-width: 28rem;
+  }
+}

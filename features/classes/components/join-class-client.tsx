@@ -13,12 +13,28 @@ import { authFetch } from "@/features/auth/services/auth-api";
 import { useAuth } from "@/providers/auth-provider";
 import { classFetch } from "@/features/classes/lib/api";
 import { prefetchZoomEmbeddedSdk } from "@/features/zoom/lib/load-embedded-sdk";
+import { prefetchZoomClientViewSdk } from "@/features/zoom/lib/load-client-view-sdk";
+import {
+  resolveClassroomSdkView,
+  type ClassroomSdkView,
+} from "@/features/zoom/lib/classroom-view-mode";
 import { MeetingCountdown } from "@/features/zoom/components/meeting-countdown";
 import type { LiveClassListItem } from "@/types/classes";
 import { cn } from "@/lib/utils";
 
 const InAppZoomRoom = dynamic(
   () => import("@/features/zoom/components/in-app-zoom-room").then((mod) => mod.InAppZoomRoom),
+  {
+    ssr: false,
+    loading: () => <div className="classroom-stage-skeleton" aria-hidden />,
+  },
+);
+
+const InAppZoomClientView = dynamic(
+  () =>
+    import("@/features/zoom/components/in-app-zoom-client-view").then(
+      (mod) => mod.InAppZoomClientView,
+    ),
   {
     ssr: false,
     loading: () => <div className="classroom-stage-skeleton" aria-hidden />,
@@ -101,6 +117,14 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
   const hasJoinPayloadRef = React.useRef(false);
   const liveSdkRef = React.useRef(false);
   const [elapsedMs, setElapsedMs] = React.useState(0);
+  const [sdkView, setSdkView] = React.useState<ClassroomSdkView>("component");
+
+  React.useEffect(() => {
+    const apply = () => setSdkView(resolveClassroomSdkView());
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
 
   React.useEffect(() => {
     // Wait for AuthProvider to finish — never bounce to Login while session
@@ -169,7 +193,10 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         });
         hasJoinPayloadRef.current = true;
         setGate({ kind: "ok" });
-        if (next.join?.providerMode === "zoom") prefetchZoomEmbeddedSdk();
+        if (next.join?.providerMode === "zoom") {
+          if (resolveClassroomSdkView() === "client") prefetchZoomClientViewSdk();
+          else prefetchZoomEmbeddedSdk();
+        }
       }
       setLoading(false);
     }
@@ -351,74 +378,105 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         color: "#fff",
       }}
     >
-      <div className="classroom-page relative z-10" data-live={roomPhase === "sdk" || undefined}>
-        <header className="classroom-topbar">
-          <BrandLogo variant="dark" href="/" priority />
-          <div className="classroom-topbar-user">
-            <div className="classroom-topbar-avatar" aria-hidden>
-              {initialsOf(displayName)}
-            </div>
-            <div className="classroom-topbar-meta">
-              <strong>{displayName}</strong>
-              <span>{data.isHost ? "Instructor" : "Student"}</span>
-            </div>
-          </div>
-        </header>
+      <div
+        className="classroom-page relative z-10"
+        data-live={roomPhase === "sdk" || undefined}
+        data-sdk-view={sdkView}
+      >
+        {!(sdkView === "client" && roomPhase === "sdk") ? (
+          <>
+            <header className="classroom-topbar">
+              <BrandLogo variant="dark" href="/" priority />
+              <div className="classroom-topbar-user">
+                <div className="classroom-topbar-avatar" aria-hidden>
+                  {initialsOf(displayName)}
+                </div>
+                <div className="classroom-topbar-meta">
+                  <strong>{displayName}</strong>
+                  <span>{data.isHost ? "Instructor" : "Student"}</span>
+                </div>
+              </div>
+            </header>
 
-        <section className="classroom-meet-head" aria-label="Meeting header">
-          <div className="classroom-meet-head-main">
-            <Link href={leaveHref} className="classroom-back" aria-label="Back to dashboard">
-              <ArrowLeft className="size-4" />
-            </Link>
-            <div className="classroom-meet-copy">
-              <div className="classroom-meet-title-row">
-                {liveNow ? <span className="classroom-badge-live">Live</span> : null}
-                <h1>{cls.title}</h1>
+            <section className="classroom-meet-head" aria-label="Meeting header">
+              <div className="classroom-meet-head-main">
+                <Link href={leaveHref} className="classroom-back" aria-label="Back to dashboard">
+                  <ArrowLeft className="size-4" />
+                </Link>
+                <div className="classroom-meet-copy">
+                  <div className="classroom-meet-title-row">
+                    {liveNow ? <span className="classroom-badge-live">Live</span> : null}
+                    <h1>{cls.title}</h1>
+                  </div>
+                  <div className="classroom-meet-meta">
+                    <span>{formatRange(cls.startsAt, cls.durationMinutes)}</span>
+                    <span>
+                      Host <strong>{instructorName}</strong>
+                    </span>
+                    {!finished && !inMeeting ? (
+                      <span>
+                        <MeetingCountdown startsAt={cls.startsAt} />
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-              <div className="classroom-meet-meta">
-                <span>{formatRange(cls.startsAt, cls.durationMinutes)}</span>
-                <span>
-                  Host <strong>{instructorName}</strong>
+              <div className="classroom-meet-actions">
+                <span className="classroom-status-pill" data-state={statusState}>
+                  <span className="classroom-status-dot" aria-hidden />
+                  {statusLabel}
+                  {roomPhase === "sdk" ? (
+                    <span className="classroom-timer">{formatElapsed(elapsedMs)}</span>
+                  ) : null}
                 </span>
-                {!finished && !inMeeting ? (
-                  <span>
-                    <MeetingCountdown startsAt={cls.startsAt} />
+                {sdkView === "component" ? (
+                  <a className="classroom-materials-btn" href="#class-materials">
+                    <BookOpen className="size-3.5" />
+                    <span>Class Materials</span>
+                  </a>
+                ) : (
+                  <span className="classroom-status-pill" data-state="ready">
+                    Client View
                   </span>
-                ) : null}
+                )}
               </div>
-            </div>
-          </div>
-          <div className="classroom-meet-actions">
-            <span className="classroom-status-pill" data-state={statusState}>
-              <span className="classroom-status-dot" aria-hidden />
-              {statusLabel}
-              {roomPhase === "sdk" ? (
-                <span className="classroom-timer">{formatElapsed(elapsedMs)}</span>
-              ) : null}
-            </span>
-            <a className="classroom-materials-btn" href="#class-materials">
-              <BookOpen className="size-3.5" />
-              <span>Class Materials</span>
-            </a>
-          </div>
-        </section>
+            </section>
+          </>
+        ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           {join && cls.status !== "completed" && scheduleStatus !== "Cancelled" ? (
-            <InAppZoomRoom
-              liveClassId={classId}
-              joinUrl={join.joinUrl}
-              startUrl={join.startUrl}
-              meetingNumber={join.zoomMeetingId}
-              password={join.password}
-              isHost={data.isHost}
-              providerMode={join.providerMode}
-              title={cls.title}
-              displayName={displayName}
-              instructorName={instructorName}
-              leaveHref={leaveHref}
-              onPhaseChange={setRoomPhase}
-            />
+            sdkView === "client" ? (
+              <InAppZoomClientView
+                liveClassId={classId}
+                joinUrl={join.joinUrl}
+                startUrl={join.startUrl}
+                meetingNumber={join.zoomMeetingId}
+                password={join.password}
+                isHost={data.isHost}
+                providerMode={join.providerMode}
+                title={cls.title}
+                displayName={displayName}
+                instructorName={instructorName}
+                leaveHref={leaveHref}
+                onPhaseChange={setRoomPhase}
+              />
+            ) : (
+              <InAppZoomRoom
+                liveClassId={classId}
+                joinUrl={join.joinUrl}
+                startUrl={join.startUrl}
+                meetingNumber={join.zoomMeetingId}
+                password={join.password}
+                isHost={data.isHost}
+                providerMode={join.providerMode}
+                title={cls.title}
+                displayName={displayName}
+                instructorName={instructorName}
+                leaveHref={leaveHref}
+                onPhaseChange={setRoomPhase}
+              />
+            )
           ) : (
             <p className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center text-sm text-white/65">
               {scheduleStatus === "Cancelled"
@@ -429,80 +487,84 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
             </p>
           )}
 
-          <section className="classroom-panel" id="class-materials" aria-label="Class details">
-            <div className="classroom-tabs" role="tablist">
-              {(
-                [
-                  ["info", "Class Info"],
-                  ["chat", "Chat"],
-                  ["notes", "Notes"],
-                  ["resources", "Resources"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  className="classroom-tab"
-                  data-active={panelTab === id || undefined}
-                  aria-selected={panelTab === id}
-                  onClick={() => setPanelTab(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="classroom-panel-body" role="tabpanel">
-              {panelTab === "info" ? (
-                <>
-                  <div className="classroom-info-main">
-                    <div className="classroom-info-icon" aria-hidden>
-                      <Plane className="size-5" />
+          {!(sdkView === "client" && roomPhase === "sdk") ? (
+            <section className="classroom-panel" id="class-materials" aria-label="Class details">
+              <div className="classroom-tabs" role="tablist">
+                {(
+                  [
+                    ["info", "Class Info"],
+                    ["chat", "Chat"],
+                    ["notes", "Notes"],
+                    ["resources", "Resources"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    className="classroom-tab"
+                    data-active={panelTab === id || undefined}
+                    aria-selected={panelTab === id}
+                    onClick={() => setPanelTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="classroom-panel-body" role="tabpanel">
+                {panelTab === "info" ? (
+                  <>
+                    <div className="classroom-info-main">
+                      <div className="classroom-info-icon" aria-hidden>
+                        <Plane className="size-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h2>{cls.title}</h2>
+                        <p>
+                          {cls.description?.trim() ||
+                            (sdkView === "client"
+                              ? "Mobile classroom uses Zoom Client View. No personal Zoom account is required."
+                              : "Live AviatorPass classroom. Stay on this page for video, audio, chat, and screen share.")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h2>{cls.title}</h2>
-                      <p>
-                        {cls.description?.trim() ||
-                          "Live AviatorPass classroom. Stay on this page for video, audio, chat, and screen share."}
-                      </p>
+                    <div className="classroom-info-side">
+                      <div>
+                        <span>When</span>
+                        <strong>{formatRange(cls.startsAt, cls.durationMinutes)}</strong>
+                      </div>
+                      <div>
+                        <span>Instructor</span>
+                        <strong>{instructorName}</strong>
+                      </div>
+                      <div>
+                        <span>Duration</span>
+                        <strong>{cls.durationMinutes} min</strong>
+                      </div>
+                      <div>
+                        <span>Meeting</span>
+                        <strong className={cn(inMeeting && "text-[#86efac]")}>
+                          {panelMeetingLabel}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Schedule status</span>
+                        <strong>{panelScheduleLabel}</strong>
+                      </div>
                     </div>
-                  </div>
-                  <div className="classroom-info-side">
-                    <div>
-                      <span>When</span>
-                      <strong>{formatRange(cls.startsAt, cls.durationMinutes)}</strong>
-                    </div>
-                    <div>
-                      <span>Instructor</span>
-                      <strong>{instructorName}</strong>
-                    </div>
-                    <div>
-                      <span>Duration</span>
-                      <strong>{cls.durationMinutes} min</strong>
-                    </div>
-                    <div>
-                      <span>Meeting</span>
-                      <strong className={cn(inMeeting && "text-[#86efac]")}>
-                        {panelMeetingLabel}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Schedule status</span>
-                      <strong>{panelScheduleLabel}</strong>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-white/60">
-                  {panelTab === "chat"
-                    ? "Meeting chat opens from the control bar while you are in the live Zoom session."
-                    : panelTab === "notes"
-                      ? "Personal lecture notes will appear here in a later release."
-                      : "Class resources and handouts will appear here when the instructor attaches them."}
-                </p>
-              )}
-            </div>
-          </section>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/60">
+                    {panelTab === "chat"
+                      ? "Meeting chat opens from the control bar while you are in the live Zoom session."
+                      : panelTab === "notes"
+                        ? "Personal lecture notes will appear here in a later release."
+                        : "Class resources and handouts will appear here when the instructor attaches them."}
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>
