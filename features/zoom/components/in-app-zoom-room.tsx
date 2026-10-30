@@ -8,6 +8,7 @@ import { Mic, MicOff, PhoneOff, Shield, Video, VideoOff } from "lucide-react";
 
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
+import { waitForEmbeddedConnected } from "@/features/zoom/lib/embedded-connection";
 import {
   openZoomEmbeddedClient,
   prefetchZoomEmbeddedSdk,
@@ -156,148 +157,38 @@ function zoomVideoOptions(stage: HTMLElement) {
   const videoSize = stageVideoSize(stage);
   const narrow =
     (typeof window !== "undefined" ? window.innerWidth : videoSize.width) < CLASSROOM_NARROW_PX;
+  // Keep options minimal — avoid post-join video-option thrash that left Zoom UI
+  // stuck on "Connecting" after join().
   return {
-    isResizable: false,
+    isResizable: true,
     defaultViewType: narrow ? ("gallery" as const) : ("speaker" as const),
     viewSizes: {
       default: videoSize,
-      ribbon: narrow
-        ? {
-            width: videoSize.width,
-            height: Math.max(140, Math.round(videoSize.height * 0.34)),
-          }
-        : {
-            width: Math.min(320, Math.round(videoSize.width / 4)),
-            height: videoSize.height,
-          },
-    },
-    popper: {
-      disableDraggable: true,
-      anchorElement: stage,
-      placement: narrow ? "top" : "innerCenter",
     },
   };
 }
 
-const ZOOM_FLOAT_SELECTOR = [
-  "[class*='suspension']",
-  "[class*='zoom-ui']",
-  "[class*='video-player']",
-  "[class*='zm-video']",
-  "[id*='zmmtg']",
-  "[id*='zoom-ui']",
-  "iframe[src*='zoom']",
-].join(", ");
-
-function zoomLabel(node: HTMLElement) {
-  return `${node.id} ${typeof node.className === "string" ? node.className : ""} ${node.getAttribute("role") ?? ""}`;
-}
-
-function isZoomPopup(node: HTMLElement) {
-  const label = zoomLabel(node);
-  const role = node.getAttribute("role") ?? "";
-  if (/suspension-view-tabpanel|video-player|zm-video/i.test(label)) return false;
-  if (role === "menu" || role === "listbox" || role === "dialog") return true;
-  return /meeting-info|meetingInfo|MuiMenu|MuiPopover|MuiModal|MuiDrawer|share-menu|ShareMenu|popup/i.test(
-    label,
-  );
-}
-
-function isZoomChrome(node: HTMLElement) {
-  const label = zoomLabel(node);
-  if (/meeting-info-icon|MeetingInfoIcon/i.test(label) && node.offsetWidth < 72) return false;
-  return isZoomPopup(node);
-}
-
-function fillZoomSurface(node: HTMLElement) {
-  const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
-  set("position", "absolute");
-  set("inset", "0");
-  set("width", "100%");
-  set("height", "100%");
-  set("max-width", "100%");
-  set("max-height", "100%");
-  set("transform", "none");
-  set("margin", "0");
-}
-
-function menuText(node: HTMLElement) {
-  return (node.innerText || "").replace(/\s+/g, " ").slice(0, 280);
-}
-
-function isClippedZoomMenu(node: HTMLElement) {
-  if (node.closest(".classroom-chrome, .classroom-footer, .classroom-dock")) return false;
-  const rect = node.getBoundingClientRect();
-  if (rect.width < 96 || rect.height < 48) return false;
-  if (rect.width > window.innerWidth * 0.9 && rect.height > window.innerHeight * 0.7) return false;
-  const clipped =
-    rect.left < 8 ||
-    rect.top < 8 ||
-    rect.right > window.innerWidth - 8 ||
-    rect.bottom > window.innerHeight - 8;
-  if (!clipped && node.dataset.aviatorZoomPopup !== "true") return false;
-  if (isZoomPopup(node)) return true;
-  return /select a|microphone|speaker|camera|share|who can share|leave|iphone|airpod|macbook|default/i.test(
-    menuText(node),
-  );
-}
-
-function placeZoomPopup(node: HTMLElement) {
-  if (!isClippedZoomMenu(node)) return;
-  const parentMenu = node.parentElement?.closest<HTMLElement>(
-    "[role='menu'], [role='dialog'], [role='listbox'], [data-aviator-zoom-popup]",
-  );
-  if (parentMenu && parentMenu !== node) return;
-  const rect = node.getBoundingClientRect();
-  let host: HTMLElement | null = node.parentElement;
-  while (host && host !== document.documentElement) {
-    const transform = window.getComputedStyle(host).transform;
-    if (transform && transform !== "none") {
-      document.body.appendChild(node);
-      break;
-    }
-    host = host.parentElement;
-  }
-  const margin = 12;
-  const width = Math.min(Math.max(rect.width, 260), window.innerWidth - margin * 2);
-  const height = Math.min(Math.max(rect.height, 160), window.innerHeight - margin * 2);
-  const left = Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin);
-  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - height - margin);
-  const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
-  set("position", "fixed");
-  set("z-index", "10000");
-  set("box-sizing", "border-box");
-  set("inset", "auto");
-  set("left", `${Math.round(Math.max(margin, left))}px`);
-  set("top", `${Math.round(Math.max(margin, top))}px`);
-  set("width", `${Math.round(width)}px`);
-  set("max-width", "calc(100vw - 24px)");
-  set("height", "auto");
-  set("max-height", `${Math.round(height)}px`);
-  set("overflow", "auto");
-  set("transform", "none");
-  node.dataset.aviatorZoomPopup = "true";
-}
-
-function expandMeetingSurface(stage: HTMLElement) {
-  const root = stage.querySelector<HTMLElement>(".classroom-sdk-root");
-  if (!root) return;
-  const box = root.getBoundingClientRect();
-  if (box.width < 160 || box.height < 120) return;
-  root.querySelectorAll<HTMLElement>("div").forEach((node) => {
-    if (isZoomPopup(node) || node.dataset.aviatorZoomPopup === "true") return;
-    if (node.closest("[data-aviator-zoom-popup]")) return;
-    const rect = node.getBoundingClientRect();
-    const fillsWidth = rect.width >= box.width * 0.92;
-    const fillsHeight = rect.height >= box.height * 0.75;
-    if (fillsWidth && fillsHeight) return;
-    if (rect.width < 180 || rect.height < 180) return;
-    if (node.querySelectorAll("button").length < 3) return;
-    fillZoomSurface(node);
+function waitForStageSize(stage: HTMLElement, timeoutMs = 4000): Promise<DOMRect> {
+  const started = Date.now();
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const box = stage.getBoundingClientRect();
+      if (box.width >= 160 && box.height >= 120) {
+        resolve(box);
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error("Zoom stage container has zero size — cannot init Component View"));
+        return;
+      }
+      window.requestAnimationFrame(tick);
+    };
+    tick();
   });
 }
 
 function grantZoomFrameMedia() {
+  if (typeof document === "undefined") return;
   document.querySelectorAll("iframe").forEach((frame) => {
     const src = frame.getAttribute("src") ?? "";
     const label = `${frame.id} ${typeof frame.className === "string" ? frame.className : ""}`;
@@ -316,43 +207,6 @@ function grantZoomFrameMedia() {
         .join("; "),
     );
   });
-}
-
-function pinZoomWindowToStage(stage: HTMLElement) {
-  const rect = stage.getBoundingClientRect();
-  if (rect.width < 120 || rect.height < 90) return;
-  const narrow =
-    typeof window !== "undefined" ? window.innerWidth < CLASSROOM_NARROW_PX : rect.width < 900;
-  for (const child of stage.children) {
-    if (child instanceof HTMLElement && !isZoomChrome(child)) fillZoomSurface(child);
-  }
-  // Phones: keep Zoom video/toolbar inside the stage. Fixed float pinning was
-  // overlapping Leave Class and clipping Zoom controls on Android.
-  if (!narrow) {
-    const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
-    for (const node of nodes) {
-      if (isZoomChrome(node) || stage.contains(node)) continue;
-      if (node.offsetWidth < 64 || node.offsetHeight < 64) continue;
-      const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
-      set("position", "fixed");
-      set("left", `${Math.round(rect.left)}px`);
-      set("top", `${Math.round(rect.top)}px`);
-      set("width", `${Math.round(rect.width)}px`);
-      set("height", `${Math.round(rect.height)}px`);
-      set("max-width", `${Math.round(rect.width)}px`);
-      set("max-height", `${Math.round(rect.height)}px`);
-      set("transform", "none");
-      set("z-index", "6");
-      set("margin", "0");
-    }
-  }
-  expandMeetingSurface(stage);
-  document
-    .querySelectorAll<HTMLElement>(
-      "[role='menu'], [role='listbox'], [role='dialog'], [class*='meeting-info'], [class*='meetingInfo'], [class*='MuiMenu'], [class*='MuiPopover'], [class*='MuiModal'], [class*='MuiDrawer'], [class*='share-menu'], [class*='ShareMenu'], [class*='popup'], [class*='menu'], [class*='Menu'], [class*='popover'], [class*='Popover'], [class*='dropdown'], [class*='Dropdown']",
-    )
-    .forEach(placeZoomPopup);
-  grantZoomFrameMedia();
 }
 
 interface InAppZoomRoomProps {
@@ -543,8 +397,6 @@ function InAppZoomRoom({
     if (!sessionJoinKey || !sessionRef.current) return;
     const active = sessionRef.current;
     let cancelled = false;
-    let resizeObserver: ResizeObserver | null = null;
-    let mutationObserver: MutationObserver | null = null;
 
     async function enter() {
       // Same meeting identity already joined — do not leave/init/join again
@@ -561,6 +413,8 @@ function InAppZoomRoom({
 
       if (active.mode === "sdk" && active.signature && active.meetingNumber && stageRef.current) {
         try {
+          setPhase("loading");
+          setNotice("Connecting to Zoom…");
           const client = await openZoomEmbeddedClient();
           if (cancelled) {
             await releaseZoomEmbeddedClient(client);
@@ -568,6 +422,13 @@ function InAppZoomRoom({
           }
           const stage = stageRef.current;
           if (!stage) return;
+          await waitForStageSize(stage);
+          if (cancelled) {
+            await releaseZoomEmbeddedClient(client);
+            return;
+          }
+          // Stop local camera preview so it cannot cover Zoom while Connecting.
+          stopLocalMedia();
           const initClient = async (next: ZoomEmbeddedClient) => {
             await next.init({
               zoomAppRoot: stage,
@@ -581,6 +442,10 @@ function InAppZoomRoom({
           };
           sdkRef.current = client;
           await initClient(client);
+          // Subscribe BEFORE join() so Connected during join is not missed.
+          const connected = waitForEmbeddedConnected(client, {
+            onState: (state) => console.info("[zoom] connection-change", state),
+          });
           const participantJoin = {
             signature: active.signature,
             meetingNumber: active.meetingNumber,
@@ -601,6 +466,7 @@ function InAppZoomRoom({
               await joinEmbeddedMeeting(client, participantJoin, stage);
             }
           } catch (hostError) {
+            void connected.catch(() => undefined);
             const detail = zoomFailureText(hostError);
             const code = zoomErrorCodeOf(hostError);
             console.error("[zoom] Meeting SDK join error", { code, detail });
@@ -677,52 +543,22 @@ function InAppZoomRoom({
             }
             throw hostError;
           }
+          if (cancelled) {
+            void connected.catch(() => undefined);
+            return;
+          }
+          // join() resolving is NOT proof the media UI is live — wait for Connected.
+          await connected;
           if (cancelled) return;
-          stopLocalMedia();
+          grantZoomFrameMedia();
           joinedKeyRef.current = sessionJoinKey;
           liveMeetingRef.current = true;
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
-          console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass", {
+          console.info("[zoom] Meeting SDK 6.2.0 Connected inside AviatorPass", {
             meeting: active.meetingNumber,
             key: sessionJoinKey,
           });
-          let fitQueued = false;
-          let fitResize = false;
-          let lastPinAt = 0;
-          const fit = (resize: boolean) => {
-            fitResize = fitResize || resize;
-            if (!stageRef.current || fitQueued) return;
-            fitQueued = true;
-            window.requestAnimationFrame(() => {
-              fitQueued = false;
-              const resizeNow = fitResize;
-              fitResize = false;
-              if (!stageRef.current || !liveMeetingRef.current) return;
-              // updateVideoOptions only on real stage resize — never on DOM churn
-              // (body MutationObserver thrash was re-triggering Zoom "Connecting").
-              if (resizeNow) {
-                const next = zoomVideoOptions(stageRef.current);
-                void client.updateVideoOptions?.({
-                  defaultViewType: next.defaultViewType,
-                  viewSizes: next.viewSizes,
-                  popper: next.popper,
-                });
-              }
-              const now = Date.now();
-              if (!resizeNow && now - lastPinAt < 400) return;
-              lastPinAt = now;
-              pinZoomWindowToStage(stageRef.current);
-            });
-          };
-          fit(true);
-          window.setTimeout(() => fit(true), 250);
-          window.setTimeout(() => fit(true), 900);
-          resizeObserver = new ResizeObserver(() => fit(true));
-          resizeObserver.observe(stageRef.current);
-          // Observe the stage only — pinning menus; no video-option updates here.
-          mutationObserver = new MutationObserver(() => fit(false));
-          mutationObserver.observe(stage, { childList: true, subtree: true });
           return;
         } catch (error) {
           if (cancelled) return;
@@ -763,8 +599,6 @@ function InAppZoomRoom({
     void enter();
     return () => {
       cancelled = true;
-      resizeObserver?.disconnect();
-      mutationObserver?.disconnect();
       // Unmount or meeting-identity change only (signature remints no longer change
       // sessionJoinKey). Leave once; same-key early return covers soft re-entries.
       const client = sdkRef.current;
@@ -811,7 +645,10 @@ function InAppZoomRoom({
 
   const shownMeeting = session?.meetingNumber || meetingNumber || "";
   const liveZoom = phase === "sdk";
-  const showPreview = !liveZoom;
+  // Hide local preview while Zoom Component View is joining — overlaying the
+  // stage during Connecting left a black pane over the SDK UI.
+  const showPreview = phase === "classroom" || phase === "error";
+  const joiningSdk = phase === "loading" && Boolean(session?.mode === "sdk");
   const personName =
     displayName?.trim() ||
     (session?.userName && !/^host$/i.test(session.userName) ? session.userName : "") ||
@@ -848,8 +685,8 @@ function InAppZoomRoom({
         <div className="classroom-viewport">
           <div
             ref={stageRef}
-            className={cn("classroom-sdk-root", liveZoom && "is-live")}
-            aria-hidden={!liveZoom}
+            className={cn("classroom-sdk-root", liveZoom && "is-live", joiningSdk && "is-joining")}
+            aria-hidden={!liveZoom && !joiningSdk}
           />
           {showPreview ? (
             <>

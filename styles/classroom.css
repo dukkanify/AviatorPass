@@ -349,77 +349,17 @@
   height: 100%;
 }
 
+.classroom-sdk-root.is-joining,
 .classroom-sdk-root.is-live {
   z-index: 3;
+  /* Let Zoom Component View own its layout. Forcing absolute/!important on
+     Zoom children caused black stage + stuck "Connecting" while join() resolved. */
+  overflow: hidden;
 }
 
-.classroom-sdk-root.is-live > div:not([role="menu"]):not([role="dialog"]):not([role="listbox"]) {
-  position: absolute !important;
-  inset: 0 !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-}
-
-.classroom-sdk-root.is-live
-  > div
-  > div:not([role="menu"]):not([role="dialog"]):not([role="listbox"]) {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-}
-
-body:has(.classroom-sdk-root.is-live) [role="menu"],
-body:has(.classroom-sdk-root.is-live) [role="listbox"],
-body:has(.classroom-sdk-root.is-live) [role="dialog"] {
-  z-index: 10000 !important;
-  max-width: min(440px, calc(100vw - 24px)) !important;
-  max-height: min(80vh, 640px) !important;
-  overflow: auto !important;
-}
-
-body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-popup] {
-  position: fixed !important;
-  z-index: 10000 !important;
-  transform: none !important;
-}
-
-.classroom-sdk-root.is-live [id*="suspension-view-tabpanel"],
-.classroom-sdk-root.is-live [class*="video-player"] {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-}
-
-.classroom-sdk-root.is-live [class*="footer"],
-.classroom-sdk-root.is-live [class*="toolbar"],
-.classroom-sdk-root.is-live [class*="control-bar"] {
-  z-index: 30 !important;
-  max-width: 100% !important;
-}
-
-body:has(.classroom-sdk-root.is-live) [class*="suspension"],
-body:has(.classroom-sdk-root.is-live) [class*="zoom-ui"],
-body:has(.classroom-sdk-root.is-live) [id*="zmmtg"],
-body:has(.classroom-sdk-root.is-live) [id*="zoom-ui"] {
-  max-width: none !important;
-}
-
-body:has(.classroom-sdk-root.is-live) [data-aviator-zoom-info] {
-  z-index: 90 !important;
-  box-sizing: border-box !important;
-  max-width: min(420px, calc(100vw - 24px)) !important;
-  max-height: min(70vh, 560px) !important;
-  overflow: auto !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
+.classroom-sdk-root.is-joining > *,
+.classroom-sdk-root.is-live > * {
+  max-width: 100%;
 }
 
 .classroom-preview {
