@@ -460,8 +460,14 @@ function InAppZoomRoom({
             zak: active.zak || undefined,
           };
           try {
-            if (isHost || active.hostSignature || active.zak) {
+            // Only start as Zoom host when ZAK / host JWT are present. isHost alone
+            // with a participant signature left Component View on Fail/Connecting.
+            if (active.zak || active.hostSignature) {
               await joinEmbeddedMeeting(client, hostJoinPayload, stage);
+            } else if (isHost) {
+              throw new Error(
+                "3000 Already has other meetings in progress (host token unavailable)",
+              );
             } else {
               await joinEmbeddedMeeting(client, participantJoin, stage);
             }

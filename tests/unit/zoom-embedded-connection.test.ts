@@ -73,6 +73,8 @@ describe("embedded connection-change gating", () => {
     expect(room).not.toMatch(/pinZoomWindowToStage/);
     expect(room).not.toMatch(/client\.updateVideoOptions/);
     expect(room).not.toMatch(/new MutationObserver/);
+    expect(room).toMatch(/active\.zak \|\| active\.hostSignature/);
+    expect(room).toMatch(/host token unavailable/);
 
     expect(css).not.toMatch(/position:\s*absolute\s*!important/);
     expect(css).toMatch(/Let Zoom Component View own its layout/);

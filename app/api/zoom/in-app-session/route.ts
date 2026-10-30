@@ -75,15 +75,18 @@ export async function POST(request: Request) {
       mayHost && meetingNumber
         ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id)
         : false;
-    const zak =
-      mayHost && !hostBlocked
-        ? await fetchZoomHostZak({
-            meetingNumber,
-            startUrl,
-            instructorUserId: user.id,
-            forceRefreshStartUrl: true,
-          })
-        : null;
+    // Still mint host ZAK when mayHost — withholding it demoted instructors to a
+    // participant JWT while the join page kept isHost=true, which produced Zoom
+    // Fail/3000 (or a stuck Connecting shell) instead of a clear host start.
+    // hostBlocked remains advisory; Meeting SDK reports concurrency honestly.
+    const zak = mayHost
+      ? await fetchZoomHostZak({
+          meetingNumber,
+          startUrl,
+          instructorUserId: user.id,
+          forceRefreshStartUrl: true,
+        })
+      : null;
     // Host ZAK refresh may recreate the Zoom meeting when start_url ZAK is
     // expired and GET rotation is unavailable (S2S write without meeting:read).
     // Re-read join info so JWT mn/password match the live meeting.
@@ -130,6 +133,7 @@ export async function POST(request: Request) {
         hostSignature,
         zak,
         role,
+        hostBlocked: Boolean(hostBlocked),
       },
       error: null,
     });
