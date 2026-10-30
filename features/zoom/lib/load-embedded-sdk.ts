@@ -44,6 +44,9 @@ export interface ZoomEmbeddedClient {
     zak?: string;
   }) => Promise<void>;
   leave?: () => Promise<void>;
+  /** Component View lifecycle events (connection-change, user-added, …). */
+  on?: (event: string, callback: (payload: unknown) => void) => void;
+  off?: (event: string, callback: (payload: unknown) => void) => void;
 }
 
 interface ZoomEmbeddedFactory {

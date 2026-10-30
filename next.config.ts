@@ -10,7 +10,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://source.zoom.us https://*.zoom.us",
   "connect-src 'self' https: wss:",
-  "media-src 'self' blob: mediastream:",
+  "media-src 'self' blob: mediastream: https://source.zoom.us https://*.zoom.us",
   "worker-src 'self' blob:",
   "frame-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
   "child-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",

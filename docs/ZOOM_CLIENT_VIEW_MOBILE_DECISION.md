@@ -2,7 +2,8 @@
 
 **التاريخ:** 30 أكتوبر 2026 (Asia/Dubai)  
 **المنتج:** AviatorPass Classroom (Meeting SDK)  
-**Production الحالي:** مجمّد على `5a29c38…` — **لا نشر** حتى موافقة صريحة بعد اختبار الفرع المنفصل  
+**حالة القرار:** **معتمد من المالك** — التنفيذ على `cursor/zoom-client-view-mobile-dfeb`  
+**Production:** **لا نشر** حتى UAT أجهزة حقيقية وموافقة صريحة  
 **قيود محترمة:** لا تطبيق Zoom جديد · لا تغيير CEO/S2S/Scopes/Marketplace دون موافقة المالك
 
 ---
