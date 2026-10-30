@@ -8,7 +8,7 @@
 
 AviatorPass development is **complete**. This package transfers ownership for long-term operation.
 
-**Current Option A delivery (October 2026):** start with `docs/CLIENT_DELIVERY_OPTION_A.md` — Production freeze tip, real-device A/V UAT, Zoom central-host limits, and owner/client close-out. Marketplace remains a separate owner-approved track.
+**Current Option A delivery (October 2026):** start with `docs/CLIENT_DELIVERY_OPTION_A.md` — Production tip SHA `ce29a4a`, real-device A/V UAT, Zoom central-host limits, and owner/client close-out. Multi-instructor licensing / Marketplace posture: `docs/ZOOM_MARKETPLACE_MULTI_INSTRUCTOR_LICENSING.md`. Marketplace submit remains a separate owner-approved track.
 
 Remaining client actions:
 
