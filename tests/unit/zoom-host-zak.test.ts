@@ -271,6 +271,8 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     s2sEnv();
     storedMeeting("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
     writeClassesDb((db) => {
+      db.classes = [];
+      db.zoomMeetings = db.zoomMeetings.filter((item) => item.id === "zm-host-1");
       db.classes.push({
         id: "cls-host-1",
         title: "ATPL Air Law",
@@ -379,6 +381,8 @@ describe("Zoom host ZAK for in-app Meeting SDK", () => {
     s2sEnv();
     storedMeeting("https://us02web.zoom.us/s/82122854800?zak=stored-create-zak");
     writeClassesDb((db) => {
+      db.classes = [];
+      db.zoomMeetings = db.zoomMeetings.filter((item) => item.id === "zm-host-1");
       db.classes.push({
         id: "cls-host-1",
         title: "ATPL Air Law",

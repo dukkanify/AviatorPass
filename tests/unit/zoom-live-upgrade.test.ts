@@ -26,8 +26,9 @@ afterEach(() => {
 function seedUpcomingMockClass(instructorId: string) {
   const now = new Date();
   writeClassesDb((db) => {
-    db.classes = db.classes.filter((item) => item.id !== "cls_upgrade_soon");
-    db.zoomMeetings = db.zoomMeetings.filter((item) => item.liveClassId !== "cls_upgrade_soon");
+    // Isolate from demo/seed classes left by earlier suites (shared host busy check).
+    db.classes = [];
+    db.zoomMeetings = [];
     db.classes.push({
       id: "cls_upgrade_soon",
       title: "Upcoming mock class",

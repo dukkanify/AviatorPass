@@ -60,8 +60,9 @@ describe("live Zoom everywhere", () => {
     const classId = "cls_upgrade_live";
     const now = new Date().toISOString();
     writeClassesDb((db) => {
-      db.classes = db.classes.filter((item) => item.id !== classId);
-      db.zoomMeetings = db.zoomMeetings.filter((item) => item.liveClassId !== classId);
+      // Isolate from demo/seed classes left by earlier suites (shared host busy check).
+      db.classes = [];
+      db.zoomMeetings = [];
       db.classes.push({
         id: classId,
         title: "Upgrade mock class",
