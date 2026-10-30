@@ -48,10 +48,14 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
     expect(resolveClassroomSdkView({ width: 1440, search: "sdkView=component" })).toBe("component");
   });
 
-  it("allows Zoom CDN media under CSP for Client View chimes/wasm audio", () => {
+  it("allows Zoom CDN media + blob workers under CSP for Client View A/V", () => {
     const cfg = src("next.config.ts");
     expect(cfg).toMatch(/media-src[^"]*https:\/\/source\.zoom\.us/);
     expect(cfg).toMatch(/media-src[^"]*https:\/\/\*\.zoom\.us/);
+    // Zoom media workers importScripts(blob:…) — script-src must allow blob:
+    expect(cfg).toMatch(/script-src[^"]*\bblob:/);
+    expect(cfg).toMatch(/worker-src[^"]*\bblob:/);
+    expect(cfg).toMatch(/worker-src[^"]*https:\/\/source\.zoom\.us/);
   });
 
   it("wires join page to Client View on mobile without personal Zoom OAuth", () => {

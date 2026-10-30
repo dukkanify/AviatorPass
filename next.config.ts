@@ -2,16 +2,22 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-/** Enforcing CSP tuned for Zoom Meeting SDK embed (source.zoom.us + *.zoom.us frames). */
+/**
+ * Enforcing CSP tuned for Zoom Meeting SDK Client View + Component View.
+ * Zoom media workers create blob: Workers then importScripts(blob:…) — without
+ * blob: in script-src, video fails with "Reconnecting your video" / black stage
+ * while the Zoom chrome still paints.
+ * @see https://developers.zoom.us/docs/meeting-sdk/web/browser-support/
+ */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://source.zoom.us https://*.zoom.us",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
   "style-src 'self' 'unsafe-inline' https://source.zoom.us https://*.zoom.us",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://source.zoom.us https://*.zoom.us",
   "connect-src 'self' https: wss:",
   "media-src 'self' blob: mediastream: https://source.zoom.us https://*.zoom.us",
-  "worker-src 'self' blob:",
+  "worker-src 'self' blob: https://source.zoom.us https://*.zoom.us",
   "frame-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
   "child-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
   "object-src 'none'",
