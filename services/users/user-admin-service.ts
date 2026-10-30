@@ -74,6 +74,8 @@ export function canCreateRole(actor: UserProfile, role: Role): boolean {
 }
 
 function canManageTarget(actor: UserProfile, target: StoredUser): boolean {
+  // Super Admin may correct/suspend another Super Admin (handover email fixes) — never self.
+  if (actor.role === ROLES.SUPER_ADMIN && target.id !== actor.id) return true;
   if (target.role === ROLES.SUPER_ADMIN) return false;
   if (actor.role === ROLES.SUPER_ADMIN) return true;
   if (actor.role !== ROLES.ADMIN) return false;
@@ -240,14 +242,26 @@ export async function updateManagedUser(
     }
     if (input.status) user.status = input.status as AccountStatus;
     if (input.role) user.role = input.role;
+    const revokeSessions =
+      Boolean(passwordHash) ||
+      (input.status != null &&
+        input.status !== target.status &&
+        (input.status === ACCOUNT_STATUS.SUSPENDED || input.status === ACCOUNT_STATUS.INACTIVE));
+    if (revokeSessions) {
+      db.sessions.forEach((session) => {
+        if (session.userId === user.id && !session.revokedAt) session.revokedAt = nowIso();
+      });
+      // Invalidate outstanding password-setup invites for this user.
+      const stamp = nowIso();
+      db.passwordSetupTokens.forEach((token) => {
+        if (token.userId === user.id && !token.consumedAt) token.consumedAt = stamp;
+      });
+    }
     if (passwordHash) {
       user.passwordHash = passwordHash.hash;
       user.passwordSalt = passwordHash.salt;
       user.mustChangePassword = false;
       user.emailVerified = true;
-      db.sessions.forEach((session) => {
-        if (session.userId === user.id && !session.revokedAt) session.revokedAt = nowIso();
-      });
       // Admin password reset must clear lockouts immediately. Otherwise the
       // control panel looks like it "changed" the password while login still
       // returns "Too many failed attempts" for up to 15 minutes.
