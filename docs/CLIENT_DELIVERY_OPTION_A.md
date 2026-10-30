@@ -3,8 +3,9 @@
 **المنتج:** AviatorPass  
 **القرار المعتمد:** الخيار A — الإبقاء على البنية الحالية دون إعادة تطوير Zoom  
 **تاريخ الحزمة:** 30 أكتوبر 2026 (Asia/Dubai)  
-**Production المجمَّد:** `https://www.aviatorpass.com` — SHA `5a29c38515a7ab5d4398f60647a463a03443dcdb` (`cursor/zoom-marketplace-login-return-dfeb`)  
-**Marketplace:** مسار منفصل — لا Submit / لا Scopes جديدة / لا OBF / لا تطبيقات جديدة دون موافقة المالك
+**Production الحالي:** `https://www.aviatorpass.com` — SHA `ce29a4aaea5c1d25d275fb5480e9245d472ae6c4` (PR #170 / `main` — Client View + CSP `blob:`)  
+**Marketplace:** مسار منفصل — لا Submit / لا Scopes جديدة / لا OBF / لا تطبيقات جديدة دون موافقة المالك  
+**تقرير إغلاق QA:** انظر أيضاً مصفوفة `/opt/cursor/artifacts/ATPL_PASS_FINAL_QA_REPORT.md` عند توفر بيئة التسليم
 
 ---
 
@@ -14,11 +15,12 @@
 | ----------------- | ------------------------------------------------------------------- |
 | URL               | https://www.aviatorpass.com                                         |
 | Health            | `GET /api/health` → `status: ok` (مُتحقق 30 أكتوبر 2026 Asia/Dubai) |
-| Git SHA           | `5a29c38515a7ab5d4398f60647a463a03443dcdb`                          |
-| Git ref عند النشر | `cursor/zoom-marketplace-login-return-dfeb`                         |
+| Git SHA           | `ce29a4aaea5c1d25d275fb5480e9245d472ae6c4`                          |
+| Git ref عند النشر | `main` (PR #170 Zoom Classroom)                                     |
+| Smoke             | `npm run smoke:production` → 11/11 PASS                             |
 | سياسة التغيير     | **تجميد** — لا نشر ولا تغييرات Zoom/منصة إلا بطلب صريح من المالك    |
 
-ما يشمله التجميد: Meeting SDK (`VGTQ`)، S2S CEO (`uX3Q` / `ceo@aviatorpass.com`)، Instructor OAuth الاختياري (`Z0xA`)، إصلاحات الانضمام/الجلسة المنشورة، clear-live inventory-only.
+ما يشمله التجميد: Meeting SDK (`VGTQ`)، S2S CEO (`uX3Q` / `ceo@aviatorpass.com`)، Instructor OAuth الاختياري (`Z0xA`)، إصلاحات الانضمام/الجلسة المنشورة (Client View افتراضي + CSP `blob:`)، clear-live inventory-only.
 
 ---
 
@@ -230,12 +232,12 @@
 
 ### ب) يلزم من المالك (Dukkanify / مشغّل المنصة)
 
-- [ ] الإبقاء على تجميد Production عند SHA `5a29c38…` ما لم يُطلب نشر صريح
+- [ ] الإبقاء على تجميد Production عند SHA `ce29a4a…` ما لم يُطلب نشر صريح
 - [ ] تزويد العميل بوصول الخزنة (Vercel/GitHub/Zoom حسب العقد) دون وضع أسرار في Git
-- [ ] تأكيد إعدادات Production: `ENABLE_DEMO_OTP=false`، أسرار Zoom الثلاثية (S2S + Meeting SDK + اختياري Instructor) كما هي
-- [ ] حضور/تيسير جلسة UAT الجهازين أو اعتماد نتائج العميل الموقّعة
+- [ ] تأكيد إعدادات Production: `ENABLE_DEMO_OTP=false`، تدوير `DemoPass123!` على حسابات العرض، أسرار Zoom الثلاثية كما هي
+- [ ] حضور/تيسير جلسة UAT الجهازين أو اعتماد نتائج العميل الموقّعة على Production
 - [ ] **عدم** فتح مسار Marketplace (Scopes/OBF/Submit/تطبيق جديد) ضمن إغلاق هذا التسليم
-- [ ] توضيح حد الترخيص المتزامن من بوابة Zoom إن طلب العميل سعة أعلى من مضيف واحد
+- [ ] توضيح حد الترخيص المتزامن / مضيفين إضافيين — انظر `ZOOM_MARKETPLACE_MULTI_INSTRUCTOR_LICENSING.md`
 
 ### ج) يلزم من العميل
 
@@ -253,13 +255,14 @@
 
 ## مراجع سريعة
 
-| وثيقة                                                  | الغرض                                      |
-| ------------------------------------------------------ | ------------------------------------------ |
-| `DEMO_ACCOUNTS.md`                                     | حسابات العرض                               |
-| `docs/LIVE_CLASSES_ZOOM.md`                            | تشغيل Zoom الحي                            |
-| `docs/ZOOM_CENTRALIZED_HOSTING_PLAN.md`                | قرار المضيف المركزي                        |
-| `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | مسار Marketplace فقط                       |
-| `docs/HANDOVER.md`                                     | حزمة التسليم العامة                        |
-| `docs/CREDENTIALS_REGISTER.md`                         | قالب الأسرار (بلا قيم)                     |
-| `docs/KNOWN_LIMITATIONS.md`                            | قيود عامة                                  |
-| `docs/FINAL_PROJECT_ACCEPTANCE.md`                     | نموذج قبول تعاقدي أقدم — يُكمَّل بـ §8 هنا |
+| وثيقة                                                  | الغرض                                       |
+| ------------------------------------------------------ | ------------------------------------------- |
+| `DEMO_ACCOUNTS.md`                                     | حسابات العرض                                |
+| `docs/LIVE_CLASSES_ZOOM.md`                            | تشغيل Zoom الحي                             |
+| `docs/ZOOM_CENTRALIZED_HOSTING_PLAN.md`                | قرار المضيف المركزي                         |
+| `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | مسار Marketplace فقط                        |
+| `docs/ZOOM_MARKETPLACE_MULTI_INSTRUCTOR_LICENSING.md`  | تراخيص التوسع لعدة مدرسين + وضع Marketplace |
+| `docs/HANDOVER.md`                                     | حزمة التسليم العامة                         |
+| `docs/CREDENTIALS_REGISTER.md`                         | قالب الأسرار (بلا قيم)                      |
+| `docs/KNOWN_LIMITATIONS.md`                            | قيود عامة                                   |
+| `docs/FINAL_PROJECT_ACCEPTANCE.md`                     | نموذج قبول تعاقدي أقدم — يُكمَّل بـ §8 هنا  |
