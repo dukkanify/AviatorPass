@@ -47,6 +47,12 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
     expect(prefersMeetingSdkClientView({ width: 360, search: "sdkView=component" })).toBe(false);
   });
 
+  it("allows Zoom CDN media under CSP for Client View chimes/wasm audio", () => {
+    const cfg = src("next.config.ts");
+    expect(cfg).toMatch(/media-src[^"]*https:\/\/source\.zoom\.us/);
+    expect(cfg).toMatch(/media-src[^"]*https:\/\/\*\.zoom\.us/);
+  });
+
   it("wires join page to Client View on mobile without personal Zoom OAuth", () => {
     const join = src("features/classes/components/join-class-client.tsx");
     expect(join).toMatch(/InAppZoomClientView/);

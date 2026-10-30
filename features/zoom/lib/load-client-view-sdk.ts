@@ -135,13 +135,30 @@ export async function loadZoomClientView(): Promise<ZoomMtgClient> {
   return mtg;
 }
 
+function clientViewFailureText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const row = error as {
+      reason?: unknown;
+      errorCode?: unknown;
+      message?: unknown;
+      type?: unknown;
+    };
+    return [row.errorCode, row.reason, row.message, row.type]
+      .filter((part) => part != null && part !== "")
+      .join(" ");
+  }
+  return String(error ?? "unknown Client View error");
+}
+
 function asPromise(
   run: (handlers: { success: (v: unknown) => void; error: (e: unknown) => void }) => void,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     run({
       success: (value) => resolve(value),
-      error: (error) => reject(error instanceof Error ? error : new Error(String(error))),
+      error: (error) =>
+        reject(error instanceof Error ? error : new Error(clientViewFailureText(error))),
     });
   });
 }
