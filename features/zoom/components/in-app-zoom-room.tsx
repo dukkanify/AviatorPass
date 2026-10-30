@@ -321,24 +321,30 @@ function grantZoomFrameMedia() {
 function pinZoomWindowToStage(stage: HTMLElement) {
   const rect = stage.getBoundingClientRect();
   if (rect.width < 120 || rect.height < 90) return;
+  const narrow =
+    typeof window !== "undefined" ? window.innerWidth < CLASSROOM_NARROW_PX : rect.width < 900;
   for (const child of stage.children) {
     if (child instanceof HTMLElement && !isZoomChrome(child)) fillZoomSurface(child);
   }
-  const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
-  for (const node of nodes) {
-    if (isZoomChrome(node) || stage.contains(node)) continue;
-    if (node.offsetWidth < 64 || node.offsetHeight < 64) continue;
-    const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
-    set("position", "fixed");
-    set("left", `${Math.round(rect.left)}px`);
-    set("top", `${Math.round(rect.top)}px`);
-    set("width", `${Math.round(rect.width)}px`);
-    set("height", `${Math.round(rect.height)}px`);
-    set("max-width", `${Math.round(rect.width)}px`);
-    set("max-height", `${Math.round(rect.height)}px`);
-    set("transform", "none");
-    set("z-index", "6");
-    set("margin", "0");
+  // Phones: keep Zoom video/toolbar inside the stage. Fixed float pinning was
+  // overlapping Leave Class and clipping Zoom controls on Android.
+  if (!narrow) {
+    const nodes = document.querySelectorAll<HTMLElement>(ZOOM_FLOAT_SELECTOR);
+    for (const node of nodes) {
+      if (isZoomChrome(node) || stage.contains(node)) continue;
+      if (node.offsetWidth < 64 || node.offsetHeight < 64) continue;
+      const set = (prop: string, value: string) => node.style.setProperty(prop, value, "important");
+      set("position", "fixed");
+      set("left", `${Math.round(rect.left)}px`);
+      set("top", `${Math.round(rect.top)}px`);
+      set("width", `${Math.round(rect.width)}px`);
+      set("height", `${Math.round(rect.height)}px`);
+      set("max-width", `${Math.round(rect.width)}px`);
+      set("max-height", `${Math.round(rect.height)}px`);
+      set("transform", "none");
+      set("z-index", "6");
+      set("margin", "0");
+    }
   }
   expandMeetingSurface(stage);
   document
@@ -417,28 +423,25 @@ function InAppZoomRoom({
   const [micOn, setMicOn] = React.useState(true);
   /** Automatic host recovery attempts (ZAK refresh / Error 3000 release). Cap avoids loops. */
   const hostRecoveryRef = React.useRef(0);
-  /** Last Meeting SDK join fingerprint that successfully reached phase=sdk. */
+  /**
+   * Meeting identity that successfully reached phase=sdk.
+   * Must NOT include signature/ZAK — reminting JWTs must not leave+rejoin.
+   */
   const joinedKeyRef = React.useRef<string | null>(null);
+  const liveMeetingRef = React.useRef(false);
   const sessionRef = React.useRef<InAppSession | null>(null);
   sessionRef.current = session;
 
-  // Fingerprint identity — not object reference — so boot's setSession(...) does
-  // not tear down a live client when the payload is unchanged.
+  // Join effect identity: meeting + attempt only. Signature/ZAK live in sessionRef
+  // so boot remints do not tear down a connected Meeting SDK client.
   const sessionJoinKey = session
-    ? [
-        session.mode,
-        session.meetingNumber,
-        session.signature ?? "",
-        session.hostSignature ?? "",
-        session.zak ?? "",
-        String(attempt),
-      ].join("|")
+    ? [session.mode, session.meetingNumber, String(attempt)].join("|")
     : null;
 
   React.useEffect(() => {
     // Keep shell "In the meeting" while Zoom is already live; only push
     // Connecting before the first successful join (or after a real leave/error).
-    if (phase === "loading" && joinedKeyRef.current) return;
+    if (phase === "loading" && liveMeetingRef.current) return;
     onPhaseChange?.(phase);
   }, [phase, onPhaseChange]);
 
@@ -487,6 +490,15 @@ function InAppZoomRoom({
   React.useEffect(() => {
     let cancelled = false;
     async function boot() {
+      // While Meeting SDK is live, ignore prop churn from parent soft-refresh —
+      // reminting signature/ZAK must not replace session identity mid-call.
+      if (liveMeetingRef.current && joinedKeyRef.current) {
+        console.info("[zoom] boot skipped — meeting already live", {
+          meeting: meetingNumber,
+          attempt,
+        });
+        return;
+      }
       const result = await authFetch<InAppSession>("/api/zoom/in-app-session", {
         method: "POST",
         body: JSON.stringify({
@@ -501,6 +513,7 @@ function InAppZoomRoom({
       });
       if (cancelled) return;
       if (!result.success || !result.data) {
+        if (liveMeetingRef.current) return;
         setNotice(result.error ?? "Classroom is ready inside AviatorPass.");
         setSession({
           mode: "classroom",
@@ -516,6 +529,7 @@ function InAppZoomRoom({
         return;
       }
       if (result.data.mode === "sdk") prefetchZoomEmbeddedSdk();
+      if (liveMeetingRef.current) return;
       setSession(result.data);
     }
     void boot();
@@ -533,12 +547,13 @@ function InAppZoomRoom({
     let mutationObserver: MutationObserver | null = null;
 
     async function enter() {
-      // Same meeting+signature already joined — do not leave/init/join again.
+      // Same meeting identity already joined — do not leave/init/join again
+      // (signature remints must not reach this path via sessionJoinKey).
       if (
         joinedKeyRef.current === sessionJoinKey &&
         sdkRef.current &&
-        active.mode === "sdk" &&
-        active.signature
+        liveMeetingRef.current &&
+        active.mode === "sdk"
       ) {
         setPhase("sdk");
         return;
@@ -630,6 +645,7 @@ function InAppZoomRoom({
                     ? "Zoom Error 3000 — host concurrency blocked. Zoom live lists are not readable with the current Server-to-Server token (often missing meeting:read), so empty clear-live is not proof the host is free. Retrying this classroom meeting only."
                     : "Zoom Error 3000 — ended this classroom meeting instance and retrying as host.",
                 );
+                liveMeetingRef.current = false;
                 joinedKeyRef.current = null;
                 setSession(null);
                 setPhase("loading");
@@ -650,6 +666,7 @@ function InAppZoomRoom({
                   detail,
                 );
                 setNotice("Host Zoom token was rejected. Opening the classroom again as host.");
+                liveMeetingRef.current = false;
                 joinedKeyRef.current = null;
                 setSession(null);
                 setPhase("loading");
@@ -663,11 +680,16 @@ function InAppZoomRoom({
           if (cancelled) return;
           stopLocalMedia();
           joinedKeyRef.current = sessionJoinKey;
+          liveMeetingRef.current = true;
           setPhase("sdk");
           setNotice("Live Zoom is running inside AviatorPass");
-          console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass");
+          console.info("[zoom] Meeting SDK 6.2.0 joined inside AviatorPass", {
+            meeting: active.meetingNumber,
+            key: sessionJoinKey,
+          });
           let fitQueued = false;
           let fitResize = false;
+          let lastPinAt = 0;
           const fit = (resize: boolean) => {
             fitResize = fitResize || resize;
             if (!stageRef.current || fitQueued) return;
@@ -676,7 +698,9 @@ function InAppZoomRoom({
               fitQueued = false;
               const resizeNow = fitResize;
               fitResize = false;
-              if (!stageRef.current) return;
+              if (!stageRef.current || !liveMeetingRef.current) return;
+              // updateVideoOptions only on real stage resize — never on DOM churn
+              // (body MutationObserver thrash was re-triggering Zoom "Connecting").
               if (resizeNow) {
                 const next = zoomVideoOptions(stageRef.current);
                 void client.updateVideoOptions?.({
@@ -685,22 +709,27 @@ function InAppZoomRoom({
                   popper: next.popper,
                 });
               }
+              const now = Date.now();
+              if (!resizeNow && now - lastPinAt < 400) return;
+              lastPinAt = now;
               pinZoomWindowToStage(stageRef.current);
             });
           };
           fit(true);
-          window.setTimeout(() => fit(true), 200);
-          window.setTimeout(() => fit(true), 800);
+          window.setTimeout(() => fit(true), 250);
+          window.setTimeout(() => fit(true), 900);
           resizeObserver = new ResizeObserver(() => fit(true));
           resizeObserver.observe(stageRef.current);
+          // Observe the stage only — pinning menus; no video-option updates here.
           mutationObserver = new MutationObserver(() => fit(false));
-          mutationObserver.observe(document.body, { childList: true, subtree: true });
+          mutationObserver.observe(stage, { childList: true, subtree: true });
           return;
         } catch (error) {
           if (cancelled) return;
           console.error("[zoom] Meeting SDK join failed; staying on AviatorPass", error);
           const failedClient = sdkRef.current;
           sdkRef.current = null;
+          liveMeetingRef.current = false;
           joinedKeyRef.current = null;
           await releaseZoomEmbeddedClient(failedClient);
           if (stageRef.current) stageRef.current.replaceChildren();
@@ -736,10 +765,11 @@ function InAppZoomRoom({
       cancelled = true;
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
-      // Unmount or join-key change: leave once. Same-key identity is handled by
-      // sessionJoinKey (effect does not re-run) + joinedKeyRef early return.
+      // Unmount or meeting-identity change only (signature remints no longer change
+      // sessionJoinKey). Leave once; same-key early return covers soft re-entries.
       const client = sdkRef.current;
       sdkRef.current = null;
+      liveMeetingRef.current = false;
       joinedKeyRef.current = null;
       void releaseZoomEmbeddedClient(client);
       stopLocalMedia();
@@ -763,6 +793,7 @@ function InAppZoomRoom({
   }
 
   async function leaveClassroom() {
+    liveMeetingRef.current = false;
     joinedKeyRef.current = null;
     sdkRef.current = null;
     await releaseZoomEmbeddedClient();
@@ -922,6 +953,7 @@ function InAppZoomRoom({
                 className="classroom-dock-btn"
                 data-reconnect="true"
                 onClick={() => {
+                  liveMeetingRef.current = false;
                   joinedKeyRef.current = null;
                   setNotice("Opening the classroom again");
                   setPhase("loading");

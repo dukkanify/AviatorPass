@@ -53,14 +53,31 @@ describe("join session gate", () => {
     expect(join).toMatch(/keeping room/);
   });
 
-  it("joins Meeting SDK once per session fingerprint, not per object identity", () => {
+  it("joins Meeting SDK once per meeting identity, ignoring signature remints", () => {
     const room = src("features/zoom/components/in-app-zoom-room.tsx");
     expect(room).toMatch(/sessionJoinKey/);
     expect(room).toMatch(/joinedKeyRef/);
+    expect(room).toMatch(/liveMeetingRef/);
     expect(room).toMatch(/joinedKeyRef\.current === sessionJoinKey/);
+    // Signature/ZAK must NOT be part of the join effect identity.
+    expect(room).toContain("[session.mode, session.meetingNumber, String(attempt)].join");
+    expect(room).not.toContain("session.signature ??");
+    expect(room).not.toContain("session.zak ??");
+    expect(room).toMatch(/boot skipped — meeting already live/);
+    expect(room).toMatch(/mutationObserver\.observe\(stage,/);
     expect(room).not.toMatch(
       /}, \[attempt, isHost, liveClassId, session, startLocalMedia, stopLocalMedia\]\);/,
     );
+  });
+
+  it("separates schedule Finished from live meeting connection status", () => {
+    const join = src("features/classes/components/join-class-client.tsx");
+    expect(join).toMatch(/scheduleStatus/);
+    expect(join).toMatch(/panelMeetingLabel/);
+    expect(join).toMatch(/panelScheduleLabel/);
+    expect(join).toMatch(/Window ended \(meeting still open\)/);
+    expect(join).toMatch(/Schedule status/);
+    expect(join).toMatch(/Not connected/);
   });
 
   it("production session cookies share Domain=.aviatorpass.com", () => {
