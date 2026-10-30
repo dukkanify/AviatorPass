@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/providers/auth-provider";
-import { ROLE_LABELS, ROLES } from "@/constants/roles";
+import { ROLE_LABELS } from "@/constants/roles";
 import { ACCOUNT_STATUS_LABELS } from "@/constants/account-status";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
@@ -19,7 +19,6 @@ import {
   StudentAccountFields,
   type StudentAccountFieldValues,
 } from "@/features/profile/components/student-account-fields";
-import { InstructorZoomPanel } from "@/features/zoom/components/instructor-zoom-panel";
 import type { UserProfile } from "@/types";
 
 interface ProfilePageViewProps {
@@ -138,12 +137,6 @@ function ProfilePageView({ roleLabel }: ProfilePageViewProps) {
           </div>
         </CardHeader>
       </Card>
-
-      {user.role === ROLES.INSTRUCTOR || user.role === ROLES.CHIEF_GROUND_INSTRUCTOR ? (
-        <React.Suspense fallback={<Skeleton className="h-48 w-full rounded-xl" />}>
-          <InstructorZoomPanel />
-        </React.Suspense>
-      ) : null}
 
       <Card>
         <CardHeader>
