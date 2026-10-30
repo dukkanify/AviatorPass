@@ -64,7 +64,9 @@ describe("join session gate", () => {
     expect(room).not.toContain("session.signature ??");
     expect(room).not.toContain("session.zak ??");
     expect(room).toMatch(/boot skipped — meeting already live/);
-    expect(room).toMatch(/mutationObserver\.observe\(stage,/);
+    // Connecting fix: do not pin/observe Zoom DOM after Connected.
+    expect(room).not.toMatch(/new MutationObserver/);
+    expect(room).toMatch(/waitForEmbeddedConnected/);
     expect(room).not.toMatch(
       /}, \[attempt, isHost, liveClassId, session, startLocalMedia, stopLocalMedia\]\);/,
     );
