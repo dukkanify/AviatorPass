@@ -135,4 +135,29 @@ describe("admin console user create", () => {
       updateManagedUser(admin, admin.id, { status: ACCOUNT_STATUS.INACTIVE }),
     ).rejects.toBeInstanceOf(PermissionError);
   });
+
+  it("lets a super admin suspend another super admin and revoke setup invites", async () => {
+    const superAdmin = actor("superadmin@aviatorpass.com");
+    const stamp = Date.now();
+    const other = await createManagedUser(superAdmin, {
+      firstName: "Wrong",
+      lastName: "Domain",
+      email: `wrong.sa.${stamp}@aviatorpass.test`,
+      phone: "",
+      role: ROLES.SUPER_ADMIN,
+    });
+    expect(other.setupUrl).toContain("/setup-password");
+
+    const suspended = await updateManagedUser(superAdmin, other.profile.id, {
+      role: ROLES.ADMIN,
+      status: ACCOUNT_STATUS.SUSPENDED,
+    });
+    expect(suspended.role).toBe(ROLES.ADMIN);
+    expect(suspended.status).toBe(ACCOUNT_STATUS.SUSPENDED);
+    expect(
+      readAuthDb().passwordSetupTokens.some(
+        (token) => token.userId === other.profile.id && !token.consumedAt,
+      ),
+    ).toBe(false);
+  });
 });
