@@ -33,6 +33,7 @@ function Header() {
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const [coursesOpen, setCoursesOpen] = React.useState(false);
+  const [mobileCoursesOpen, setMobileCoursesOpen] = React.useState(false);
   const isHome = pathname === "/";
   const onAtplCourse = pathname === routes.atpl;
   const enrolHref = onAtplCourse ? routes.checkout : routes.onlineCourses;
@@ -42,7 +43,12 @@ function Header() {
   React.useEffect(() => {
     setOpen(false);
     setCoursesOpen(false);
+    setMobileCoursesOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (!open) setMobileCoursesOpen(false);
+  }, [open]);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -177,64 +183,98 @@ function Header() {
       {open ? (
         <div
           id="mobile-nav"
-          className="animate-in-fade max-h-[min(78dvh,36rem)] overflow-y-auto border-t border-white/10 bg-[var(--surface-ink)]/96 backdrop-blur-2xl lg:hidden"
+          className="animate-in-fade flex max-h-[calc(100dvh-4.25rem-env(safe-area-inset-top,0px))] flex-col border-t border-white/10 bg-[var(--surface-ink)]/96 backdrop-blur-2xl sm:max-h-[calc(100dvh-4.85rem-env(safe-area-inset-top,0px))] lg:hidden"
         >
           <nav
-            className="container-app flex flex-col gap-1 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="container-app min-h-0 flex-1 overflow-y-auto overscroll-contain py-3"
             aria-label="Mobile"
           >
-            {NAV_ITEMS.map((item) => {
-              const active = itemIsActive(pathname, item);
-              return (
-                <div key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "touch-target flex items-center rounded-xl px-3 py-3 text-sm font-medium transition",
-                      active
-                        ? "bg-white/10 text-white shadow-[inset_3px_0_0_0_var(--accent)]"
-                        : "text-white/75 hover:bg-white/8 hover:text-white",
+            <div className="flex flex-col gap-0.5">
+              {NAV_ITEMS.map((item) => {
+                const active = itemIsActive(pathname, item);
+                const hasChildren = Boolean(item.children?.length);
+                return (
+                  <div key={item.href}>
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          "touch-target flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition",
+                          active || mobileCoursesOpen
+                            ? "bg-white/10 text-white shadow-[inset_3px_0_0_0_var(--accent)]"
+                            : "text-white/75 hover:bg-white/8 hover:text-white",
+                        )}
+                        aria-expanded={mobileCoursesOpen}
+                        onClick={() => setMobileCoursesOpen((v) => !v)}
+                      >
+                        <span>{item.label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 opacity-70 transition-transform",
+                            mobileCoursesOpen && "rotate-180",
+                          )}
+                          aria-hidden
+                        />
+                      </button>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "touch-target flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                          active
+                            ? "bg-white/10 text-white shadow-[inset_3px_0_0_0_var(--accent)]"
+                            : "text-white/75 hover:bg-white/8 hover:text-white",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
                     )}
-                  >
-                    {item.label}
-                  </Link>
-                  {item.children?.length ? (
-                    <div className="mb-2 ml-3 flex flex-col border-l border-white/10 pl-3">
-                      {item.children.map((child) => (
+                    {hasChildren && mobileCoursesOpen ? (
+                      <div className="mb-1.5 ml-3 flex flex-col border-l border-white/10 pl-3">
                         <Link
-                          key={child.href}
-                          href={child.href}
-                          className="touch-target rounded-lg px-2 py-2.5 text-sm text-white/70 hover:bg-white/8 hover:text-white"
+                          href={item.href}
+                          className="touch-target rounded-lg px-2 py-2 text-sm text-white/70 hover:bg-white/8 hover:text-white"
                         >
-                          {child.label}
-                          {child.hint ? (
-                            <span className="mt-0.5 block text-[11px] uppercase tracking-[0.12em] text-accent/80">
-                              {child.hint}
-                            </span>
-                          ) : null}
+                          Browse all courses
                         </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
+                        {item.children!.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="touch-target rounded-lg px-2 py-2 text-sm text-white/70 hover:bg-white/8 hover:text-white"
+                          >
+                            {child.label}
+                            {child.hint ? (
+                              <span className="mt-0.5 block text-[11px] uppercase tracking-[0.12em] text-accent/80">
+                                {child.hint}
+                              </span>
+                            ) : null}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </nav>
+          <div className="container-app shrink-0 border-t border-white/10 bg-[var(--surface-ink)]/98 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex flex-col gap-2">
               <Button
                 variant="outline"
-                className="h-12 border-white/20 bg-transparent text-white hover:bg-white/10"
+                className="h-11 border-white/20 bg-transparent text-white hover:bg-white/10"
                 asChild
               >
                 <Link href={routes.login}>Log in</Link>
               </Button>
-              <Button variant="accent" className="hero-cta-primary h-12" asChild>
+              <Button variant="accent" className="hero-cta-primary h-11" asChild>
                 <Link href={enrolHref}>
                   {enrolLabel}
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>
             </div>
-          </nav>
+          </div>
         </div>
       ) : null}
     </header>
