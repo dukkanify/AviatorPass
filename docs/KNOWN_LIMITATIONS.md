@@ -10,13 +10,13 @@ Honest constraints for go-live and support. Full audit: `docs/ENTERPRISE_READINE
 
 ## Integrations
 
-| Integration               | Status                                                             |
-| ------------------------- | ------------------------------------------------------------------ |
-| Email OTP delivery        | Requires provider env; demo OTP for non-prod only                  |
-| Zoom                      | Session/join flow present; live Zoom Meeting API needs credentials |
-| Stripe payments / Connect | Code paths exist; live charges need Stripe keys + webhook          |
-| Supabase Auth/Storage     | Client packages present; full cutover pending env + migrations     |
-| Antivirus on upload       | Hook stub — enable real AV in production ops                       |
+| Integration               | Status                                                                                                                                                                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Email OTP delivery        | Requires provider env; demo OTP for non-prod only                                                                                                                                                                                                                                        |
+| Zoom                      | Option A: Meeting SDK embed + centralized S2S host (`ceo@aviatorpass.com`). One licensed Zoom user typically hosts one concurrent meeting; real-device A/V UAT is required for client close (`docs/CLIENT_DELIVERY_OPTION_A.md`). Marketplace submit is a separate owner-approved track. |
+| Stripe payments / Connect | Code paths exist; live charges need Stripe keys + webhook                                                                                                                                                                                                                                |
+| Supabase Auth/Storage     | Client packages present; full cutover pending env + migrations                                                                                                                                                                                                                           |
+| Antivirus on upload       | Hook stub — enable real AV in production ops                                                                                                                                                                                                                                             |
 
 ## Product surfaces
 
