@@ -8,13 +8,16 @@
 
 AviatorPass development is **complete**. This package transfers ownership for long-term operation.
 
+**Current Option A delivery (October 2026):** start with `docs/CLIENT_DELIVERY_OPTION_A.md` — Production freeze tip, real-device A/V UAT, Zoom central-host limits, and owner/client close-out. Marketplace remains a separate owner-approved track.
+
 Remaining client actions:
 
-1. Sign `docs/FINAL_PROJECT_ACCEPTANCE.md` after UAT.
-2. Configure production env / domain (see infrastructure + credentials docs).
-3. Complete training attendance records.
-4. Receive secrets via secure vault (never via git).
-5. Activate warranty / support channels.
+1. Complete real-device UAT in `CLIENT_DELIVERY_OPTION_A.md` §2 (Cloud Agent A/V is not acceptance).
+2. Sign `docs/FINAL_PROJECT_ACCEPTANCE.md` (or the Option A close-out checklist) after UAT.
+3. Configure production env / domain (see infrastructure + credentials docs).
+4. Complete training attendance records.
+5. Receive secrets via secure vault (never via git).
+6. Activate warranty / support channels.
 
 ## Package contents
 
