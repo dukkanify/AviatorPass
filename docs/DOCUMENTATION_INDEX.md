@@ -34,6 +34,7 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 | `DEVELOPER_GUIDE.md`                                  | Engineer onboarding                                   |
 | `ENVIRONMENT_SETUP.md`                                | Env / install                                         |
 | `ZOOM_CENTRALIZED_HOSTING_PLAN.md`                    | Option A: platform S2S host default                   |
+| `ZOOM_CLIENT_VIEW_MOBILE_DECISION.md`                 | Client View required on mobile (Oct 2026 decision)    |
 | `LIVE_CLASSES_ZOOM.md`                                | Live classes + Zoom ops                               |
 | `ZOOM_OAUTH_INTEGRATION.md`                           | Instructor Zoom OAuth                                 |
 | `ZOOM_MEETING_SDK_REVIEWER_TEST_PLAN.md`              | Meeting SDK Marketplace review                        |
