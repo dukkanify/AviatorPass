@@ -1,14 +1,42 @@
 #!/usr/bin/env node
 /**
  * Production smoke for AviatorPass.
- * Usage: node scripts/production-smoke.mjs [baseUrl]
+ * Usage: PRODUCTION_SMOKE_PASSWORD='…' node scripts/production-smoke.mjs [baseUrl]
+ *
+ * Never hardcodes DemoPass123!. On Production, catalog passwords are rotated at handover;
+ * pass the vault password via env, or rely on OTP where available.
  */
+import { readFileSync } from "node:fs";
+
 const BASE = (process.argv[2] || "https://www.aviatorpass.com").replace(/\/$/, "");
+const LEGACY_DEMO_PASSWORD = "DemoPass123!";
+
+function loadSmokePasswords() {
+  const byEmail = new Map();
+  const vaultPath = process.env.PRODUCTION_SMOKE_VAULT || "";
+  if (vaultPath) {
+    try {
+      const vault = JSON.parse(readFileSync(vaultPath, "utf8"));
+      for (const row of vault.accounts || []) {
+        if (row?.email && row?.password) byEmail.set(String(row.email).toLowerCase(), row.password);
+      }
+    } catch {
+      /* missing vault — fall through */
+    }
+  }
+  const shared = process.env.PRODUCTION_SMOKE_PASSWORD || "";
+  return {
+    forEmail(email) {
+      return byEmail.get(String(email).toLowerCase()) || shared;
+    },
+  };
+}
+
+const SMOKE_PASSWORDS = loadSmokePasswords();
 const DEMO = {
   student: "student@aviatorpass.com",
   instructor: "instructor@aviatorpass.com",
   superadmin: "superadmin@aviatorpass.com",
-  password: "DemoPass123!",
 };
 
 function jarNew() {
@@ -72,10 +100,16 @@ async function boot() {
 }
 
 async function passwordLogin(email) {
+  const password = SMOKE_PASSWORDS.forEmail(email);
+  if (!password) {
+    throw new Error(
+      "Set PRODUCTION_SMOKE_VAULT or PRODUCTION_SMOKE_PASSWORD for password login after catalog rotation",
+    );
+  }
   const jar = await boot();
   const res = await send(jar, "POST", "/api/auth/login", {
     email,
-    password: DEMO.password,
+    password,
     rememberMe: true,
   });
   if (!res.json?.success) throw new Error(res.json?.error || `HTTP ${res.status}`);
@@ -107,6 +141,19 @@ async function main() {
     const res = await fetch(`${BASE}/`);
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     return "HTTP 200";
+  });
+
+  await check("legacy DemoPass rejected", async () => {
+    const jar = await boot();
+    const res = await send(jar, "POST", "/api/auth/login", {
+      email: DEMO.student,
+      password: LEGACY_DEMO_PASSWORD,
+      rememberMe: false,
+    });
+    if (res.json?.success) {
+      throw new Error("legacy DemoPass123! still accepted on Production");
+    }
+    return "rejected";
   });
 
   await check("registration", async () => {
@@ -180,16 +227,21 @@ async function main() {
         (m) => m.to === DEMO.student && /verification/i.test(m.subject || ""),
       );
       const code = extractOtp(msg?.previewText);
-      if (code) {
+      if (code && code !== "123456") {
         const ver = await send(st, "POST", "/api/auth/otp/verify", {
           email: DEMO.student,
           token: code,
           purpose: "login",
         });
         if (ver.json?.success) verify = "ok";
+      } else if (code === "123456") {
+        throw new Error("fixed demo OTP appeared on Production");
       }
-    } catch {
-      verify = "request-only";
+    } catch (error) {
+      if (String(error.message || error).includes("fixed demo OTP")) throw error;
+      verify = SMOKE_PASSWORDS.forEmail(DEMO.superadmin)
+        ? "request-only"
+        : "request-only-no-smoke-password";
     }
     return `request=${delivery} verify=${verify}`;
   });

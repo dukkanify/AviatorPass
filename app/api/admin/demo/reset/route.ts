@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
+import { isLiveProductionRuntime } from "@/config/env";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
 import { writeOpsLog } from "@/services/ops/logging-service";
 import { resetDemoEnvironment } from "@/services/demo/reset-demo-environment";
 import { DEMO_ACCOUNT_PASSWORD } from "@/constants/demo-accounts";
+import { passwordMeetsAllRequirements } from "@/utils/password-rules";
 
 /**
  * Super Admin — reset permanent demo accounts and re-apply demo domain data.
@@ -21,11 +23,37 @@ export async function POST(request: Request) {
       password?: string;
     } | null;
 
-    const password =
-      typeof body?.password === "string" && body.password.length >= 8
-        ? body.password
-        : DEMO_ACCOUNT_PASSWORD;
+    const requested =
+      typeof body?.password === "string" && body.password.trim().length > 0
+        ? body.password.trim()
+        : null;
 
+    // Live Production must never fall back to the documented DemoPass123! secret.
+    if (isLiveProductionRuntime()) {
+      if (!requested || !passwordMeetsAllRequirements(requested)) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            error:
+              "Production demo reset requires an explicit strong password in the request body. The documented demo password is not allowed.",
+          },
+          { status: 400 },
+        );
+      }
+      if (requested === DEMO_ACCOUNT_PASSWORD) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            error: "The documented demo password cannot be applied on Production.",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    const password = requested ?? DEMO_ACCOUNT_PASSWORD;
     const result = resetDemoEnvironment({ password });
 
     void writeOpsLog({
@@ -36,6 +64,8 @@ export async function POST(request: Request) {
       details: {
         accounts: result.accounts.map((a) => a.email),
         studentEnrollments: result.studentEnrollments,
+        // Never log password material
+        passwordRotated: true,
       },
     });
 
@@ -43,9 +73,11 @@ export async function POST(request: Request) {
       success: true,
       data: {
         ...result,
-        // Echo password only in non-production so operators can copy it for demos.
-        password: process.env.NODE_ENV === "production" ? undefined : result.password,
-        hint: "Sign in with demo OTP (ENABLE_DEMO_OTP) or the documented temporary password after reset.",
+        // Never echo password on live Production; non-prod may show for local demos only.
+        password: isLiveProductionRuntime() ? undefined : result.password,
+        hint: isLiveProductionRuntime()
+          ? "Passwords rotated. Sign in with email OTP or the password delivered via your secure vault — not logged here."
+          : "Sign in with demo OTP (ENABLE_DEMO_OTP) or the temporary password returned for local demos.",
       },
       error: null,
     });
@@ -74,8 +106,8 @@ export async function GET() {
             exists: Boolean(u),
           };
         }),
-        otpHint: DEMO_OTP_CODE_DEFAULT,
-        passwordHint: process.env.NODE_ENV === "production" ? null : DEMO_ACCOUNT_PASSWORD,
+        otpHint: isLiveProductionRuntime() ? null : DEMO_OTP_CODE_DEFAULT,
+        passwordHint: isLiveProductionRuntime() ? null : DEMO_ACCOUNT_PASSWORD,
       },
       error: null,
     });
