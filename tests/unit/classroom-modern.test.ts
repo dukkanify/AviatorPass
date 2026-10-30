@@ -57,7 +57,8 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/\.classroom-preview-fallback/);
     expect(css).toMatch(/\.classroom-sdk-root\.is-live/);
     expect(css).toMatch(/\.classroom-dock\.is-live-sdk/);
-    expect(css).toMatch(/position:\s*sticky/);
+    // Leave Class sits under the Zoom stage (flex), not a sticky overlay over Mute/Video.
+    expect(css).toMatch(/NOT sticky overlay/);
     expect(css).toMatch(/safe-area-inset-bottom/);
     expect(css).toMatch(/overflow-x:\s*clip/);
   });
