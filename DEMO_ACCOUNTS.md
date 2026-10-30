@@ -43,9 +43,16 @@
 | Field                  | Value                                  |
 | ---------------------- | -------------------------------------- |
 | **Demo OTP**           | `123456` (when `ENABLE_DEMO_OTP=true`) |
-| **Temporary password** | `DemoPass123!`                         |
+| **Temporary password** | `DemoPass123!` (non-production only)   |
 
-Login UI is OTP-first. The temporary password is hashed onto demo accounts so **Forgot password → Reset password** and password verification demos work. It is a documented demo credential, not a production secret.
+Login UI is OTP-first. The temporary password is hashed onto demo accounts in **local / staging** so **Forgot password → Reset password** and password verification demos work.
+
+### Production (www.aviatorpass.com)
+
+- `ENABLE_DEMO_OTP` is forced **off**. Fixed OTP `123456` is rejected.
+- Catalog account passwords were **rotated** at handover (30 Oct 2026 Asia/Dubai). `DemoPass123!` must be rejected.
+- Do **not** publish Production passwords in git, reports, or chat. Deliver via secure vault only.
+- Primary Production sign-in remains **email OTP** (Resend).
 
 ---
 

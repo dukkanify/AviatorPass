@@ -13,6 +13,7 @@ import {
 } from "@/constants/demo-accounts";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
 import { ROLES } from "@/constants/roles";
+import { isLiveProductionRuntime } from "@/config/env";
 import { hashPassword, stableId } from "@/lib/security/crypto";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { ensureSuperAdminSeeded } from "@/services/auth/seed";
@@ -148,9 +149,11 @@ export function ensureDemoUsersSeeded(): void {
   upsertDemoCatalogUsers({ reactivatePermanent: false });
 }
 
-/** Restore DemoPass123! on catalog / Super Admin rows that were seeded without a hash. */
+/** Restore DemoPass123! on catalog / Super Admin rows that were seeded without a hash. Never on live Production. */
 export function ensureCatalogDemoPassword(user: StoredUser): StoredUser {
   if (user.passwordHash && user.passwordSalt) return user;
+  // Production catalog passwords are rotated at handover — do not re-inject the documented demo secret.
+  if (isLiveProductionRuntime()) return user;
   const catalog = DEMO_ACCOUNTS.some((d) => d.email === user.email.toLowerCase());
   if (!catalog && user.role !== ROLES.SUPER_ADMIN) return user;
   const { hash, salt } = hashPassword(DEMO_ACCOUNT_PASSWORD);
