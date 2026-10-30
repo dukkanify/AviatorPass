@@ -163,10 +163,32 @@ function asPromise(
   });
 }
 
+/** Client View paints into #zmmtg-root — create it if the page shell omitted it. */
+export function ensureZoomClientViewRoot(): HTMLElement {
+  if (typeof document === "undefined") {
+    throw new Error("Zoom Client View root requires document");
+  }
+  let root = document.getElementById("zmmtg-root");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "zmmtg-root";
+    document.body.prepend(root);
+  }
+  let aria = document.getElementById("aria-notify-area");
+  if (!aria) {
+    aria = document.createElement("div");
+    aria.id = "aria-notify-area";
+    aria.setAttribute("aria-live", "assertive");
+    document.body.appendChild(aria);
+  }
+  return root;
+}
+
 export async function initZoomClientViewMeeting(
   mtg: ZoomMtgClient,
   opts: { leaveUrl: string },
 ): Promise<void> {
+  ensureZoomClientViewRoot();
   await asPromise((handlers) => {
     mtg.init({
       leaveUrl: opts.leaveUrl,

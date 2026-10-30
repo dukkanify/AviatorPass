@@ -9,6 +9,7 @@ import { PhoneOff, Shield } from "lucide-react";
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
 import {
+  ensureZoomClientViewRoot,
   initZoomClientViewMeeting,
   joinZoomClientViewMeeting,
   leaveZoomClientViewMeeting,
@@ -198,6 +199,7 @@ function InAppZoomClientView({
       try {
         setPhase("loading");
         setNotice("Opening Zoom Client View…");
+        ensureZoomClientViewRoot();
         const mtg = await loadZoomClientView();
         if (cancelled) return;
         mtgRef.current = mtg;
@@ -209,7 +211,17 @@ function InAppZoomClientView({
               ? `${window.location.origin}${leaveHref}`
               : leaveHref;
 
-        await initZoomClientViewMeeting(mtg, { leaveUrl });
+        // Client View init/join can hang without a callback on some WebViews —
+        // bound each step so the lobby surfaces a retry instead of spinning.
+        const withTimeout = <T,>(promise: Promise<T>, label: string, ms = 45000) =>
+          Promise.race([
+            promise,
+            new Promise<T>((_, reject) =>
+              window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms),
+            ),
+          ]);
+
+        await withTimeout(initZoomClientViewMeeting(mtg, { leaveUrl }), "Client View init");
         if (cancelled) return;
 
         const joinPayload = {
@@ -222,7 +234,7 @@ function InAppZoomClientView({
           ...(active.zak ? { zak: active.zak } : {}),
         };
 
-        await joinZoomClientViewMeeting(mtg, joinPayload);
+        await withTimeout(joinZoomClientViewMeeting(mtg, joinPayload), "Client View join");
         if (cancelled) return;
 
         joinedKeyRef.current = sessionJoinKey;

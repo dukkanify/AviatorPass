@@ -62,6 +62,7 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
 
     const client = src("features/zoom/components/in-app-zoom-client-view.tsx");
     expect(client).toMatch(/loadZoomClientView/);
+    expect(client).toMatch(/ensureZoomClientViewRoot/);
     expect(client).toMatch(/joinZoomClientViewMeeting/);
     expect(client).toMatch(/No personal Zoom account is required/);
     expect(client).toMatch(/sessionJoinKey/);
@@ -70,5 +71,9 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
     expect(client).toMatch(/\?left=1/);
     // Must not overlay Leave on live Client View chrome
     expect(client).not.toMatch(/classroom-client-live-banner/);
+
+    const loader = src("features/zoom/lib/load-client-view-sdk.ts");
+    expect(loader).toMatch(/zmmtg-root/);
+    expect(loader).toMatch(/aria-notify-area/);
   });
 });
