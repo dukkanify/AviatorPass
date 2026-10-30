@@ -296,7 +296,7 @@ export const adminCreateUserSchema = z.object({
   phone: phoneSchema,
   countryCode: z.string().length(2).optional().or(z.literal("")),
   nationality: z.string().trim().max(80).optional().or(z.literal("")),
-  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]),
+  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin", "super_admin"]),
 });
 
 export const adminUpdateUserSchema = z
@@ -307,7 +307,9 @@ export const adminUpdateUserSchema = z
     countryCode: z.string().length(2).optional().or(z.literal("")),
     nationality: z.string().trim().max(80).optional().or(z.literal("")),
     status: z.enum(["pending", "active", "inactive", "suspended"]).optional(),
-    role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]).optional(),
+    role: z
+      .enum(["student", "instructor", "chief_ground_instructor", "admin", "super_admin"])
+      .optional(),
     password: passwordSchema.optional().or(z.literal("")),
     confirmPassword: z.string().optional().or(z.literal("")),
   })

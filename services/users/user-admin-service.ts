@@ -61,6 +61,9 @@ function defaultAvatarDataUri(initials: string): string {
 
 export function canCreateRole(actor: UserProfile, role: Role): boolean {
   if (!creatableRolesFor(actor.role).includes(role as CreatableRole)) return false;
+  if (role === ROLES.SUPER_ADMIN) {
+    return actor.role === ROLES.SUPER_ADMIN;
+  }
   if (role === ROLES.STUDENT) {
     return hasPermission(actor.role, PERMISSIONS.STUDENTS_MANAGE);
   }

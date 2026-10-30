@@ -71,6 +71,32 @@ describe("admin console user create", () => {
     ).rejects.toBeInstanceOf(PermissionError);
   });
 
+  it("lets a super admin invite another super admin with password setup", async () => {
+    const superAdmin = actor("superadmin@aviatorpass.com");
+    const stamp = Date.now();
+    const invited = await createManagedUser(superAdmin, {
+      firstName: "Client",
+      lastName: "Owner",
+      email: `client.sa.${stamp}@aviatorpass.test`,
+      phone: "",
+      role: ROLES.SUPER_ADMIN,
+    });
+    expect(invited.profile.role).toBe(ROLES.SUPER_ADMIN);
+    expect(invited.setupUrl).toContain("/setup-password");
+    expect(findUserByEmail(invited.profile.email)?.mustChangePassword).toBe(true);
+
+    const admin = actor("admin@aviatorpass.com");
+    await expect(
+      createManagedUser(admin, {
+        firstName: "Blocked",
+        lastName: "SA",
+        email: `blocked.sa.${stamp}@aviatorpass.test`,
+        phone: "",
+        role: ROLES.SUPER_ADMIN,
+      }),
+    ).rejects.toBeInstanceOf(PermissionError);
+  });
+
   it("rejects duplicate emails and allows status updates", async () => {
     const superAdmin = actor("superadmin@aviatorpass.com");
     const email = `dup.user.${Date.now()}@aviatorpass.test`;
