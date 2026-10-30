@@ -232,12 +232,12 @@
 
 ### ب) يلزم من المالك (Dukkanify / مشغّل المنصة)
 
-- [ ] الإبقاء على تجميد Production عند SHA `5a29c38…` ما لم يُطلب نشر صريح
+- [ ] الإبقاء على تجميد Production عند SHA `ce29a4a…` ما لم يُطلب نشر صريح
 - [ ] تزويد العميل بوصول الخزنة (Vercel/GitHub/Zoom حسب العقد) دون وضع أسرار في Git
-- [ ] تأكيد إعدادات Production: `ENABLE_DEMO_OTP=false`، أسرار Zoom الثلاثية (S2S + Meeting SDK + اختياري Instructor) كما هي
-- [ ] حضور/تيسير جلسة UAT الجهازين أو اعتماد نتائج العميل الموقّعة
+- [ ] تأكيد إعدادات Production: `ENABLE_DEMO_OTP=false`، تدوير `DemoPass123!` على حسابات العرض، أسرار Zoom الثلاثية كما هي
+- [ ] حضور/تيسير جلسة UAT الجهازين أو اعتماد نتائج العميل الموقّعة على Production
 - [ ] **عدم** فتح مسار Marketplace (Scopes/OBF/Submit/تطبيق جديد) ضمن إغلاق هذا التسليم
-- [ ] توضيح حد الترخيص المتزامن من بوابة Zoom إن طلب العميل سعة أعلى من مضيف واحد
+- [ ] توضيح حد الترخيص المتزامن / مضيفين إضافيين — انظر `ZOOM_MARKETPLACE_MULTI_INSTRUCTOR_LICENSING.md`
 
 ### ج) يلزم من العميل
 
@@ -255,13 +255,14 @@
 
 ## مراجع سريعة
 
-| وثيقة                                                  | الغرض                                      |
-| ------------------------------------------------------ | ------------------------------------------ |
-| `DEMO_ACCOUNTS.md`                                     | حسابات العرض                               |
-| `docs/LIVE_CLASSES_ZOOM.md`                            | تشغيل Zoom الحي                            |
-| `docs/ZOOM_CENTRALIZED_HOSTING_PLAN.md`                | قرار المضيف المركزي                        |
-| `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | مسار Marketplace فقط                       |
-| `docs/HANDOVER.md`                                     | حزمة التسليم العامة                        |
-| `docs/CREDENTIALS_REGISTER.md`                         | قالب الأسرار (بلا قيم)                     |
-| `docs/KNOWN_LIMITATIONS.md`                            | قيود عامة                                  |
-| `docs/FINAL_PROJECT_ACCEPTANCE.md`                     | نموذج قبول تعاقدي أقدم — يُكمَّل بـ §8 هنا |
+| وثيقة                                                  | الغرض                                       |
+| ------------------------------------------------------ | ------------------------------------------- |
+| `DEMO_ACCOUNTS.md`                                     | حسابات العرض                                |
+| `docs/LIVE_CLASSES_ZOOM.md`                            | تشغيل Zoom الحي                             |
+| `docs/ZOOM_CENTRALIZED_HOSTING_PLAN.md`                | قرار المضيف المركزي                         |
+| `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md` | مسار Marketplace فقط                        |
+| `docs/ZOOM_MARKETPLACE_MULTI_INSTRUCTOR_LICENSING.md`  | تراخيص التوسع لعدة مدرسين + وضع Marketplace |
+| `docs/HANDOVER.md`                                     | حزمة التسليم العامة                         |
+| `docs/CREDENTIALS_REGISTER.md`                         | قالب الأسرار (بلا قيم)                      |
+| `docs/KNOWN_LIMITATIONS.md`                            | قيود عامة                                   |
+| `docs/FINAL_PROJECT_ACCEPTANCE.md`                     | نموذج قبول تعاقدي أقدم — يُكمَّل بـ §8 هنا  |
