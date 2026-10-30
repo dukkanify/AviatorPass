@@ -144,12 +144,13 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
       } else {
         const next = result.data;
         setData((prev) => {
-          // While Zoom is live, freeze join identity (URLs/password) so parent
-          // re-renders / soft refreshes cannot change props and re-trigger join.
+          // Freeze join identity once we have a meeting payload (not only after
+          // SDK reports live). Soft-refresh during Connecting must not change
+          // joinUrl/startUrl/password and re-fire Meeting SDK boot.
           if (
             prev?.join &&
             next.join &&
-            liveSdkRef.current &&
+            hasJoinPayloadRef.current &&
             prev.join.zoomMeetingId === next.join.zoomMeetingId
           ) {
             return {
@@ -160,6 +161,8 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                 startUrl: prev.join.startUrl,
                 password: prev.join.password,
               },
+              // Keep host flag stable for the open session.
+              isHost: prev.isHost,
             };
           }
           return next;
@@ -282,7 +285,8 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
     user?.fullName?.trim() ||
     [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
     (data.isHost ? "Instructor" : "Student");
-  const audience =
+  // Schedule/window status (clock) — independent of Meeting SDK connection.
+  const scheduleStatus =
     data.audienceStatus ??
     (cls.computedStatus === "live_now"
       ? "Live"
@@ -291,9 +295,11 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         : cls.status === "cancelled"
           ? "Cancelled"
           : "Upcoming");
-  const finished = audience === "Finished" || audience === "Cancelled";
+  const finished = scheduleStatus === "Finished" || scheduleStatus === "Cancelled";
   const instructorName = cls.instructorName?.trim() || "Instructor";
-  const liveNow = audience === "Live" || roomPhase === "sdk";
+  // Meeting connection wins for LIVE badge / chrome while SDK is connected.
+  const inMeeting = roomPhase === "sdk";
+  const liveNow = inMeeting || scheduleStatus === "Live";
   const statusLabel =
     roomPhase === "sdk"
       ? "In the meeting"
@@ -301,9 +307,9 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         ? "Reconnect"
         : roomPhase === "loading"
           ? "Connecting"
-          : audience === "Live"
+          : scheduleStatus === "Live"
             ? "Ready"
-            : audience;
+            : scheduleStatus;
   const statusState =
     roomPhase === "sdk"
       ? "live"
@@ -312,6 +318,24 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         : roomPhase === "loading"
           ? "loading"
           : "ready";
+  // Class Info panel: never show Finished as the live meeting state.
+  const panelMeetingLabel = inMeeting
+    ? "In the meeting"
+    : roomPhase === "loading"
+      ? "Connecting"
+      : roomPhase === "error"
+        ? "Reconnect"
+        : roomPhase === "classroom"
+          ? "Classroom ready"
+          : scheduleStatus === "Live"
+            ? "Ready"
+            : scheduleStatus === "Finished"
+              ? "Not connected"
+              : scheduleStatus;
+  const panelScheduleLabel =
+    scheduleStatus === "Finished" && inMeeting
+      ? "Window ended (meeting still open)"
+      : scheduleStatus;
 
   return (
     <div
@@ -356,7 +380,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                 <span>
                   Host <strong>{instructorName}</strong>
                 </span>
-                {!finished && roomPhase !== "sdk" ? (
+                {!finished && !inMeeting ? (
                   <span>
                     <MeetingCountdown startsAt={cls.startsAt} />
                   </span>
@@ -380,7 +404,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         </section>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3">
-          {join && cls.status !== "completed" && audience !== "Cancelled" ? (
+          {join && cls.status !== "completed" && scheduleStatus !== "Cancelled" ? (
             <InAppZoomRoom
               liveClassId={classId}
               joinUrl={join.joinUrl}
@@ -397,7 +421,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
             />
           ) : (
             <p className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center text-sm text-white/65">
-              {audience === "Cancelled"
+              {scheduleStatus === "Cancelled"
                 ? "This class was cancelled."
                 : cls.status === "completed"
                   ? "This subject is complete and will not open again."
@@ -445,7 +469,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                   </div>
                   <div className="classroom-info-side">
                     <div>
-                      <span>Schedule</span>
+                      <span>When</span>
                       <strong>{formatRange(cls.startsAt, cls.durationMinutes)}</strong>
                     </div>
                     <div>
@@ -457,8 +481,14 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
                       <strong>{cls.durationMinutes} min</strong>
                     </div>
                     <div>
-                      <span>Status</span>
-                      <strong className={cn(liveNow && "text-[#86efac]")}>{audience}</strong>
+                      <span>Meeting</span>
+                      <strong className={cn(inMeeting && "text-[#86efac]")}>
+                        {panelMeetingLabel}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Schedule status</span>
+                      <strong>{panelScheduleLabel}</strong>
                     </div>
                   </div>
                 </>
