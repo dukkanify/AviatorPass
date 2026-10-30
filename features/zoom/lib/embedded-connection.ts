@@ -22,10 +22,60 @@ export function isZoomConnectionTerminalFailure(state: string): boolean {
   return /^(closed|fail|failed)$/i.test(state.trim());
 }
 
+/** True when Zoom Component View still paints its Connecting overlay inside the stage. */
+export function stageShowsZoomConnecting(stage: HTMLElement | null | undefined): boolean {
+  if (!stage) return false;
+  const text = (stage.innerText || stage.textContent || "").replace(/\s+/g, " ").trim();
+  if (!text) return false;
+  // Zoom's own overlay uses "Connecting..." — do not match unrelated copy outside stage.
+  return /\bConnecting(?:\.\.\.)?\b/i.test(text);
+}
+
+/**
+ * After connection-change Connected, wait until Zoom's Connecting overlay is gone
+ * (or a Zoom app container is painted without Connecting). Rejects on timeout.
+ */
+export function waitForEmbeddedUiLeftConnecting(
+  stage: HTMLElement,
+  options?: { timeoutMs?: number; pollMs?: number },
+): Promise<void> {
+  const timeoutMs = options?.timeoutMs ?? 45000;
+  const pollMs = options?.pollMs ?? 250;
+  const started = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const hasZoomApp = Boolean(
+        stage.querySelector(
+          '[aria-label="Zoom app container"], [aria-label="Zoom Web SDK Widget"]',
+        ),
+      );
+      const connecting = stageShowsZoomConnecting(stage);
+      if (hasZoomApp && !connecting) {
+        resolve();
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        reject(
+          new Error(
+            connecting
+              ? "Zoom media UI stayed on Connecting after Connected"
+              : "Zoom media UI did not paint after Connected",
+          ),
+        );
+        return;
+      }
+      globalThis.setTimeout(tick, pollMs);
+    };
+    tick();
+  });
+}
+
 /**
  * Subscribe before join() so a Connected event during join is not missed.
- * Resolves on Connected; rejects on Closed/Fail or timeout.
- * If the client has no event API, resolves after a short paint delay.
+ * Resolves on Connected; rejects on Closed/Fail, missing event API, or timeout.
+ * Never falsifies Connected when client.on is unavailable (that left shell
+ * "In the meeting" over a stuck Connecting overlay).
  */
 export function waitForEmbeddedConnected(
   client: ZoomConnectionListener,
@@ -62,12 +112,11 @@ export function waitForEmbeddedConnected(
     }
 
     if (typeof client.on !== "function") {
-      clearTimeout(timer);
-      setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      }, 1200);
+      finish(() =>
+        reject(
+          new Error("Zoom Component View has no connection-change API — refusing false Connected"),
+        ),
+      );
       return;
     }
 

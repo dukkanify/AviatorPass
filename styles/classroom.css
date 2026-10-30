@@ -360,6 +360,11 @@
 .classroom-sdk-root.is-joining > *,
 .classroom-sdk-root.is-live > * {
   max-width: 100%;
+  /* Give Zoom's root widget the stage box — oversized gallery (1300px+) was
+     clipped by overflow:hidden leaving a black pane + Connecting overlay. */
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100%;
 }
 
 .classroom-preview {

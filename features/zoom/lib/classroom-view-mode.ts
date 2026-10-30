@@ -1,12 +1,14 @@
 /**
  * Dual-path Meeting SDK view selection.
- * Zoom: Component View is unsupported on mobile/tablet — use Client View there.
+ * Default: Client View (ZoomMtg) for all devices — Component View sticks on
+ * "Connecting" / black stage under AviatorPass React 19 (Zoom peer is React 18.2).
+ * Escape hatch: ?sdkView=component (desktop debugging only).
  * @see https://developers.zoom.us/docs/meeting-sdk/web/browser-support/
  */
 
 export type ClassroomSdkView = "client" | "component";
 
-/** Breakpoint aligned with classroom CSS tablet/phone layouts. */
+/** Legacy breakpoint retained for tests / docs; default path no longer uses it. */
 export const CLASSROOM_CLIENT_VIEW_MAX_PX = 1024;
 
 export function prefersMeetingSdkClientView(input?: {
@@ -20,12 +22,11 @@ export function prefersMeetingSdkClientView(input?: {
   if (forced === "client") return true;
   if (forced === "component") return false;
 
-  const ua = input?.userAgent ?? (typeof navigator !== "undefined" ? navigator.userAgent : "");
-  const mobileUa = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua);
-  const width =
-    input?.width ??
-    (typeof window !== "undefined" ? window.innerWidth : CLASSROOM_CLIENT_VIEW_MAX_PX + 1);
-  return mobileUa || width <= CLASSROOM_CLIENT_VIEW_MAX_PX;
+  // Default Client View everywhere. Component View remains available via
+  // ?sdkView=component for controlled desktop experiments only.
+  void input?.width;
+  void input?.userAgent;
+  return true;
 }
 
 export function resolveClassroomSdkView(input?: {
