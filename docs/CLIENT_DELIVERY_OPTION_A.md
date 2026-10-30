@@ -3,8 +3,9 @@
 **المنتج:** AviatorPass  
 **القرار المعتمد:** الخيار A — الإبقاء على البنية الحالية دون إعادة تطوير Zoom  
 **تاريخ الحزمة:** 30 أكتوبر 2026 (Asia/Dubai)  
-**Production المجمَّد:** `https://www.aviatorpass.com` — SHA `5a29c38515a7ab5d4398f60647a463a03443dcdb` (`cursor/zoom-marketplace-login-return-dfeb`)  
-**Marketplace:** مسار منفصل — لا Submit / لا Scopes جديدة / لا OBF / لا تطبيقات جديدة دون موافقة المالك
+**Production الحالي:** `https://www.aviatorpass.com` — SHA `ce29a4aaea5c1d25d275fb5480e9245d472ae6c4` (PR #170 / `main` — Client View + CSP `blob:`)  
+**Marketplace:** مسار منفصل — لا Submit / لا Scopes جديدة / لا OBF / لا تطبيقات جديدة دون موافقة المالك  
+**تقرير إغلاق QA:** انظر أيضاً مصفوفة `/opt/cursor/artifacts/ATPL_PASS_FINAL_QA_REPORT.md` عند توفر بيئة التسليم
 
 ---
 
@@ -14,11 +15,12 @@
 | ----------------- | ------------------------------------------------------------------- |
 | URL               | https://www.aviatorpass.com                                         |
 | Health            | `GET /api/health` → `status: ok` (مُتحقق 30 أكتوبر 2026 Asia/Dubai) |
-| Git SHA           | `5a29c38515a7ab5d4398f60647a463a03443dcdb`                          |
-| Git ref عند النشر | `cursor/zoom-marketplace-login-return-dfeb`                         |
+| Git SHA           | `ce29a4aaea5c1d25d275fb5480e9245d472ae6c4`                          |
+| Git ref عند النشر | `main` (PR #170 Zoom Classroom)                                     |
+| Smoke             | `npm run smoke:production` → 11/11 PASS                             |
 | سياسة التغيير     | **تجميد** — لا نشر ولا تغييرات Zoom/منصة إلا بطلب صريح من المالك    |
 
-ما يشمله التجميد: Meeting SDK (`VGTQ`)، S2S CEO (`uX3Q` / `ceo@aviatorpass.com`)، Instructor OAuth الاختياري (`Z0xA`)، إصلاحات الانضمام/الجلسة المنشورة، clear-live inventory-only.
+ما يشمله التجميد: Meeting SDK (`VGTQ`)، S2S CEO (`uX3Q` / `ceo@aviatorpass.com`)، Instructor OAuth الاختياري (`Z0xA`)، إصلاحات الانضمام/الجلسة المنشورة (Client View افتراضي + CSP `blob:`)، clear-live inventory-only.
 
 ---
 
