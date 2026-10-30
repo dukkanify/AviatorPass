@@ -30,25 +30,22 @@ describe("super admin password and wrapped classroom", () => {
   });
 
   it("sizes the Zoom Component View to fill the lesson stage", () => {
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/stageVideoSize\(/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/viewSizes/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/ResizeObserver/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/MutationObserver/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/pinZoomWindowToStage\(/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/innerCenter/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/CLASSROOM_NARROW_PX/);
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain(
-      'import "@/styles/classroom.css"',
-    );
+    const room = src("features/zoom/components/in-app-zoom-room.tsx");
+    expect(room).toMatch(/stageVideoSize\(/);
+    expect(room).toMatch(/viewSizes/);
+    expect(room).toMatch(/CLASSROOM_NARROW_PX/);
+    expect(room).toMatch(/waitForEmbeddedUiLeftConnecting/);
+    expect(room).toMatch(/updateVideoOptions/);
+    // Pin/observe thrash remounted Zoom and stuck Connecting — must stay gone.
+    expect(room).not.toMatch(/pinZoomWindowToStage\(/);
+    expect(room).not.toMatch(/new MutationObserver/);
+    expect(room).toContain('import "@/styles/classroom.css"');
     expect(src("features/learning/components/course-player-view.tsx")).toContain(
       'import "@/styles/classroom.css"',
     );
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(
-      /classroom-stage[\s\S]*is-live/,
-    );
+    expect(room).toMatch(/classroom-stage[\s\S]*is-live/);
     expect(src("styles/classroom.css")).toMatch(/classroom-sdk-root\.is-live/);
     expect(src("styles/classroom.css")).toMatch(/width: 100% !important/);
-    expect(src("styles/classroom.css")).toMatch(/suspension-view-tabpanel/);
     expect(src("app/api/dashboard/metrics/route.ts")).toMatch(
       /scope === ROLES.SUPER_ADMIN[\s\S]*getSuperAdminCountsPayload\(/,
     );

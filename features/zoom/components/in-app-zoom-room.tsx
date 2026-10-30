@@ -8,7 +8,10 @@ import { Mic, MicOff, PhoneOff, Shield, Video, VideoOff } from "lucide-react";
 
 import { routes } from "@/constants/routes";
 import { authFetch } from "@/features/auth/services/auth-api";
-import { waitForEmbeddedConnected } from "@/features/zoom/lib/embedded-connection";
+import {
+  waitForEmbeddedConnected,
+  waitForEmbeddedUiLeftConnecting,
+} from "@/features/zoom/lib/embedded-connection";
 import {
   openZoomEmbeddedClient,
   prefetchZoomEmbeddedSdk,
@@ -553,9 +556,23 @@ function InAppZoomRoom({
             void connected.catch(() => undefined);
             return;
           }
-          // join() resolving is NOT proof the media UI is live — wait for Connected.
+          // join() resolving is NOT proof the media UI is live — wait for Connected,
+          // then wait until Zoom's own Connecting overlay is gone (shell must not
+          // show "In the meeting" over a stuck Connecting spinner).
           await connected;
           if (cancelled) return;
+          await waitForEmbeddedUiLeftConnecting(stage);
+          if (cancelled) return;
+          // One post-Connected size sync — avoid thrash loops that re-stuck Connecting.
+          const sized = stageVideoSize(stage);
+          try {
+            await client.updateVideoOptions?.({
+              defaultViewType: sized.width < CLASSROOM_NARROW_PX ? "gallery" : "speaker",
+              viewSizes: { default: sized },
+            });
+          } catch {
+            /* non-fatal — media already Connected */
+          }
           grantZoomFrameMedia();
           joinedKeyRef.current = sessionJoinKey;
           liveMeetingRef.current = true;

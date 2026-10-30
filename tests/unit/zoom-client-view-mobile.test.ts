@@ -27,7 +27,7 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
     expect(ZOOM_CLIENT_VIEW_SDK_SCRIPTS.every((s) => !s.includes("embedded"))).toBe(true);
   });
 
-  it("selects Client View for phones/tablets and Component View for wide desktop", () => {
+  it("defaults Client View on all viewports; Component only via ?sdkView=component", () => {
     expect(
       resolveClassroomSdkView({ width: 390, userAgent: "Mozilla/5.0 (Linux; Android 14)" }),
     ).toBe("client");
@@ -42,9 +42,10 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
         width: 1440,
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)",
       }),
-    ).toBe("component");
+    ).toBe("client");
     expect(prefersMeetingSdkClientView({ width: 1280, search: "sdkView=client" })).toBe(true);
-    expect(prefersMeetingSdkClientView({ width: 360, search: "sdkView=component" })).toBe(false);
+    expect(prefersMeetingSdkClientView({ width: 1440, search: "sdkView=component" })).toBe(false);
+    expect(resolveClassroomSdkView({ width: 1440, search: "sdkView=component" })).toBe("component");
   });
 
   it("allows Zoom CDN media under CSP for Client View chimes/wasm audio", () => {
