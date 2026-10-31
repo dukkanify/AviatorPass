@@ -209,17 +209,23 @@ export async function notifyStudentsInstructorIsWaiting(input: {
 
   const name =
     [actor.firstName, actor.lastName].filter(Boolean).join(" ").trim() || "Your instructor";
+  const subjectName = resolveLiveClassSubjectName(cls);
   let sent = 0;
   for (const studentId of studentIds) {
     const record = await emitNotification({
       userId: studentId,
       type: "class.instructor_waiting",
-      title: "Your instructor is waiting",
-      body: `${name} has joined the classroom and is waiting for you.`,
+      title: `Your instructor is waiting — ${subjectName}`,
+      body: `${name} has joined ${subjectName} and is waiting for you in the classroom.`,
       actionUrl: `/join/${cls.id}`,
-      email: false,
+      email: true,
       dedupeKey: `instructor-waiting:${cls.id}:${studentId}`,
-      data: { liveClassId: cls.id, instructorId: actor.id },
+      data: {
+        liveClassId: cls.id,
+        instructorId: actor.id,
+        courseId: cls.courseId,
+        subjectName,
+      },
     });
     if (record) sent += 1;
   }

@@ -58,6 +58,9 @@ describe("official ATPL instructor assignment email", () => {
     expect(theoreticalKnowledgeLabel(instructors[0]!.id)).toBe("TK 2");
     expect(theoreticalKnowledgeLabel(instructors[1]!.id)).toBe("TK 3");
     expect(assignedInstructorStudentSubject("TK 2")).toBe("TK 2 has been assigned to you.");
+    expect(assignedInstructorStudentSubject("TK 2", "General Navigation")).toBe(
+      "TK 2 has been assigned to you — General Navigation",
+    );
     const primary = findUserByEmail(PRIMARY_DEMO_EMAILS.instructor)!;
     expect(theoreticalKnowledgeLabel(primary.id)).toBe("TK 2");
   });
@@ -84,7 +87,8 @@ describe("official ATPL instructor assignment email", () => {
     });
 
     expect(result.tkLabel).toBe("TK 2");
-    expect(result.studentSubject).toBe("TK 2 has been assigned to you.");
+    expect(result.studentSubject).toMatch(/^TK 2 has been assigned to you — /);
+    expect(result.studentSubject).toContain("Instrumentation");
     expect(result.notifiedUserIds).toEqual(
       expect.arrayContaining([student.id, instructor.id, cgi.id, superAdmin.id]),
     );
@@ -101,11 +105,11 @@ describe("official ATPL instructor assignment email", () => {
       (message) => message.to.toLowerCase() === superAdmin.email.toLowerCase(),
     );
 
-    expect(toStudent.some((message) => message.subject === "TK 2 has been assigned to you.")).toBe(
-      true,
-    );
-    const studentMail = toStudent.find(
-      (message) => message.subject === "TK 2 has been assigned to you.",
+    expect(
+      toStudent.some((message) => /TK 2 has been assigned to you — /i.test(message.subject)),
+    ).toBe(true);
+    const studentMail = toStudent.find((message) =>
+      /TK 2 has been assigned to you — /i.test(message.subject),
     )!;
     const studentBody = `${studentMail.html || ""}\n${studentMail.text || ""}`;
     expect(studentBody).toMatch(/Instructor:/i);
@@ -182,7 +186,7 @@ describe("official ATPL instructor assignment email", () => {
       sent.some(
         (message) =>
           message.to.toLowerCase() === student.email.toLowerCase() &&
-          message.subject === "TK 2 has been assigned to you.",
+          /TK 2 has been assigned to you/i.test(message.subject),
       ),
     ).toBe(true);
     expect(sent.some((message) => message.subject === "Class scheduled")).toBe(false);
@@ -240,7 +244,7 @@ describe("official ATPL instructor assignment email", () => {
         sent.some(
           (message) =>
             message.to.toLowerCase() === student.email.toLowerCase() &&
-            message.subject === "TK 2 has been assigned to you.",
+            /TK 2 has been assigned to you/i.test(message.subject),
         ),
       ).toBe(true);
       expect(

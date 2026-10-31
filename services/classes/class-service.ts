@@ -591,6 +591,7 @@ export async function createLiveClass(
           ? "A Zoom meeting has been prepared for this session."
           : "The class is scheduled. The Zoom meeting will be added when Zoom is connected.",
         liveClassId: cls.id,
+        courseId: cls.courseId,
         actorId: input.actorId,
         joinUrl: createdMeeting ? appJoinUrl(cls.id, createdMeeting.zoomMeetingId) : undefined,
       });
@@ -738,6 +739,7 @@ export async function updateLiveClass(input: {
       when: new Date(next.startsAt).toLocaleString(),
       detail: "The lecture date was updated. Join from AviatorPass at the new time.",
       liveClassId: next.id,
+      courseId: next.courseId,
       actorId: input.actorId,
       joinUrl: meeting ? appJoinUrl(next.id, meeting.zoomMeetingId) : undefined,
     });
@@ -799,6 +801,7 @@ export async function cancelLiveClass(input: {
     title: existing.title,
     detail: input.reason?.trim() || "This live class was cancelled by the instructor or admin.",
     liveClassId: input.id,
+    courseId: existing.courseId,
     actorId: input.actorId,
   });
 
@@ -934,6 +937,7 @@ export async function rescheduleLiveClass(input: {
     when: new Date(startsAt).toLocaleString(),
     detail: "Please use the updated calendar entry and Zoom link.",
     liveClassId: rescheduledId,
+    courseId: existing.courseId,
     actorId: input.actorId,
     joinUrl: rescheduledMeeting
       ? appJoinUrl(rescheduledId, rescheduledMeeting.zoomMeetingId)
@@ -1027,6 +1031,7 @@ export async function softDeleteLiveClass(input: {
       title: existing.title,
       detail: "This live class was deleted. The Zoom meeting has been removed.",
       liveClassId: input.id,
+      courseId: existing.courseId,
       actorId: input.actorId,
     });
   }

@@ -401,7 +401,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     category: "booking",
     priority: "high",
     delivery: "immediate",
-    emailDefault: false,
+    emailDefault: true,
     defaultTitle: "Your instructor is waiting",
     defaultBody: "Your instructor has joined the classroom and is waiting for you.",
     audiences: ["student"],

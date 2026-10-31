@@ -75,7 +75,9 @@ export function theoreticalKnowledgeLabel(userId: string): string {
   return `TK ${index >= 0 ? index + 2 : 2}`;
 }
 
-export function assignedInstructorStudentSubject(tkLabel: string) {
+export function assignedInstructorStudentSubject(tkLabel: string, subjectTitle?: string | null) {
+  const subject = subjectTitle?.trim();
+  if (subject) return `${tkLabel} has been assigned to you — ${subject}`;
   return `${tkLabel} has been assigned to you.`;
 }
 
@@ -122,10 +124,10 @@ export async function notifyAtplInstructorAssigned(
   const instructor = findUserById(input.instructorId);
   const student = input.studentId ? findUserById(input.studentId) : null;
   const tkLabel = theoreticalKnowledgeLabel(input.instructorId);
-  const studentSubject = assignedInstructorStudentSubject(tkLabel);
   const instructorName = displayName(instructor);
   const studentName = displayName(student);
   const subjectTitle = resolveSubjectTitle(input.courseId, input.lessonTitle);
+  const studentSubject = assignedInstructorStudentSubject(tkLabel, subjectTitle);
   const { date, time } = formatDateTimeParts(input.scheduledAt);
   const comments = input.comments?.trim() || "";
   const joinUrl = resolveJoinUrl(input.liveClassId, input.joinUrl);
@@ -195,6 +197,7 @@ export async function notifyAtplInstructorAssigned(
         courseId: input.courseId,
         liveClassId: input.liveClassId,
         tkLabel,
+        subjectName: subjectTitle,
       },
     });
     await dispatchEmailEvent({

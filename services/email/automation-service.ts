@@ -395,12 +395,23 @@ export async function emailScheduleLifecycle(input: {
   liveClassId?: string;
   actorId?: string | null;
   joinUrl?: string;
+  subjectName?: string;
+  courseId?: string | null;
 }) {
+  const subjectName =
+    input.subjectName?.trim() ||
+    (input.liveClassId
+      ? (await import("@/lib/classes/subject-display")).resolveLiveClassSubjectName({
+          title: input.title,
+          courseId: input.courseId ?? null,
+        })
+      : input.title);
   return dispatchEmailEvent({
     event: input.event,
     userIds: input.userIds,
     data: {
       title: input.title,
+      subjectName,
       when: input.when ?? "",
       detail: input.detail ?? "",
       joinUrl: input.joinUrl ?? "",
@@ -409,6 +420,6 @@ export async function emailScheduleLifecycle(input: {
     // A moved lecture is transactional. It must still email when the
     // general email-notifications switch is off.
     system: true,
-    meta: { liveClassId: input.liveClassId },
+    meta: { liveClassId: input.liveClassId, subjectName },
   });
 }

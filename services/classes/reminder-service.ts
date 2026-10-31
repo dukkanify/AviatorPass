@@ -156,6 +156,9 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
           ? "zoom.meeting.starts_soon"
           : `class.reminder.${item.kind}`;
 
+    const { resolveLiveClassSubjectName } = await import("@/lib/classes/subject-display");
+    const subjectName = resolveLiveClassSubjectName(cls);
+
     if (item.channel === "email") {
       const user = findUserById(item.userId);
       if (!user?.email) {
@@ -164,16 +167,17 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
       }
       const template = classReminderEmailTemplate({
         title: cls.title,
+        subjectName,
         startsAt: cls.startsAt,
         label,
         joinUrl: cls.zoomMeetingId ? appJoinUrl(cls.id, cls.zoomMeetingId) : undefined,
       });
       const mail = await sendEmail({
         to: user.email,
-        subject: template.subject,
+        subject: `${label} — ${subjectName}`,
         html: template.html,
         text: template.text,
-        meta: { kind: "class_reminder", liveClassId: cls.id, reminderId: item.id },
+        meta: { kind: "class_reminder", liveClassId: cls.id, reminderId: item.id, subjectName },
       });
       if (!mail.success) {
         upsertReminder({
@@ -186,11 +190,11 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
     } else {
       await createNotification({
         userId: item.userId,
-        title: label,
-        body: `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
+        title: `${label} — ${subjectName}`,
+        body: `${subjectName} · ${new Date(cls.startsAt).toLocaleString()}`,
         type: notificationType,
         channel: "in_app",
-        data: { liveClassId: cls.id, kind: item.kind },
+        data: { liveClassId: cls.id, kind: item.kind, subjectName, courseId: cls.courseId },
       });
     }
 

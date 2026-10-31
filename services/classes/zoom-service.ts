@@ -37,6 +37,7 @@ import { readMockExamsDb, writeMockExamsDb } from "@/services/mock-exams/store";
 import { sanitizeJoinInfoForViewer } from "@/services/zoom/policy";
 import { getIntegrationByUserId } from "@/services/zoom/store";
 import { ClassValidationError } from "@/services/classes/validation";
+import { resolveLiveClassSubjectName } from "@/lib/classes/subject-display";
 import type { LiveClass, MeetingType, ZoomMeetingRecord } from "@/types/classes";
 
 const START_URL_REFRESH_MS = 90 * 60_000;
@@ -356,6 +357,7 @@ function describeZoomLecture(liveClass: {
   id: string;
   title: string;
   instructorId: string;
+  courseId?: string | null;
   description?: string | null;
 }): {
   topic: string;
@@ -369,6 +371,9 @@ function describeZoomLecture(liveClass: {
       const user = findUserById(person.userId);
       return user ? [displayMeetingName(user)] : [];
     });
+  // Prefer official ATPL subject so Zoom + calendar show the real course name.
+  const subject = resolveLiveClassSubjectName(liveClass);
+  const topicTitle = subject && subject !== "your subject" ? subject : liveClass.title;
   const agenda = [
     zoomLectureAgenda({ instructorName, studentNames }),
     liveClass.description?.trim(),
@@ -377,7 +382,7 @@ function describeZoomLecture(liveClass: {
     .join("\n\n")
     .slice(0, 2000);
   return {
-    topic: zoomLectureTopic(liveClass.title, instructorName),
+    topic: zoomLectureTopic(topicTitle, instructorName),
     agenda,
   };
 }
@@ -813,10 +818,13 @@ export async function ensureInAppJoinSettings(
   const refreshed = needsPatch
     ? await fetchZoomMeetingDetails(token, meeting.zoomMeetingId)
     : current;
-  if (
-    shareToolsChanged ||
-    (current?.whoCanShareScreen === "host" && refreshed?.whoCanShareScreen === "all")
-  ) {
+  // Share policy only applies after the live instance ends — restart whenever
+  // host/meeting share tools changed so the student can see host screen share.
+  const sharePolicyFixed =
+    (current?.whoCanShareScreen === "host" && refreshed?.whoCanShareScreen === "all") ||
+    (current?.whoCanShareWhenSomeoneIsSharing === "host" &&
+      refreshed?.whoCanShareWhenSomeoneIsSharing === "all");
+  if (shareToolsChanged || sharePolicyFixed) {
     await endZoomMeetingInstance(token, meeting.zoomMeetingId);
   }
   if (!refreshed) return meeting;
@@ -895,19 +903,25 @@ async function ensureZoomHostParticipantTools(
   const users = [...new Set([zoomSettingsUser(hostUser), "me"])];
   let changed = false;
   for (const user of users) {
-    if (zoomShareToolsReady.has(user)) continue;
+    // Always re-read Zoom account settings. A warm process cache previously
+    // skipped PATCH after the first success, so Production could keep host-only
+    // share after an admin revert and block students (e.g. Nadeen) from seeing
+    // the instructor share until a cold deploy.
     const current = await fetchZoomUserShareSettings(token, user);
     const blocked =
       !current ||
       current.whoCanShareScreen !== "all" ||
       current.whoCanShareWhenSomeoneIsSharing === "host" ||
+      current.whoCanShareWhenSomeoneIsSharing !== "all" ||
       current.requestPermissionToUnmute === true;
     if (!blocked) {
       zoomShareToolsReady.add(user);
       continue;
     }
     const wasHostOnly =
-      current?.whoCanShareScreen === "host" || current?.whoCanShareWhenSomeoneIsSharing === "host";
+      current?.whoCanShareScreen === "host" ||
+      current?.whoCanShareWhenSomeoneIsSharing === "host" ||
+      current?.whoCanShareScreen !== "all";
     try {
       const res = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(user)}/settings`, {
         method: "PATCH",

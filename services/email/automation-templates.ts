@@ -148,40 +148,48 @@ export function renderAutomationTemplate(
           <p>Track it under Performance reports in AviatorPass.</p>`,
       };
       break;
-    case "schedule":
+    case "schedule": {
+      const subjectName = escapeHtml(str(data, "subjectName", title));
       payload = {
         title: subjectOverride ?? "Class scheduled",
-        preheader: `${title} · ${when}`,
+        preheader: `${subjectName || title} · ${when}`,
         bodyHtml: `<p>Hello ${name},</p>
           <p>A live session has been scheduled:</p>
-          <p><strong>${title}</strong></p>
+          ${subjectName ? `<p>Subject: <strong>${subjectName}</strong></p>` : ""}
+          ${title && title !== subjectName ? `<p>${title}</p>` : ""}
           ${when ? `<p>Starts: ${when}</p>` : ""}
           <p>${detail}</p>
           ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : "<p>Join from AviatorPass → Calendar / Live Classes when it is time.</p>"}`,
       };
       break;
-    case "reschedule":
+    }
+    case "reschedule": {
+      const subjectName = escapeHtml(str(data, "subjectName", title));
       payload = {
         title: subjectOverride ?? "Class rescheduled",
-        preheader: `${title} · ${when}`,
+        preheader: `${subjectName || title} · ${when}`,
         bodyHtml: `<p>Hello ${name},</p>
-          <p><strong>${title}</strong> has been moved.</p>
+          <p><strong>${subjectName || title}</strong> has been moved.</p>
+          ${subjectName && title && title !== subjectName ? `<p>${title}</p>` : ""}
           ${when ? `<p>New time: ${when}</p>` : ""}
           <p>${detail}</p>
           ${joinUrl ? `<p><a href="${joinUrl}">Join Zoom class</a></p>` : ""}
           <p>Your calendar and reminders have been updated.</p>`,
       };
       break;
-    case "cancel":
+    }
+    case "cancel": {
+      const subjectName = escapeHtml(str(data, "subjectName", title));
       payload = {
         title: subjectOverride ?? "Class cancelled",
-        preheader: title,
+        preheader: subjectName || title,
         bodyHtml: `<p>Hello ${name},</p>
-          <p><strong>${title}</strong> has been cancelled.</p>
+          <p><strong>${subjectName || title}</strong> has been cancelled.</p>
           <p>${detail}</p>
           <p>Contact support or your instructor if you need a replacement slot.</p>`,
       };
       break;
+    }
     case "invoice":
       payload = {
         title: subjectOverride ?? `Invoice ${reference || ""}`.trim(),
