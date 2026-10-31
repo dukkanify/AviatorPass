@@ -54,6 +54,7 @@ import {
   greetingForHour,
   hourInTimeZone,
   HERO_IMAGE,
+  resolveHeroLocation,
   initialsOf,
   isLiveWindow,
   formatDashboardEventTime,
@@ -61,7 +62,6 @@ import {
   pilotLevelFromXp,
   relativeTime,
   sameDay,
-  weatherForCountry,
 } from "./student-dashboard-utils";
 
 type CourseRow = CourseListItem & { learning: CourseLearningState | null };
@@ -158,7 +158,10 @@ function LearningDashboardView() {
   }, []);
 
   const firstName = firstNameOf(user?.firstName || user?.fullName, "Aviator");
-  const weather = weatherForCountry(user?.countryCode);
+  const weather = resolveHeroLocation({
+    countryCode: user?.countryCode,
+    profileTimeZone: user?.timezone,
+  });
   const greeting = greetingForHour(hourInTimeZone(new Date(now), weather.timeZone));
   const resume = overview?.resume ?? null;
   const packageJourney = Boolean(atplSchedule?.packageOwned && atplSchedule.subjects.length);

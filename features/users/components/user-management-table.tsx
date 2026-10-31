@@ -64,6 +64,19 @@ function UserManagementTable({
 }: UserManagementTableProps) {
   const { user: actor } = useAuth();
   const [users, setUsers] = React.useState<UserProfile[]>([]);
+  const [pendingSignups, setPendingSignups] = React.useState<
+    Array<{
+      id: string;
+      email: string;
+      fullName: string;
+      phone: string;
+      countryCode: string;
+      role: string;
+      createdAt: string;
+      expiresAt: string;
+      status: "awaiting_otp";
+    }>
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
@@ -104,7 +117,23 @@ function UserManagementTable({
       setError(result.error ?? "Failed to load users");
       setUsers([]);
     } else {
+      // API already returns newest-first; keep that order in the table.
       setUsers(result.data ?? []);
+    }
+    // Incomplete OTP sign-ups are not full users yet — surface them so ops
+    // can see every new registration attempt in the control panel.
+    if (!roleFilter || roleFilter === "student") {
+      const pending = await authFetch<typeof pendingSignups>("/api/admin/pending-registrations");
+      if (pending.success && pending.data) {
+        const rows = roleFilter
+          ? pending.data.filter((row) => row.role === roleFilter)
+          : pending.data;
+        setPendingSignups(rows);
+      } else {
+        setPendingSignups([]);
+      }
+    } else {
+      setPendingSignups([]);
     }
     if (roleFilter === "instructor") {
       const zoom = await authFetch<{
@@ -161,9 +190,18 @@ function UserManagementTable({
     }
   }, [canCreate]);
 
+  // Keep real QA / new accounts visible. Only hide synthetic `*.test` fixtures.
   const liveUsers = users.filter((user) => !user.email.trim().toLowerCase().endsWith(".test"));
   const filtered =
-    statusFilter === "all" ? liveUsers : liveUsers.filter((user) => user.status === statusFilter);
+    statusFilter === "all"
+      ? liveUsers
+      : statusFilter === "awaiting_otp"
+        ? []
+        : liveUsers.filter((user) => user.status === statusFilter);
+  const showPending =
+    (!roleFilter || roleFilter === "student") &&
+    (statusFilter === "all" || statusFilter === "awaiting_otp") &&
+    pendingSignups.length > 0;
 
   async function changeStatus(target: UserProfile, status: AccountStatus) {
     const result = await authFetch<UserProfile>(`${routes.api.users}/${target.id}`, {
@@ -298,7 +336,7 @@ function UserManagementTable({
           actionLabel="Retry"
           onAction={() => void load()}
         />
-      ) : !loading && filtered.length === 0 && statusFilter === "all" ? (
+      ) : !loading && filtered.length === 0 && !showPending && statusFilter === "all" ? (
         <EmptyState
           icon={<Users className="h-6 w-6" />}
           title={emptyTitle}
@@ -307,45 +345,92 @@ function UserManagementTable({
           onAction={canCreate ? () => setCreateOpen(true) : undefined}
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          loading={loading}
-          searchPlaceholder="Search by name or email..."
-          searchKeys={["fullName", "email", "firstName", "lastName"]}
-          emptyMessage="No users match your filters"
-          onExport={(rows) => {
-            const csv = [
-              ["Name", "Email", "Role", "Status", "Country"].join(","),
-              ...rows.map((r) =>
-                [r.fullName, r.email, r.role, r.status, r.countryCode]
-                  .map((v) => `"${v ?? ""}"`)
-                  .join(","),
-              ),
-            ].join("\n");
-            const blob = new Blob([csv], { type: "text/csv" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "users.csv";
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          filters={
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-        />
+        <>
+          {showPending ? (
+            <div className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  Pending registrations ({pendingSignups.length})
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Started sign-up but have not finished email OTP yet. They appear here until
+                  verified or the request expires.
+                </p>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-border/60">
+                <table className="w-full min-w-[40rem] text-left text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Name</th>
+                      <th className="px-3 py-2 font-medium">Email</th>
+                      <th className="px-3 py-2 font-medium">Phone</th>
+                      <th className="px-3 py-2 font-medium">Country</th>
+                      <th className="px-3 py-2 font-medium">Started</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingSignups.map((row) => (
+                      <tr key={row.id} className="border-t border-border/50">
+                        <td className="px-3 py-2 font-medium">{row.fullName}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.email}</td>
+                        <td className="px-3 py-2 tabular-nums">{row.phone || "—"}</td>
+                        <td className="px-3 py-2">{row.countryCode || "—"}</td>
+                        <td className="px-3 py-2">{new Date(row.createdAt).toLocaleString()}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant="warning">Awaiting OTP</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {statusFilter === "awaiting_otp" ? null : (
+            <DataTable
+              columns={columns}
+              data={filtered}
+              loading={loading}
+              searchPlaceholder="Search by name or email..."
+              searchKeys={["fullName", "email", "firstName", "lastName"]}
+              emptyMessage="No users match your filters"
+              onExport={(rows) => {
+                const csv = [
+                  ["Name", "Email", "Role", "Status", "Country", "Created"].join(","),
+                  ...rows.map((r) =>
+                    [r.fullName, r.email, r.role, r.status, r.countryCode, r.createdAt]
+                      .map((v) => `"${v ?? ""}"`)
+                      .join(","),
+                  ),
+                ].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "users.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              filters={
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[170px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="awaiting_otp">Awaiting OTP</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              }
+            />
+          )}
+        </>
       )}
 
       <UserFormDialog

@@ -299,7 +299,10 @@ export function listUsersByRole(
   options?: { page?: number; pageSize?: number; columns?: "profile" | "full" },
 ) {
   ensureDemoUsersSeeded();
-  const users = role ? listAllUsers().filter((u) => u.role === role) : listAllUsers();
+  const users = (role ? listAllUsers().filter((u) => u.role === role) : listAllUsers())
+    .slice()
+    // Newest accounts first so fresh registrations appear at the top of the control panel.
+    .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")));
   const pageSize = Math.min(200, Math.max(1, options?.pageSize ?? users.length));
   const page = Math.max(1, options?.page ?? 1);
   const start = (page - 1) * pageSize;
