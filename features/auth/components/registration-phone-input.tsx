@@ -9,11 +9,12 @@ import { cn } from "@/lib/utils";
 import {
   buildRegistrationPhone,
   formatLocalPhoneDisplay,
+  localHint,
+  localPlaceholder,
   parseLocalDigitsFromInput,
   REGISTRATION_PHONE_COUNTRIES,
   type RegistrationDialCountry,
   validateLocalMobile,
-  localPlaceholder,
 } from "@/utils/registration-phone";
 
 type RegistrationPhoneInputProps = {
@@ -38,7 +39,9 @@ function RegistrationPhoneInput({
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const selectorRef = React.useRef<HTMLDivElement>(null);
 
-  const selected = REGISTRATION_PHONE_COUNTRIES.find((c) => c.code === dialCountry)!;
+  const selected =
+    REGISTRATION_PHONE_COUNTRIES.find((c) => c.code === dialCountry) ??
+    REGISTRATION_PHONE_COUNTRIES[0]!;
 
   React.useEffect(() => {
     const dial = selected.dialCode;
@@ -91,7 +94,7 @@ function RegistrationPhoneInput({
       <Label htmlFor="registration-phone-local">Phone number</Label>
       <div
         className={cn(
-          // overflow-visible so the country listbox is not clipped (UAE +971 is 2nd option)
+          // overflow-visible so the country listbox is not clipped
           "flex rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
           displayError && "border-destructive focus-within:ring-destructive",
         )}
@@ -116,7 +119,7 @@ function RegistrationPhoneInput({
             <ul
               role="listbox"
               aria-label="Phone country code"
-              className="absolute left-0 bottom-full z-50 mb-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-popover py-1 shadow-md"
+              className="absolute left-0 bottom-full z-50 mb-1 max-h-64 min-w-[16rem] overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-md"
             >
               {REGISTRATION_PHONE_COUNTRIES.map((option) => (
                 <li key={option.code} role="option" aria-selected={option.code === dialCountry}>
@@ -161,9 +164,7 @@ function RegistrationPhoneInput({
         </p>
       ) : (
         <p id="registration-phone-hint" className="text-xs text-muted-foreground">
-          {dialCountry === "KW"
-            ? "Kuwait mobile — 8 digits starting with 5, 6, or 9"
-            : "UAE mobile — 9 digits starting with 5"}
+          {localHint(dialCountry)}
         </p>
       )}
     </div>
