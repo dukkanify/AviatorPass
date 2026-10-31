@@ -1,6 +1,7 @@
 /**
- * Zoom Marketplace direct landing: unauthenticated instructors return to
- * /instructor/profile after login. Students never land on instructor pages.
+ * Direct landing: unauthenticated instructors return to /instructor/profile
+ * after login. Students never land on instructor pages.
+ * Option A: personal Zoom Account UI is hidden on the instructor profile.
  */
 
 import { expect, test } from "@playwright/test";
@@ -21,15 +22,16 @@ async function signIn(page: import("@playwright/test").Page, email: string, pass
 }
 
 test.describe("login return path", () => {
-  test("unauthenticated instructor returns to the Zoom profile page", async ({ page }) => {
+  test("unauthenticated instructor returns to the profile page", async ({ page }) => {
     await page.goto("/instructor/profile");
     await expect(page).toHaveURL(/\/login\?next=%2Finstructor%2Fprofile/);
 
     await signIn(page, INSTRUCTOR.email, INSTRUCTOR.password);
     await page.waitForURL("**/instructor/profile", { timeout: 30_000 });
 
-    await expect(page.getByText("Zoom Account", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /Connect Zoom|Reconnect/ })).toBeVisible();
+    await expect(page.getByText("Account status").first()).toBeVisible();
+    await expect(page.getByText("Zoom Account")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Connect Zoom|Reconnect/ })).toHaveCount(0);
   });
 
   test("a normal login without next still opens the role dashboard", async ({ page }) => {
