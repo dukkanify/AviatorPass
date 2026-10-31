@@ -1082,7 +1082,8 @@ function PlatformSettingsShell() {
             <CardHeader>
               <CardTitle className="text-base">Class reminder offsets</CardTitle>
               <CardDescription>
-                Minutes before start (comma-separated). Defaults: 1440 (24h), 120 (2h).
+                Minutes before start (comma-separated). Defaults: 1440 (24h), 60 (1h). Email
+                reminders fire only for 24h and 1h.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1097,7 +1098,7 @@ function PlatformSettingsShell() {
                     ...draft,
                     notifications: {
                       ...draft.notifications,
-                      classReminderOffsetsMinutes: parts.length ? parts : [1440, 120],
+                      classReminderOffsetsMinutes: parts.length ? parts : [1440, 60],
                     },
                   });
                 }}

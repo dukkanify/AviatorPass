@@ -1,12 +1,11 @@
 /**
- * Zoom meeting lifecycle notifications — in-app + email.
+ * Zoom meeting lifecycle notifications — in-app only.
+ * Schedule / cancel / reschedule emails are owned by class-service → emailScheduleLifecycle.
+ * Important lecture reminders (24h / 1h) are owned by reminder-service.
  */
 
-import { appJoinUrl } from "@/lib/site-origin";
 import { enqueueJob, processQueue } from "@/services/api-platform/queue-service";
-import { emailScheduleLifecycle } from "@/services/email/automation-service";
 import { notifyUsers } from "@/services/notifications/notification-service";
-import { getZoomMeetingByClassId } from "@/services/classes/zoom-service";
 import { listParticipantsForClass } from "@/services/classes/store";
 
 export type ZoomNotifyKind = "created" | "updated" | "cancelled" | "starts_soon" | "finished";
@@ -18,40 +17,30 @@ function titles(kind: ZoomNotifyKind, classTitle: string) {
         title: "Zoom meeting created",
         body: `A Zoom meeting is ready for ${classTitle}.`,
         type: "zoom.meeting.created",
-        emailEvent: "schedule" as const,
-        emailDetail: "A Zoom meeting has been created for this live class.",
       };
     case "updated":
       return {
         title: "Zoom meeting updated",
         body: `The Zoom meeting for ${classTitle} was updated.`,
         type: "zoom.meeting.updated",
-        emailEvent: "reschedule" as const,
-        emailDetail: "The Zoom meeting time or details changed.",
       };
     case "cancelled":
       return {
         title: "Zoom meeting cancelled",
         body: `The Zoom meeting for ${classTitle} was cancelled.`,
         type: "zoom.meeting.cancelled",
-        emailEvent: "cancel" as const,
-        emailDetail: "The Zoom meeting for this live class was removed.",
       };
     case "starts_soon":
       return {
         title: "Zoom meeting starts soon",
         body: `${classTitle} is starting soon. Join from your dashboard.`,
         type: "zoom.meeting.starts_soon",
-        emailEvent: null,
-        emailDetail: "Your Zoom live class starts soon.",
       };
     case "finished":
       return {
         title: "Zoom meeting finished",
         body: `${classTitle} has ended.`,
         type: "zoom.meeting.finished",
-        emailEvent: null,
-        emailDetail: "This Zoom live class has finished.",
       };
   }
 }
@@ -77,20 +66,9 @@ export async function sendZoomMeetingNotifications(input: {
     type: copy.type,
     data: { liveClassId: input.liveClassId, kind: input.kind },
     actionUrl: `/join/${input.liveClassId}`,
+    // Never email from Zoom notify — prevents Class scheduled / cancel duplicates.
+    email: false,
   });
-  if (copy.emailEvent) {
-    const meeting = getZoomMeetingByClassId(input.liveClassId);
-    await emailScheduleLifecycle({
-      event: copy.emailEvent,
-      userIds,
-      title: input.classTitle,
-      when: input.startsAt ? new Date(input.startsAt).toLocaleString() : undefined,
-      detail: copy.emailDetail,
-      liveClassId: input.liveClassId,
-      actorId: input.actorId ?? null,
-      joinUrl: meeting ? appJoinUrl(input.liveClassId, meeting.zoomMeetingId) : undefined,
-    });
-  }
   return { sent: userIds.length };
 }
 

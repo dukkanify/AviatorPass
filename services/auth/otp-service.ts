@@ -19,6 +19,7 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import type { ApiResponse } from "@/types";
 import { logActivity } from "@/services/auth/activity-log";
 import { readAuthDb, writeAuthDb, type OtpChallenge } from "@/services/auth/store";
+import { otpEmailIdempotencyKey } from "@/services/email/idempotency-store";
 import { sendEmail } from "@/services/email/mailer";
 import { otpEmailTemplate } from "@/services/settings/email-templates";
 import { getPlatformSettings } from "@/services/settings/settings-service";
@@ -300,18 +301,46 @@ export async function issueAndSendOtp(input: IssueOtpInput): Promise<ApiResponse
       subject: template.subject,
       html: template.html,
       text: template.text,
-      meta: { kind: "otp", purpose, system: true, challengeId: challenge.id },
+      meta: {
+        kind: "otp",
+        purpose,
+        system: true,
+        challengeId: challenge.id,
+        idempotencyKey: otpEmailIdempotencyKey({
+          email,
+          purpose,
+          challengeId: challenge.id,
+        }),
+      },
     });
 
   let mail = await sendOtpMail();
-  if (mail.mode === "failed") {
+  // Soft provider failures may retry once; suppressed / deduped results must not.
+  if (mail.mode === "failed" && !mail.suppressed && !mail.deduped) {
     console.warn("[otp] email_send_retry", {
       email,
       purpose,
       challengeId: challenge.id,
       error: mail.error,
     });
-    mail = await sendOtpMail();
+    mail = await sendEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      meta: {
+        kind: "otp",
+        purpose,
+        system: true,
+        challengeId: challenge.id,
+        retryOf: mail.outboxId,
+        idempotencyKey: otpEmailIdempotencyKey({
+          email,
+          purpose,
+          challengeId: challenge.id,
+        }),
+      },
+    });
   }
 
   if (mail.mode === "failed") {

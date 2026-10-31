@@ -572,13 +572,14 @@ export async function createLiveClass(
     }
 
     await queueClassReminders(cls.id);
+    // In-app only — schedule email is owned solely by emailScheduleLifecycle below.
     await notifyUsers(
       [...participantIds],
       "Live class scheduled",
       `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
       "class.created",
       { liveClassId: cls.id },
-      input.omitScheduleEmail ? false : undefined,
+      false,
     );
     if (!input.omitScheduleEmail) {
       const createdMeeting = getZoomMeetingByClassId(cls.id);
@@ -786,12 +787,14 @@ export async function cancelLiveClass(input: {
   await cancelClassReminders(input.id);
 
   const participantIds = listParticipantsForClass(input.id).map((p) => p.userId);
+  // In-app only — cancel email is owned solely by emailScheduleLifecycle.
   await notifyUsers(
     participantIds,
     "Live class cancelled",
     `${existing.title} has been cancelled`,
     "class.cancelled",
     { liveClassId: input.id },
+    false,
   );
   await emailScheduleLifecycle({
     event: "cancel",
@@ -918,12 +921,14 @@ export async function rescheduleLiveClass(input: {
     ...listParticipantsForClass(existing.id),
     ...(created ? listParticipantsForClass(created.id) : []),
   ].map((p) => p.userId);
+  // In-app only — reschedule email is owned solely by emailScheduleLifecycle.
   await notifyUsers(
     participantIds,
     "Live class rescheduled",
     `${existing.title} moved to ${new Date(startsAt).toLocaleString()}`,
     "class.rescheduled",
     { liveClassId: created?.id, fromId: existing.id },
+    false,
   );
   const rescheduledId = created?.id ?? existing.id;
   const rescheduledMeeting = getZoomMeetingByClassId(rescheduledId);
@@ -1020,6 +1025,7 @@ export async function softDeleteLiveClass(input: {
       `${existing.title} has been cancelled`,
       "class.cancelled",
       { liveClassId: input.id },
+      false,
     );
     await emailScheduleLifecycle({
       event: "cancel",
