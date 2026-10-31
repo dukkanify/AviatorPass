@@ -15,6 +15,7 @@ import {
   callerMayJoinAsZoomHost,
   fetchZoomHostZak,
   getPublicJoinInfo,
+  releasePriorInstructorHostMeetings,
   releaseStaleLocalHostMeetings,
   zoomHostBlockedByAnotherLiveMeeting,
 } from "@/services/classes/zoom-service";
@@ -76,9 +77,11 @@ export async function POST(request: Request) {
       mayHost && meetingNumber
         ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id)
         : false;
-    // Before minting host ZAK, end stale AviatorPass meetings still live on the
-    // shared host (past window / already completed locally). Never ends unknown
-    // Zoom live IDs or in-window customer classes.
+    // Before minting host ZAK, free the shared host when this instructor still
+    // holds another AviatorPass meeting (leave-without-ending / navigation).
+    // 1) Stale: past/completed local classes.
+    // 2) Prior: this instructor's other in-window live class (subject switch).
+    // Never ends unknown Zoom live IDs or another instructor's class.
     let staleEnded: string[] = [];
     if (mayHost && hostBlocked && meetingNumber) {
       const stale = await releaseStaleLocalHostMeetings({
@@ -87,6 +90,16 @@ export async function POST(request: Request) {
       });
       staleEnded = stale.ended;
       if (stale.ended.length) {
+        hostBlocked = await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id);
+      }
+    }
+    if (mayHost && hostBlocked && meetingNumber) {
+      const prior = await releasePriorInstructorHostMeetings({
+        keepMeetingNumber: meetingNumber,
+        instructorUserId: user.id,
+      });
+      if (prior.ended.length) {
+        staleEnded = [...staleEnded, ...prior.ended];
         hostBlocked = await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id);
       }
     }
