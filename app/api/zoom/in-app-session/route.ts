@@ -15,6 +15,7 @@ import {
   callerMayJoinAsZoomHost,
   fetchZoomHostZak,
   getPublicJoinInfo,
+  releaseStaleLocalHostMeetings,
   zoomHostBlockedByAnotherLiveMeeting,
 } from "@/services/classes/zoom-service";
 
@@ -71,10 +72,24 @@ export async function POST(request: Request) {
         role: user.role,
         meetingNumber,
       });
-    const hostBlocked =
+    let hostBlocked =
       mayHost && meetingNumber
         ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id)
         : false;
+    // Before minting host ZAK, end stale AviatorPass meetings still live on the
+    // shared host (past window / already completed locally). Never ends unknown
+    // Zoom live IDs or in-window customer classes.
+    let staleEnded: string[] = [];
+    if (mayHost && hostBlocked && meetingNumber) {
+      const stale = await releaseStaleLocalHostMeetings({
+        keepMeetingNumber: meetingNumber,
+        instructorUserId: user.id,
+      });
+      staleEnded = stale.ended;
+      if (stale.ended.length) {
+        hostBlocked = await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id);
+      }
+    }
     // Still mint host ZAK when mayHost — withholding it demoted instructors to a
     // participant JWT while the join page kept isHost=true, which produced Zoom
     // Fail/3000 (or a stuck Connecting shell) instead of a clear host start.
@@ -134,6 +149,7 @@ export async function POST(request: Request) {
         zak,
         role,
         hostBlocked: Boolean(hostBlocked),
+        staleEnded,
       },
       error: null,
     });

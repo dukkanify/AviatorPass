@@ -17,6 +17,10 @@ import {
   prefetchZoomClientViewSdk,
   type ZoomMtgClient,
 } from "@/features/zoom/lib/load-client-view-sdk";
+import {
+  beaconEndClassroom,
+  endClassroomForEveryone,
+} from "@/features/zoom/lib/end-classroom-session";
 import { cn } from "@/lib/utils";
 
 interface InAppSession {
@@ -81,11 +85,17 @@ function InAppZoomClientView({
   const [attempt, setAttempt] = React.useState(0);
   const [notice, setNotice] = React.useState("Preparing the mobile Zoom classroom");
   const [leftLobby, setLeftLobby] = React.useState(false);
+  const [hostBusyNotice, setHostBusyNotice] = React.useState<string | null>(null);
+  const [ending, setEnding] = React.useState(false);
   const liveMeetingRef = React.useRef(false);
   const joinedKeyRef = React.useRef<string | null>(null);
   const mtgRef = React.useRef<ZoomMtgClient | null>(null);
   const sessionRef = React.useRef<InAppSession | null>(null);
+  const isHostRef = React.useRef(isHost);
+  const liveClassIdRef = React.useRef(liveClassId);
   sessionRef.current = session;
+  isHostRef.current = isHost;
+  liveClassIdRef.current = liveClassId;
 
   const sessionJoinKey = session
     ? [session.mode, session.meetingNumber, String(attempt)].join("|")
@@ -94,7 +104,24 @@ function InAppZoomClientView({
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("left") === "1") setLeftLobby(true);
+    if (params.get("left") === "1") {
+      setLeftLobby(true);
+      if (isHost) {
+        setHostBusyNotice(
+          "You left the browser Zoom session. The meeting may still be live on the platform host (ceo@aviatorpass.com). End class for everyone before starting another lecture, or Rejoin this class.",
+        );
+      }
+    }
+  }, [isHost]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageHide = () => {
+      if (!isHostRef.current || !liveMeetingRef.current || !liveClassIdRef.current) return;
+      beaconEndClassroom(liveClassIdRef.current);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
   }, []);
 
   React.useEffect(() => {
@@ -255,11 +282,38 @@ function InAppZoomClientView({
         joinedKeyRef.current = null;
         setPhase("error");
         const detail = zoomFailureText(error);
+        const hostBusy = /3000|other meetings in progress/i.test(detail);
+        if (hostBusy && isHost && liveClassId) {
+          // End THIS class instance + stale local siblings, then retry once.
+          const release = await authFetch<{
+            released?: boolean;
+            staleEnded?: string[];
+            otherLiveMeetings?: string[];
+            rootCauseHint?: string;
+          }>("/api/zoom/release-host-lock", {
+            method: "POST",
+            body: JSON.stringify({ liveClassId, meetingNumber: active.meetingNumber }),
+          });
+          if (release.success && attempt < 1) {
+            setNotice(
+              release.data?.otherLiveMeetings?.length
+                ? "Zoom Error 3000 — another in-window meeting still holds the platform host. Stale local meetings were cleared; resolve the live conflict, then retry."
+                : "Zoom Error 3000 — released host lock for this classroom. Reopening as host.",
+            );
+            setAttempt((value) => value + 1);
+            setPhase("loading");
+            return;
+          }
+          setHostBusyNotice(
+            release.data?.rootCauseHint ||
+              "Zoom Error 3000 — the platform Zoom host is still in another live meeting. End that class for everyone (or wait until it finishes) before starting a new one.",
+          );
+        }
         setNotice(
           /3712|signature is invalid/i.test(detail)
             ? "Zoom error 3712 — Meeting SDK signature rejected. Super Admin: verify ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET pair (Meeting SDK app)."
-            : /3000|other meetings in progress/i.test(detail)
-              ? "Zoom Error 3000 — host already in another meeting. Leave other Zoom sessions for the platform host, then retry."
+            : hostBusy
+              ? "Zoom Error 3000 — host already in another meeting. End the previous class for everyone, then retry."
               : `Could not open Zoom Client View (${detail || "unknown error"}).`,
         );
       }
@@ -274,9 +328,9 @@ function InAppZoomClientView({
         liveMeetingRef.current = false;
       }
     };
-  }, [displayName, isHost, leaveHref, leftLobby, liveClassId, sessionJoinKey]);
+  }, [attempt, displayName, isHost, leaveHref, leftLobby, liveClassId, sessionJoinKey]);
 
-  async function leaveClassroom() {
+  async function leaveSdkOnly() {
     const mtg = mtgRef.current;
     liveMeetingRef.current = false;
     joinedKeyRef.current = null;
@@ -287,6 +341,20 @@ function InAppZoomClientView({
         /* navigation fallback below */
       }
     }
+  }
+
+  /** Student leave, or host leave without freeing the Zoom host. */
+  async function leaveWithoutEnding() {
+    await leaveSdkOnly();
+    if (isHost) {
+      setLeftLobby(true);
+      setPhase("classroom");
+      setHostBusyNotice(
+        "You left without ending the meeting. The Zoom session may still hold the platform host (ceo@aviatorpass.com). End class for everyone before starting another lecture.",
+      );
+      setNotice("Browser session closed — Zoom meeting may still be live.");
+      return;
+    }
     if (onLeave) {
       onLeave();
       return;
@@ -294,8 +362,34 @@ function InAppZoomClientView({
     router.push(leaveHref);
   }
 
+  /** Host: End Meeting for All — frees shared host for the next lecture. */
+  async function endClassForEveryone() {
+    if (!isHost || !liveClassId || ending) return;
+    setEnding(true);
+    try {
+      await leaveSdkOnly();
+      const result = await endClassroomForEveryone(liveClassId);
+      setHostBusyNotice(null);
+      setLeftLobby(false);
+      setNotice(
+        result.data?.message ||
+          (result.ok
+            ? "Class ended for everyone. The platform Zoom host is free."
+            : result.error || "Could not end the Zoom meeting."),
+      );
+      if (onLeave) {
+        onLeave();
+        return;
+      }
+      router.push(leaveHref);
+    } finally {
+      setEnding(false);
+    }
+  }
+
   function rejoinClassroom() {
     setLeftLobby(false);
+    setHostBusyNotice(null);
     liveMeetingRef.current = false;
     joinedKeyRef.current = null;
     setSession(null);
@@ -356,6 +450,14 @@ function InAppZoomClientView({
           <p className="classroom-client-copy" role="status">
             {notice}
           </p>
+          {hostBusyNotice ? (
+            <div className="classroom-notice" role="status">
+              <Shield className="mt-0.5 size-4 shrink-0 text-[#CCA04C]" />
+              <div className="min-w-0">
+                <p>{hostBusyNotice}</p>
+              </div>
+            </div>
+          ) : null}
           {phase === "error" ? (
             <div className="classroom-notice" role="alert">
               <Shield className="mt-0.5 size-4 shrink-0 text-[#CCA04C]" />
@@ -375,20 +477,43 @@ function InAppZoomClientView({
                 {leftLobby ? "Rejoin class" : "Open classroom again"}
               </button>
             ) : null}
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-leave="true"
-              onClick={() => void leaveClassroom()}
-            >
-              <PhoneOff className="size-4" />
-              Leave Class
-            </button>
+            {isHost ? (
+              <>
+                <button
+                  type="button"
+                  className="classroom-dock-btn"
+                  data-end-class="true"
+                  disabled={ending || !liveClassId}
+                  onClick={() => void endClassForEveryone()}
+                >
+                  <PhoneOff className="size-4" />
+                  {ending ? "Ending…" : "End class for everyone"}
+                </button>
+                <button
+                  type="button"
+                  className="classroom-dock-btn"
+                  data-leave="true"
+                  onClick={() => void leaveWithoutEnding()}
+                >
+                  Leave without ending
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-leave="true"
+                onClick={() => void leaveWithoutEnding()}
+              >
+                <PhoneOff className="size-4" />
+                Leave Class
+              </button>
+            )}
           </div>
           <p className="classroom-client-footnote">
-            No personal Zoom account is required. You stay signed in to AviatorPass. After you
-            enter, Zoom’s Client View fills the screen; leave with Zoom’s control to return here and
-            rejoin.
+            {isHost
+              ? "End class for everyone frees the shared Zoom host so the next lecture can start. Leave without ending keeps the Zoom meeting live and will block another concurrent class on the same host."
+              : "No personal Zoom account is required. You stay signed in to AviatorPass. After you enter, Zoom’s Client View fills the screen; leave with Zoom’s control to return here and rejoin."}
           </p>
         </div>
       </div>

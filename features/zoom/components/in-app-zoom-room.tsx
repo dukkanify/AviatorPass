@@ -18,6 +18,10 @@ import {
   releaseZoomEmbeddedClient,
   type ZoomEmbeddedClient,
 } from "@/features/zoom/lib/load-embedded-sdk";
+import {
+  beaconEndClassroom,
+  endClassroomForEveryone,
+} from "@/features/zoom/lib/end-classroom-session";
 import { cn } from "@/lib/utils";
 
 function zoomFailureText(error: unknown): string {
@@ -278,6 +282,8 @@ function InAppZoomRoom({
   const [notice, setNotice] = React.useState("Preparing the AviatorPass classroom");
   const [camOn, setCamOn] = React.useState(true);
   const [micOn, setMicOn] = React.useState(true);
+  const [ending, setEnding] = React.useState(false);
+  const [hostBusyNotice, setHostBusyNotice] = React.useState<string | null>(null);
   /** Automatic host recovery attempts (ZAK refresh / Error 3000 release). Cap avoids loops. */
   const hostRecoveryRef = React.useRef(0);
   /**
@@ -287,7 +293,21 @@ function InAppZoomRoom({
   const joinedKeyRef = React.useRef<string | null>(null);
   const liveMeetingRef = React.useRef(false);
   const sessionRef = React.useRef<InAppSession | null>(null);
+  const isHostRef = React.useRef(isHost);
+  const liveClassIdRef = React.useRef(liveClassId);
   sessionRef.current = session;
+  isHostRef.current = isHost;
+  liveClassIdRef.current = liveClassId;
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageHide = () => {
+      if (!isHostRef.current || !liveMeetingRef.current || !liveClassIdRef.current) return;
+      beaconEndClassroom(liveClassIdRef.current);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, []);
 
   // Join effect identity: meeting + attempt only. Signature/ZAK live in sessionRef
   // so boot remints do not tear down a connected Meeting SDK client.
@@ -649,12 +669,24 @@ function InAppZoomRoom({
     setMicOn(next);
   }
 
-  async function leaveClassroom() {
+  async function leaveSdkOnly() {
     liveMeetingRef.current = false;
     joinedKeyRef.current = null;
     sdkRef.current = null;
     await releaseZoomEmbeddedClient();
     stopLocalMedia();
+  }
+
+  async function leaveWithoutEnding() {
+    await leaveSdkOnly();
+    if (isHost) {
+      setPhase("classroom");
+      setHostBusyNotice(
+        "You left without ending the meeting. The Zoom session may still hold the platform host (ceo@aviatorpass.com). End class for everyone before starting another lecture.",
+      );
+      setNotice("Browser session closed — Zoom meeting may still be live.");
+      return;
+    }
     if (onLeave) {
       onLeave();
       return;
@@ -664,6 +696,33 @@ function InAppZoomRoom({
       return;
     }
     router.back();
+  }
+
+  async function endClassForEveryone() {
+    if (!isHost || !liveClassId || ending) return;
+    setEnding(true);
+    try {
+      await leaveSdkOnly();
+      const result = await endClassroomForEveryone(liveClassId);
+      setHostBusyNotice(null);
+      setNotice(
+        result.data?.message ||
+          (result.ok
+            ? "Class ended for everyone. The platform Zoom host is free."
+            : result.error || "Could not end the Zoom meeting."),
+      );
+      if (onLeave) {
+        onLeave();
+        return;
+      }
+      if (leaveHref) {
+        router.push(leaveHref);
+        return;
+      }
+      router.back();
+    } finally {
+      setEnding(false);
+    }
   }
 
   const shownMeeting = session?.meetingNumber || meetingNumber || "";
@@ -806,6 +865,15 @@ function InAppZoomRoom({
             </div>
           ) : null}
 
+          {hostBusyNotice ? (
+            <div className="classroom-notice" role="status">
+              <Shield className="mt-0.5 size-4 shrink-0 text-[#CCA04C]" />
+              <div className="min-w-0">
+                <p>{hostBusyNotice}</p>
+              </div>
+            </div>
+          ) : null}
+
           <div className="classroom-dock-actions">
             {phase === "error" ? (
               <button
@@ -815,6 +883,7 @@ function InAppZoomRoom({
                 onClick={() => {
                   liveMeetingRef.current = false;
                   joinedKeyRef.current = null;
+                  setHostBusyNotice(null);
                   setNotice("Opening the classroom again");
                   setPhase("loading");
                   setSession(null);
@@ -824,15 +893,38 @@ function InAppZoomRoom({
                 Open classroom again
               </button>
             ) : null}
-            <button
-              type="button"
-              className="classroom-dock-btn"
-              data-leave="true"
-              onClick={() => void leaveClassroom()}
-            >
-              <PhoneOff className="size-4" />
-              Leave Class
-            </button>
+            {isHost ? (
+              <>
+                <button
+                  type="button"
+                  className="classroom-dock-btn"
+                  data-end-class="true"
+                  disabled={ending || !liveClassId}
+                  onClick={() => void endClassForEveryone()}
+                >
+                  <PhoneOff className="size-4" />
+                  {ending ? "Ending…" : "End class for everyone"}
+                </button>
+                <button
+                  type="button"
+                  className="classroom-dock-btn"
+                  data-leave="true"
+                  onClick={() => void leaveWithoutEnding()}
+                >
+                  Leave without ending
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="classroom-dock-btn"
+                data-leave="true"
+                onClick={() => void leaveWithoutEnding()}
+              >
+                <PhoneOff className="size-4" />
+                Leave Class
+              </button>
+            )}
           </div>
         </div>
       </div>
