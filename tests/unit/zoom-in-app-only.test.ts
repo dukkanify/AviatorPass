@@ -180,6 +180,9 @@ describe("Zoom stays inside AviatorPass", () => {
       readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
     ).toMatch(/releaseStaleLocalHostMeetings/);
     expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
+    ).toMatch(/releasePriorInstructorHostMeetings/);
+    expect(
       readFileSync(resolve(process.cwd(), "app/api/zoom/release-host-lock/route.ts"), "utf8"),
     ).toMatch(/releaseHostLockForLiveClass/);
     expect(
@@ -191,7 +194,8 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(client).toMatch(/End class for everyone/);
     expect(client).toMatch(/Leave without ending/);
-    expect(client).toMatch(/beaconEndClassroom/);
+    expect(client).not.toMatch(/beaconEndClassroom/);
+    expect(room).not.toMatch(/beaconEndClassroom/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
