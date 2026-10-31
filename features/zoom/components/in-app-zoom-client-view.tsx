@@ -17,10 +17,7 @@ import {
   prefetchZoomClientViewSdk,
   type ZoomMtgClient,
 } from "@/features/zoom/lib/load-client-view-sdk";
-import {
-  beaconEndClassroom,
-  endClassroomForEveryone,
-} from "@/features/zoom/lib/end-classroom-session";
+import { endClassroomForEveryone } from "@/features/zoom/lib/end-classroom-session";
 import { cn } from "@/lib/utils";
 
 interface InAppSession {
@@ -91,11 +88,7 @@ function InAppZoomClientView({
   const joinedKeyRef = React.useRef<string | null>(null);
   const mtgRef = React.useRef<ZoomMtgClient | null>(null);
   const sessionRef = React.useRef<InAppSession | null>(null);
-  const isHostRef = React.useRef(isHost);
-  const liveClassIdRef = React.useRef(liveClassId);
   sessionRef.current = session;
-  isHostRef.current = isHost;
-  liveClassIdRef.current = liveClassId;
 
   const sessionJoinKey = session
     ? [session.mode, session.meetingNumber, String(attempt)].join("|")
@@ -114,15 +107,10 @@ function InAppZoomClientView({
     }
   }, [isHost]);
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPageHide = () => {
-      if (!isHostRef.current || !liveMeetingRef.current || !liveClassIdRef.current) return;
-      beaconEndClassroom(liveClassIdRef.current);
-    };
-    window.addEventListener("pagehide", onPageHide);
-    return () => window.removeEventListener("pagehide", onPageHide);
-  }, []);
+  // Do NOT beacon end-classroom on pagehide. Back/refresh/navigation was
+  // marking the live class completed so hosts could not rejoin, while a failed
+  // keepalive could still leave Zoom busy for the next subject (Error 3000).
+  // Hosts must use "End class for everyone" (or Leave without ending) explicitly.
 
   React.useEffect(() => {
     if (phase === "loading" && liveMeetingRef.current) return;

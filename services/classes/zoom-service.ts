@@ -639,9 +639,38 @@ export async function ensureLiveMeetingForClass(
   if (inflight) return inflight;
 
   const promise = (async () => {
-    const liveClass = lookupLiveClass(liveClassId);
+    let liveClass = lookupLiveClass(liveClassId);
     if (!liveClass || liveClass.deletedAt || liveClass.status === "cancelled") {
       return lookupZoomMeetingByClassId(liveClassId);
+    }
+    // Accidental End / pagehide used to leave status=completed while the
+    // instructor still needed to teach. Reopen within a 2h grace after endsAt
+    // so the host can re-enter the same classroom without a new schedule row.
+    if (liveClass.status === "completed") {
+      const endMs = Date.parse(liveClass.endsAt);
+      const withinGrace = Number.isFinite(endMs) && Date.now() <= endMs + 2 * 60 * 60_000;
+      const isHostActor =
+        Boolean(actorId) &&
+        (liveClass.instructorId === actorId || liveClass.assistantInstructorId === actorId);
+      if (withinGrace && isHostActor) {
+        const now = new Date().toISOString();
+        writeClassesDb((db) => {
+          const idx = db.classes.findIndex((row) => row.id === liveClassId);
+          if (idx < 0) return;
+          db.classes[idx] = { ...db.classes[idx]!, status: "scheduled", updatedAt: now };
+          const mIdx = db.zoomMeetings.findIndex((row) => row.liveClassId === liveClassId);
+          if (mIdx >= 0 && db.zoomMeetings[mIdx]!.status === "finished") {
+            db.zoomMeetings[mIdx] = {
+              ...db.zoomMeetings[mIdx]!,
+              status: "waiting",
+              updatedAt: now,
+            };
+          }
+        });
+        liveClass = lookupLiveClass(liveClassId) ?? liveClass;
+      } else {
+        return lookupZoomMeetingByClassId(liveClassId);
+      }
     }
     const existing = lookupZoomMeetingByClassId(liveClassId);
     if (existing && !isPlaceholderZoomMeeting(existing)) {
@@ -1983,6 +2012,77 @@ function markLocalClassroomFinished(liveClassId: string): void {
       };
     }
   });
+}
+
+/**
+ * When an instructor starts class B while class A is still live on the shared
+ * Zoom host, end A's Zoom instance (and mark A completed locally) so B can
+ * start without Error 3000 / "You are hosting another meeting".
+ *
+ * Safety: only ends AviatorPass meetings whose live class is assigned to this
+ * instructor (or assistant). Never ends unknown Zoom live IDs or another
+ * instructor's in-window class.
+ */
+export async function releasePriorInstructorHostMeetings(input: {
+  keepMeetingNumber: string;
+  instructorUserId: string;
+}): Promise<{
+  ended: string[];
+  skippedOtherInstructor: string[];
+  liveListReadable: boolean;
+}> {
+  const keep = meetingNumberDigits(input.keepMeetingNumber);
+  const ended: string[] = [];
+  const skippedOtherInstructor: string[] = [];
+  const token = await resolveClearLiveAccessToken(input.instructorUserId);
+  if (!token || !keep) {
+    return { ended, skippedOtherInstructor, liveListReadable: false };
+  }
+
+  const settings = getPlatformSettings();
+  const hosts = Array.from(
+    new Set(["me", settings.zoom.accountEmail].map((h) => (h || "").trim()).filter(Boolean)),
+  );
+
+  let liveListReadable = false;
+  const liveIds = new Set<string>();
+  for (const host of hosts) {
+    const listed = await listZoomLiveMeetingsForHost(token, host);
+    if (!listed.readable) continue;
+    liveListReadable = true;
+    for (const row of listed.meetings) {
+      const id = meetingNumberDigits(String(row.id ?? ""));
+      if (id) liveIds.add(id);
+    }
+  }
+  if (!liveListReadable) {
+    return { ended, skippedOtherInstructor, liveListReadable: false };
+  }
+
+  for (const liveId of liveIds) {
+    if (liveId === keep) continue;
+    const meeting = getZoomMeetingByNumber(liveId);
+    if (!meeting?.liveClassId) continue; // unknown Zoom live — never auto-end
+    const cls = lookupLiveClass(meeting.liveClassId);
+    if (!cls) continue;
+    const owns =
+      cls.instructorId === input.instructorUserId ||
+      cls.assistantInstructorId === input.instructorUserId;
+    if (!owns) {
+      skippedOtherInstructor.push(liveId);
+      continue;
+    }
+    const release = await releaseZoomMeetingLiveInstance({
+      meetingNumber: liveId,
+      instructorUserId: input.instructorUserId,
+    });
+    if (release.released) {
+      ended.push(liveId);
+      markLocalClassroomFinished(meeting.liveClassId);
+    }
+  }
+
+  return { ended, skippedOtherInstructor, liveListReadable };
 }
 
 /**

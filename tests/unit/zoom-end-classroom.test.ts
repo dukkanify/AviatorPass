@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeClassesDb } from "@/services/classes/store";
 import {
   endHostClassroomSession,
+  releasePriorInstructorHostMeetings,
   releaseStaleLocalHostMeetings,
   resetZoomS2STokenCacheForTests,
 } from "@/services/classes/zoom-service";
@@ -232,5 +233,54 @@ describe("end classroom host release", () => {
     expect(result.skippedInWindow).toContain("84444444444");
     expect(result.ended).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("ends this instructor's prior in-window live meeting when starting another class", async () => {
+    s2sEnv();
+    seedClass({
+      id: "cls-end-a",
+      meetingNumber: "86666666666",
+      status: "live",
+      startsAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 50 * 60_000).toISOString(),
+    });
+    seedClass({
+      id: "cls-end-b",
+      meetingNumber: "87777777777",
+      status: "scheduled",
+      startsAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 40 * 60_000).toISOString(),
+    });
+
+    const ended: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(JSON.stringify({ access_token: "tok", expires_in: 3600 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/users/") && url.includes("/meetings")) {
+        return new Response(JSON.stringify({ meetings: [{ id: 86666666666 }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/meetings/") && url.includes("/status") && init?.method === "PUT") {
+        const id = url.match(/meetings\/(\d+)/)?.[1] || "";
+        ended.push(id);
+        return new Response(null, { status: 204 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await releasePriorInstructorHostMeetings({
+      keepMeetingNumber: "87777777777",
+      instructorUserId: "instructor-end",
+    });
+    expect(result.ended).toContain("86666666666");
+    expect(ended).toContain("86666666666");
+    expect(result.skippedOtherInstructor).toEqual([]);
   });
 });

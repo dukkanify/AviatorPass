@@ -445,7 +445,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
         ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col gap-3">
-          {join && cls.status !== "completed" && scheduleStatus !== "Cancelled" ? (
+          {join && scheduleStatus !== "Cancelled" && (cls.status !== "completed" || data.isHost) ? (
             sdkView === "client" ? (
               <InAppZoomClientView
                 liveClassId={classId}
@@ -482,7 +482,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               {scheduleStatus === "Cancelled"
                 ? "This class was cancelled."
                 : cls.status === "completed"
-                  ? "This subject is complete and will not open again."
+                  ? "This live class session has ended. Open your schedule to join or start another lecture — ending a Zoom class does not complete the ATPL subject."
                   : "Meeting details unavailable."}
             </p>
           )}

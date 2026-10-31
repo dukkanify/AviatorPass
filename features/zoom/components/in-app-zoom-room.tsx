@@ -18,10 +18,7 @@ import {
   releaseZoomEmbeddedClient,
   type ZoomEmbeddedClient,
 } from "@/features/zoom/lib/load-embedded-sdk";
-import {
-  beaconEndClassroom,
-  endClassroomForEveryone,
-} from "@/features/zoom/lib/end-classroom-session";
+import { endClassroomForEveryone } from "@/features/zoom/lib/end-classroom-session";
 import { cn } from "@/lib/utils";
 
 function zoomFailureText(error: unknown): string {
@@ -293,21 +290,12 @@ function InAppZoomRoom({
   const joinedKeyRef = React.useRef<string | null>(null);
   const liveMeetingRef = React.useRef(false);
   const sessionRef = React.useRef<InAppSession | null>(null);
-  const isHostRef = React.useRef(isHost);
-  const liveClassIdRef = React.useRef(liveClassId);
   sessionRef.current = session;
-  isHostRef.current = isHost;
-  liveClassIdRef.current = liveClassId;
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPageHide = () => {
-      if (!isHostRef.current || !liveMeetingRef.current || !liveClassIdRef.current) return;
-      beaconEndClassroom(liveClassIdRef.current);
-    };
-    window.addEventListener("pagehide", onPageHide);
-    return () => window.removeEventListener("pagehide", onPageHide);
-  }, []);
+  // Do NOT beacon end-classroom on pagehide. Back/refresh/navigation was
+  // marking the live class completed so hosts could not rejoin, while a failed
+  // keepalive could still leave Zoom busy for the next subject (Error 3000).
+  // Hosts must use "End class for everyone" (or Leave without ending) explicitly.
 
   // Join effect identity: meeting + attempt only. Signature/ZAK live in sessionRef
   // so boot remints do not tear down a connected Meeting SDK client.
