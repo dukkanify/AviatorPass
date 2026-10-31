@@ -17,12 +17,17 @@ import {
   setEventEnabled,
 } from "@/services/email/automation-store";
 import { renderAutomationTemplate } from "@/services/email/automation-templates";
+import {
+  otpEmailIdempotencyKey,
+  scheduleEmailIdempotencyKey,
+} from "@/services/email/idempotency-store";
 import { isEmailDeliveryConfigured, sendEmail } from "@/services/email/mailer";
 import { listOutboundEmails } from "@/services/email/outbox";
 import {
   getAdminNotificationEmail,
   getPlatformSettings,
 } from "@/services/settings/settings-service";
+import { rateLimit } from "@/lib/security/rate-limit";
 import type {
   EmailAutomationDispatchInput,
   EmailAutomationDispatchResult,
@@ -30,6 +35,39 @@ import type {
   EmailAutomationOverview,
 } from "@/types/email-automation";
 import { EMAIL_AUTOMATION_EVENTS } from "@/types/email-automation";
+
+/** Events that must remain deliverable even under rate pressure. */
+const CRITICAL_EMAIL_EVENTS = new Set<EmailAutomationEvent>(["password_reset", "admin_alert"]);
+
+function resolveDispatchIdempotencyKey(input: {
+  event: EmailAutomationEvent;
+  recipientEmail: string;
+  recipientUserId: string | null;
+  meta?: Record<string, unknown>;
+}): string | undefined {
+  if (typeof input.meta?.idempotencyKey === "string" && input.meta.idempotencyKey.trim()) {
+    return input.meta.idempotencyKey.trim();
+  }
+  const liveClassId =
+    typeof input.meta?.liveClassId === "string" ? input.meta.liveClassId.trim() : "";
+  if (liveClassId) {
+    return scheduleEmailIdempotencyKey({
+      event: input.event,
+      liveClassId,
+      userIdOrEmail: input.recipientUserId || input.recipientEmail,
+    });
+  }
+  const challengeId =
+    typeof input.meta?.challengeId === "string" ? input.meta.challengeId.trim() : "";
+  if (challengeId && (input.event === "password_reset" || input.meta?.kind === "otp")) {
+    return otpEmailIdempotencyKey({
+      email: input.recipientEmail,
+      purpose: String(input.meta?.purpose ?? input.event),
+      challengeId,
+    });
+  }
+  return undefined;
+}
 
 export class EmailAutomationError extends Error {
   status: number;
@@ -145,11 +183,32 @@ export async function dispatchEmailEvent(
 
   for (const recipient of recipients) {
     result.attempted += 1;
+
+    // Soft rate limit for non-critical lifecycle mail — never block password recovery.
+    if (!CRITICAL_EMAIL_EVENTS.has(input.event) && !input.system) {
+      const rl = rateLimit(
+        `email-automation:${input.event}:${recipient.email.toLowerCase()}`,
+        12,
+        60 * 60_000,
+      );
+      if (!rl.allowed) {
+        result.skipped += 1;
+        result.errors.push(`Rate limited for ${recipient.email}`);
+        continue;
+      }
+    }
+
     const data = {
       ...input.data,
       recipientName: input.data.recipientName ?? recipient.name,
     };
     const template = renderAutomationTemplate(input.event, data, input.subject);
+    const idempotencyKey = resolveDispatchIdempotencyKey({
+      event: input.event,
+      recipientEmail: recipient.email,
+      recipientUserId: recipient.userId,
+      meta: input.meta,
+    });
     const mail = await sendEmail({
       to: recipient.email,
       subject: template.subject,
@@ -161,6 +220,7 @@ export async function dispatchEmailEvent(
         userId: recipient.userId,
         system: Boolean(input.system || input.event === "admin_alert"),
         ...input.meta,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
     });
 
@@ -173,8 +233,19 @@ export async function dispatchEmailEvent(
       outboxId: mail.outboxId,
       error: mail.error ?? null,
       actorId: input.actorId ?? null,
-      data: { ...data, userId: recipient.userId },
+      data: {
+        ...data,
+        userId: recipient.userId,
+        deduped: Boolean(mail.deduped),
+        suppressed: Boolean(mail.suppressed),
+      },
     });
+
+    if (mail.deduped || mail.suppressed) {
+      result.skipped += 1;
+      if (mail.deduped) result.outboxIds.push(mail.outboxId);
+      continue;
+    }
 
     if (mail.success) {
       result.sent += 1;

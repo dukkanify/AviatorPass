@@ -1,13 +1,17 @@
 /**
  * Reminder queue — email/in-app offsets configurable via platform settings.
+ * Email policy: important lecture reminders at 24h and 1h only.
+ * Routine offsets (2h / 15m) stay in-app when explicitly configured.
  */
 
 import { generateId } from "@/lib/security/crypto";
 import { appJoinUrl } from "@/lib/site-origin";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { DEFAULT_REMINDER_OFFSETS_MINUTES } from "@/constants/classes";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { logActivity } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
+import { reminderEmailIdempotencyKey } from "@/services/email/idempotency-store";
 import { sendEmail } from "@/services/email/mailer";
 import { createNotification } from "@/services/notifications/notification-service";
 import { classReminderEmailTemplate } from "@/services/settings/email-templates";
@@ -23,12 +27,46 @@ import {
 import { listParticipantsForClass, readClassesDb } from "@/services/classes/store";
 import type { ReminderKind, ReminderQueueItem } from "@/types/classes";
 
+/** Offsets that may send email (policy: 24h + 1h). */
+const EMAIL_REMINDER_KINDS = new Set<ReminderKind>(["24h", "1h"]);
+
+function kindForOffsetMinutes(minutes: number): ReminderKind {
+  if (minutes >= 1440) return "24h";
+  if (minutes >= 90) return "2h";
+  if (minutes >= 45) return "1h";
+  return "15m";
+}
+
+function reminderLabel(kind: ReminderKind): string {
+  switch (kind) {
+    case "finished":
+      return "Class has finished";
+    case "live_now":
+      return "Class is live now";
+    case "15m":
+      return "Class starts in 15 minutes";
+    case "1h":
+      return "Class starts in 1 hour";
+    case "2h":
+      return "Class starts in 2 hours";
+    case "24h":
+      return "Class starts in 24 hours";
+    default:
+      return "Class reminder";
+  }
+}
+
 export async function queueClassReminders(liveClassId: string): Promise<ReminderQueueItem[]> {
   const cls = readClassesDb().classes.find((c) => c.id === liveClassId && !c.deletedAt);
   if (!cls || cls.status === "cancelled" || cls.status === "draft") return [];
 
   const settings = getPlatformSettings();
-  const offsets = [...(settings.notifications.classReminderOffsetsMinutes ?? [1440, 120])];
+  const offsets = [
+    ...(settings.notifications.classReminderOffsetsMinutes ?? [
+      DEFAULT_REMINDER_OFFSETS_MINUTES["24h"],
+      DEFAULT_REMINDER_OFFSETS_MINUTES["1h"],
+    ]),
+  ];
   if (settings.notifications.classReminderFifteenMinutesEnabled) {
     if (!offsets.includes(DEFAULT_REMINDER_OFFSETS_MINUTES["15m"])) {
       offsets.push(DEFAULT_REMINDER_OFFSETS_MINUTES["15m"]);
@@ -44,16 +82,16 @@ export async function queueClassReminders(liveClassId: string): Promise<Reminder
   const nextPending: ReminderQueueItem[] = [];
   for (const p of participants) {
     for (const minutes of offsets) {
-      let kind: ReminderKind = "2h";
-      if (minutes >= 1440) kind = "24h";
-      else if (minutes >= 120) kind = "2h";
-      else kind = "15m";
-
+      const kind = kindForOffsetMinutes(minutes);
       const scheduledFor = new Date(start - minutes * 60_000).toISOString();
       if (Date.parse(scheduledFor) < now - 60_000) continue;
 
       const channels: Array<"email" | "in_app"> = ["in_app"];
-      if (settings.notifications.reminderEmails && settings.notifications.emailNotifications) {
+      if (
+        EMAIL_REMINDER_KINDS.has(kind) &&
+        settings.notifications.reminderEmails &&
+        settings.notifications.emailNotifications
+      ) {
         channels.push("email");
       }
 
@@ -138,30 +176,40 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
       continue;
     }
 
-    const label =
-      item.kind === "finished"
-        ? "Class has finished"
-        : item.kind === "live_now"
-          ? "Class is live now"
-          : item.kind === "15m"
-            ? "Class starts in 15 minutes"
-            : item.kind === "2h"
-              ? "Class starts in 2 hours"
-              : "Class starts in 24 hours";
+    const label = reminderLabel(item.kind);
 
     const notificationType =
       item.kind === "finished"
         ? "zoom.meeting.finished"
-        : item.kind === "15m" || item.kind === "2h"
+        : item.kind === "15m" || item.kind === "2h" || item.kind === "live_now"
           ? "zoom.meeting.starts_soon"
-          : `class.reminder.${item.kind}`;
+          : item.kind === "1h"
+            ? "class.reminder_1h"
+            : item.kind === "24h"
+              ? "class.reminder_24h"
+              : `class.reminder.${item.kind}`;
 
     if (item.channel === "email") {
+      if (!EMAIL_REMINDER_KINDS.has(item.kind)) {
+        upsertReminder({ ...item, status: "cancelled" });
+        continue;
+      }
       const user = findUserById(item.userId);
       if (!user?.email) {
         upsertReminder({ ...item, status: "cancelled" });
         continue;
       }
+
+      const rl = rateLimit(`class-reminder-email:${item.userId}`, 20, 60 * 60_000);
+      if (!rl.allowed) {
+        upsertReminder({
+          ...item,
+          status: "pending",
+          payload: { ...item.payload, lastError: "rate_limited" },
+        });
+        continue;
+      }
+
       const template = classReminderEmailTemplate({
         title: cls.title,
         startsAt: cls.startsAt,
@@ -173,12 +221,32 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
         subject: template.subject,
         html: template.html,
         text: template.text,
-        meta: { kind: "class_reminder", liveClassId: cls.id, reminderId: item.id },
+        meta: {
+          kind: "class_reminder",
+          liveClassId: cls.id,
+          reminderId: item.id,
+          system: true,
+          idempotencyKey: reminderEmailIdempotencyKey({
+            liveClassId: cls.id,
+            userId: item.userId,
+            kind: item.kind,
+          }),
+        },
       });
-      if (!mail.success) {
+      if (mail.deduped) {
         upsertReminder({
           ...item,
-          status: "pending",
+          status: "sent",
+          sentAt: new Date().toISOString(),
+          payload: { ...item.payload, deduped: true },
+        });
+        sent += 1;
+        continue;
+      }
+      if (mail.suppressed || !mail.success) {
+        upsertReminder({
+          ...item,
+          status: mail.suppressed ? "cancelled" : "pending",
           payload: { ...item.payload, lastError: mail.error },
         });
         continue;
@@ -191,6 +259,7 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
         type: notificationType,
         channel: "in_app",
         data: { liveClassId: cls.id, kind: item.kind },
+        email: false,
       });
     }
 

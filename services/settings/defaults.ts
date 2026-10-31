@@ -71,8 +71,8 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     reminderEmails: true,
     marketingEmails: false,
     systemAlerts: true,
-    classReminderOffsetsMinutes: [1440, 120],
-    classReminderFifteenMinutesEnabled: true,
+    classReminderOffsetsMinutes: [1440, 60],
+    classReminderFifteenMinutesEnabled: false,
   },
   authentication: {
     allowDemoOtp: true,

@@ -35,12 +35,7 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   webinar: "Webinar",
 };
 
-export const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = [
-  "once",
-  "daily",
-  "weekly",
-  "monthly",
-];
+export const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["once", "daily", "weekly", "monthly"];
 
 export const RECURRENCE_LABELS: Record<RecurrenceFrequency, string> = {
   once: "One-time",
@@ -67,6 +62,7 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
 
 export const REMINDER_KINDS: ReminderKind[] = [
   "24h",
+  "1h",
   "2h",
   "15m",
   "live_now",
@@ -75,9 +71,10 @@ export const REMINDER_KINDS: ReminderKind[] = [
   "recording",
 ];
 
-/** Default reminder offsets in minutes before start */
+/** Default reminder offsets in minutes before start (email policy: 24h + 1h). */
 export const DEFAULT_REMINDER_OFFSETS_MINUTES = {
   "24h": 24 * 60,
+  "1h": 60,
   "2h": 2 * 60,
   "15m": 15,
 } as const;

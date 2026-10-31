@@ -1,6 +1,7 @@
 /**
  * Outbound email mailer — Resend, then SMTP, then durable outbox.
  * Failed production sends are queued for automatic retry.
+ * Suppression + idempotency gates sit in front of every provider attempt.
  */
 
 import nodemailer from "nodemailer";
@@ -8,12 +9,17 @@ import nodemailer from "nodemailer";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import { logEmailEvent } from "@/services/email/email-log";
 import {
+  claimEmailIdempotency,
+  completeEmailIdempotency,
+} from "@/services/email/idempotency-store";
+import {
   isRetryableEmailError,
   recordOutboundEmail,
   retryBackoffIso,
   type EmailDeliveryMode,
   type OutboundEmailRecord,
 } from "@/services/email/outbox";
+import { isEmailSuppressed } from "@/services/email/suppression-store";
 
 export interface SendEmailInput {
   to: string;
@@ -31,6 +37,10 @@ export interface SendEmailResult {
   outboxId: string;
   error?: string | null;
   record: OutboundEmailRecord;
+  /** True when a prior identical send was skipped via idempotency. */
+  deduped?: boolean;
+  /** True when the recipient is on the suppression list. */
+  suppressed?: boolean;
 }
 
 function smtpConfigured(): boolean {
@@ -112,6 +122,33 @@ function failedRecordFields(error: string, isRetry = false) {
   };
 }
 
+function syntheticSkippedRecord(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  from: string;
+  replyTo: string;
+  provider: string;
+  meta?: Record<string, unknown>;
+  mode: EmailDeliveryMode;
+  error: string | null;
+}): OutboundEmailRecord {
+  return recordOutboundEmail({
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
+    from: input.from,
+    replyTo: input.replyTo,
+    provider: input.provider,
+    mode: input.mode,
+    error: input.error,
+    queueStatus: "none",
+    meta: input.meta,
+  });
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const settings = getPlatformSettings();
   const email = settings.email;
@@ -119,6 +156,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const from = `${email.senderName || settings.general.platformName} <${email.senderEmail}>`;
   const replyTo = email.replyToEmail || email.senderEmail;
   const isRetry = Boolean(input.meta?.retryOf);
+  const kind = typeof input.meta?.kind === "string" ? input.meta.kind : "";
+  const isSystem = Boolean(
+    input.meta?.system || kind === "test" || kind === "otp" || kind === "password_reset",
+  );
 
   if (!to) {
     const record = recordOutboundEmail({
@@ -144,9 +185,86 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     };
   }
 
-  const isSystem = Boolean(
-    input.meta?.system || input.meta?.kind === "test" || input.meta?.kind === "otp",
-  );
+  const suppression = isEmailSuppressed(to);
+  if (suppression.suppressed) {
+    const isDemoMailbox = suppression.entry?.reason === "confirmed_demo_mailbox";
+    const isAuthMail = kind === "otp" || kind === "password_reset";
+    // Demo catalog addresses are not real inboxes — never hit Resend/SMTP.
+    // OTP / recovery still succeeds via outbox so local auth continues to work.
+    if (isDemoMailbox && isAuthMail) {
+      const record = syntheticSkippedRecord({
+        to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        from,
+        replyTo,
+        provider: email.provider,
+        mode: "outbox",
+        error: null,
+        meta: {
+          ...(input.meta ?? {}),
+          suppressed: true,
+          suppressionReason: suppression.reason,
+          note: "Demo mailbox — stored in outbox; Resend skipped",
+        },
+      });
+      logEmailEvent(
+        "email_sent",
+        {
+          to,
+          subject: input.subject,
+          mode: "outbox",
+          outboxId: record.id,
+          suppressed: true,
+        },
+        typeof input.meta?.userId === "string" ? input.meta.userId : null,
+      );
+      return {
+        success: true,
+        delivered: false,
+        mode: "outbox",
+        outboxId: record.id,
+        error: null,
+        record,
+        suppressed: true,
+      };
+    }
+
+    const reason = suppression.reason || "Recipient suppressed";
+    const record = syntheticSkippedRecord({
+      to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      from,
+      replyTo,
+      provider: email.provider,
+      mode: "failed",
+      error: reason,
+      meta: {
+        ...(input.meta ?? {}),
+        suppressed: true,
+        suppressionReason: reason,
+        suppressionEntryId: suppression.entry?.id ?? null,
+      },
+    });
+    logEmailEvent(
+      "email_failed",
+      { to, subject: input.subject, error: reason, suppressed: true, outboxId: record.id },
+      typeof input.meta?.userId === "string" ? input.meta.userId : null,
+    );
+    return {
+      success: false,
+      delivered: false,
+      mode: "failed",
+      outboxId: record.id,
+      error: reason,
+      record,
+      suppressed: true,
+    };
+  }
+
   if (!settings.notifications.emailNotifications && !isSystem) {
     const record = recordOutboundEmail({
       to,
@@ -174,6 +292,62 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       record,
     };
   }
+
+  const idempotencyKey =
+    typeof input.meta?.idempotencyKey === "string" ? input.meta.idempotencyKey.trim() : "";
+  // Outbox retries reuse the original send — do not re-claim the same key.
+  if (idempotencyKey && !isRetry) {
+    const claim = claimEmailIdempotency({
+      key: idempotencyKey,
+      to,
+      subject: input.subject,
+    });
+    if (!claim.claimed) {
+      const existingId = claim.existing.outboxId || "idempotent-skip";
+      const record = syntheticSkippedRecord({
+        to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        from,
+        replyTo,
+        provider: email.provider,
+        mode: "outbox",
+        error: null,
+        meta: {
+          ...(input.meta ?? {}),
+          deduped: true,
+          priorOutboxId: claim.existing.outboxId,
+          note: "Idempotent skip — identical send already claimed",
+        },
+      });
+      logEmailEvent(
+        "email_sent",
+        {
+          to,
+          subject: input.subject,
+          mode: "outbox",
+          outboxId: record.id,
+          deduped: true,
+          priorOutboxId: existingId,
+        },
+        typeof input.meta?.userId === "string" ? input.meta.userId : null,
+      );
+      return {
+        success: true,
+        delivered: false,
+        mode: "outbox",
+        outboxId: claim.existing.outboxId || record.id,
+        error: null,
+        record,
+        deduped: true,
+      };
+    }
+  }
+
+  const finishIdempotency = (outboxId: string | null) => {
+    if (idempotencyKey && !isRetry) completeEmailIdempotency(idempotencyKey, outboxId);
+  };
 
   const errors: string[] = [];
 
@@ -233,6 +407,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
           },
           typeof input.meta?.userId === "string" ? input.meta.userId : null,
         );
+        finishIdempotency(record.id);
         return {
           success: true,
           delivered: true,
@@ -308,6 +483,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         smtpMessageId: info.messageId,
         smtpResponse: info.response,
       });
+      finishIdempotency(record.id);
       return {
         success: true,
         delivered: true,
@@ -352,6 +528,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     if (record.queueStatus === "queued") {
       logEmailEvent("email_queued", { outboxId: record.id, nextRetryAt: record.nextRetryAt });
     }
+    finishIdempotency(record.id);
     return {
       success: false,
       delivered: false,
@@ -377,6 +554,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       meta: input.meta,
     });
     logEmailEvent("email_failed", { to, subject: input.subject, error: message });
+    finishIdempotency(record.id);
     return {
       success: false,
       delivered: false,
@@ -406,6 +584,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 
   console.info(`[email:outbox] → ${to} | ${input.subject} | id=${record.id}`);
   logEmailEvent("email_sent", { to, subject: input.subject, mode: "outbox", outboxId: record.id });
+  finishIdempotency(record.id);
 
   return {
     success: true,
