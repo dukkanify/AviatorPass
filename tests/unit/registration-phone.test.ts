@@ -5,31 +5,44 @@ import {
   dialCountryFromRegistrationCountry,
   formatLocalPhoneDisplay,
   parseLocalDigitsFromInput,
+  REGISTRATION_PHONE_COUNTRIES,
   validateLocalMobile,
   validateRegistrationPhoneE164,
 } from "@/utils/registration-phone";
 import { registerSchema } from "@/utils/validation";
 
 describe("registration phone utilities", () => {
-  it("maps registration country codes to dial countries", () => {
+  it("maps registration country codes to dial countries including Egypt", () => {
     expect(dialCountryFromRegistrationCountry("KW")).toBe("KW");
     expect(dialCountryFromRegistrationCountry("AE")).toBe("AE");
-    expect(dialCountryFromRegistrationCountry("US")).toBeNull();
+    expect(dialCountryFromRegistrationCountry("EG")).toBe("EG");
+    expect(dialCountryFromRegistrationCountry("SA")).toBe("SA");
+    expect(dialCountryFromRegistrationCountry("OTHER")).toBeNull();
+  });
+
+  it("lists many dial countries beyond Kuwait and UAE", () => {
+    const codes = REGISTRATION_PHONE_COUNTRIES.map((row) => row.code);
+    expect(codes).toEqual(expect.arrayContaining(["KW", "AE", "EG", "SA", "QA", "GB"]));
+    expect(codes.length).toBeGreaterThan(20);
   });
 
   it("parses pasted international numbers into local digits", () => {
     expect(parseLocalDigitsFromInput("KW", "+965 5012 3456")).toBe("50123456");
     expect(parseLocalDigitsFromInput("AE", "+971501234567")).toBe("501234567");
+    expect(parseLocalDigitsFromInput("EG", "+20 100 123 4567")).toBe("1001234567");
+    expect(parseLocalDigitsFromInput("EG", "01001234567")).toBe("1001234567");
   });
 
   it("builds E.164 numbers from dial country and local digits", () => {
     expect(buildRegistrationPhone("KW", "50123456")).toBe("+96550123456");
     expect(buildRegistrationPhone("AE", "501234567")).toBe("+971501234567");
+    expect(buildRegistrationPhone("EG", "1001234567")).toBe("+201001234567");
   });
 
   it("formats local display with spacing", () => {
     expect(formatLocalPhoneDisplay("KW", "50123456")).toBe("5012 3456");
     expect(formatLocalPhoneDisplay("AE", "501234567")).toBe("50 123 4567");
+    expect(formatLocalPhoneDisplay("EG", "1001234567")).toBe("10 0123 4567");
   });
 
   it("validates Kuwait mobile numbers", () => {
@@ -46,10 +59,21 @@ describe("registration phone utilities", () => {
     expect(validateLocalMobile("AE", "50123456")).toMatch(/9 digits/i);
   });
 
+  it("validates Egypt mobile numbers", () => {
+    expect(validateLocalMobile("EG", "1001234567")).toBeNull();
+    expect(validateLocalMobile("EG", "1101234567")).toBeNull();
+    expect(validateLocalMobile("EG", "1201234567")).toBeNull();
+    expect(validateLocalMobile("EG", "1501234567")).toBeNull();
+    expect(validateLocalMobile("EG", "1301234567")).toMatch(/valid Egypt/i);
+    expect(validateLocalMobile("EG", "10012345")).toMatch(/10 digits/i);
+  });
+
   it("validates E.164 registration phones", () => {
     expect(validateRegistrationPhoneE164("+96550123456")).toBeNull();
     expect(validateRegistrationPhoneE164("+971501234567")).toBeNull();
-    expect(validateRegistrationPhoneE164("+441234567890")).toMatch(/Kuwait|UAE/i);
+    expect(validateRegistrationPhoneE164("+201001234567")).toBeNull();
+    expect(validateRegistrationPhoneE164("+966501234567")).toBeNull();
+    expect(validateRegistrationPhoneE164("+441234567890")).toMatch(/valid|United Kingdom|UK/i);
   });
 });
 
@@ -66,7 +90,7 @@ describe("registerSchema phone validation", () => {
     role: "student" as const,
   };
 
-  it("accepts valid Kuwait and UAE numbers", () => {
+  it("accepts valid Kuwait, UAE, and Egypt numbers", () => {
     expect(registerSchema.parse({ ...base, phone: "+96550123456", countryCode: "KW" }).phone).toBe(
       "+96550123456",
     );
@@ -78,6 +102,14 @@ describe("registerSchema phone validation", () => {
         nationality: "Emirati",
       }).phone,
     ).toBe("+971501234567");
+    expect(
+      registerSchema.parse({
+        ...base,
+        phone: "+201001234567",
+        countryCode: "EG",
+        nationality: "Egyptian",
+      }).phone,
+    ).toBe("+201001234567");
   });
 
   it("rejects invalid mobile numbers", () => {
@@ -92,5 +124,13 @@ describe("registerSchema phone validation", () => {
         nationality: "Emirati",
       }),
     ).toThrow(/UAE/i);
+    expect(() =>
+      registerSchema.parse({
+        ...base,
+        phone: "+201301234567",
+        countryCode: "EG",
+        nationality: "Egyptian",
+      }),
+    ).toThrow(/Egypt/i);
   });
 });

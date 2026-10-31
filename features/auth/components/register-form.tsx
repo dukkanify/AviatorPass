@@ -231,8 +231,8 @@ function RegisterForm({
 
   const handlePhoneDialChange = (next: RegistrationDialCountry) => {
     setPhoneDialCountry(next);
-    if (next === "KW" && countryCode === "AE") setCountryCode("KW");
-    if (next === "AE" && countryCode === "KW") setCountryCode("AE");
+    // Keep Country select in sync when the dial code maps to a registration country.
+    if (next !== countryCode) setCountryCode(next);
   };
 
   const onSubmit = async (e: React.FormEvent) => {

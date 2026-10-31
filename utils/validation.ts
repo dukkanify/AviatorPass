@@ -35,7 +35,7 @@ export const nameSchema = z
   .max(80, "Use 80 characters or fewer")
   .regex(/^[\p{L}\p{M}' -]+$/u, "Use letters, spaces, apostrophes, or hyphens only");
 
-/** Registration phone — Kuwait (+965) or UAE (+971) mobile only. */
+/** Registration phone — supported market mobiles (GCC, Egypt, and other listed countries). */
 export const registrationPhoneSchema = z
   .string()
   .trim()
