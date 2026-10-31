@@ -1963,6 +1963,166 @@ export async function releaseHostLockForLiveClass(input: {
   };
 }
 
+function markLocalClassroomFinished(liveClassId: string): void {
+  const now = new Date().toISOString();
+  writeClassesDb((db) => {
+    const clsIdx = db.classes.findIndex((row) => row.id === liveClassId);
+    if (clsIdx >= 0) {
+      const cls = db.classes[clsIdx]!;
+      if (cls.status === "live" || cls.status === "scheduled") {
+        db.classes[clsIdx] = { ...cls, status: "completed", updatedAt: now };
+      }
+    }
+    const meetingIdx = db.zoomMeetings.findIndex((row) => row.liveClassId === liveClassId);
+    if (meetingIdx >= 0) {
+      const meeting = db.zoomMeetings[meetingIdx]!;
+      db.zoomMeetings[meetingIdx] = {
+        ...meeting,
+        status: "finished",
+        updatedAt: now,
+      };
+    }
+  });
+}
+
+/**
+ * End OTHER known AviatorPass meetings still live on the shared host when they
+ * are already closed/past locally. Never ends unknown Zoom live IDs or
+ * in-window customer classes.
+ */
+export async function releaseStaleLocalHostMeetings(input: {
+  keepMeetingNumber?: string | null;
+  instructorUserId?: string | null;
+  graceMs?: number;
+}): Promise<{
+  ended: string[];
+  skippedInWindow: string[];
+  liveListReadable: boolean;
+}> {
+  const keep = meetingNumberDigits(input.keepMeetingNumber);
+  const graceMs = input.graceMs ?? 60_000;
+  const now = Date.now();
+  const ended: string[] = [];
+  const skippedInWindow: string[] = [];
+
+  const token = await resolveClearLiveAccessToken(input.instructorUserId);
+  if (!token) {
+    return { ended, skippedInWindow, liveListReadable: false };
+  }
+
+  const settings = getPlatformSettings();
+  const hosts = Array.from(
+    new Set(["me", settings.zoom.accountEmail].map((h) => (h || "").trim()).filter(Boolean)),
+  );
+
+  let liveListReadable = false;
+  const liveIds = new Set<string>();
+  for (const host of hosts) {
+    const listed = await listZoomLiveMeetingsForHost(token, host);
+    if (!listed.readable) continue;
+    liveListReadable = true;
+    for (const row of listed.meetings) {
+      const id = meetingNumberDigits(String(row.id ?? ""));
+      if (id) liveIds.add(id);
+    }
+  }
+  if (!liveListReadable) {
+    return { ended, skippedInWindow, liveListReadable: false };
+  }
+
+  for (const liveId of liveIds) {
+    if (keep && liveId === keep) continue;
+    const meeting = getZoomMeetingByNumber(liveId);
+    if (!meeting?.liveClassId) continue; // unknown Zoom live — never auto-end
+    const cls = lookupLiveClass(meeting.liveClassId);
+    if (!cls) continue;
+    const window = lectureWindow(cls);
+    const closed =
+      cls.status === "completed" ||
+      cls.status === "cancelled" ||
+      cls.status === "rescheduled" ||
+      Boolean(cls.deletedAt);
+    const pastWindow = !Number.isNaN(window.end) && window.end + graceMs < now;
+    if (!closed && !pastWindow) {
+      skippedInWindow.push(liveId);
+      continue;
+    }
+    const release = await releaseZoomMeetingLiveInstance({
+      meetingNumber: liveId,
+      instructorUserId: input.instructorUserId,
+    });
+    if (release.released) {
+      ended.push(liveId);
+      markLocalClassroomFinished(meeting.liveClassId);
+    }
+  }
+
+  return { ended, skippedInWindow, liveListReadable };
+}
+
+/**
+ * Host ends THIS classroom for everyone: PUT-end Zoom instance + mark local
+ * class completed. Optionally clears other stale local meetings on the shared host.
+ */
+export async function endHostClassroomSession(input: {
+  liveClassId: string;
+  instructorUserId: string;
+  clearStaleSiblings?: boolean;
+}): Promise<{
+  meetingNumber: string | null;
+  released: boolean;
+  releaseDetail: string | null;
+  classCompleted: boolean;
+  staleEnded: string[];
+  liveListReadable: boolean;
+  otherLiveMeetings: string[];
+}> {
+  const meeting = lookupZoomMeetingByClassId(input.liveClassId);
+  const meetingNumber = meetingNumberDigits(meeting?.zoomMeetingId);
+  const release = meetingNumber
+    ? await releaseZoomMeetingLiveInstance({
+        meetingNumber,
+        instructorUserId: input.instructorUserId,
+      })
+    : null;
+
+  if (release?.released || !meetingNumber) {
+    markLocalClassroomFinished(input.liveClassId);
+  }
+
+  let staleEnded: string[] = [];
+  let liveListReadable = false;
+  let otherLiveMeetings: string[] = [];
+  if (input.clearStaleSiblings !== false) {
+    const stale = await releaseStaleLocalHostMeetings({
+      keepMeetingNumber: meetingNumber,
+      instructorUserId: input.instructorUserId,
+    });
+    staleEnded = stale.ended;
+    liveListReadable = stale.liveListReadable;
+    otherLiveMeetings = stale.skippedInWindow;
+  }
+
+  // Re-probe remaining live after cleanup when list is readable.
+  if (liveListReadable && meetingNumber) {
+    const blocked = await zoomHostBlockedByAnotherLiveMeeting(
+      meetingNumber,
+      input.instructorUserId,
+    );
+    if (!blocked) otherLiveMeetings = [];
+  }
+
+  return {
+    meetingNumber: meetingNumber || null,
+    released: Boolean(release?.released),
+    releaseDetail: release?.detail ?? null,
+    classCompleted: true,
+    staleEnded,
+    liveListReadable,
+    otherLiveMeetings,
+  };
+}
+
 /**
  * Host ZAK for Meeting SDK role 1.
  * Uses the start_url returned when the meeting was created or updated.

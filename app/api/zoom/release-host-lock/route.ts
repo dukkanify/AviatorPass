@@ -5,6 +5,7 @@ import { requireAuth } from "@/services/auth/guards";
 import {
   assertCallerMayReceiveInAppZoomSession,
   releaseHostLockForLiveClass,
+  releaseStaleLocalHostMeetings,
 } from "@/services/classes/zoom-service";
 
 /**
@@ -44,6 +45,11 @@ export async function POST(request: Request) {
       liveClassId,
       instructorUserId: user.id,
     });
+    const stale = await releaseStaleLocalHostMeetings({
+      keepMeetingNumber: result.meetingNumber,
+      instructorUserId: user.id,
+    });
+    const remainingOther = result.otherLiveMeetings.filter((id) => !stale.ended.includes(id));
 
     return NextResponse.json({
       success: true,
@@ -52,16 +58,18 @@ export async function POST(request: Request) {
         released: Boolean(result.release?.released),
         releaseDetail: result.release?.detail ?? null,
         releaseStatus: result.release?.status ?? null,
-        liveListReadable: result.liveListReadable,
+        liveListReadable: result.liveListReadable || stale.liveListReadable,
         liveListErrors: result.liveListErrors,
-        otherLiveMeetings: result.otherLiveMeetings,
-        rootCauseHint: !result.liveListReadable
-          ? "Zoom live meeting list is not readable with the current Server-to-Server token (often missing meeting:read). Empty clear-live results are not proof that the host is free. Meeting SDK Error 3000 remains authoritative."
-          : result.otherLiveMeetings.length
-            ? "Another Zoom meeting is live on the platform host. AviatorPass did not end those meetings. Leave them in Zoom or use Super Admin clear-live for confirmed ghosts only."
-            : result.release?.released
-              ? "This class meeting instance was ended so the host can start again."
-              : "No live instance was ended for this meeting number.",
+        otherLiveMeetings: remainingOther,
+        staleEnded: stale.ended,
+        rootCauseHint:
+          !result.liveListReadable && !stale.liveListReadable
+            ? "Zoom live meeting list is not readable with the current Server-to-Server token (often missing meeting:read). Empty clear-live results are not proof that the host is free. Meeting SDK Error 3000 remains authoritative."
+            : remainingOther.length
+              ? "Another in-window Zoom meeting is still live on the platform host. AviatorPass ended only this class and stale local ghosts — not active customer lectures."
+              : result.release?.released || stale.ended.length
+                ? "Host lock released for this classroom (and any stale local siblings). You can start again."
+                : "No live instance was ended for this meeting number.",
       },
       error: null,
     });
