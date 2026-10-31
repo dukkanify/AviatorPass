@@ -52,6 +52,7 @@ import {
   formatHeroClock,
   formatHoursMinutes,
   greetingForHour,
+  hourInTimeZone,
   HERO_IMAGE,
   initialsOf,
   isLiveWindow,
@@ -157,7 +158,8 @@ function LearningDashboardView() {
   }, []);
 
   const firstName = firstNameOf(user?.firstName || user?.fullName, "Aviator");
-  const greeting = greetingForHour(new Date(now).getHours());
+  const weather = weatherForCountry(user?.countryCode);
+  const greeting = greetingForHour(hourInTimeZone(new Date(now), weather.timeZone));
   const resume = overview?.resume ?? null;
   const packageJourney = Boolean(atplSchedule?.packageOwned && atplSchedule.subjects.length);
   const activeLecture = atplSchedule ? activeAtplLecture(atplSchedule) : null;
@@ -257,7 +259,6 @@ function LearningDashboardView() {
     progressPercent: overview?.progressPercent ?? 0,
   });
   const level = pilotLevelFromXp(xp);
-  const weather = weatherForCountry(user?.countryCode);
   const quote = dailyMotivationQuote(new Date(now));
   const streak = Math.max(learningStreak(activityDates, new Date(now)), overview ? 1 : 0);
   const gpa = academicGpa(overview?.progressPercent ?? 0, completedLessons);
@@ -461,7 +462,7 @@ function LearningDashboardView() {
           <strong>
             {weather.icon} {weather.tempC}°C, {weather.sky}
           </strong>
-          <span>{formatHeroClock(new Date(now))}</span>
+          <span>{formatHeroClock(new Date(now), weather.timeZone)}</span>
         </div>
         <div className="sl-hero-copy">
           <p className="sl-kicker">Welcome back</p>
