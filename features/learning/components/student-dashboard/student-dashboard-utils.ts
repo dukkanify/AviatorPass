@@ -19,19 +19,18 @@ const MOTIVATION_QUOTES = [
   "Every hour studied today is a safer sector tomorrow.",
 ] as const;
 
-const WEATHER_BY_COUNTRY: Record<
-  string,
-  {
-    city: string;
-    country: string;
-    tempC: number;
-    sky: string;
-    windKt: number;
-    icon: string;
-    /** IANA zone for the displayed city — hero clock must follow this, not the browser. */
-    timeZone: string;
-  }
-> = {
+type HeroLocation = {
+  city: string;
+  country: string;
+  tempC: number;
+  sky: string;
+  windKt: number;
+  icon: string;
+  /** IANA zone for the displayed city — hero clock follows this, never the browser. */
+  timeZone: string;
+};
+
+const WEATHER_BY_COUNTRY: Record<string, HeroLocation> = {
   KW: {
     city: "Kuwait City",
     country: "Kuwait",
@@ -59,14 +58,95 @@ const WEATHER_BY_COUNTRY: Record<
     icon: "☀️",
     timeZone: "Asia/Riyadh",
   },
-  US: {
-    city: "Fair weather",
-    country: "USA",
+  QA: {
+    city: "Doha",
+    country: "Qatar",
+    tempC: 36,
+    sky: "Clear Sky",
+    windKt: 9,
+    icon: "☀️",
+    timeZone: "Asia/Qatar",
+  },
+  BH: {
+    city: "Manama",
+    country: "Bahrain",
+    tempC: 35,
+    sky: "Clear Sky",
+    windKt: 8,
+    icon: "☀️",
+    timeZone: "Asia/Bahrain",
+  },
+  OM: {
+    city: "Muscat",
+    country: "Oman",
+    tempC: 33,
+    sky: "Sunny",
+    windKt: 7,
+    icon: "☀️",
+    timeZone: "Asia/Muscat",
+  },
+  EG: {
+    city: "Cairo",
+    country: "Egypt",
+    tempC: 28,
+    sky: "Clear Sky",
+    windKt: 10,
+    icon: "☀️",
+    timeZone: "Africa/Cairo",
+  },
+  JO: {
+    city: "Amman",
+    country: "Jordan",
+    tempC: 26,
+    sky: "Clear Sky",
+    windKt: 8,
+    icon: "☀️",
+    timeZone: "Asia/Amman",
+  },
+  LB: {
+    city: "Beirut",
+    country: "Lebanon",
+    tempC: 24,
+    sky: "Partly cloudy",
+    windKt: 7,
+    icon: "⛅",
+    timeZone: "Asia/Beirut",
+  },
+  IQ: {
+    city: "Baghdad",
+    country: "Iraq",
+    tempC: 36,
+    sky: "Sunny",
+    windKt: 9,
+    icon: "☀️",
+    timeZone: "Asia/Baghdad",
+  },
+  TR: {
+    city: "Istanbul",
+    country: "Turkey",
     tempC: 22,
-    sky: "Few clouds",
+    sky: "Partly cloudy",
+    windKt: 8,
+    icon: "⛅",
+    timeZone: "Europe/Istanbul",
+  },
+  IN: {
+    city: "Mumbai",
+    country: "India",
+    tempC: 30,
+    sky: "Haze",
     windKt: 6,
     icon: "⛅",
-    timeZone: "America/New_York",
+    timeZone: "Asia/Kolkata",
+  },
+  PK: {
+    city: "Karachi",
+    country: "Pakistan",
+    tempC: 31,
+    sky: "Clear Sky",
+    windKt: 7,
+    icon: "☀️",
+    timeZone: "Asia/Karachi",
   },
   GB: {
     city: "London",
@@ -77,14 +157,101 @@ const WEATHER_BY_COUNTRY: Record<
     icon: "☁️",
     timeZone: "Europe/London",
   },
+  US: {
+    city: "New York",
+    country: "USA",
+    tempC: 22,
+    sky: "Few clouds",
+    windKt: 6,
+    icon: "⛅",
+    timeZone: "America/New_York",
+  },
+  CA: {
+    city: "Toronto",
+    country: "Canada",
+    tempC: 18,
+    sky: "Partly cloudy",
+    windKt: 8,
+    icon: "⛅",
+    timeZone: "America/Toronto",
+  },
+  AU: {
+    city: "Sydney",
+    country: "Australia",
+    tempC: 24,
+    sky: "Clear Sky",
+    windKt: 10,
+    icon: "☀️",
+    timeZone: "Australia/Sydney",
+  },
+  DE: {
+    city: "Berlin",
+    country: "Germany",
+    tempC: 17,
+    sky: "Cloudy",
+    windKt: 9,
+    icon: "☁️",
+    timeZone: "Europe/Berlin",
+  },
+  FR: {
+    city: "Paris",
+    country: "France",
+    tempC: 18,
+    sky: "Partly cloudy",
+    windKt: 7,
+    icon: "⛅",
+    timeZone: "Europe/Paris",
+  },
+  DK: {
+    city: "Copenhagen",
+    country: "Denmark",
+    tempC: 14,
+    sky: "Overcast",
+    windKt: 12,
+    icon: "☁️",
+    timeZone: "Europe/Copenhagen",
+  },
 };
 
-/** Default when country is unknown — matches weather fallback (Kuwait). */
+/** Default when country is unknown — AviatorPass primary market. */
 export const HERO_DEFAULT_TIME_ZONE = "Asia/Kuwait";
 
+/** True only for real IANA zones (rejects garbage like `"USA "`). */
+export function isValidIanaTimeZone(value: string | null | undefined): boolean {
+  const zone = value?.trim() ?? "";
+  if (!zone || !zone.includes("/")) return false;
+  try {
+    Intl.DateTimeFormat("en-GB", { timeZone: zone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function timeZoneForCountry(countryCode?: string | null): string {
-  const code = (countryCode ?? "KW").toUpperCase();
-  return WEATHER_BY_COUNTRY[code]?.timeZone ?? HERO_DEFAULT_TIME_ZONE;
+  const code = (countryCode ?? "").trim().toUpperCase();
+  if (code && WEATHER_BY_COUNTRY[code]) return WEATHER_BY_COUNTRY[code]!.timeZone;
+  return HERO_DEFAULT_TIME_ZONE;
+}
+
+/**
+ * Hero location + clock zone from the student's country.
+ * Never falls EG→Kuwait. Never uses invalid profile timezones like `"USA "`.
+ */
+export function resolveHeroLocation(input: {
+  countryCode?: string | null;
+  profileTimeZone?: string | null;
+}): HeroLocation & { label: string } {
+  const code = (input.countryCode ?? "").trim().toUpperCase() || "KW";
+  const row = WEATHER_BY_COUNTRY[code] ?? WEATHER_BY_COUNTRY.KW!;
+  // Clock always follows the city we display (location), not browser / junk profile TZ.
+  const timeZone = row.timeZone;
+  void input.profileTimeZone; // reserved — location wins over profile TZ by product rule
+  return {
+    ...row,
+    timeZone,
+    label: `${row.city}, ${row.country} · ${row.tempC}°C · ${row.sky} · ${row.windKt} kt`,
+  };
 }
 
 export type PilotLevel = {
@@ -147,45 +314,41 @@ export function formatHoursMinutes(hours: number): string {
   return `${h}h ${m}m`;
 }
 
-/** Wall-clock for the hero overlay — always in the location's timezone. */
-export function formatHeroClock(now: Date, timeZone = HERO_DEFAULT_TIME_ZONE): string {
+function formatInZone(now: Date, timeZone: string, options: Intl.DateTimeFormatOptions): string {
   const zone = timeZone.trim() || HERO_DEFAULT_TIME_ZONE;
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: zone,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(now);
+    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone: zone }).format(now);
   } catch {
     return new Intl.DateTimeFormat("en-GB", {
+      ...options,
       timeZone: HERO_DEFAULT_TIME_ZONE,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
     }).format(now);
   }
+}
+
+/** Wall-clock for the hero overlay — always in the location's timezone. */
+export function formatHeroClock(now: Date, timeZone = HERO_DEFAULT_TIME_ZONE): string {
+  return formatInZone(now, timeZone, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 /** Local hour (0–23) in the hero location timezone — for Good Morning/Afternoon. */
 export function hourInTimeZone(now: Date, timeZone = HERO_DEFAULT_TIME_ZONE): number {
   const zone = timeZone.trim() || HERO_DEFAULT_TIME_ZONE;
   try {
-    const hour = Number(
-      new Intl.DateTimeFormat("en-GB", {
-        timeZone: zone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      }).format(now),
-    );
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: zone,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(now);
+    const hour = Number(parts.find((part) => part.type === "hour")?.value);
     return Number.isFinite(hour) ? hour : now.getUTCHours();
   } catch {
     return now.getUTCHours();
@@ -376,12 +539,7 @@ export function weatherForCountry(countryCode?: string | null): {
   timeZone: string;
   label: string;
 } {
-  const code = (countryCode ?? "KW").toUpperCase();
-  const row = WEATHER_BY_COUNTRY[code] ?? WEATHER_BY_COUNTRY.KW!;
-  return {
-    ...row,
-    label: `${row.city}, ${row.country} · ${row.tempC}°C · ${row.sky} · ${row.windKt} kt`,
-  };
+  return resolveHeroLocation({ countryCode });
 }
 
 export function computeXp(input: {
