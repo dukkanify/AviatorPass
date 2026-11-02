@@ -24,6 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import {
+  humanConflictLines,
+  kindLabel,
+  requestPriority,
+} from "@/features/assignment/lib/request-display";
 import { cn } from "@/lib/utils";
 
 type Snapshot = {
@@ -52,9 +57,15 @@ type Snapshot = {
   recentRequests: Array<{
     id: string;
     kind: string;
+    courseId: string;
     lessonTitle: string;
     status: string;
     instructorId: string;
+    courseCode?: string | null;
+    courseTitle?: string | null;
+    instructorName?: string | null;
+    studentName?: string | null;
+    preferredStartsAt?: string | null;
     conflictSummary: string | null;
     unableReason: string | null;
     liveClassId: string | null;
@@ -69,6 +80,10 @@ type Snapshot = {
     preferredStartsAt: string | null;
   }>;
 };
+
+type RequestFilter = "needs_action" | "queued" | "all";
+
+type RecentRequest = Snapshot["recentRequests"][number];
 
 type CalendarPayload = {
   instructorName: string;
@@ -133,6 +148,206 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status.replaceAll("_", " ")}
     </Badge>
+  );
+}
+
+function needsAttention(request: RecentRequest): boolean {
+  const status = request.status.toLowerCase();
+  return (
+    Boolean(request.conflictSummary) ||
+    Boolean(request.unableReason) ||
+    status.includes("scheduling_required") ||
+    status.includes("unable")
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/80" aria-hidden />
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function RecentRequestsBoard({
+  requests,
+  busy,
+  onFix,
+  onRetrySchedule,
+  onProcessQueue,
+}: {
+  requests: RecentRequest[];
+  busy: boolean;
+  onFix: (request: RecentRequest) => void;
+  onRetrySchedule: (request: RecentRequest) => void;
+  onProcessQueue: () => void;
+}) {
+  const [filter, setFilter] = React.useState<RequestFilter>("needs_action");
+  const [showAll, setShowAll] = React.useState(false);
+
+  const sorted = React.useMemo(() => {
+    return [...requests].sort((a, b) => {
+      const diff =
+        requestPriority(a.status, Boolean(a.conflictSummary || a.unableReason)) -
+        requestPriority(b.status, Boolean(b.conflictSummary || b.unableReason));
+      if (diff !== 0) return diff;
+      return (b.queuePosition ?? 0) - (a.queuePosition ?? 0);
+    });
+  }, [requests]);
+
+  const filtered = sorted.filter((request) => {
+    if (filter === "all") return true;
+    if (filter === "queued") return request.status.toLowerCase().includes("queued");
+    return needsAttention(request);
+  });
+
+  const visible = showAll ? filtered : filtered.slice(0, 8);
+  const needsCount = sorted.filter(needsAttention).length;
+  const queuedCount = sorted.filter((request) =>
+    request.status.toLowerCase().includes("queued"),
+  ).length;
+
+  if (requests.length === 0) {
+    return <EmptyState message="No requests yet." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: "needs_action", label: "Needs action", count: needsCount },
+            { id: "queued", label: "Queued", count: queuedCount },
+            { id: "all", label: "All", count: sorted.length },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setFilter(item.id);
+              setShowAll(false);
+            }}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              filter === item.id
+                ? "border-accent/40 bg-accent/10 text-foreground"
+                : "border-border/70 bg-background text-muted-foreground hover:bg-muted/40",
+            )}
+          >
+            {item.label}
+            <span className="tabular-nums">{item.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          message={
+            filter === "needs_action"
+              ? "No conflicts or blocked requests right now."
+              : filter === "queued"
+                ? "No queued requests."
+                : "No requests yet."
+          }
+        />
+      ) : (
+        <ul className="space-y-3">
+          {visible.map((request) => {
+            const conflicts = humanConflictLines(request.conflictSummary);
+            const title =
+              request.courseCode && request.courseTitle
+                ? `${request.courseCode} · ${request.courseTitle}`
+                : request.lessonTitle;
+            const attention = needsAttention(request);
+
+            return (
+              <li
+                key={request.id}
+                className={cn(
+                  "rounded-xl border bg-background px-4 py-3",
+                  attention ? "border-accent/35" : "border-border",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{title}</p>
+                      <Badge variant="secondary" className="capitalize">
+                        {kindLabel(request.kind)}
+                      </Badge>
+                      <StatusBadge status={request.status} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {request.instructorName || "Instructor"}
+                      {request.studentName ? ` · Student ${request.studentName}` : ""}
+                      {request.queuePosition ? ` · Queue #${request.queuePosition}` : ""}
+                      {request.preferredStartsAt
+                        ? ` · Preferred ${new Date(request.preferredStartsAt).toLocaleString()}`
+                        : ""}
+                      {request.zoomMeetingId ? ` · Zoom ${request.zoomMeetingId}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => onFix(request)}
+                    >
+                      Fix in assign
+                    </Button>
+                    {request.status.toLowerCase().includes("queued") ? (
+                      <Button size="sm" variant="outline" disabled={busy} onClick={onProcessQueue}>
+                        Process queue
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => onRetrySchedule(request)}
+                      >
+                        Retry schedule
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {conflicts.length > 0 ? (
+                  <div className="mt-3 space-y-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                      Why it is blocked
+                    </p>
+                    <ul className="space-y-1 text-sm text-amber-900 dark:text-amber-200">
+                      {conflicts.map((line) => (
+                        <li key={line} className="flex gap-2">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {request.unableReason ? (
+                  <p className="mt-3 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    Unable: {request.unableReason}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {filtered.length > 8 ? (
+        <Button size="sm" variant="ghost" onClick={() => setShowAll((value) => !value)}>
+          {showAll ? "Show fewer" : `Show all ${filtered.length}`}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -215,15 +430,6 @@ function Panel({
       </div>
       {open ? <div className="mt-4">{children}</div> : null}
     </section>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="flex items-start gap-2 rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/80" aria-hidden />
-      <p>{message}</p>
-    </div>
   );
 }
 
@@ -523,8 +729,8 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
           id="recent-requests"
           step={3}
           title="Recent assignment requests"
-          hint="Latest assign / schedule attempts. Check conflict and unable reasons here before retrying."
-          count={data.recentRequests.length}
+          hint="Blocked and queued requests first. Use Fix in assign to load the form, or Retry schedule after clearing calendar conflicts."
+          count={data.recentRequests.filter(needsAttention).length}
           tone={data.counts.unable > 0 || data.counts.schedulingRequired > 0 ? "warn" : "neutral"}
           defaultOpen={
             data.counts.unable > 0 ||
@@ -532,38 +738,38 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
             data.recentRequests.length > 0
           }
         >
-          {data.recentRequests.length === 0 ? (
-            <EmptyState message="No requests yet." />
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {data.recentRequests.map((r) => (
-                <li key={r.id} className="rounded-xl border border-border bg-background px-4 py-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium">{r.lessonTitle}</p>
-                      <p className="text-muted-foreground">
-                        {r.kind.replaceAll("_", " ")}
-                        {instructorNameById.get(r.instructorId)
-                          ? ` · ${instructorNameById.get(r.instructorId)}`
-                          : ""}
-                        {r.queuePosition ? ` · queue #${r.queuePosition}` : ""}
-                        {r.zoomMeetingId ? ` · Zoom ${r.zoomMeetingId}` : ""}
-                      </p>
-                    </div>
-                    <StatusBadge status={r.status} />
-                  </div>
-                  {r.conflictSummary ? (
-                    <p className="mt-2 text-amber-700 dark:text-amber-400">
-                      Conflict: {r.conflictSummary}
-                    </p>
-                  ) : null}
-                  {r.unableReason ? (
-                    <p className="mt-2 text-destructive">Unable: {r.unableReason}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+          <RecentRequestsBoard
+            requests={data.recentRequests}
+            busy={busy}
+            onFix={(request) => {
+              setCourseId(request.courseId || courseId);
+              setInstructorId(request.instructorId || instructorId);
+              if (request.preferredStartsAt) {
+                const local = new Date(request.preferredStartsAt);
+                const pad = (n: number) => String(n).padStart(2, "0");
+                setPreferredStartsAt(
+                  `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`,
+                );
+              }
+              document.getElementById("assign-action")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }}
+            onRetrySchedule={(request) =>
+              void run(() =>
+                assignPost({
+                  action: "schedule",
+                  courseId: request.courseId,
+                  instructorId: request.instructorId,
+                  lessonTitle: request.lessonTitle || "ATPL coaching session",
+                  startsAt: request.preferredStartsAt || undefined,
+                  autoZoom: true,
+                }),
+              )
+            }
+            onProcessQueue={() => void run(() => assignPost({ action: "process_queue" }))}
+          />
         </Panel>
 
         <Panel

@@ -1221,7 +1221,24 @@ export function getAssignmentEngineSnapshot() {
           r.instructorId === u.id && (r.status === "scheduling_required" || r.status === "queued"),
       ).length,
     })),
-    recentRequests: requests.slice(0, 20),
+    recentRequests: requests.slice(0, 40).map((request) => {
+      const course = getCourseById(request.courseId);
+      const instructor = findUserById(request.instructorId);
+      const student = request.studentId ? findUserById(request.studentId) : null;
+      return {
+        ...request,
+        courseCode: course?.code ?? null,
+        courseTitle: course?.title ?? null,
+        instructorName:
+          [instructor?.firstName, instructor?.lastName].filter(Boolean).join(" ").trim() ||
+          instructor?.email ||
+          null,
+        studentName:
+          [student?.firstName, student?.lastName].filter(Boolean).join(" ").trim() ||
+          student?.email ||
+          null,
+      };
+    }),
     queue: listWaitingQueue(),
     atplCourses: readCoursesDb()
       .courses.filter((c) => !c.deletedAt && /^ATPL-/i.test(c.code))
