@@ -607,6 +607,25 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
   const actionNeeded =
     data.counts.schedulingRequired + data.counts.waitingQueue + data.counts.unable;
 
+  const nextStep =
+    data.counts.schedulingRequired > 0 || data.counts.unable > 0
+      ? {
+          href: "#recent-requests",
+          label: "Fix blocked requests",
+          detail: "Open Needs action, read the conflict, then Fix in assign or Retry schedule.",
+        }
+      : data.counts.waitingQueue > 0
+        ? {
+            href: "#waiting-queue",
+            label: "Process waiting queue",
+            detail: "Retry queued lectures until instructors have open slots.",
+          }
+        : {
+            href: "#assign-action",
+            label: "Assign an instructor",
+            detail: "Pick subject + instructor, then Assign, Reassign, or Schedule + Zoom.",
+          };
+
   async function refresh() {
     setData(await assignFetch<Snapshot>("?view=dashboard"));
   }
@@ -633,69 +652,109 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Assignment Engine"
-        description="CGI scheduling desk — assign or reassign ATPL instructors, clear the waiting queue, then check calendar conflicts before Zoom."
-        breadcrumbs={[{ label: "CGI" }, { label: "Assignment Engine" }]}
-      />
+      <div className="mb-8 space-y-4">
+        <PageHeader
+          className="mb-0"
+          title="Instructor Assignment Engine"
+          description={`Next: ${nextStep.label}. ${nextStep.detail}`}
+          breadcrumbs={[{ label: "CGI" }, { label: "Assignment Engine" }]}
+          actions={
+            <Button asChild>
+              <a href={nextStep.href}>{nextStep.label}</a>
+            </Button>
+          }
+        />
 
-      <div
-        className={cn(
-          "rounded-2xl border px-4 py-3 sm:px-5",
-          actionNeeded > 0
-            ? "border-accent/35 bg-accent/10"
-            : "border-emerald-500/25 bg-emerald-500/10",
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          {actionNeeded > 0 ? (
-            <AlertCircle className="h-4 w-4 text-accent" aria-hidden />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden />
-          )}
-          <p className="text-sm font-medium">
-            {actionNeeded > 0
-              ? actionNeeded === 1
-                ? "1 assignment item needs CGI action"
-                : `${actionNeeded} assignment items need CGI action`
-              : "No urgent assignment items right now"}
-          </p>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <a
-            href="#assign-action"
-            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent/10"
-          >
-            Assign / reassign
-          </a>
-          <a
-            href="#waiting-queue"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
-              data.counts.waitingQueue > 0
-                ? "border-accent/40 bg-background hover:bg-accent/10"
-                : "border-border/70 bg-background/60 text-muted-foreground",
-            )}
-          >
-            Waiting queue <span className="tabular-nums">{data.counts.waitingQueue}</span>
-          </a>
-          <a
-            href="#recent-requests"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
-              data.counts.schedulingRequired > 0 || data.counts.unable > 0
-                ? "border-accent/40 bg-background hover:bg-accent/10"
-                : "border-border/70 bg-background/60 text-muted-foreground",
-            )}
-          >
-            Needs schedule <span className="tabular-nums">{data.counts.schedulingRequired}</span>
-          </a>
-          <a
-            href="#instructor-calendar"
-            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent/10"
-          >
-            Instructor calendar
-          </a>
+        <div className="rounded-2xl border border-border/80 bg-card/80 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                How to work this page
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Follow the four steps in order. The gold border marks your next action.
+              </p>
+            </div>
+            <div
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
+                actionNeeded > 0
+                  ? "border-accent/40 bg-accent/10 text-accent"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+              )}
+            >
+              {actionNeeded > 0 ? (
+                <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {actionNeeded > 0
+                ? actionNeeded === 1
+                  ? "1 item waiting"
+                  : `${actionNeeded} items waiting`
+                : "Queue clear"}
+            </div>
+          </div>
+
+          <ol className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                step: 1,
+                href: "#assign-action",
+                title: "Assign instructor",
+                body: "Choose subject + instructor, then Assign or Reassign.",
+              },
+              {
+                step: 2,
+                href: "#waiting-queue",
+                title: "Clear waiting queue",
+                body: "Process queue when slots free up.",
+                count: data.counts.waitingQueue,
+              },
+              {
+                step: 3,
+                href: "#recent-requests",
+                title: "Fix blocked requests",
+                body: "Resolve conflicts and retry schedule.",
+                count: data.counts.schedulingRequired + data.counts.unable,
+              },
+              {
+                step: 4,
+                href: "#instructor-calendar",
+                title: "Check calendar",
+                body: "Confirm availability before Schedule + Zoom.",
+              },
+            ].map((item) => (
+              <li key={item.step}>
+                <a
+                  href={item.href}
+                  className={cn(
+                    "flex h-full flex-col gap-2 rounded-xl border bg-background px-3 py-3 transition-colors hover:border-accent/40 hover:bg-accent/5",
+                    nextStep.href === item.href ? "border-accent/45" : "border-border",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {item.step}
+                    </span>
+                    {typeof item.count === "number" ? (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "tabular-nums",
+                          item.count > 0 && "border-accent/40 bg-accent/10 text-accent",
+                        )}
+                      >
+                        {item.count}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="text-sm font-semibold tracking-tight">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">{item.body}</p>
+                </a>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
 
