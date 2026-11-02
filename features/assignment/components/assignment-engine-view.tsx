@@ -144,10 +144,10 @@ function StatusBadge({ status }: { status: string }) {
       variant="outline"
       className={cn(
         "capitalize",
-        tone === "action" && "border-accent/40 bg-accent/10 text-accent",
+        tone === "action" && "border-accent/50 bg-accent/15 font-medium text-foreground",
         tone === "ok" &&
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-        tone === "warn" && "border-destructive/30 bg-destructive/10 text-destructive",
+          "border-emerald-600/40 bg-emerald-500/15 font-medium text-emerald-900 dark:text-emerald-200",
+        tone === "warn" && "border-destructive/40 bg-destructive/15 font-medium text-destructive",
       )}
     >
       {status.replaceAll("_", " ")}
@@ -283,7 +283,7 @@ function RecentRequestsBoard({
                       </Badge>
                       <StatusBadge status={request.status} />
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-foreground/80">
                       {request.instructorName || "Instructor"}
                       {request.studentName ? ` · Student ${request.studentName}` : ""}
                       {request.queuePosition ? ` · Queue #${request.queuePosition}` : ""}
@@ -322,14 +322,17 @@ function RecentRequestsBoard({
                 </div>
 
                 {conflicts.length > 0 ? (
-                  <div className="mt-3 space-y-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                  <div className="mt-3 space-y-2 rounded-lg border border-amber-700/35 bg-amber-50 px-3 py-2.5 dark:border-amber-300/40 dark:bg-amber-950/55">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
                       Why it is blocked
                     </p>
-                    <ul className="space-y-1 text-sm text-amber-900 dark:text-amber-200">
+                    <ul className="space-y-1.5 text-sm leading-snug text-foreground">
                       {conflicts.map((line) => (
                         <li key={line} className="flex gap-2">
-                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                          <AlertTriangle
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-800 dark:text-amber-300"
+                            aria-hidden
+                          />
                           <span>{line}</span>
                         </li>
                       ))}
@@ -414,7 +417,7 @@ function Panel({
               )}
             />
           </div>
-          {open ? <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{hint}</p> : null}
+          {open ? <p className="mt-1 max-w-3xl text-sm text-foreground/75">{hint}</p> : null}
         </button>
         <div className="flex flex-wrap items-center gap-2">
           {typeof count === "number" ? (
@@ -750,7 +753,7 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
                     ) : null}
                   </div>
                   <p className="text-sm font-semibold tracking-tight">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">{item.body}</p>
+                  <p className="text-xs text-foreground/70">{item.body}</p>
                 </a>
               </li>
             ))}

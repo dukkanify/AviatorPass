@@ -4,6 +4,17 @@ export function kindLabel(kind: string): string {
   return "Assign";
 }
 
+/** Drop raw ids / placeholder titles so operators see a readable name. */
+export function cleanConflictLabel(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return "another session";
+  if (/^blocking class\b/i.test(trimmed) || /^class[_\s-]?\d+$/i.test(trimmed)) {
+    return "another live class";
+  }
+  if (/^\d{10,}$/.test(trimmed)) return "another session";
+  return cleanEventTitle(trimmed);
+}
+
 export function humanConflictLines(summary: string | null | undefined): string[] {
   if (!summary?.trim()) return [];
   return summary
@@ -13,19 +24,19 @@ export function humanConflictLines(summary: string | null | undefined): string[]
     .map((part) => {
       const [source, ...rest] = part.split(":");
       const sourceText = (source ?? "").trim();
-      const label = rest.join(":").trim() || sourceText;
+      const label = cleanConflictLabel(rest.join(":").trim() || sourceText);
       const key = sourceText.toLowerCase();
       if (key === "outside_availability") {
-        return label || "Outside the instructor availability window";
+        return "Preferred time is outside this instructor's available hours — pick another time or instructor.";
       }
       if (key === "live_class") {
-        return `Conflicts with live class: ${label}`;
+        return `Overlaps live class "${label}" — choose a free slot on the calendar.`;
       }
       if (key === "booking") {
-        return `Conflicts with booking: ${label}`;
+        return `Overlaps booking "${label}" — choose a free slot on the calendar.`;
       }
       if (key === "availability_block") {
-        return `Blocked time: ${label}`;
+        return `Instructor is blocked ("${label}") — pick another time.`;
       }
       return label;
     });
@@ -51,8 +62,8 @@ export function eventTypeLabel(type: string): string {
 }
 
 export function cleanEventTitle(title: string): string {
-  // Titles often append "· 12:43 GST" — keep the human name only.
-  return title.split("·")[0]?.trim() || title.trim();
+  // Drop trailing clock stamps like "· 12:43 GST", keep subject suffixes.
+  return title.replace(/\s*·\s*\d{1,2}:\d{2}(?:\s*[A-Z]{2,5})?\s*$/u, "").trim() || title.trim();
 }
 
 export function formatEventWhen(startsAt: string, endsAt?: string | null): string {
