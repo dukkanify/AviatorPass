@@ -286,7 +286,9 @@ function RecentRequestsBoard({
                       {request.preferredStartsAt
                         ? ` · Preferred ${new Date(request.preferredStartsAt).toLocaleString()}`
                         : ""}
-                      {request.zoomMeetingId ? ` · Zoom ${request.zoomMeetingId}` : ""}
+                      {request.zoomMeetingId
+                        ? ` · Zoom ${request.zoomMeetingId.slice(0, 10)}…`
+                        : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
