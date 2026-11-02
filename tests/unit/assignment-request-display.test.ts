@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cleanEventTitle,
+  eventTypeLabel,
+  formatEventWhen,
   humanConflictLines,
   kindLabel,
   requestPriority,
@@ -23,5 +26,11 @@ describe("assignment request display", () => {
     expect(requestPriority("queued", false)).toBeGreaterThan(
       requestPriority("scheduling_required", true),
     );
+  });
+
+  it("formats calendar events for management scanning", () => {
+    expect(eventTypeLabel("live_class")).toBe("Live class");
+    expect(cleanEventTitle("Zoom Classroom UAT · 12:43 GST")).toBe("Zoom Classroom UAT");
+    expect(formatEventWhen("2026-10-30T16:41:48.000Z")).toMatch(/Oct/);
   });
 });
