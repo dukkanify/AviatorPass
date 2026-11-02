@@ -103,6 +103,14 @@ const nextConfig: NextConfig = {
       { source: "/home", destination: "/", permanent: true },
       { source: "/atpl-pass", destination: "/atpl", permanent: false },
       { source: "/atpl-course", destination: "/atpl", permanent: false },
+      // Marketing aliases — content lives on home (#about) and ATPL (#pricing)
+      { source: "/about", destination: "/", permanent: false },
+      { source: "/pricing", destination: "/atpl", permanent: false },
+      // Student aliases — keep old bookmarks from hitting a hard 404
+      { source: "/student/live-classes", destination: "/student/schedule", permanent: false },
+      { source: "/student/classes", destination: "/student/schedule", permanent: false },
+      { source: "/student/atpl", destination: "/student/courses", permanent: false },
+      { source: "/student/exams", destination: "/student/mock-exams", permanent: false },
       // Nav slim: duplicate sidebar destinations fold into a single primary page
       { source: "/admin/reports", destination: "/admin/analytics", permanent: false },
       { source: "/super-admin/reports", destination: "/super-admin/analytics", permanent: false },
