@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
   cleanEventTitle,
   eventDayKey,
@@ -816,12 +816,13 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="min-w-0 w-full space-y-1.5 sm:w-auto sm:min-w-[180px]">
-                <Label>Preferred start (optional)</Label>
-                <Input
-                  type="datetime-local"
+              <div className="min-w-0 w-full space-y-1.5 sm:w-auto sm:min-w-[220px]">
+                <Label htmlFor="preferred-start">Preferred start (optional)</Label>
+                <DateTimePicker
+                  id="preferred-start"
                   value={preferredStartsAt}
-                  onChange={(e) => setPreferredStartsAt(e.target.value)}
+                  onChange={setPreferredStartsAt}
+                  placeholder="Pick date & time"
                 />
               </div>
             </div>
