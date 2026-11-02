@@ -12,8 +12,9 @@ export function humanConflictLines(summary: string | null | undefined): string[]
     .filter(Boolean)
     .map((part) => {
       const [source, ...rest] = part.split(":");
-      const label = rest.join(":").trim() || source.trim();
-      const key = (source ?? "").trim().toLowerCase();
+      const sourceText = (source ?? "").trim();
+      const label = rest.join(":").trim() || sourceText;
+      const key = sourceText.toLowerCase();
       if (key === "outside_availability") {
         return label || "Outside the instructor availability window";
       }
