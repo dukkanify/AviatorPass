@@ -25,6 +25,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
+  cleanEventTitle,
+  eventDayKey,
+  eventTypeLabel,
+  formatEventWhen,
   humanConflictLines,
   kindLabel,
   requestPriority,
@@ -435,6 +439,153 @@ function Panel({
   );
 }
 
+type CalendarFilter = "active" | "cancelled" | "all";
+
+function InstructorCalendarBoard({ calendar }: { calendar: CalendarPayload }) {
+  const [filter, setFilter] = React.useState<CalendarFilter>("active");
+
+  const sortedEvents = React.useMemo(() => {
+    return [...calendar.events].sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+  }, [calendar.events]);
+
+  const filtered = sortedEvents.filter((event) => {
+    const status = event.status.toLowerCase();
+    if (filter === "all") return true;
+    if (filter === "cancelled") return status.includes("cancel");
+    return !status.includes("cancel");
+  });
+
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    for (const event of filtered) {
+      const key = eventDayKey(event.startsAt);
+      const list = map.get(key) ?? [];
+      list.push(event);
+      map.set(key, list);
+    }
+    return [...map.entries()];
+  }, [filtered]);
+
+  const activeCount = sortedEvents.filter(
+    (event) => !event.status.toLowerCase().includes("cancel"),
+  ).length;
+  const cancelledCount = sortedEvents.length - activeCount;
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3">
+        <div>
+          <p className="font-medium">{calendar.instructorName}</p>
+          <p className="text-sm text-muted-foreground">
+            <CalendarClock className="mr-1 inline h-4 w-4" />
+            {calendar.availability.length} weekly windows · {calendar.queue.length} queued ·{" "}
+            {sortedEvents.length} events
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-background px-4 py-3">
+        <h3 className="text-sm font-semibold">Weekly availability</h3>
+        {calendar.availability.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No availability windows set.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {calendar.availability.map((window, idx) => (
+              <Badge key={`${window.weekday}-${idx}`} variant="secondary" className="font-normal">
+                {WEEKDAYS[window.weekday]} {window.startTime}–{window.endTime}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">Sessions on calendar</h3>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "active", label: "Active", count: activeCount },
+                { id: "cancelled", label: "Cancelled", count: cancelledCount },
+                { id: "all", label: "All", count: sortedEvents.length },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  filter === item.id
+                    ? "border-accent/40 bg-accent/10 text-foreground"
+                    : "border-border/70 bg-background text-muted-foreground hover:bg-muted/40",
+                )}
+              >
+                {item.label}
+                <span className="tabular-nums">{item.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {grouped.length === 0 ? (
+          <EmptyState
+            message={
+              filter === "cancelled"
+                ? "No cancelled sessions for this instructor."
+                : "No calendar sessions in range."
+            }
+          />
+        ) : (
+          <div className="space-y-4">
+            {grouped.map(([day, events]) => (
+              <div key={day} className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {new Date(`${day}T12:00:00.000Z`).toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+                <ul className="space-y-2">
+                  {events.map((event) => {
+                    const cancelled = event.status.toLowerCase().includes("cancel");
+                    return (
+                      <li
+                        key={event.id}
+                        className={cn(
+                          "rounded-xl border bg-background px-4 py-3",
+                          cancelled ? "border-border/70 opacity-80" : "border-border",
+                        )}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <p className="font-medium">{cleanEventTitle(event.title)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {formatEventWhen(event.startsAt, event.endsAt)}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary">{eventTypeLabel(event.type)}</Badge>
+                            <StatusBadge status={event.status} />
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
   const [data, setData] = React.useState(initial);
   const [error, setError] = React.useState<string | null>(null);
@@ -778,9 +929,9 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
           id="instructor-calendar"
           step={4}
           title="Instructor calendar"
-          hint="Check weekly availability windows and upcoming events before assigning overlapping lectures."
+          hint="Availability windows and live sessions for the selected instructor. Use this before Assign / Schedule to avoid conflicts."
           tone="neutral"
-          defaultOpen={false}
+          defaultOpen={Boolean(calendar?.events.length)}
         >
           <div className="form-row-responsive">
             <div className="min-w-0 w-full space-y-1.5 sm:w-auto sm:min-w-[180px]">
@@ -823,46 +974,7 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
           </div>
 
           {calendar ? (
-            <div className="mt-4 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                <CalendarClock className="mr-1 inline h-4 w-4" />
-                {calendar.instructorName} · {calendar.availability.length} weekly windows ·{" "}
-                {calendar.queue.length} queued
-              </p>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border border-border bg-background px-4 py-3">
-                  <h3 className="text-sm font-semibold">Weekly availability</h3>
-                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    {calendar.availability.length === 0 ? (
-                      <li>No availability windows set.</li>
-                    ) : (
-                      calendar.availability.map((w, idx) => (
-                        <li key={`${w.weekday}-${idx}`}>
-                          {WEEKDAYS[w.weekday]} {w.startTime}–{w.endTime}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-border bg-background px-4 py-3">
-                  <h3 className="text-sm font-semibold">Upcoming events</h3>
-                  <ul className="mt-2 space-y-2 text-sm">
-                    {calendar.events.length === 0 ? (
-                      <li className="text-muted-foreground">No calendar events in range.</li>
-                    ) : (
-                      calendar.events.slice(0, 24).map((e) => (
-                        <li key={e.id} className="border-b border-border/60 pb-2 last:border-0">
-                          <span className="font-medium">{e.title}</span>
-                          <div className="text-muted-foreground">
-                            {e.type} · {e.status} · {new Date(e.startsAt).toLocaleString()}
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <InstructorCalendarBoard calendar={calendar} />
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
               Select an instructor to load calendar.
