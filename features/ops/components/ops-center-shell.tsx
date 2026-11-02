@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { authFetch, csrfHeaders } from "@/features/auth/services/auth-api";
 import { PostLaunchTabs } from "@/features/ops/components/post-launch-panels";
 import { OpsStatusBadge } from "@/features/ops/components/ops-status-badge";
+import Link from "@/components/ui/app-link";
 
 type Dashboard = {
   serverStatus: string;
@@ -202,6 +203,12 @@ export function OpsCenterShell() {
         ]}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/super-admin/monitoring">Monitoring</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/super-admin/system-logs">Ops / Backups</Link>
+            </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void load()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh

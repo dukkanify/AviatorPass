@@ -225,8 +225,8 @@ function SuperAdminDashboardView() {
               description: "Open the course catalog",
             },
             {
-              label: "Reports",
-              href: "/super-admin/reports",
+              label: "Analytics",
+              href: "/super-admin/analytics",
               icon: FileBarChart,
               description: "Analytics and exports",
             },
