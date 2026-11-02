@@ -103,6 +103,16 @@ const nextConfig: NextConfig = {
       { source: "/home", destination: "/", permanent: true },
       { source: "/atpl-pass", destination: "/atpl", permanent: false },
       { source: "/atpl-course", destination: "/atpl", permanent: false },
+      // Nav slim: duplicate sidebar destinations fold into a single primary page
+      { source: "/admin/reports", destination: "/admin/analytics", permanent: false },
+      { source: "/super-admin/reports", destination: "/super-admin/analytics", permanent: false },
+      { source: "/instructor/reports", destination: "/instructor/analytics", permanent: false },
+      { source: "/cgi/reports", destination: "/cgi/analytics", permanent: false },
+      {
+        source: "/super-admin/media-library",
+        destination: "/super-admin/assets",
+        permanent: false,
+      },
     ];
   },
   async headers() {
