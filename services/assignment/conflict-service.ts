@@ -8,7 +8,40 @@ import { readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { readAssignmentDb } from "@/services/assignment/store";
 import { readBookingsDb } from "@/services/bookings/store";
+import { getCourseById } from "@/services/courses/course-service";
 import type { ConflictHit, ConflictReport } from "@/types/assignment";
+
+function humanLiveClassLabel(input: {
+  title: string;
+  courseId: string | null;
+  startsAt: string;
+}): string {
+  const raw = input.title?.trim() || "";
+  const looksSynthetic =
+    !raw ||
+    /^blocking class\b/i.test(raw) ||
+    /^class[_\s-]?\d+$/i.test(raw) ||
+    /^\d{10,}$/.test(raw);
+  if (!looksSynthetic) return raw;
+
+  const course = input.courseId ? getCourseById(input.courseId) : null;
+  const courseLabel = course ? [course.code, course.title].filter(Boolean).join(" · ") : null;
+  const when = (() => {
+    const start = new Date(input.startsAt);
+    if (Number.isNaN(start.getTime())) return null;
+    return start.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  })();
+
+  if (courseLabel && when) return `${courseLabel} (${when})`;
+  if (courseLabel) return courseLabel;
+  if (when) return `Live class (${when})`;
+  return "another live class";
+}
 
 function readBookingsSafe(): Array<{
   id: string;
@@ -91,7 +124,11 @@ export function detectInstructorConflicts(input: {
     if (rangesOverlap(c.startsAt, c.endsAt, input.startsAt, input.endsAt)) {
       conflicts.push({
         source: "live_class",
-        label: c.title,
+        label: humanLiveClassLabel({
+          title: c.title,
+          courseId: c.courseId,
+          startsAt: c.startsAt,
+        }),
         startsAt: c.startsAt,
         endsAt: c.endsAt,
         entityId: c.id,
