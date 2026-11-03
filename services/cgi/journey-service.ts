@@ -40,7 +40,10 @@ import { stableCourseId } from "@/lib/courses/public-course-path";
 import { listAllUsers } from "@/lib/data/auth-identity-store";
 import { restoreMissingPaidIdentities } from "@/services/auth/restore-paid-identities";
 import { findUserByEmail, findUserById } from "@/services/auth/store";
-import { listAssignmentRequests } from "@/services/assignment/engine";
+import {
+  listAssignmentRequests,
+  reconcileDuplicateOpenAssignmentRequests,
+} from "@/services/assignment/engine";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
@@ -2650,6 +2653,7 @@ function isFixtureJourneyEmail(email: string | null | undefined): boolean {
 }
 
 export function getCgiDashboardSnapshot() {
+  reconcileDuplicateOpenAssignmentRequests();
   const subjects = listAtplCourses();
   const allStudents = listAtplStudents();
   const students = allStudents.filter(
