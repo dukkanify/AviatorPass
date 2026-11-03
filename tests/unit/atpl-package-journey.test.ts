@@ -578,7 +578,9 @@ describe("ATPL Complete Package journey", () => {
       path.join(process.cwd(), "features/dashboard/instructor-dashboard-view.tsx"),
       "utf8",
     );
-    expect(instructorDash).toContain("First lectures assigned by TKI 1");
+    expect(instructorDash).toContain("assigned to you by TKI 1");
+    expect(instructorDash).toContain("Teach now");
+    expect(instructorDash).toContain("Mark subject complete");
     expect(instructorDash).toContain("/instructor/schedule");
     expect(cgiView).toContain("Pending Instructor Assignment");
     expect(cgiView).toContain("Confirmed first lectures");
