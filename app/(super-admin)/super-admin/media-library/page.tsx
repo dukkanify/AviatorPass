@@ -1,7 +1,6 @@
-import { MediaLibraryPanel } from "@/features/assets/components/media-library-panel";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Media library" };
-
+/** Legacy path — Media Library is embedded in Asset Manager. */
 export default function MediaLibraryPage() {
-  return <MediaLibraryPanel />;
+  redirect("/super-admin/assets");
 }

@@ -308,6 +308,8 @@ export async function createNotification(input: {
   channel?: "in_app" | "email";
   type?: string;
   data?: Record<string, unknown>;
+  /** Force or suppress email regardless of catalog default */
+  email?: boolean;
 }): Promise<NotificationRecord> {
   const created = await emitNotification({
     userId: input.userId,
@@ -316,7 +318,7 @@ export async function createNotification(input: {
     channel: input.channel === "email" ? "in_app" : (input.channel ?? "in_app"),
     type: input.type ?? "system",
     data: input.data,
-    email: input.channel === "email" ? true : undefined,
+    email: input.email ?? (input.channel === "email" ? true : undefined),
   });
   return (
     created ??

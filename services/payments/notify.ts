@@ -23,7 +23,7 @@ export async function notifyPayment(
     body: input.body,
     type: input.type,
     data: input.data,
-    actionUrl: input.actionUrl ?? "/student/payments",
+    actionUrl: input.actionUrl ?? "/student/billing",
     amountLabel: input.amountLabel,
     reference: input.reference,
     email: input.email,

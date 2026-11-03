@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { atplPackageScheduleIssue } from "@/constants/atpl-complete-package";
 import { REGISTRATION_COUNTRIES } from "@/constants/countries";
-import { passwordIssues } from "@/utils/password-rules";
+import { passwordIssues, type PasswordPolicy } from "@/utils/password-rules";
 import { validateRegistrationPhoneE164 } from "@/utils/registration-phone";
 
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
@@ -35,7 +35,7 @@ export const nameSchema = z
   .max(80, "Use 80 characters or fewer")
   .regex(/^[\p{L}\p{M}' -]+$/u, "Use letters, spaces, apostrophes, or hyphens only");
 
-/** Registration phone — Kuwait (+965) or UAE (+971) mobile only. */
+/** Registration phone — supported market mobiles (GCC, Egypt, and other listed countries). */
 export const registrationPhoneSchema = z
   .string()
   .trim()
@@ -56,24 +56,31 @@ export const internationalPhoneSchema = z
 
 export const phoneSchema = internationalPhoneSchema.optional().or(z.literal(""));
 
-export const passwordSchema = z
-  .string()
-  .max(128, "Use 128 characters or fewer")
-  .superRefine((value, ctx) => {
-    for (const issue of passwordIssues(value)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message });
-    }
-  });
+export function passwordSchemaFor(policy?: PasswordPolicy) {
+  return z
+    .string()
+    .max(128, "Use 128 characters or fewer")
+    .superRefine((value, ctx) => {
+      for (const issue of passwordIssues(value, policy)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message });
+      }
+    });
+}
+
+export const passwordSchema = passwordSchemaFor();
 
 export const loginSchema = z.object({
   email: emailSchema,
   rememberMe: z.boolean().optional().default(false),
 });
 
+const returnToSchema = z.string().max(512).optional().nullable();
+
 export const passwordLoginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Enter your password"),
   rememberMe: z.boolean().optional().default(false),
+  returnTo: returnToSchema,
 });
 
 export const changePasswordSchema = z
@@ -162,47 +169,51 @@ export const setupPasswordSchema = z
   });
 
 /** Enterprise registration — student by default; instructor only when explicitly chosen / invited. */
-export const registerSchema = z
-  .object({
-    email: emailSchema,
-    firstName: nameSchema,
-    lastName: nameSchema,
-    phone: registrationPhoneSchema,
-    countryCode: z.enum(countryCodes, { message: "Select your country" }),
-    nationality: z.string().trim().min(2, "Enter your nationality").max(80),
-    password: passwordSchema,
-    confirmPassword: z.string(),
-    acceptTerms: z.boolean(),
-    acceptPrivacy: z.boolean(),
-    marketingConsent: z.boolean().optional().default(false),
-    rememberMe: z.boolean().optional().default(false),
-    /** Account intent — students by default; instructors may require admin approval. */
-    role: z.enum(["student", "instructor"]).optional().default("student"),
-    timezone: z.string().min(1).max(64).optional().default("UTC"),
-    language: z.string().min(2).max(10).optional().default("en"),
-    /** Honeypot — must remain empty (bot protection). */
-    website: z.string().max(200).optional().default(""),
-  })
-  .refine((data) => !isDisposableEmail(data.email), {
-    message: "Please use a permanent email address",
-    path: ["email"],
-  })
-  .refine((data) => !data.website?.trim(), {
-    message: "Invalid submission",
-    path: ["website"],
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-  .refine((data) => data.acceptTerms === true, {
-    message: "You must accept the Terms of Service",
-    path: ["acceptTerms"],
-  })
-  .refine((data) => data.acceptPrivacy === true, {
-    message: "You must accept the Privacy Policy",
-    path: ["acceptPrivacy"],
-  });
+export function createRegisterSchema(policy?: PasswordPolicy) {
+  return z
+    .object({
+      email: emailSchema,
+      firstName: nameSchema,
+      lastName: nameSchema,
+      phone: registrationPhoneSchema,
+      countryCode: z.enum(countryCodes, { message: "Select your country" }),
+      nationality: z.string().trim().min(2, "Enter your nationality").max(80),
+      password: passwordSchemaFor(policy),
+      confirmPassword: z.string(),
+      acceptTerms: z.boolean(),
+      acceptPrivacy: z.boolean(),
+      marketingConsent: z.boolean().optional().default(false),
+      rememberMe: z.boolean().optional().default(false),
+      /** Account intent — students by default; instructors may require admin approval. */
+      role: z.enum(["student", "instructor"]).optional().default("student"),
+      timezone: z.string().min(1).max(64).optional().default("UTC"),
+      language: z.string().min(2).max(10).optional().default("en"),
+      /** Honeypot — must remain empty (bot protection). */
+      website: z.string().max(200).optional().default(""),
+    })
+    .refine((data) => !isDisposableEmail(data.email), {
+      message: "Please use a permanent email address",
+      path: ["email"],
+    })
+    .refine((data) => !data.website?.trim(), {
+      message: "Invalid submission",
+      path: ["website"],
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"],
+    })
+    .refine((data) => data.acceptTerms === true, {
+      message: "You must accept the Terms of Service",
+      path: ["acceptTerms"],
+    })
+    .refine((data) => data.acceptPrivacy === true, {
+      message: "You must accept the Privacy Policy",
+      path: ["acceptPrivacy"],
+    });
+}
+
+export const registerSchema = createRegisterSchema();
 
 export const verifyOtpSchema = z.object({
   email: emailSchema,
@@ -219,6 +230,7 @@ export const verifyOtpSchema = z.object({
   ]),
   deviceFingerprint: z.string().min(8).max(128).optional().nullable(),
   deviceLabel: z.string().max(120).optional().nullable(),
+  returnTo: returnToSchema,
 });
 
 export const forgotPasswordSchema = z.object({
@@ -284,7 +296,7 @@ export const adminCreateUserSchema = z.object({
   phone: phoneSchema,
   countryCode: z.string().length(2).optional().or(z.literal("")),
   nationality: z.string().trim().max(80).optional().or(z.literal("")),
-  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]),
+  role: z.enum(["student", "instructor", "chief_ground_instructor", "admin", "super_admin"]),
 });
 
 export const adminUpdateUserSchema = z
@@ -295,7 +307,9 @@ export const adminUpdateUserSchema = z
     countryCode: z.string().length(2).optional().or(z.literal("")),
     nationality: z.string().trim().max(80).optional().or(z.literal("")),
     status: z.enum(["pending", "active", "inactive", "suspended"]).optional(),
-    role: z.enum(["student", "instructor", "chief_ground_instructor", "admin"]).optional(),
+    role: z
+      .enum(["student", "instructor", "chief_ground_instructor", "admin", "super_admin"])
+      .optional(),
     password: passwordSchema.optional().or(z.literal("")),
     confirmPassword: z.string().optional().or(z.literal("")),
   })

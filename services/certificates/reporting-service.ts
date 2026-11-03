@@ -10,7 +10,6 @@ import { getCourseStats } from "@/services/courses/course-service";
 import { listEnrollmentsForCourse, readCoursesDb } from "@/services/courses/store";
 import { getClassStats } from "@/services/classes/class-service";
 import { getAttendanceOverview } from "@/services/classes/attendance-service";
-import { listAttemptsForStudent } from "@/services/quizzes/attempt-service";
 import { getOverallProgress } from "@/services/learning/progress-service";
 import { listHistory } from "@/services/learning/history-service";
 import { listCertificates } from "@/services/certificates/certificate-service";
@@ -21,8 +20,8 @@ import {
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { ensureQuizzesSeeded } from "@/services/quizzes/seed";
 import { ensureLearningSeeded } from "@/services/learning/seed";
+import { getStudentAssessmentStats } from "@/services/mock-exams/assessment-scores";
 import type {
   AdminReportBundle,
   ExecutiveReportBundle,
@@ -36,7 +35,6 @@ function monthKey(iso: string): string {
 export function getInstructorReport(instructorId: string): InstructorReportBundle {
   ensureCertificatesSeeded();
   ensureCoursesSeeded();
-  ensureQuizzesSeeded();
   ensureLearningSeeded();
   ensureClassesSeeded();
 
@@ -101,7 +99,6 @@ export function getAdminReport(): AdminReportBundle {
   ensureCertificatesSeeded();
   ensureCoursesSeeded();
   ensureClassesSeeded();
-  ensureQuizzesSeeded();
   ensureLearningSeeded();
 
   const users = listAllUsers();
@@ -127,13 +124,12 @@ export function getAdminReport(): AdminReportBundle {
     averageCompletion:
       students.length === 0 ? 0 : Math.round((completionSum / students.length) * 10) / 10,
     quizPassRate: (() => {
-      // Approximate from attempts across students
       let passed = 0;
       let total = 0;
       for (const s of students) {
-        const attempts = listAttemptsForStudent(s.id).filter((a) => typeof a.percent === "number");
-        total += attempts.length;
-        passed += attempts.filter((a) => a.passed).length;
+        const stats = getStudentAssessmentStats(s.id);
+        total += stats.attemptCount;
+        passed += stats.passedCount;
       }
       return total === 0 ? 0 : Math.round((passed / total) * 1000) / 10;
     })(),

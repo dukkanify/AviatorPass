@@ -310,8 +310,8 @@ function buildDomainCards(): AutomationDomainCard[] {
       label: "Reports",
       description: "Analytics, certificate reports, and post-lecture performance reports.",
       enabled: isDomainEnabled("reports") && isFeatureEnabled("reports"),
-      href: "/super-admin/reports",
-      statusLabel: "Reports console",
+      href: "/super-admin/analytics",
+      statusLabel: "Analytics console",
       controls: [boolControl("featureEnabled", "Reports module", isFeatureEnabled("reports"))],
     },
     {

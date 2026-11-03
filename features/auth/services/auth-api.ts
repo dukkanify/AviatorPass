@@ -9,7 +9,13 @@ export { csrfHeaders, ensureBrowserCsrf, getCsrfToken } from "@/lib/security/bro
 export async function authFetch<T>(
   url: string,
   init?: RequestInit,
-): Promise<{ success: boolean; data: T | null; error: string | null; field?: string | null }> {
+): Promise<{
+  success: boolean;
+  data: T | null;
+  error: string | null;
+  field?: string | null;
+  status: number;
+}> {
   const csrf = await ensureBrowserCsrf();
   const headers = new Headers(init?.headers);
   if (!headers.has("Content-Type") && !(init?.body instanceof FormData)) {
@@ -31,7 +37,12 @@ export async function authFetch<T>(
   } | null;
 
   if (!json) {
-    return { success: false, data: null, error: "Unexpected server response" };
+    return {
+      success: false,
+      data: null,
+      error: "Unexpected server response",
+      status: response.status,
+    };
   }
 
   const err =
@@ -46,5 +57,6 @@ export async function authFetch<T>(
     data: (json.data as T) ?? null,
     error: err,
     field: json.field ?? null,
+    status: response.status,
   };
 }

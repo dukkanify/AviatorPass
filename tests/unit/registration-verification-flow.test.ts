@@ -161,7 +161,7 @@ describe("registration verification flow", () => {
       path.join(process.cwd(), "features/auth/components/register-form.tsx"),
       "utf8",
     );
-    expect(form).toContain("PASSWORD_REQUIREMENTS");
+    expect(form).toContain("passwordRulesFor");
     expect(form).toContain("Passwords match");
     expect(form).toContain("disabled={!canSubmit}");
     expect(form).toContain("routes.verifyEmail");

@@ -10,8 +10,11 @@ import { readAuthDb } from "@/services/auth/store";
 import { distributeLecture, listAtplCourses } from "@/services/cgi/journey-service";
 import { resetCgiDbCache, writeCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
+import { updateLiveClass } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
+import { listOutboundEmails } from "@/services/email/outbox";
+import { getStoredSettings, patchStoredSettings } from "@/services/settings/store";
 import {
   buildSchedule,
   cancelSession,
@@ -136,6 +139,52 @@ describe("dynamic schedule management (CR008)", () => {
     expect(cancelled.cancelledCount).toBe(1);
     expect(cancelled.sessions[0]?.status).toBe("cancelled");
   });
+
+  it("emails the new lecture time when the date is edited", async () => {
+    const instructor = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
+    const student = readAuthDb().users.find(
+      (u) => u.role === ROLES.STUDENT && u.status === "active",
+    )!;
+    const start = farSlot();
+    const title = `Date change ${Date.now()}-${slotSeq}`;
+    const notifications = getStoredSettings().notifications;
+    patchStoredSettings({ notifications: { ...notifications, emailNotifications: false } }, null);
+    try {
+      const built = await buildSchedule({
+        title,
+        instructorId: instructor.id,
+        studentIds: [student.id],
+        startsAt: start.toISOString(),
+        durationMinutes: 45,
+        actorId: instructor.id,
+      });
+      const movedAt = new Date(Date.parse(start.toISOString()) + 5 * 3_600_000);
+      const beforeIds = new Set(listOutboundEmails(80).map((message) => message.id));
+      const moved = await rescheduleSession({
+        liveClassId: built.session!.id,
+        startsAt: movedAt.toISOString(),
+        actorId: instructor.id,
+        actorRole: ROLES.INSTRUCTOR,
+      });
+      const editedAt = new Date(movedAt.getTime() + 2 * 3_600_000);
+      await updateLiveClass({
+        id: moved!.id,
+        patch: { startsAt: editedAt.toISOString() },
+        actorId: instructor.id,
+      });
+      const sent = listOutboundEmails(80).filter(
+        (message) =>
+          !beforeIds.has(message.id) &&
+          message.to.toLowerCase() === student.email.toLowerCase() &&
+          message.subject === "Class rescheduled",
+      );
+      expect(sent.length).toBeGreaterThanOrEqual(2);
+      expect(sent.some((message) => message.html.includes(title))).toBe(true);
+      expect(sent.some((message) => /New time:/i.test(message.html))).toBe(true);
+    } finally {
+      patchStoredSettings({ notifications: { ...notifications, emailNotifications: true } }, null);
+    }
+  }, 90_000);
 
   it("links ATPL distributeLecture to a live class when scheduled", async () => {
     // Email fan-out + schedule link can exceed default 15s under shared-agent load.

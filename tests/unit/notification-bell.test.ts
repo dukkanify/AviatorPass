@@ -29,6 +29,7 @@ describe("notification bell alerts", () => {
     expect(bell).toContain("routes.api.notificationUnreadCount");
     expect(bell).toContain("void pollUnread()");
     expect(bell).toContain("if (open) void load()");
+    expect(bell).toContain("notificationTargetHref");
   });
 
   it("rings the gold bell when there are unread alerts", () => {
@@ -40,5 +41,7 @@ describe("notification bell alerts", () => {
     expect(css).toContain("prefers-reduced-motion");
     expect(css).toContain("var(--aviator-gold)");
     expect(bell).toContain('data-unread={unread > 0 ? "true" : "false"}');
+    expect(bell).toContain("playNotifyChime");
+    expect(bell).toContain("prefers-reduced-motion");
   });
 });

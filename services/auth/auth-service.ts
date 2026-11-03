@@ -6,6 +6,7 @@ import { ACCOUNT_STATUS, AUTHENTICATABLE_STATUSES } from "@/constants/account-st
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accounts";
 import { getPermissionsForRole, ROLE_DASHBOARD, ROLES, type Role } from "@/constants/roles";
+import { postAuthRedirect } from "@/lib/security/safe-return-path";
 import {
   clearSessionCookies,
   hashSessionToken,
@@ -254,13 +255,6 @@ export async function getCurrentSession(): Promise<{
   user: UserProfile | null;
   permissions: ReturnType<typeof getPermissionsForRole>;
 }> {
-  // Seed catalog users so JWT subject ids resolve on a cold serverless isolate
-  // (Vercel has no durable .data — each function has an empty in-memory store).
-  if (!sessionSeedReady) {
-    ensureDemoUsersSeeded();
-    sessionSeedReady = true;
-  }
-
   const parsed = await readSessionCookie();
   if (!parsed) {
     return { user: null, permissions: [] };
@@ -271,7 +265,7 @@ export async function getCurrentSession(): Promise<{
     return { user: null, permissions: [] };
   }
 
-  const session = getSessionById(parsed.payload.sid);
+  let session = getSessionById(parsed.payload.sid);
 
   if (session) {
     if (session.revokedAt) {
@@ -284,10 +278,6 @@ export async function getCurrentSession(): Promise<{
     if (session.tokenHash !== tokenHash) {
       return { user: null, permissions: [] };
     }
-    const lastActiveMs = Date.parse(session.lastActiveAt);
-    if (!Number.isFinite(lastActiveMs) || Date.now() - lastActiveMs > 60_000) {
-      upsertSession({ ...session, lastActiveAt: nowIso() });
-    }
   }
 
   // Do not call cookies().set() here. Next.js throws
@@ -295,8 +285,25 @@ export async function getCurrentSession(): Promise<{
   // during RSC render — that was production digest 889204058 on
   // /student/dashboard when middleware accepted the JWT but this isolate
   // had no session row in the in-memory JSON store.
-  const userId = session?.userId ?? parsed.payload.uid;
-  const user = findUserById(userId);
+  // Seed the catalog only when this account is missing. Loading every user
+  // before the session lookup kept the page skeleton on screen.
+  let userId = session?.userId ?? parsed.payload.uid;
+  let user = userId ? findUserById(userId) : null;
+  if (!user && !sessionSeedReady) {
+    ensureDemoUsersSeeded();
+    sessionSeedReady = true;
+    if (!session) session = getSessionById(parsed.payload.sid);
+    userId = session?.userId ?? parsed.payload.uid;
+    user = userId ? findUserById(userId) : null;
+  }
+
+  if (session) {
+    const lastActiveMs = Date.parse(session.lastActiveAt);
+    if (!Number.isFinite(lastActiveMs) || Date.now() - lastActiveMs > 60_000) {
+      upsertSession({ ...session, lastActiveAt: nowIso() });
+    }
+  }
+
   if (!user) {
     return { user: null, permissions: [] };
   }
@@ -466,6 +473,7 @@ export async function verifyOtp(input: {
   purpose: OtpChallenge["purpose"];
   deviceFingerprint?: string | null;
   deviceLabel?: string | null;
+  returnTo?: string | null;
   ctx?: RequestContext;
 }): Promise<
   ApiResponse<{
@@ -730,7 +738,7 @@ export async function verifyOtp(input: {
     }
   }
 
-  const redirectTo = postAuthRedirect(profile);
+  const redirectTo = postAuthRedirect(profile, input.returnTo);
 
   return {
     success: true,
@@ -743,13 +751,7 @@ export async function verifyOtp(input: {
   };
 }
 
-export function postAuthRedirect(profile: UserProfile): string {
-  if (profile.mustChangePassword) return "/change-password";
-  if (profile.role === ROLES.INSTRUCTOR && profile.status === ACCOUNT_STATUS.PENDING) {
-    return "/instructor-pending";
-  }
-  return profile.profileComplete ? ROLE_DASHBOARD[profile.role] : "/complete-profile";
-}
+export { postAuthRedirect };
 
 export async function resetPassword(input: {
   email: string;
@@ -1012,6 +1014,7 @@ export async function passwordLogin(input: {
   rememberMe?: boolean;
   deviceFingerprint?: string | null;
   deviceLabel?: string | null;
+  returnTo?: string | null;
   ctx?: RequestContext;
 }): Promise<
   ApiResponse<{
@@ -1129,7 +1132,7 @@ export async function passwordLogin(input: {
     success: true,
     data: {
       user: profile,
-      redirectTo: postAuthRedirect(profile),
+      redirectTo: postAuthRedirect(profile, input.returnTo),
       requiresProfile: !profile.profileComplete,
       mustChangePassword: Boolean(profile.mustChangePassword),
     },

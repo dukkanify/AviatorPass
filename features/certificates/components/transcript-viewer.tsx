@@ -83,7 +83,7 @@ function TranscriptViewer() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {c.progressPercent}% · {c.learningHours}h
-                      {c.quizAverage != null ? ` · Quiz ${c.quizAverage}%` : ""}
+                      {c.quizAverage != null ? ` · Exam ${c.quizAverage}%` : ""}
                     </p>
                   </div>
                   <Badge variant={c.completed ? "secondary" : "outline"}>

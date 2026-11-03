@@ -9,6 +9,10 @@ import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
 import {
   atplPackageSubjectOrderIndex,
   easaCodeFromAtplCourseCode,
+  ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+  ATPL_PACKAGE_OPENING_SUBJECT_CODE,
+  ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+  formatAtplFirstLectureTitle,
 } from "@/constants/atpl-complete-package";
 import { generateId } from "@/lib/security/crypto";
 import { ensureAiSeeded } from "@/services/ai/seed";
@@ -17,7 +21,9 @@ import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { findUserByEmail, writeAuthDb } from "@/services/auth/store";
 import { ensureCertificatesSeeded } from "@/services/certificates/seed";
 import { ensureClassesSeeded } from "@/services/classes/seed";
-import { readClassesDb } from "@/services/classes/store";
+import { appJoinUrl } from "@/lib/site-origin";
+import { siteStatic } from "@/config/site-static";
+import { readClassesDb, writeClassesDb } from "@/services/classes/store";
 import { ensureCommunicationSeeded } from "@/services/communication/seed";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb, writeCoursesDb } from "@/services/courses/store";
@@ -33,6 +39,7 @@ import type { NotificationRecord } from "@/types/index";
 import type { AtplSubjectAssignment, AtplLectureAssignment, CgiOversightNote } from "@/types/cgi";
 import type { PerformanceReport } from "@/types/performance-reports";
 import type { Enrollment } from "@/types/courses";
+import type { LiveClass, MeetingParticipant, ZoomMeetingRecord } from "@/types/classes";
 
 let seededInProcess = false;
 
@@ -56,6 +63,7 @@ export function ensurePlatformDemoEnvironment(): void {
     seedDemoNotifications();
     seedDemoBookings();
     seedCgiOversightData();
+    ensureDemoOpeningLecture();
     seedPerformanceDemoReport();
   } finally {
     // Allow re-entry after full cycle if stores were reset.
@@ -332,6 +340,173 @@ function seedDemoBookings(): void {
   });
 }
 
+export function ensureDemoOpeningLecture(): void {
+  const student = primaryStudent();
+  const instructor = primaryInstructor();
+  const cgi = primaryCgi();
+  if (!student || !instructor || !cgi) return;
+
+  const courses = readCoursesDb().courses.filter((course) => !course.deletedAt);
+  const opening =
+    courses.find((course) => course.code === "ATPL-022") ??
+    courses.find((course) => /instrumentation/i.test(course.title));
+  if (!opening) return;
+
+  const demoPlan = readCgiDb().subjectAssignments.filter(
+    (row) => row.studentId === student.id && row.notes === "Permanent demo subject plan",
+  );
+  if (demoPlan.length === 0) return;
+
+  const title = formatAtplFirstLectureTitle(ATPL_PACKAGE_OPENING_SUBJECT_TITLE);
+  const existing = readClassesDb().classes.find(
+    (row) =>
+      !row.deletedAt &&
+      row.instructorId === instructor.id &&
+      row.title === title &&
+      row.status !== "cancelled",
+  );
+  const starts = existing ? new Date(existing.startsAt) : addDays(new Date(), 1);
+  const ends = existing ? new Date(existing.endsAt) : addHours(starts, 1);
+  const classId = existing?.id ?? generateId();
+  const now = new Date().toISOString();
+
+  if (!existing) {
+    const liveZoom = isLiveZoomConfigured();
+    const zoomId = liveZoom ? null : generateId();
+    const zoomMeetingId = liveZoom
+      ? ""
+      : String(Math.floor(100_000_000 + Math.random() * 899_999_999));
+    const liveClass: LiveClass = {
+      id: classId,
+      title,
+      description: "Opening ATPL lecture assigned by TKI 1.",
+      courseId: opening.id,
+      moduleId: null,
+      lessonId: ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+      instructorId: instructor.id,
+      assistantInstructorId: null,
+      startsAt: starts.toISOString(),
+      endsAt: ends.toISOString(),
+      durationMinutes: 60,
+      timezone: "Asia/Kuwait",
+      maxStudents: 1,
+      meetingType: "meeting",
+      status: "scheduled",
+      zoomMeetingId: zoomId,
+      recurringRuleId: null,
+      parentClassId: null,
+      cancelledAt: null,
+      cancelReason: null,
+      rescheduledFromId: null,
+      createdById: cgi.id,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    const participants: MeetingParticipant[] = [
+      {
+        id: generateId(),
+        liveClassId: classId,
+        userId: instructor.id,
+        role: "host",
+        invitedAt: now,
+        joinedAt: null,
+      },
+      {
+        id: generateId(),
+        liveClassId: classId,
+        userId: student.id,
+        role: "participant",
+        invitedAt: now,
+        joinedAt: null,
+      },
+    ];
+    const meetings: ZoomMeetingRecord[] = zoomId
+      ? [
+          {
+            id: zoomId,
+            liveClassId: classId,
+            zoomMeetingId,
+            zoomUuid: generateId(),
+            joinUrl: appJoinUrl(classId, zoomMeetingId),
+            startUrl: appJoinUrl(classId, zoomMeetingId, true),
+            password: "AtplLive1",
+            hostEmail: siteStatic.supportEmail,
+            waitingRoom: true,
+            passcodeEnabled: true,
+            coHostEmails: [],
+            providerMode: "mock",
+            raw: { seeded: true },
+            createdAt: now,
+            updatedAt: now,
+          },
+        ]
+      : [];
+    writeClassesDb((draft) => {
+      draft.classes.push(liveClass);
+      draft.participants.push(...participants);
+      draft.zoomMeetings.push(...meetings);
+    });
+  }
+
+  const cgiPreview = readCgiDb();
+  const currentDemoPlan = cgiPreview.subjectAssignments.filter(
+    (row) => row.studentId === student.id && row.notes === "Permanent demo subject plan",
+  );
+  if (currentDemoPlan.length === 0) return;
+  const openDemo = currentDemoPlan.filter(
+    (row) => row.status === "available" || row.status === "in_progress",
+  );
+  const linked = cgiPreview.lectureAssignments.find(
+    (row) =>
+      row.studentId === student.id &&
+      row.notes === "Permanent demo lecture assignment" &&
+      row.lessonId === ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID &&
+      row.status === "scheduled" &&
+      row.liveClassId === classId,
+  );
+  if (openDemo.length === 1 && linked) return;
+
+  writeCgiDb((draft) => {
+    const plan = draft.subjectAssignments.filter(
+      (row) => row.studentId === student.id && row.notes === "Permanent demo subject plan",
+    );
+    for (const row of plan) {
+      const code = easaCodeFromAtplCourseCode(row.subjectCode);
+      const openingRow = code === ATPL_PACKAGE_OPENING_SUBJECT_CODE || row.courseId === opening.id;
+      if (!openingRow && (row.status === "available" || row.status === "in_progress")) {
+        row.status = "locked";
+        row.unlockedAt = null;
+        row.updatedAt = now;
+      }
+      if (openingRow && row.status !== "completed") {
+        row.status = "in_progress";
+        row.unlockedAt = row.unlockedAt ?? now;
+        row.assignedInstructorId = instructor.id;
+        row.updatedAt = now;
+      }
+    }
+    draft.lectureAssignments = draft.lectureAssignments.filter(
+      (row) => row.studentId !== student.id || row.notes !== "Permanent demo lecture assignment",
+    );
+    draft.lectureAssignments.push({
+      id: generateId(),
+      courseId: opening.id,
+      lessonId: ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+      lessonTitle: ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+      instructorId: instructor.id,
+      studentId: student.id,
+      status: "scheduled",
+      scheduledAt: starts.toISOString(),
+      liveClassId: classId,
+      notes: "Permanent demo lecture assignment",
+      assignedById: cgi.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+}
+
 function seedCgiOversightData(): void {
   const student = primaryStudent();
   const instructor = primaryInstructor();
@@ -351,7 +526,6 @@ function seedCgiOversightData(): void {
     );
   if (courses.length === 0) return;
 
-  const lessons = readCoursesDb().lessons;
   const ts = new Date().toISOString();
 
   const subjects: AtplSubjectAssignment[] = courses.map((course, index) => ({
@@ -360,9 +534,9 @@ function seedCgiOversightData(): void {
     courseId: course.id,
     subjectCode: course.code ?? `ATPL-${index + 1}`,
     sortOrder: index + 1,
-    status: index === 0 ? "in_progress" : index < 3 ? "available" : "locked",
+    status: index === 0 ? "in_progress" : "locked",
     assignedInstructorId: instructor.id,
-    unlockedAt: index < 3 ? ts : null,
+    unlockedAt: index === 0 ? ts : null,
     completedAt: null,
     notes: "Permanent demo subject plan",
     assignedById: cgi.id,
@@ -374,26 +548,25 @@ function seedCgiOversightData(): void {
     courses.find((course) => course.code === "ATPL-022") ??
     courses.find((course) => /instrumentation/i.test(course.title)) ??
     courses[0];
-  const firstLessons = firstCourse
-    ? lessons.filter((l) => l.courseId === firstCourse.id).slice(0, 3)
+  const lectures: AtplLectureAssignment[] = firstCourse
+    ? [
+        {
+          id: generateId(),
+          courseId: firstCourse.id,
+          lessonId: ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID,
+          lessonTitle: ATPL_PACKAGE_OPENING_SUBJECT_TITLE,
+          instructorId: instructor.id,
+          studentId: student.id,
+          status: "scheduled",
+          scheduledAt: addDays(new Date(), 1).toISOString(),
+          liveClassId: null,
+          notes: "Permanent demo lecture assignment",
+          assignedById: cgi.id,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+      ]
     : [];
-  const liveClass = readClassesDb().classes[0];
-
-  const lectures: AtplLectureAssignment[] = firstLessons.map((lesson, index) => ({
-    id: generateId(),
-    courseId: lesson.courseId,
-    lessonId: lesson.id,
-    lessonTitle: lesson.title,
-    instructorId: instructor.id,
-    studentId: student.id,
-    status: index === 0 ? "scheduled" : "assigned",
-    scheduledAt: index === 0 ? addDays(new Date(), 1).toISOString() : null,
-    liveClassId: index === 0 ? (liveClass?.id ?? null) : null,
-    notes: "Permanent demo lecture assignment",
-    assignedById: cgi.id,
-    createdAt: ts,
-    updatedAt: ts,
-  }));
 
   const notes: CgiOversightNote[] = [
     {

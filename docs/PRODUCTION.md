@@ -25,7 +25,7 @@ Templates: `.env.example`, `.env.production.example`
 - Middleware route/role gates — `middleware.ts`
 - CSRF on mutating APIs — `lib/security/csrf.ts` + `lib/security/api-guard.ts`
 - Rate limits + IP blocklist from platform settings
-- Security headers + CSP report-only + HSTS (prod) — `next.config.ts` / `vercel.json`
+- Security headers + CSP enforcing (Meeting SDK frame-src) + HSTS (prod) — `next.config.ts` / `vercel.json`
 - Upload validation + AV hook stub — `lib/security/upload.ts`
 - Signed temporary downloads — `lib/security/signed-url.ts` + `/api/ops/download`
 - Audit/activity logs — `services/auth/activity-log.ts` (immutable append + search UI)

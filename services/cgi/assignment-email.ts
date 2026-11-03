@@ -95,12 +95,15 @@ function formatDateTimeParts(iso?: string | null) {
   if (Number.isNaN(when.getTime())) return { date: "", time: "" };
   return {
     date: when.toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
+      day: "2-digit",
+      month: "2-digit",
       year: "numeric",
     }),
-    time: when.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+    time: when.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }),
   };
 }
 
@@ -268,7 +271,9 @@ export async function notifyAtplInstructorAssigned(
       body: staffDetail,
       type: "admin.instructor_assigned",
       email: false,
-      actionUrl: "/super-admin",
+      actionUrl: input.liveClassId
+        ? `/super-admin/classes/${input.liveClassId}`
+        : "/super-admin/dashboard",
       data: {
         instructorId: input.instructorId,
         studentId: input.studentId,

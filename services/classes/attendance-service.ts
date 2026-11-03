@@ -6,11 +6,19 @@
 import { generateId } from "@/lib/security/crypto";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { ATTENDANCE_STATUSES } from "@/constants/classes";
+import { ROLES } from "@/constants/roles";
 import { logActivity } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
 import { getLiveClass } from "@/services/classes/class-service";
-import { listParticipantsForUser, readClassesDb, writeClassesDb } from "@/services/classes/store";
+import {
+  listParticipantsForClass,
+  listParticipantsForUser,
+  readClassesDb,
+  writeClassesDb,
+} from "@/services/classes/store";
 import { ClassValidationError } from "@/services/classes/validation";
+import { readCgiDb } from "@/services/cgi/store";
+import { emitNotification } from "@/services/notifications/notification-service";
 import type { AttendanceRecord, AttendanceStatus, AttendanceWithStudent } from "@/types/classes";
 
 function studentMeta(studentId: string) {
@@ -169,4 +177,51 @@ export function getAttendanceOverview(
     absent: rows.filter((a) => a.status === "absent").length,
     rate: total === 0 ? 0 : Math.round((present / total) * 100),
   };
+}
+
+/** Tell enrolled students the instructor has entered and is waiting in the classroom. */
+export async function notifyStudentsInstructorIsWaiting(input: {
+  liveClassId: string;
+  actorId: string;
+}): Promise<number> {
+  const cls = getLiveClass(input.liveClassId);
+  if (!cls || cls.status === "cancelled") return 0;
+  const actor = findUserById(input.actorId);
+  if (!actor || actor.role !== ROLES.INSTRUCTOR) return 0;
+  if (actor.id !== cls.instructorId && actor.id !== cls.assistantInstructorId) return 0;
+
+  const studentIds = new Set<string>();
+  for (const participant of listParticipantsForClass(cls.id)) {
+    if (participant.role === "participant" && participant.userId !== actor.id) {
+      studentIds.add(participant.userId);
+    }
+  }
+  for (const lecture of readCgiDb().lectureAssignments) {
+    if (
+      lecture.liveClassId === cls.id &&
+      lecture.studentId &&
+      lecture.status !== "cancelled" &&
+      lecture.studentId !== actor.id
+    ) {
+      studentIds.add(lecture.studentId);
+    }
+  }
+
+  const name =
+    [actor.firstName, actor.lastName].filter(Boolean).join(" ").trim() || "Your instructor";
+  let sent = 0;
+  for (const studentId of studentIds) {
+    const record = await emitNotification({
+      userId: studentId,
+      type: "class.instructor_waiting",
+      title: "Your instructor is waiting",
+      body: `${name} has joined the classroom and is waiting for you.`,
+      actionUrl: `/join/${cls.id}`,
+      email: false,
+      dedupeKey: `instructor-waiting:${cls.id}:${studentId}`,
+      data: { liveClassId: cls.id, instructorId: actor.id },
+    });
+    if (record) sent += 1;
+  }
+  return sent;
 }

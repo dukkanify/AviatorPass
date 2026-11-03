@@ -248,6 +248,8 @@ export interface CourseFilters {
   publishedFrom?: string;
   publishedTo?: string;
   includeDeleted?: boolean;
+  /** Hide integration fixtures (INS-TEST, CR001 schedule rows) from live catalogs. */
+  excludeFixtures?: boolean;
   page?: number;
   pageSize?: number;
   sortBy?: "title" | "code" | "updatedAt" | "createdAt" | "status" | "displayOrder";

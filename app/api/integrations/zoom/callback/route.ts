@@ -9,6 +9,8 @@ export async function GET(request: Request) {
     code: url.searchParams.get("code"),
     state: url.searchParams.get("state"),
     error: url.searchParams.get("error"),
+    errorDescription:
+      url.searchParams.get("error_description") || url.searchParams.get("errorDescription"),
   });
   const dest = new URL(result.redirectTo, getBaseUrl());
   return NextResponse.redirect(dest);

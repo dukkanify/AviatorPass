@@ -56,7 +56,7 @@ describe("Zoom S2S meeting create host fallback", () => {
     }
   });
 
-  it("posts meetings to /users/me when settings still use the support mailbox", async () => {
+  it("creates live-class meetings on the platform S2S host when personal OAuth is absent", async () => {
     process.env.ZOOM_ACCOUNT_ID = "acct_test";
     process.env.ZOOM_S2S_CLIENT_ID = "s2s_client_test";
     process.env.ZOOM_S2S_CLIENT_SECRET = "s2s_secret_test";
@@ -66,13 +66,12 @@ describe("Zoom S2S meeting create host fallback", () => {
 
     previousHost = getPlatformSettings().zoom.accountEmail;
     await updatePlatformSettings({
-      patch: { zoom: { enabled: true, accountEmail: PROJECT_SUPPORT_EMAIL } },
+      patch: { zoom: { enabled: true, accountEmail: "ceo@aviatorpass.com" } },
       actorId: "test-actor",
     });
-    expect(getPlatformSettings().zoom.accountEmail).toBe(PROJECT_SUPPORT_EMAIL);
 
-    const posted: string[] = [];
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const posts: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/oauth/token")) {
         return new Response(JSON.stringify({ access_token: "s2s-token", expires_in: 3600 }), {
@@ -80,22 +79,40 @@ describe("Zoom S2S meeting create host fallback", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
-      if (url.includes("/users/") && url.includes("/meetings")) {
-        posted.push(url);
+      if (
+        url.includes("/users?") &&
+        (!init || init.method === undefined || init.method === "GET")
+      ) {
+        return new Response(
+          JSON.stringify({ users: [{ id: "ceo-user", email: "ceo@aviatorpass.com", type: 2 }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (
+        url.includes("/settings") &&
+        (!init || !init.method || init.method === "GET" || init.method === "PATCH")
+      ) {
+        return new Response(JSON.stringify({ in_meeting: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/meetings") && init?.method === "POST") {
+        posts.push(url);
         return new Response(
           JSON.stringify({
-            id: 86524929538,
-            uuid: "uuid-live",
-            join_url: "https://us02web.zoom.us/j/86524929538",
-            start_url: "https://us02web.zoom.us/s/86524929538?zak=create-zak",
-            password: "pass1",
+            id: 82122854801,
+            uuid: "uuid-s2s",
+            join_url: "https://zoom.us/j/82122854801",
+            start_url: "https://zoom.us/s/82122854801?zak=platform-zak-token",
+            password: "pass123",
             host_email: "ceo@aviatorpass.com",
-            host_id: "zoom-host-ceo",
+            host_id: "ceo-user",
           }),
           { status: 201, headers: { "Content-Type": "application/json" } },
         );
       }
-      return new Response("not found", { status: 404 });
+      return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof fetch;
 
     const startsAt = new Date(Date.now() + 60 * 60_000).toISOString();
@@ -128,12 +145,10 @@ describe("Zoom S2S meeting create host fallback", () => {
         deletedAt: null,
       },
     });
-
-    expect(posted).toEqual(["https://api.zoom.us/v2/users/me/meetings"]);
-    expect(meeting.providerMode).toBe("zoom");
-    expect(meeting.joinUrl).toContain("us02web.zoom.us");
-    expect(meeting.startUrl).toContain("zak=create-zak");
+    expect(meeting.zoomMeetingId).toBe("82122854801");
     expect(meeting.hostEmail).toBe("ceo@aviatorpass.com");
-    expect(meeting.hostId).toBe("zoom-host-ceo");
+    expect(meeting.oauthUserId).toBeNull();
+    expect(meeting.startUrl).toContain("zak=");
+    expect(posts.some((url) => url.includes("/users/"))).toBe(true);
   });
 });

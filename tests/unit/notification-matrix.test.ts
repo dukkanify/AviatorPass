@@ -86,17 +86,19 @@ describe("notification and email matrix", () => {
   });
 
   it("dispatches every catalog automation event to outbox", async () => {
-    const student = findUserByEmail("student@aviatorpass.com")!;
+    // Deliver to a real-looking QA inbox — demo catalog addresses are suppressed.
+    const qaInbox = "qa.matrix.student@example.com";
     const sent: string[] = [];
     for (const event of EMAIL_AUTOMATION_EVENTS) {
       const result = await dispatchEmailEvent({
         event,
-        userIds: [student.id],
+        to: qaInbox,
         data: {
           title: `Matrix ${event}`,
           detail: `Lifecycle email for ${event}`,
           reference: `MX-${event}`,
           amountLabel: "KWD 120.000",
+          recipientName: "QA Matrix",
         },
         system: true,
       });

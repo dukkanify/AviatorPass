@@ -28,11 +28,18 @@ import {
 const root = process.cwd();
 
 describe("student learning navigation", () => {
-  it("keeps every existing student route reachable", () => {
+  it("shows only the approved ATPL student journey", () => {
     expect(studentNavCoversAllRoutes()).toBe(true);
     const grouped = new Set(STUDENT_LEARNING_NAV_ITEMS.map((item) => item.href));
-    for (const item of STUDENT_NAV) {
-      expect(grouped.has(item.href)).toBe(true);
+    for (const href of [
+      "/student/bookings",
+      "/student/checkout",
+      "/student/mock-exams",
+      "/student/ai",
+      "/student/community",
+    ]) {
+      expect(grouped.has(href)).toBe(false);
+      expect(STUDENT_NAV.some((item) => item.href === href)).toBe(true);
     }
   });
 
@@ -42,10 +49,7 @@ describe("student learning navigation", () => {
     expect(main?.items.map((item) => item.href)).toEqual(["/student/dashboard"]);
     expect(learning?.items.map((item) => item.href)).toEqual([
       "/student/courses",
-      "/student/calendar",
-      "/student/planner",
-      "/student/mock-exams",
-      "/student/resources",
+      "/student/schedule",
     ]);
   });
 });
@@ -136,11 +140,10 @@ describe("student dashboard isolation", () => {
     expect(view).toContain("instructorAssignmentStatus");
     expect(view).toContain("firstLectureSubjectTitle");
     expect(view).toContain("ATPL_COMPLETE_PACKAGE_NAME");
-    expect(view).toContain("Follows TKI 1");
     expect(view).toContain("nextSubjectTitle");
     expect(view).toContain("ATPL_PACKAGE_FIRST_LECTURE_TITLE");
     expect(view).toContain("Waiting for TKI 1 to confirm your first lecture.");
-    expect(view).toContain("Waiting for TKI 1 to open the next subject.");
+    expect(view).toContain("Your instructor sets this date after the current lecture.");
   });
 
   it("does not block the overview API on first-lecture hydrate", () => {

@@ -114,13 +114,11 @@ function extractEmbeddedParticipants(db: ClassesDatabase): void {
 }
 
 function withIndexedView(db: ClassesDatabase): ClassesDatabase {
-  return new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop === "reminders") return listAllReminders();
-      if (prop === "participants") return listAllParticipants();
-      return Reflect.get(target, prop, receiver);
-    },
-  });
+  return {
+    ...db,
+    reminders: listAllReminders(),
+    participants: listAllParticipants(),
+  };
 }
 
 function withLazyIndexedWrites(catalog: ClassesDatabase): {

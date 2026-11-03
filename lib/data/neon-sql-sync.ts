@@ -1,12 +1,12 @@
 /**
  * Synchronous Neon HTTP SQL helper.
  *
- * The JSON stores are sync (dozens of callers). Neon’s driver is async, so we
- * run a tiny Node child that talks to Neon’s HTTP `/sql` endpoint using only
- * built-in modules — no extra files to trace into the Vercel bundle.
+ * Callers are synchronous, so the request runs on one long-lived worker thread
+ * and the caller waits on that result. A fresh Node process per query made
+ * every dashboard read pay process startup on top of the database round trip.
  */
 
-import { spawnSync } from "node:child_process";
+import { MessageChannel, Worker, receiveMessageOnPort } from "node:worker_threads";
 
 export class PostgresStoreError extends Error {
   constructor(message: string) {
@@ -20,17 +20,22 @@ export function getDatabaseUrl(): string | undefined {
   return raw || undefined;
 }
 
-const HELPER = `
-const https = require("https");
-const http = require("http");
-const { URL } = require("url");
+const WORKER_SOURCE = `
+const { parentPort } = require("node:worker_threads");
+const https = require("node:https");
+const http = require("node:http");
+const { URL } = require("node:url");
 
-let raw = "";
-process.stdin.setEncoding("utf8");
-process.stdin.on("data", (chunk) => { raw += chunk; });
-process.stdin.on("end", () => {
+parentPort.on("message", (msg) => {
+  const { databaseUrl, query, params, port, shared } = msg;
+  const flag = new Int32Array(shared);
+  const finish = (payload) => {
+    try { port.postMessage(payload); } catch (err) {}
+    Atomics.store(flag, 0, 1);
+    Atomics.notify(flag, 0);
+    try { port.close(); } catch (err) {}
+  };
   try {
-    const { databaseUrl, query, params } = JSON.parse(raw);
     const conn = new URL(databaseUrl);
     const body = Buffer.from(JSON.stringify({ query, params: params || [] }));
     const useHttp = conn.protocol === "http:";
@@ -51,57 +56,52 @@ process.stdin.on("end", () => {
       timeout: 25000,
     }, (res) => {
       const chunks = [];
-      res.on("data", (c) => chunks.push(c));
+      res.on("data", (chunk) => chunks.push(chunk));
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString("utf8");
         if (res.statusCode && res.statusCode >= 400) {
-          process.stderr.write(text.slice(0, 2000));
-          process.exit(1);
+          finish({ ok: false, error: text.slice(0, 2000) });
+          return;
         }
-        process.stdout.write(text);
-        process.exit(0);
+        finish({ ok: true, text });
       });
     });
     req.on("error", (err) => {
-      process.stderr.write(String(err && err.message ? err.message : err));
-      process.exit(1);
+      finish({ ok: false, error: String(err && err.message ? err.message : err) });
     });
     req.on("timeout", () => {
       req.destroy();
-      process.stderr.write("Neon SQL request timed out");
-      process.exit(1);
+      finish({ ok: false, error: "Neon SQL request timed out" });
     });
     req.write(body);
     req.end();
   } catch (err) {
-    process.stderr.write(String(err && err.message ? err.message : err));
-    process.exit(1);
+    finish({ ok: false, error: String(err && err.message ? err.message : err) });
   }
 });
 `;
 
-export function neonSql<T = Record<string, unknown>>(query: string, params: unknown[] = []): T[] {
-  const databaseUrl = getDatabaseUrl();
-  if (!databaseUrl) {
-    throw new PostgresStoreError("DATABASE_URL is not set");
-  }
+type SqlPayload = { ok: true; text: string } | { ok: false; error: string };
 
-  const result = spawnSync(process.execPath, ["-e", HELPER], {
-    input: JSON.stringify({ databaseUrl, query, params }),
-    encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 80 * 1024 * 1024,
-    env: process.env,
+let worker: Worker | null = null;
+
+function getWorker(): Worker {
+  if (worker) return worker;
+  const next = new Worker(WORKER_SOURCE, { eval: true });
+  next.unref();
+  next.on("error", () => {
+    if (worker === next) worker = null;
   });
+  next.on("exit", () => {
+    if (worker === next) worker = null;
+  });
+  worker = next;
+  return next;
+}
 
-  if (result.status !== 0) {
-    const err = (result.stderr || result.stdout || "postgres query failed").trim();
-    throw new PostgresStoreError(err.slice(0, 800));
-  }
-
-  const stdout = result.stdout.trim();
+function rowsFromPayload<T>(text: string): T[] {
+  const stdout = text.trim();
   if (!stdout) return [];
-
   const parsed = JSON.parse(stdout) as unknown;
   if (Array.isArray(parsed)) return parsed as T[];
   if (parsed && typeof parsed === "object") {
@@ -109,6 +109,39 @@ export function neonSql<T = Record<string, unknown>>(query: string, params: unkn
     if (Array.isArray(rows)) return rows as T[];
   }
   return [];
+}
+
+export function neonSql<T = Record<string, unknown>>(query: string, params: unknown[] = []): T[] {
+  const databaseUrl = getDatabaseUrl();
+  if (!databaseUrl) {
+    throw new PostgresStoreError("DATABASE_URL is not set");
+  }
+
+  const { port1, port2 } = new MessageChannel();
+  const shared = new SharedArrayBuffer(4);
+  const flag = new Int32Array(shared);
+  const current = getWorker();
+  current.postMessage({ databaseUrl, query, params, port: port2, shared }, [port2]);
+  const wait = Atomics.wait(flag, 0, 0, 25_000);
+  const done = Atomics.load(flag, 0) === 1;
+  if (!done) {
+    void current.terminate();
+    if (worker === current) worker = null;
+    throw new PostgresStoreError(
+      wait === "timed-out" ? "Neon SQL request timed out" : "Neon SQL worker stopped",
+    );
+  }
+
+  const received = receiveMessageOnPort(port1);
+  port1.close();
+  if (!received) {
+    throw new PostgresStoreError("Neon SQL worker returned no result");
+  }
+  const payload = received.message as SqlPayload;
+  if (!payload.ok) {
+    throw new PostgresStoreError(payload.error.slice(0, 800));
+  }
+  return rowsFromPayload<T>(payload.text);
 }
 
 export function pingPostgres(): { ok: boolean; detail: string; latencyMs: number } {

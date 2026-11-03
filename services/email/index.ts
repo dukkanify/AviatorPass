@@ -23,3 +23,20 @@ export {
   EmailAutomationError,
   EMAIL_AUTOMATION_CATALOG,
 } from "@/services/email/automation-service";
+export {
+  isEmailSuppressed,
+  upsertSuppression,
+  listSuppressions,
+  findSuppression,
+  type SuppressionEntry,
+} from "@/services/email/suppression-store";
+export {
+  claimEmailIdempotency,
+  scheduleEmailIdempotencyKey,
+  reminderEmailIdempotencyKey,
+  otpEmailIdempotencyKey,
+} from "@/services/email/idempotency-store";
+export {
+  verifyResendWebhookSignature,
+  processResendWebhookEvent,
+} from "@/services/email/resend-webhook";

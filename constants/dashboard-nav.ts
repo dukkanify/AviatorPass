@@ -1,5 +1,6 @@
 /**
  * Role-based sidebar navigation for dashboards.
+ * Keep sidebars lean: one entry per job; deep/duplicate routes stay reachable via redirect or in-page links.
  */
 
 import type { Role } from "@/constants/roles";
@@ -77,23 +78,11 @@ export const SUPER_ADMIN_NAV: DashboardNavItem[] = [
   { label: "Payments", href: "/super-admin/payments", icon: "payments" },
   { label: "Instructor Wallets", href: "/super-admin/wallets", icon: "wallets" },
   { label: "Analytics", href: "/super-admin/analytics", icon: "analytics" },
-  { label: "AI Assistant", href: "/super-admin/ai", icon: "ai" },
-  { label: "Reports", href: "/super-admin/reports", icon: "reports" },
-  {
-    label: "Performance reports",
-    href: "/super-admin/performance-reports",
-    icon: "reports",
-  },
-  { label: "Automation Center", href: "/super-admin/automation", icon: "settings" },
   { label: "Email automation", href: "/super-admin/email", icon: "megaphone" },
   { label: "Platform Settings", href: "/super-admin/settings", icon: "settings" },
   { label: "Asset Manager", href: "/super-admin/assets", icon: "assets" },
-  { label: "Media Library", href: "/super-admin/media-library", icon: "media" },
-  { label: "Phase 2 Roadmap", href: "/super-admin/phase2", icon: "phase2" },
-  { label: "Monitoring", href: "/super-admin/monitoring", icon: "monitoring" },
   { label: "Ops Center", href: "/super-admin/ops-center", icon: "ops" },
   { label: "API Platform", href: "/super-admin/api-platform", icon: "api" },
-  { label: "Ops / Backups", href: "/super-admin/system-logs", icon: "logs" },
   { label: "Activity Logs", href: "/super-admin/activity-logs", icon: "activity" },
   { label: "Notifications", href: "/super-admin/notifications", icon: "notifications" },
   { label: "Profile", href: "/super-admin/profile", icon: "profile" },
@@ -120,8 +109,6 @@ export const ADMIN_NAV: DashboardNavItem[] = [
   { label: "Payments", href: "/admin/payments", icon: "payments" },
   { label: "Wallets", href: "/admin/wallets", icon: "wallets" },
   { label: "Analytics", href: "/admin/analytics", icon: "analytics" },
-  { label: "AI Assistant", href: "/admin/ai", icon: "ai" },
-  { label: "Reports", href: "/admin/reports", icon: "reports" },
   { label: "Notifications", href: "/admin/notifications", icon: "notifications" },
   { label: "Profile", href: "/admin/profile", icon: "profile" },
   { label: "Settings", href: "/admin/settings", icon: "settings" },
@@ -129,27 +116,13 @@ export const ADMIN_NAV: DashboardNavItem[] = [
 
 export const INSTRUCTOR_NAV: DashboardNavItem[] = [
   { label: "Dashboard", href: "/instructor/dashboard", icon: "dashboard" },
-  { label: "My Courses", href: "/instructor/courses", icon: "courses" },
-  { label: "Students", href: "/instructor/students", icon: "students" },
-  { label: "Certificates", href: "/instructor/certificates", icon: "certificates" },
-  { label: "Calendar", href: "/instructor/calendar", icon: "calendar" },
-  { label: "Schedule", href: "/instructor/schedule", icon: "classes" },
-  { label: "Bookings", href: "/instructor/bookings", icon: "bookings" },
-  { label: "Mock exams", href: "/instructor/mock-exams", icon: "quizzes" },
   { label: "Live Classes", href: "/instructor/classes", icon: "classes" },
-  {
-    label: "Performance reports",
-    href: "/instructor/performance-reports",
-    icon: "reports",
-  },
-  { label: "Messages", href: "/instructor/messages", icon: "messages" },
-  { label: "Community", href: "/instructor/community", icon: "communities" },
-  { label: "Announcements", href: "/instructor/announcements", icon: "megaphone" },
-  { label: "Support", href: "/instructor/support", icon: "support" },
-  { label: "Wallet", href: "/instructor/wallet", icon: "wallet" },
+  { label: "Schedule", href: "/instructor/schedule", icon: "classes" },
+  { label: "Students", href: "/instructor/students", icon: "students" },
+  { label: "Mock exams", href: "/instructor/mock-exams", icon: "quizzes" },
+  { label: "Certificates", href: "/instructor/certificates", icon: "certificates" },
   { label: "Analytics", href: "/instructor/analytics", icon: "analytics" },
-  { label: "AI Assistant", href: "/instructor/ai", icon: "ai" },
-  { label: "Reports", href: "/instructor/reports", icon: "reports" },
+  { label: "Messages", href: "/instructor/messages", icon: "messages" },
   { label: "Notifications", href: "/instructor/notifications", icon: "notifications" },
   { label: "Profile", href: "/instructor/profile", icon: "profile" },
   { label: "Settings", href: "/instructor/settings", icon: "settings" },
@@ -157,49 +130,40 @@ export const INSTRUCTOR_NAV: DashboardNavItem[] = [
 
 export const CGI_NAV: DashboardNavItem[] = [
   { label: "Dashboard", href: "/cgi/dashboard", icon: "dashboard" },
-  { label: "ATPL Journey", href: "/cgi/atpl", icon: "courses" },
-  { label: "Subjects", href: "/cgi/subjects", icon: "lessons" },
-  { label: "Lectures", href: "/cgi/lectures", icon: "calendar" },
   { label: "Assignment Engine", href: "/cgi/assignment", icon: "instructors" },
-  { label: "Instructors", href: "/cgi/instructors", icon: "instructors" },
-  { label: "Students", href: "/cgi/students", icon: "students" },
   { label: "Schedule", href: "/cgi/schedule", icon: "classes" },
+  { label: "Analytics", href: "/cgi/analytics", icon: "analytics" },
   { label: "Messages", href: "/cgi/messages", icon: "messages" },
   { label: "Notifications", href: "/cgi/notifications", icon: "notifications" },
   { label: "Profile", href: "/cgi/profile", icon: "profile" },
   { label: "Settings", href: "/cgi/settings", icon: "settings" },
 ];
 
+/**
+ * Full student route catalog (lookup + deep links).
+ * The package student sidebar uses STUDENT_LEARNING_NAV_GROUPS, not this list.
+ */
 export const STUDENT_NAV: DashboardNavItem[] = [
   { label: "Dashboard", href: "/student/dashboard", icon: "dashboard" },
   { label: "My Courses", href: "/student/courses", icon: "courses" },
   { label: "Resources", href: "/student/resources", icon: "resources" },
-  { label: "Notes", href: "/student/notes", icon: "notes" },
-  { label: "Favorites", href: "/student/favorites", icon: "favorites" },
   { label: "Planner", href: "/student/planner", icon: "planner" },
   { label: "Calendar", href: "/student/calendar", icon: "calendar" },
   { label: "Schedule", href: "/student/schedule", icon: "classes" },
   { label: "Book a session", href: "/student/bookings", icon: "bookings" },
   { label: "Mock exams", href: "/student/mock-exams", icon: "quizzes" },
-  { label: "History", href: "/student/history", icon: "history" },
-  { label: "Search", href: "/student/search", icon: "search" },
-  { label: "Progress", href: "/student/progress", icon: "activity" },
   {
     label: "Performance reports",
     href: "/student/performance-reports",
     icon: "reports",
   },
-  { label: "Analytics", href: "/student/analytics", icon: "analytics" },
   { label: "AI Assistant", href: "/student/ai", icon: "ai" },
   { label: "Certificates", href: "/student/certificates", icon: "certificates" },
-  { label: "Transcript", href: "/student/transcript", icon: "reports" },
   { label: "Messages", href: "/student/messages", icon: "messages" },
   { label: "Community", href: "/student/community", icon: "communities" },
-  { label: "Announcements", href: "/student/announcements", icon: "megaphone" },
   { label: "Support", href: "/student/support", icon: "support" },
   { label: "Course checkout", href: "/student/checkout", icon: "payments" },
   { label: "Billing & invoices", href: "/student/billing", icon: "wallet" },
-  { label: "Search messages", href: "/student/comm-search", icon: "search" },
   { label: "Notifications", href: "/student/notifications", icon: "notifications" },
   { label: "Profile", href: "/student/profile", icon: "profile" },
   { label: "Settings", href: "/student/settings", icon: "settings" },
@@ -212,3 +176,38 @@ export const DASHBOARD_NAV: Record<Role, DashboardNavItem[]> = {
   instructor: INSTRUCTOR_NAV,
   student: STUDENT_NAV,
 };
+
+/** Sidebar entries intentionally removed (routes kept via redirect or deep link). */
+export const NAV_SLIM_REMOVED_HREFS = {
+  super_admin: [
+    "/super-admin/ai",
+    "/super-admin/reports",
+    "/super-admin/performance-reports",
+    "/super-admin/automation",
+    "/super-admin/media-library",
+    "/super-admin/phase2",
+    "/super-admin/monitoring",
+    "/super-admin/system-logs",
+  ],
+  admin: ["/admin/ai", "/admin/reports", "/admin/performance-reports"],
+  instructor: ["/instructor/reports", "/instructor/performance-reports"],
+  cgi: [
+    "/cgi/reports",
+    "/cgi/atpl",
+    "/cgi/subjects",
+    "/cgi/lectures",
+    "/cgi/instructors",
+    "/cgi/students",
+  ],
+  student: [
+    "/student/notes",
+    "/student/favorites",
+    "/student/history",
+    "/student/search",
+    "/student/progress",
+    "/student/analytics",
+    "/student/transcript",
+    "/student/announcements",
+    "/student/comm-search",
+  ],
+} as const;

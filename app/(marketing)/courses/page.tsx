@@ -24,10 +24,6 @@ export default function CoursesCatalogPage() {
         <div className="container-app">
           <p className="atpl-kicker">Catalog</p>
           <h1 className="atpl-heading-light mt-4 max-w-[16ch]">Courses by category</h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">
-            Categories, order, live or recorded badges, and featured courses are managed from Super
-            Admin and appear here automatically.
-          </p>
         </div>
       </section>
       <section className="atpl-section atpl-section-light">

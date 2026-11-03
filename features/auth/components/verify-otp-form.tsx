@@ -51,6 +51,7 @@ function VerifyOtpForm() {
   const [successFlash, setSuccessFlash] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const purpose = (searchParams.get("purpose") ?? "login") as OtpPurpose;
+  const returnTo = searchParams.get("next");
   const emailFailed = searchParams.get("emailFailed") === "1";
   const isRegistration = purpose === "register";
   const [deliveryFailed, setDeliveryFailed] = React.useState(emailFailed);
@@ -111,6 +112,7 @@ function VerifyOtpForm() {
           ...parsed.data,
           deviceFingerprint,
           deviceLabel,
+          returnTo,
         }),
       });
 
@@ -296,7 +298,7 @@ function VerifyOtpForm() {
           <>
             <p className="text-xs text-muted-foreground">
               {codeIssued
-                ? "Enter the 6-digit code sent to your email. Codes are single-use."
+                ? "Enter the 6-digit code sent to your email, or paste it from the message. Codes are single-use."
                 : "Request a verification code first. If email does not arrive, sign in with your password instead."}
               {purpose === "register"
                 ? " Check spam if it is not in your inbox. The message may come from Aviator Pass or our mail provider."

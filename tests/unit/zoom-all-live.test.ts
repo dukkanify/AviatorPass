@@ -60,8 +60,9 @@ describe("live Zoom everywhere", () => {
     const classId = "cls_upgrade_live";
     const now = new Date().toISOString();
     writeClassesDb((db) => {
-      db.classes = db.classes.filter((item) => item.id !== classId);
-      db.zoomMeetings = db.zoomMeetings.filter((item) => item.liveClassId !== classId);
+      // Isolate from demo/seed classes left by earlier suites (shared host busy check).
+      db.classes = [];
+      db.zoomMeetings = [];
       db.classes.push({
         id: classId,
         title: "Upgrade mock class",
@@ -116,6 +117,14 @@ describe("live Zoom everywhere", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (url.includes("/users?") || url.endsWith("/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [{ id: "zoom-host", email: "ceo@aviatorpass.com", type: 2 }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       if (url.includes("/meetings")) {
         return new Response(
           JSON.stringify({
@@ -133,11 +142,14 @@ describe("live Zoom everywhere", () => {
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
 
-    const meeting = await ensureLiveMeetingForClass(classId, "actor_live");
-    expect(meeting?.providerMode).toBe("zoom");
-    expect(meeting?.zoomMeetingId).toBe("86524929538");
-    expect(meeting?.startUrl).toContain("zak=live-zak");
-    expect(isPlaceholderZoomMeeting(meeting)).toBe(false);
+    // Centralized S2S hosting: mock placeholders upgrade onto the platform host
+    // without requiring personal instructor OAuth.
+    const live = await ensureLiveMeetingForClass(classId, "actor_live");
+    expect(live?.providerMode).toBe("zoom");
+    expect(live?.zoomMeetingId).toBe("86524929538");
+    expect(live?.hostEmail).toBe("ceo@aviatorpass.com");
+    expect(live?.oauthUserId).toBeNull();
+    expect(isPlaceholderZoomMeeting(live)).toBe(false);
 
     writeClassesDb((db) => {
       db.classes = db.classes.filter((item) => item.id !== classId);

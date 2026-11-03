@@ -63,8 +63,10 @@ function ClassFormDialog({
   const [maxStudents, setMaxStudents] = React.useState("30");
   const [meetingType, setMeetingType] = React.useState("meeting");
   const [timezone, setTimezone] = React.useState("Asia/Kuwait");
-  const [waitingRoom, setWaitingRoom] = React.useState(true);
+  const [waitingRoom, setWaitingRoom] = React.useState(false);
   const [frequency, setFrequency] = React.useState("once");
+  const [zoomReady, setZoomReady] = React.useState<boolean | null>(null);
+  const [zoomHint, setZoomHint] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -81,14 +83,86 @@ function ClassFormDialog({
     setMaxStudents("30");
     setMeetingType("meeting");
     setTimezone("Asia/Kuwait");
-    setWaitingRoom(true);
+    setWaitingRoom(false);
     setFrequency("once");
+    setZoomReady(null);
+    setZoomHint(null);
   }, [open, defaultInstructorId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const sharedHint =
+      "Platform Zoom hosting is unavailable and this connection uses the shared platform Zoom account. Ask an admin to enable Server-to-Server Zoom, or reconnect a personal Zoom account.";
+    const missingHint =
+      "Platform Zoom hosting is unavailable. Ask an admin to configure Server-to-Server Zoom, or connect a personal Zoom account.";
+
+    async function checkZoom() {
+      if (lockInstructor) {
+        const res = await fetch("/api/integrations/zoom/status", { cache: "no-store" });
+        const json = (await res.json()) as {
+          success?: boolean;
+          data?: {
+            connected?: boolean;
+            needsReconnect?: boolean;
+            personalZoomReady?: boolean;
+            sharedPlatformAccount?: boolean;
+            platformHostingReady?: boolean;
+          };
+        };
+        if (cancelled) return;
+        const personalReady = Boolean(json.data?.personalZoomReady);
+        const platformReady = Boolean(json.data?.platformHostingReady);
+        const canHost = personalReady || platformReady;
+        setZoomReady(canHost);
+        setZoomHint(canHost ? null : json.data?.sharedPlatformAccount ? sharedHint : missingHint);
+        return;
+      }
+      if (instructorId === "none") {
+        setZoomReady(null);
+        setZoomHint(null);
+        return;
+      }
+      const res = await fetch("/api/admin/instructors/zoom", { cache: "no-store" });
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: {
+          platformHostingReady?: boolean;
+          instructors?: Array<{
+            userId: string;
+            connected: boolean;
+            personalZoomReady?: boolean;
+            sharedPlatformAccount?: boolean;
+          }>;
+        };
+      };
+      if (cancelled) return;
+      if (!res.ok || !json.success) {
+        setZoomReady(null);
+        setZoomHint(null);
+        return;
+      }
+      const row = json.data?.instructors?.find((item) => item.userId === instructorId);
+      const personalReady = Boolean(row?.personalZoomReady);
+      const platformReady = Boolean(json.data?.platformHostingReady);
+      const canHost = personalReady || platformReady;
+      setZoomReady(canHost);
+      setZoomHint(canHost ? null : row?.sharedPlatformAccount ? sharedHint : missingHint);
+    }
+    void checkZoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, instructorId, lockInstructor]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (instructorId === "none") {
       toast.error("Select an instructor");
+      return;
+    }
+    if (zoomReady === false) {
+      toast.error(zoomHint ?? "Please connect your Zoom account before creating a live class.");
       return;
     }
     setSaving(true);
@@ -124,8 +198,10 @@ function ClassFormDialog({
         ? (result.data as { zoomError?: string | null }).zoomError
         : null;
     if (zoomError) {
-      toast.warning(
-        "Class saved. Zoom is not connected yet — connect the instructor Zoom account.",
+      toast.error(
+        zoomError.includes("connect")
+          ? zoomError
+          : "Please connect your Zoom account before creating a live class.",
       );
     } else {
       toast.success("Live class scheduled");
@@ -140,11 +216,16 @@ function ClassFormDialog({
         <DialogHeader>
           <DialogTitle>Schedule live class</DialogTitle>
           <DialogDescription>
-            Saves the class now. A live Zoom meeting is created when the instructor has connected
-            Zoom, or when Server-to-Server credentials are set.
+            Live meetings are created on the assigned instructor&apos;s personal Zoom account (not
+            the shared platform host).
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
+          {zoomHint ? (
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+              {zoomHint}
+            </p>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="class-title">Title</Label>
             <Input
@@ -283,15 +364,20 @@ function ClassFormDialog({
               </Select>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-              <Label htmlFor="wr">Waiting room</Label>
-              <Switch id="wr" checked={waitingRoom} onCheckedChange={setWaitingRoom} />
+              <div>
+                <Label htmlFor="wr">Waiting room</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allowed accounts enter the classroom directly.
+                </p>
+              </div>
+              <Switch id="wr" checked={waitingRoom} disabled />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={saving} disabled={zoomReady === false}>
               Create session
             </Button>
           </DialogFooter>

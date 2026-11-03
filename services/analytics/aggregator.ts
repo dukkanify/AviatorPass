@@ -32,8 +32,8 @@ import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listOrders } from "@/services/payments/checkout-service";
 import { listWallets } from "@/services/payments/wallet-service";
 import { formatMinor } from "@/services/payments/money";
-import { ensureQuizzesSeeded } from "@/services/quizzes/seed";
-import { getPlatformAssessmentOverview } from "@/services/quizzes/analytics-service";
+import { listActiveStudents } from "@/services/certificates/progress-service";
+import { getStudentAssessmentStats } from "@/services/mock-exams/assessment-scores";
 import { getActivityMonitoring } from "@/services/settings/monitoring";
 import { getPlatformSettings } from "@/services/settings/settings-service";
 import type {
@@ -59,11 +59,6 @@ function ensureAllSeeded() {
   ensureCertificatesSeeded();
   ensureCommunicationSeeded();
   ensurePaymentsSeeded();
-  try {
-    ensureQuizzesSeeded();
-  } catch {
-    /* quizzes seed optional if signature differs */
-  }
 }
 
 function inRange(iso: string | null | undefined, filters?: AnalyticsFilters): boolean {
@@ -204,13 +199,6 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
   const enrollmentCounts = countEnrollmentsByCourse();
   const enrollmentTotal = countEnrollments();
   const enrollmentsByCourse = new Map(enrollmentCounts.map((row) => [row.courseId, row.count]));
-  const quizDb = (() => {
-    try {
-      return getPlatformAssessmentOverview();
-    } catch {
-      return { totalAttempts: 0 };
-    }
-  })();
   const classStats = getClassStats();
   const progress = learning.progress ?? [];
   const completedLessons = progress.filter((p) => p.completed).length;
@@ -231,9 +219,12 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
             ),
         );
 
-  // Approximate average quiz score from certificate admin bundle
-  const admin = getAdminReport();
-  const avgQuiz = admin.quizPassRate ?? 0;
+  const assessmentRows = listActiveStudents().map((s) => getStudentAssessmentStats(s.id));
+  const scoredRows = assessmentRows.filter((r) => r.attemptCount > 0);
+  const avgQuiz =
+    scoredRows.length === 0
+      ? 0
+      : Math.round(scoredRows.reduce((sum, r) => sum + r.averageScore, 0) / scoredRows.length);
 
   const courseRows = courses.map((c) => {
     const enrolledCount = enrollmentsByCourse.get(c.id) ?? 0;
@@ -251,13 +242,12 @@ export function buildLearningAnalytics(filters?: AnalyticsFilters): LearningAnal
     };
   });
 
-  void quizDb;
   return {
     kpis: [
       kpi("enrollments", "Course Enrollments", enrollmentTotal),
       kpi("completion", "Completion Rate", avgProgress, { format: "percent", unit: "%" }),
       kpi("avg_time", "Avg Learning Time (h)", Math.round((studySeconds / 3600) * 10) / 10),
-      kpi("avg_quiz", "Average Quiz Score", Math.round(avgQuiz), {
+      kpi("avg_quiz", "Average Exam Score", Math.round(avgQuiz), {
         format: "percent",
         unit: "%",
       }),
@@ -335,7 +325,7 @@ export function buildInstructorAnalytics(
         format: "percent",
         unit: "%",
       }),
-      kpi("quiz", "Avg Quiz Score", Math.round(report.quizAverage), {
+      kpi("quiz", "Avg Exam Score", Math.round(report.quizAverage), {
         format: "percent",
         unit: "%",
       }),
@@ -400,7 +390,7 @@ export function buildStudentAnalytics(student: UserProfile): StudentAnalytics {
         format: "percent",
         unit: "%",
       }),
-      kpi("quiz", "Quiz Scores", Math.round(snapshot.averageQuizScore), {
+      kpi("quiz", "Exam Scores", Math.round(snapshot.averageQuizScore), {
         format: "percent",
         unit: "%",
       }),

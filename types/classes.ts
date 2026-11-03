@@ -14,7 +14,7 @@ export type AttendanceStatus = "present" | "late" | "absent" | "excused" | "unkn
 export type ReminderChannel = "email" | "in_app";
 
 export type ReminderKind =
-  "24h" | "2h" | "15m" | "live_now" | "finished" | "cancelled" | "rescheduled" | "recording";
+  "24h" | "1h" | "2h" | "15m" | "live_now" | "finished" | "cancelled" | "rescheduled" | "recording";
 
 export interface ZoomMeetingRecord {
   id: string;

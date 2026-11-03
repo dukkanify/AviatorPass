@@ -355,6 +355,7 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
           <ContentProtectionShell protection={protection}>
             {liveClassroom && classroom?.join ? (
               <InAppZoomRoom
+                liveClassId={liveClassroom.id}
                 joinUrl={classroom.join.joinUrl}
                 startUrl={classroom.join.startUrl}
                 meetingNumber={classroom.join.zoomMeetingId}

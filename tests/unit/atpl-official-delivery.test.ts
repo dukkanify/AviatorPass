@@ -11,6 +11,7 @@ import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
 import { readAuthDb, toUserProfile } from "@/services/auth/store";
 import { notifyAtplInstructorAssigned } from "@/services/cgi/assignment-email";
 import { getStudentAtplPackageSchedule } from "@/services/cgi/journey-service";
+import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import {
   officialAtplEurInstallmentAmounts,
   officialAtplEurTotalMinor,
@@ -166,15 +167,81 @@ describe("official ATPL delivery", () => {
       (u) => u.role === ROLES.INSTRUCTOR && u.status === "active",
     );
     expect(instructor).toBeTruthy();
+    const previousLectures = readCgiDb()
+      .lectureAssignments.filter((row) => row.studentId === user.id)
+      .map((row) => ({ ...row }));
+    const previousSubjects = readCgiDb()
+      .subjectAssignments.filter((row) => row.studentId === user.id)
+      .map((row) => ({ ...row }));
+    writeCgiDb((db) => {
+      db.lectureAssignments = db.lectureAssignments.filter((row) => row.studentId !== user.id);
+      for (const row of db.subjectAssignments) {
+        if (row.studentId !== user.id) continue;
+        row.assignedInstructorId = null;
+        if (row.status !== "completed") row.status = "locked";
+      }
+    });
+    try {
+      const order = await createCheckoutOrder({
+        user,
+        productId: atplProduct().id,
+        billingName: user.fullName || user.email,
+        billingEmail: user.email,
+        billingCountry: "AE",
+        idempotencyKey: `pending-assign-${Date.now()}`,
+      });
+      const paid = await payOrder({
+        user,
+        orderId: order.id,
+        methodBrand: "visa",
+        paymentToken: "tok_ok",
+        paymentMode: "full",
+        agreementAccepted: true,
+      });
+      expect(paid.order.status).toBe("paid");
+      expect(paid.order.metadata.instructorAssignmentStatus).toBe("pending");
+      const before = getStudentAtplPackageSchedule(user.id, user.email);
+      expect(before.instructorAssignmentStatus).toBe("pending");
+      expect(before.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
+
+      await notifyAtplInstructorAssigned({
+        instructorId: instructor!.id,
+        studentId: user.id,
+        lessonTitle: "Instrumentation",
+        actorId: instructor!.id,
+      });
+      const after = getStudentAtplPackageSchedule(user.id, user.email);
+      expect(after.instructorAssignmentStatus).toBe("assigned");
+      expect(after.instructorAssignmentLabel).toMatch(/has been assigned to you/);
+    } finally {
+      writeCgiDb((db) => {
+        db.lectureAssignments = [
+          ...db.lectureAssignments.filter((row) => row.studentId !== user.id),
+          ...previousLectures,
+        ];
+        db.subjectAssignments = [
+          ...db.subjectAssignments.filter((row) => row.studentId !== user.id),
+          ...previousSubjects,
+        ];
+      });
+    }
+  });
+
+  it("treats a booked first lecture as assigned even when the order flag is still pending", async () => {
+    const user = studentUser();
+    const instructor = readAuthDb().users.find(
+      (u) => u.role === ROLES.INSTRUCTOR && u.status === "active",
+    );
+    expect(instructor).toBeTruthy();
     const order = await createCheckoutOrder({
       user,
       productId: atplProduct().id,
       billingName: user.fullName || user.email,
       billingEmail: user.email,
       billingCountry: "AE",
-      idempotencyKey: `pending-assign-${Date.now()}`,
+      idempotencyKey: `lecture-assigned-${Date.now()}`,
     });
-    const paid = await payOrder({
+    await payOrder({
       user,
       orderId: order.id,
       methodBrand: "visa",
@@ -182,20 +249,27 @@ describe("official ATPL delivery", () => {
       paymentMode: "full",
       agreementAccepted: true,
     });
-    expect(paid.order.status).toBe("paid");
-    expect(paid.order.metadata.instructorAssignmentStatus).toBe("pending");
-    const before = getStudentAtplPackageSchedule(user.id, user.email);
-    expect(before.instructorAssignmentStatus).toBe("pending");
-    expect(before.instructorAssignmentLabel).toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
-
-    await notifyAtplInstructorAssigned({
-      instructorId: instructor!.id,
-      studentId: user.id,
-      lessonTitle: "Instrumentation",
-      actorId: instructor!.id,
+    const stamp = new Date().toISOString();
+    writeCgiDb((db) => {
+      db.lectureAssignments.unshift({
+        id: generateId(),
+        courseId: "atpl-022",
+        lessonId: "atpl-first-lecture",
+        lessonTitle: "Instrumentation",
+        instructorId: instructor!.id,
+        studentId: user.id,
+        status: "scheduled",
+        scheduledAt: stamp,
+        liveClassId: null,
+        notes: null,
+        assignedById: instructor!.id,
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
     });
-    const after = getStudentAtplPackageSchedule(user.id, user.email);
-    expect(after.instructorAssignmentStatus).toBe("assigned");
-    expect(after.instructorAssignmentLabel).toMatch(/has been assigned to you/);
+    const schedule = getStudentAtplPackageSchedule(user.id, user.email);
+    expect(schedule.instructorAssignmentStatus).toBe("assigned");
+    expect(schedule.instructorAssignmentLabel).not.toBe(ATPL_PENDING_INSTRUCTOR_ASSIGNMENT);
+    expect(schedule.instructorAssignmentLabel).toMatch(/has been assigned to you/);
   }, 90_000);
 });

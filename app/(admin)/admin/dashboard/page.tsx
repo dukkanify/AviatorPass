@@ -29,6 +29,11 @@ export default async function AdminDashboardPage() {
     ...base,
     label: "getAdminDashboardPayload",
     fallback: {
+      journey: {
+        pendingInstructor: 0,
+        schedulingRequired: 0,
+        confirmedLectures: 0,
+      },
       overview: {
         students: 0,
         instructors: 0,
@@ -48,6 +53,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardView
+      journey={payload.journey}
       overview={payload.overview}
       growth={payload.growth}
       enrollments={payload.enrollments}

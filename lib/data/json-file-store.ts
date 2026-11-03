@@ -25,6 +25,7 @@ const parsedMemory = new Map<string, unknown>();
 const cacheUpdatedAt = new Map<string, string>();
 
 const hydratedKeys = new Set<string>();
+const stampCheckedAt = new Map<string, number>();
 let tableReady = false;
 
 export function dataDir(): string {
@@ -90,9 +91,10 @@ export function getJsonStoreStatus(): {
 }
 
 const CHUNK_CHARS = 12_000;
-// Keep this small. Neon HTTP /sql truncates ~150KB payloads; paging 24 chunks
-// broke production hydrate for aep-email-outbox.json and aep-classes.json.
-const CHUNK_READ_PAGE = 4;
+// Keep this under Neon's ~150KB HTTP response cap. Eight 12KB chunks stay
+// near 96KB, so a large store needs fewer round trips than a page of four.
+const CHUNK_READ_PAGE = 8;
+const STAMP_FRESH_MS = 3_000;
 
 function ensureTable(): void {
   if (tableReady) return;
@@ -190,12 +192,17 @@ function postgresUpdatedAt(key: string): string | null {
 function rememberCacheStamp(key: string, stamp: string | null) {
   hydratedKeys.add(key);
   cacheUpdatedAt.set(key, stamp ?? "");
+  stampCheckedAt.set(key, Date.now());
 }
 
 function hydrateKeyFromPostgres(filePath: string): void {
   if (!postgresStoreEnabled()) return;
   const key = storeKeyFromPath(filePath);
   ensureTable();
+
+  if (hydratedKeys.has(key) && Date.now() - (stampCheckedAt.get(key) ?? 0) < STAMP_FRESH_MS) {
+    return;
+  }
 
   let stamp: string | null = null;
   try {
@@ -206,6 +213,7 @@ function hydrateKeyFromPostgres(filePath: string): void {
   }
 
   if (hydratedKeys.has(key) && cacheUpdatedAt.get(key) === (stamp ?? "")) {
+    stampCheckedAt.set(key, Date.now());
     return;
   }
 
@@ -378,6 +386,7 @@ export function clearJsonFileCache(filePath?: string): void {
     parsedMemory.clear();
     cacheUpdatedAt.clear();
     hydratedKeys.clear();
+    stampCheckedAt.clear();
     tableReady = false;
     return;
   }
@@ -385,6 +394,7 @@ export function clearJsonFileCache(filePath?: string): void {
   parsedMemory.delete(filePath);
   cacheUpdatedAt.delete(storeKeyFromPath(filePath));
   hydratedKeys.delete(storeKeyFromPath(filePath));
+  stampCheckedAt.delete(storeKeyFromPath(filePath));
 }
 
 /** Test helper — force the next read to reload from Postgres. */

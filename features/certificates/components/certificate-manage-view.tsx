@@ -78,11 +78,11 @@ function CertificateManageView({
               <Link
                 href={
                   roleLabel.includes("Instructor")
-                    ? "/instructor/reports"
-                    : `${basePath.replace("/certificates", "/reports")}`
+                    ? "/instructor/analytics"
+                    : `${basePath.replace("/certificates", "/analytics")}`
                 }
               >
-                Reports
+                Analytics
               </Link>
             </Button>
           </div>

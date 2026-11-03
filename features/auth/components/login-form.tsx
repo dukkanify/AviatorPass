@@ -15,6 +15,7 @@ import { loginSchema } from "@/utils/validation";
 import { sanitizeEmail } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
 import { routes } from "@/constants/routes";
+import { roleMayFollowReturnPath, sanitizeReturnPath } from "@/lib/security/safe-return-path";
 import { useAuth } from "@/providers/auth-provider";
 import type { UserProfile } from "@/types";
 
@@ -24,6 +25,7 @@ function LoginForm() {
   const router = useRouter();
   const { user, isLoading, signOut, setUser } = useAuth();
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("next");
   const [email, setEmail] = React.useState(searchParams.get("email") ?? "");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -35,9 +37,18 @@ function LoginForm() {
   React.useEffect(() => {
     if (loginNavigationLocked || completingRef.current || pending) return;
     if (isLoading || !user) return;
+    // Preserve an active session when Login was opened with a safe return path
+    // (e.g. /login?next=/join/{classId}). Only clear the session for explicit
+    // account switching on bare /login.
+    const safe = sanitizeReturnPath(returnTo);
+    if (safe && roleMayFollowReturnPath(user.role, safe)) {
+      completingRef.current = true;
+      router.replace(safe);
+      return;
+    }
     setClearedPriorSession(true);
     void signOut();
-  }, [isLoading, user, signOut, pending]);
+  }, [isLoading, user, signOut, pending, returnTo, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +79,7 @@ function LoginForm() {
             email: parsed.data.email,
             password,
             rememberMe: parsed.data.rememberMe,
+            returnTo,
           }),
         });
         if (!result.success || !result.data) {
@@ -109,6 +121,7 @@ function LoginForm() {
         email: result.data?.email ?? parsed.data.email,
         purpose: "login",
       });
+      if (returnTo) params.set("next", returnTo);
       router.push(`${routes.verifyOtp}?${params.toString()}`);
     } finally {
       setPending(false);

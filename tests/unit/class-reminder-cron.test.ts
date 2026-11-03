@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ROLES } from "@/constants/roles";
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { readAuthDb } from "@/services/auth/store";
+import { readAuthDb, writeAuthDb } from "@/services/auth/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
 import { processEmailQueue } from "@/services/email/queue";
 import { listReminders } from "@/services/classes/reminder-service";
+import { resetEmailSuppressionStoreForTests } from "@/services/email/suppression-store";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -36,7 +37,14 @@ describe("email cron processes class reminders", () => {
   });
 
   it("sends due class reminder rows when the email cron runs", async () => {
+    resetEmailSuppressionStoreForTests();
     const user = student();
+    const originalEmail = user.email;
+    // Demo catalog inboxes are suppressed; use a deliverable QA address for the cron path.
+    writeAuthDb((db) => {
+      const row = db.users.find((u) => u.id === user.id);
+      if (row) row.email = "qa.cron.reminder@example.com";
+    });
     const now = new Date();
     const startsAt = new Date(now.getTime() + 10 * 60_000).toISOString();
     const classId = "cls_reminder_cron";
@@ -72,7 +80,7 @@ describe("email cron processes class reminders", () => {
         id: "rem_due_email",
         liveClassId: classId,
         userId: user.id,
-        kind: "15m",
+        kind: "1h",
         channel: "email",
         scheduledFor: new Date(now.getTime() - 60_000).toISOString(),
         sentAt: null,
@@ -87,5 +95,9 @@ describe("email cron processes class reminders", () => {
     expect(listReminders({ liveClassId: classId }).every((row) => row.status !== "pending")).toBe(
       true,
     );
+    writeAuthDb((db) => {
+      const row = db.users.find((u) => u.id === user.id);
+      if (row) row.email = originalEmail;
+    });
   });
 });

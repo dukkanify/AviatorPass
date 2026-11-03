@@ -16,7 +16,8 @@ import {
   getScheduleTimeline,
   getSessionStatus,
   listScheduleSessions,
-  sessionFromAtplPackageSchedule,
+  listStudentJoinableSessions,
+  restrictStudentOverviewToInvitedClasses,
   listSessionAttendance,
   markSessionAttendance,
   queueAudienceReminders,
@@ -51,15 +52,17 @@ export async function GET(request: Request) {
 
     if (user.role === ROLES.STUDENT) {
       const snapshot = await ensureConfirmedFirstLectureOnTimetable(user.id, user.email);
-      const overview = getPaidStudentScheduleOverview(snapshot);
-      const session = sessionFromAtplPackageSchedule(snapshot);
+      const overview = restrictStudentOverviewToInvitedClasses(
+        getPaidStudentScheduleOverview(snapshot),
+        user.id,
+      );
       if (view === "overview") {
         return NextResponse.json({ success: true, data: overview, error: null });
       }
       if (view === "sessions") {
         return NextResponse.json({
           success: true,
-          data: session ? [session] : [],
+          data: listStudentJoinableSessions(user.id),
           error: null,
         });
       }

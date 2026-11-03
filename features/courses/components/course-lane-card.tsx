@@ -136,6 +136,7 @@ function InstructorCourseGrid({
   showInstructorOnCard = true,
   descriptionLines = 3,
   kicker = "Instructor",
+  countLabel = "lane",
 }: {
   group: InstructorCourseGroup;
   groupIndex: number;
@@ -143,6 +144,7 @@ function InstructorCourseGrid({
   showInstructorOnCard?: boolean;
   descriptionLines?: 2 | 3;
   kicker?: string;
+  countLabel?: string;
 }) {
   return (
     <div>
@@ -152,7 +154,8 @@ function InstructorCourseGrid({
           <h3 className="course-instructor-name mt-2 text-foreground">{group.instructorName}</h3>
         </div>
         <p className="course-instructor-count">
-          {group.courses.length} lane{group.courses.length === 1 ? "" : "s"}
+          {group.courses.length} {countLabel}
+          {group.courses.length === 1 ? "" : "s"}
         </p>
       </div>
       <div className="course-lane-grid">

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { authErrorResponse, requireAuth } from "@/services/auth/guards";
-import { fetchZoomHostZak } from "@/services/classes/zoom-service";
-import { getPlatformSettings } from "@/services/settings/settings-service";
+import { classErrorResponse } from "@/app/api/classes/_utils";
+import { requireAuth } from "@/services/auth/guards";
 import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
 import {
   displayMeetingName,
@@ -11,11 +10,21 @@ import {
   generateMeetingSdkSignature,
   resolveInAppMeetingMode,
 } from "@/lib/zoom/meeting-sdk";
+import {
+  assertCallerMayReceiveInAppZoomSession,
+  callerMayJoinAsZoomHost,
+  fetchZoomHostZak,
+  getPublicJoinInfo,
+  releasePriorInstructorHostMeetings,
+  releaseStaleLocalHostMeetings,
+  zoomHostBlockedByAnotherLiveMeeting,
+} from "@/services/classes/zoom-service";
 
 export async function POST(request: Request) {
   try {
     const user = await requireAuth();
     const body = (await request.json().catch(() => ({}))) as {
+      liveClassId?: string;
       meetingNumber?: string;
       joinUrl?: string;
       startUrl?: string | null;
@@ -24,34 +33,119 @@ export async function POST(request: Request) {
       providerMode?: string | null;
     };
 
-    const meetingNumber = extractZoomMeetingNumber(body.joinUrl, body.meetingNumber);
-    const password = extractZoomPassword(body.joinUrl, body.password);
+    const authz = assertCallerMayReceiveInAppZoomSession({
+      userId: user.id,
+      role: user.role,
+      liveClassId: body.liveClassId,
+      meetingNumber: extractZoomMeetingNumber(body.joinUrl, body.meetingNumber),
+    });
+
+    let meetingNumber = extractZoomMeetingNumber(body.joinUrl, body.meetingNumber);
+    let password = extractZoomPassword(body.joinUrl, body.password);
+    let startUrl = body.startUrl ?? null;
+    let providerMode = body.providerMode ?? null;
+
+    if (authz.liveClassId) {
+      const serverJoin = getPublicJoinInfo(authz.liveClassId, authz.isHost);
+      if (serverJoin) {
+        meetingNumber =
+          extractZoomMeetingNumber(serverJoin.joinUrl, serverJoin.zoomMeetingId) || meetingNumber;
+        password = serverJoin.password || password;
+        startUrl = authz.isHost ? serverJoin.startUrl : null;
+        providerMode = serverJoin.providerMode || providerMode;
+      }
+    }
+
     const credentials = getZoomMeetingSdkCredentials();
     const mode = resolveInAppMeetingMode({
-      providerMode: body.providerMode,
+      providerMode,
       meetingNumber,
       hasSdkCredentials: Boolean(credentials),
     });
 
-    let zak: string | null = null;
-    if (body.isHost && mode === "sdk" && meetingNumber) {
-      zak = await fetchZoomHostZak({
+    // Students always join as themselves. Only the assigned instructor (or
+    // academy staff) receives the host token, so several lectures can run at
+    // once and attendees are still allowed to share.
+    const mayHost =
+      authz.isHost &&
+      callerMayJoinAsZoomHost({
+        userId: user.id,
+        role: user.role,
         meetingNumber,
-        instructorUserId: user.id,
-        accountEmail: getPlatformSettings().zoom.accountEmail,
-        startUrl: body.startUrl,
       });
+    let hostBlocked =
+      mayHost && meetingNumber
+        ? await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id)
+        : false;
+    // Before minting host ZAK, free the shared host when this instructor still
+    // holds another AviatorPass meeting (leave-without-ending / navigation).
+    // 1) Stale: past/completed local classes.
+    // 2) Prior: this instructor's other in-window live class (subject switch).
+    // Never ends unknown Zoom live IDs or another instructor's class.
+    let staleEnded: string[] = [];
+    if (mayHost && hostBlocked && meetingNumber) {
+      const stale = await releaseStaleLocalHostMeetings({
+        keepMeetingNumber: meetingNumber,
+        instructorUserId: user.id,
+      });
+      staleEnded = stale.ended;
+      if (stale.ended.length) {
+        hostBlocked = await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id);
+      }
     }
-    // Role 1 starts the meeting and needs the create/update start_url ZAK.
-    // Without one, join as a participant with the General App JWT.
-    const role: 0 | 1 = body.isHost && zak ? 1 : 0;
+    if (mayHost && hostBlocked && meetingNumber) {
+      const prior = await releasePriorInstructorHostMeetings({
+        keepMeetingNumber: meetingNumber,
+        instructorUserId: user.id,
+      });
+      if (prior.ended.length) {
+        staleEnded = [...staleEnded, ...prior.ended];
+        hostBlocked = await zoomHostBlockedByAnotherLiveMeeting(meetingNumber, user.id);
+      }
+    }
+    // Still mint host ZAK when mayHost — withholding it demoted instructors to a
+    // participant JWT while the join page kept isHost=true, which produced Zoom
+    // Fail/3000 (or a stuck Connecting shell) instead of a clear host start.
+    // hostBlocked remains advisory; Meeting SDK reports concurrency honestly.
+    const zak = mayHost
+      ? await fetchZoomHostZak({
+          meetingNumber,
+          startUrl,
+          instructorUserId: user.id,
+          forceRefreshStartUrl: true,
+        })
+      : null;
+    // Host ZAK refresh may recreate the Zoom meeting when start_url ZAK is
+    // expired and GET rotation is unavailable (S2S write without meeting:read).
+    // Re-read join info so JWT mn/password match the live meeting.
+    if (authz.liveClassId && mayHost) {
+      const refreshedJoin = getPublicJoinInfo(authz.liveClassId, true);
+      if (refreshedJoin) {
+        meetingNumber =
+          extractZoomMeetingNumber(refreshedJoin.joinUrl, refreshedJoin.zoomMeetingId) ||
+          meetingNumber;
+        password = refreshedJoin.password || password;
+        startUrl = refreshedJoin.startUrl;
+        providerMode = refreshedJoin.providerMode || providerMode;
+      }
+    }
+    const role: 0 | 1 = zak ? 1 : 0;
     const signature =
       mode === "sdk" && credentials && meetingNumber
         ? generateMeetingSdkSignature({
             clientId: credentials.clientId,
             clientSecret: credentials.clientSecret,
             meetingNumber,
-            role,
+            role: 0,
+          })
+        : null;
+    const hostSignature =
+      signature && zak && credentials && meetingNumber
+        ? generateMeetingSdkSignature({
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
+            meetingNumber,
+            role: 1,
           })
         : null;
 
@@ -64,12 +158,15 @@ export async function POST(request: Request) {
         userName: displayMeetingName(user),
         userEmail: user.email,
         signature,
+        hostSignature,
         zak,
         role,
+        hostBlocked: Boolean(hostBlocked),
+        staleEnded,
       },
       error: null,
     });
   } catch (error) {
-    return authErrorResponse(error);
+    return classErrorResponse(error);
   }
 }

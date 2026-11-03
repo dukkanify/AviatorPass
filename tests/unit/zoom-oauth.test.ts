@@ -16,7 +16,12 @@ import {
 } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
-import { getPublicJoinInfo, getZoomMeetingByClassId } from "@/services/classes/zoom-service";
+import {
+  assertCallerMayReceiveInAppZoomSession,
+  getPublicJoinInfo,
+  getZoomMeetingByClassId,
+} from "@/services/classes/zoom-service";
+import { ClassValidationError } from "@/services/classes/validation";
 import { instructorMeetingPayload } from "@/services/zoom/client";
 import { decryptSecret, encryptSecret, looksEncrypted } from "@/services/zoom/crypto";
 import {
@@ -57,11 +62,14 @@ function resetClasses() {
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "unit-test-auth-secret-value-32chars";
-  process.env.ZOOM_CLIENT_ID = "zoom-client-id";
-  process.env.ZOOM_CLIENT_SECRET = "zoom-client-secret";
+  process.env.ZOOM_CLIENT_ID = "zoom-sdk-client-id";
+  process.env.ZOOM_CLIENT_SECRET = "zoom-sdk-client-secret";
+  process.env.ZOOM_INSTRUCTOR_CLIENT_ID = "zoom-instructor-client-id";
+  process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET = "zoom-instructor-client-secret";
   process.env.ZOOM_REDIRECT_URI = "https://www.aviatorpass.com/api/integrations/zoom/callback";
   process.env.ZOOM_BASE_URL = "https://api.zoom.us/v2";
   process.env.ZOOM_SECRET_TOKEN = "zoom-secret-token";
+  delete process.env.ZOOM_OAUTH_SCOPES;
   resetZoomStoreForTests();
   ensureDemoUsersSeeded();
   resetClasses();
@@ -80,16 +88,90 @@ describe("Zoom token encryption", () => {
     expect(cipher).not.toContain("zoom-access-token-value");
     expect(decryptSecret(cipher)).toBe("zoom-access-token-value");
   });
+
+  it("rejects truncated GCM authentication tags", () => {
+    const cipher = encryptSecret("zoom-access-token-value");
+    const parts = cipher.split(":");
+    // Truncate the auth tag segment to simulate a short-tag forgery attempt.
+    const shortTag = Buffer.from(parts[2]!, "base64url").subarray(0, 8).toString("base64url");
+    const forged = [parts[0], parts[1], shortTag, parts[3]].join(":");
+    expect(() => decryptSecret(forged)).toThrow(/authentication tag length/i);
+  });
 });
 
 describe("Zoom OAuth connect + callback", () => {
-  it("builds an authorize URL with signed state", () => {
+  it("builds an authorize URL with signed state and without scope by default", () => {
+    delete process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES;
     const url = buildZoomAuthorizeUrl({ userId: instructor().id });
     const parsed = new URL(url);
     expect(parsed.origin + parsed.pathname).toBe("https://zoom.us/oauth/authorize");
-    expect(parsed.searchParams.get("client_id")).toBe("zoom-client-id");
+    expect(parsed.searchParams.get("client_id")).toBe("zoom-instructor-client-id");
     expect(parsed.searchParams.get("redirect_uri")).toContain("/api/integrations/zoom/callback");
+    // Zoom Marketplace authorize URLs omit scope — scopes come from the app config.
+    expect(parsed.searchParams.get("scope")).toBeNull();
     expect(parsed.searchParams.get("state")).toBeTruthy();
+    expect([...parsed.searchParams.keys()].sort()).toEqual([
+      "client_id",
+      "redirect_uri",
+      "response_type",
+      "state",
+    ]);
+  });
+
+  it("rejects a callback that arrives without an authorization code or state", async () => {
+    const result = await completeZoomOAuthCallback({ code: null, state: null, error: null });
+    expect(result.redirectTo).toContain("reason=missing_code");
+    expect(result.redirectTo).toContain("cid=zoa_");
+    expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
+  });
+
+  it("rejects an authorization code when Zoom does not return the signed state", async () => {
+    const result = await completeZoomOAuthCallback({
+      code: "auth-code",
+      state: null,
+      error: null,
+    });
+    expect(result.redirectTo).toContain("reason=missing_state");
+    expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
+  });
+
+  it("optionally includes scope when ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES=true", () => {
+    process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES = "true";
+    const url = buildZoomAuthorizeUrl({ userId: instructor().id });
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("scope")).toBe(
+      "user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting",
+    );
+    expect(parsed.searchParams.get("scope")).not.toContain("meeting:read:list_meetings");
+    delete process.env.ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES;
+  });
+
+  it("does not use Meeting SDK credentials for instructor OAuth", async () => {
+    const { getZoomOAuthConfig, isZoomOAuthConfigured } = await import("@/services/zoom/config");
+    delete process.env.ZOOM_INSTRUCTOR_CLIENT_ID;
+    delete process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET;
+    expect(isZoomOAuthConfigured()).toBe(false);
+    expect(getZoomOAuthConfig().clientId).toBe("");
+    process.env.ZOOM_INSTRUCTOR_CLIENT_ID = "zoom-instructor-client-id";
+    process.env.ZOOM_INSTRUCTOR_CLIENT_SECRET = "zoom-instructor-client-secret";
+    expect(isZoomOAuthConfigured()).toBe(true);
+    expect(getZoomOAuthConfig().clientId).toBe("zoom-instructor-client-id");
+    expect(getZoomOAuthConfig().clientId).not.toBe(process.env.ZOOM_CLIENT_ID);
+  });
+
+  it("normalizes production apex callback to www canonical redirect", async () => {
+    const { resolveZoomOAuthRedirectUri, PRODUCTION_ZOOM_OAUTH_REDIRECT_URI } =
+      await import("@/services/zoom/config");
+    const prevApp = process.env.NEXT_PUBLIC_APP_ENV;
+    const prevVercel = process.env.VERCEL_ENV;
+    process.env.NEXT_PUBLIC_APP_ENV = "production";
+    process.env.VERCEL_ENV = "production";
+    expect(
+      resolveZoomOAuthRedirectUri("https://aviatorpass.com/api/integrations/zoom/callback/"),
+    ).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    expect(resolveZoomOAuthRedirectUri("")).toBe(PRODUCTION_ZOOM_OAUTH_REDIRECT_URI);
+    process.env.NEXT_PUBLIC_APP_ENV = prevApp;
+    process.env.VERCEL_ENV = prevVercel;
   });
 
   it("exchanges the code and stores encrypted tokens", async () => {
@@ -139,6 +221,95 @@ describe("Zoom OAuth connect + callback", () => {
     expect(decryptSecret(row.refreshToken)).toBe("refresh-live");
   });
 
+  it("falls back to instructor placeholder when /users/me lacks scopes and JWT has no uid", async () => {
+    const user = instructor();
+    const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));
+    const state = authorize.searchParams.get("state")!;
+
+    globalThis.fetch = vi.fn(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "opaque-access-token",
+            refresh_token: "refresh-live",
+            token_type: "bearer",
+            expires_in: 3600,
+            scope: "meeting:write:meeting",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.endsWith("/users/me")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message:
+              "Invalid access token, does not contain scopes:[user:read:user:admin, user:read:user].",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await completeZoomOAuthCallback({ code: "auth-code", state, error: null });
+    expect(result.redirectTo).toContain("zoom=connected");
+    const status = getInstructorZoomStatus(user.id);
+    // Tokens may persist, but placeholder identity is not meeting-ready Connected.
+    expect(status.connected).toBe(false);
+    expect(status.status).toBe("reconnect_required");
+    expect(status.meetingReady).toBe(false);
+    expect(status.identitySource).toBe("placeholder");
+    expect(status.zoomUserId).toBe(`oauth:${user.id}`);
+  });
+
+  it("falls back to access-token JWT identity when /users/me lacks user:read:user", async () => {
+    const user = instructor();
+    const authorize = new URL(buildZoomAuthorizeUrl({ userId: user.id }));
+    const state = authorize.searchParams.get("state")!;
+    const jwtPayload = Buffer.from(
+      JSON.stringify({ uid: "zuid-jwt-9", email: "from.jwt@example.com", aid: "acct-1" }),
+    ).toString("base64url");
+    const accessToken = `hdr.${jwtPayload}.sig`;
+
+    globalThis.fetch = vi.fn(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: accessToken,
+            refresh_token: "refresh-live",
+            token_type: "bearer",
+            expires_in: 3600,
+            scope: "meeting:write:meeting meeting:read:meeting",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.endsWith("/users/me")) {
+        return new Response(
+          JSON.stringify({
+            code: 4711,
+            message:
+              "Invalid access token, does not contain scopes:[user:read:user:admin, user:read:user].",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const result = await completeZoomOAuthCallback({ code: "auth-code", state, error: null });
+    expect(result.redirectTo).toContain("zoom=connected");
+    const status = getInstructorZoomStatus(user.id);
+    expect(status.connected).toBe(true);
+    expect(status.meetingReady).toBe(true);
+    expect(status.identitySource).toBe("profile");
+    expect(status.zoomUserId).toBe("zuid-jwt-9");
+    expect(status.zoomEmail).toBe("from.jwt@example.com");
+  });
+
   it("records OAuth failure without storing tokens", async () => {
     const result = await completeZoomOAuthCallback({
       code: null,
@@ -146,6 +317,8 @@ describe("Zoom OAuth connect + callback", () => {
       error: "access_denied",
     });
     expect(result.redirectTo).toContain("zoom=error");
+    expect(result.redirectTo).toContain("reason=denied");
+    expect(result.redirectTo).toContain("cid=");
     expect(getInstructorZoomStatus(instructor().id).connected).toBe(false);
   });
 });
@@ -332,6 +505,28 @@ describe("Zoom meeting lifecycle", () => {
       role: ROLES.INSTRUCTOR,
     });
     expect(instructorDetail?.zoom?.startUrl).toContain("zak=secret");
+
+    expect(
+      assertCallerMayReceiveInAppZoomSession({
+        userId: learner.id,
+        role: ROLES.STUDENT,
+        liveClassId: created!.id,
+      }).isHost,
+    ).toBe(false);
+    expect(
+      assertCallerMayReceiveInAppZoomSession({
+        userId: user.id,
+        role: ROLES.INSTRUCTOR,
+        meetingNumber: "987654321",
+      }).isHost,
+    ).toBe(true);
+    expect(() =>
+      assertCallerMayReceiveInAppZoomSession({
+        userId: "not-invited",
+        role: ROLES.STUDENT,
+        meetingNumber: "987654321",
+      }),
+    ).toThrow(ClassValidationError);
   });
 
   it("updates the existing meeting instead of creating a duplicate", async () => {

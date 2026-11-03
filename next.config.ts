@@ -2,22 +2,32 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
+/**
+ * Enforcing CSP tuned for Zoom Meeting SDK Client View + Component View.
+ * Zoom media workers create blob: Workers then importScripts(blob:…) — without
+ * blob: in script-src, video fails with "Reconnecting your video" / black stage
+ * while the Zoom chrome still paints.
+ * @see https://developers.zoom.us/docs/meeting-sdk/web/browser-support/
+ */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://source.zoom.us https://*.zoom.us",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
   "style-src 'self' 'unsafe-inline' https://source.zoom.us https://*.zoom.us",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://source.zoom.us https://*.zoom.us",
   "connect-src 'self' https: wss:",
-  "media-src 'self' blob: mediastream:",
-  "worker-src 'self' blob:",
+  "media-src 'self' blob: mediastream: https://source.zoom.us https://*.zoom.us",
+  "worker-src 'self' blob: https://source.zoom.us https://*.zoom.us",
+  "frame-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
+  "child-src 'self' blob: https://source.zoom.us https://*.zoom.us https://zoom.us",
+  "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
 ].join("; ");
 
 const inAppMediaPolicy =
-  'camera=(self "https://zoom.us" "https://*.zoom.us"), microphone=(self "https://zoom.us" "https://*.zoom.us"), display-capture=(self), autoplay=(self), geolocation=()';
+  'camera=(self "https://zoom.us" "https://*.zoom.us"), microphone=(self "https://zoom.us" "https://*.zoom.us"), display-capture=(self "https://zoom.us" "https://*.zoom.us"), autoplay=(self "https://zoom.us" "https://*.zoom.us"), geolocation=()';
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -93,6 +103,24 @@ const nextConfig: NextConfig = {
       { source: "/home", destination: "/", permanent: true },
       { source: "/atpl-pass", destination: "/atpl", permanent: false },
       { source: "/atpl-course", destination: "/atpl", permanent: false },
+      // Marketing aliases — content lives on home (#about) and ATPL (#pricing)
+      { source: "/about", destination: "/", permanent: false },
+      { source: "/pricing", destination: "/atpl", permanent: false },
+      // Student aliases — keep old bookmarks from hitting a hard 404
+      { source: "/student/live-classes", destination: "/student/schedule", permanent: false },
+      { source: "/student/classes", destination: "/student/schedule", permanent: false },
+      { source: "/student/atpl", destination: "/student/courses", permanent: false },
+      { source: "/student/exams", destination: "/student/mock-exams", permanent: false },
+      // Nav slim: duplicate sidebar destinations fold into a single primary page
+      { source: "/admin/reports", destination: "/admin/analytics", permanent: false },
+      { source: "/super-admin/reports", destination: "/super-admin/analytics", permanent: false },
+      { source: "/instructor/reports", destination: "/instructor/analytics", permanent: false },
+      { source: "/cgi/reports", destination: "/cgi/analytics", permanent: false },
+      {
+        source: "/super-admin/media-library",
+        destination: "/super-admin/assets",
+        permanent: false,
+      },
     ];
   },
   async headers() {
@@ -106,10 +134,10 @@ const nextConfig: NextConfig = {
         value: inAppMediaPolicy,
       },
       {
-        key: "Content-Security-Policy-Report-Only",
+        key: "Content-Security-Policy",
         value: contentSecurityPolicy,
       },
-      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
       { key: "Cross-Origin-Resource-Policy", value: "same-site" },
     ];
     if (isProd) {

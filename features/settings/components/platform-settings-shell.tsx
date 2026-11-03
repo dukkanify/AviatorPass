@@ -174,6 +174,7 @@ function PlatformSettingsShell() {
   } | null>(null);
   const [registeringDomain, setRegisteringDomain] = React.useState(false);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
+  const [clearingLive, setClearingLive] = React.useState(false);
 
   const dirty = React.useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(draft),
@@ -1081,7 +1082,8 @@ function PlatformSettingsShell() {
             <CardHeader>
               <CardTitle className="text-base">Class reminder offsets</CardTitle>
               <CardDescription>
-                Minutes before start (comma-separated). Defaults: 1440 (24h), 120 (2h).
+                Minutes before start (comma-separated). Defaults: 1440 (24h), 60 (1h). Email
+                reminders fire only for 24h and 1h.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1096,7 +1098,7 @@ function PlatformSettingsShell() {
                     ...draft,
                     notifications: {
                       ...draft.notifications,
-                      classReminderOffsetsMinutes: parts.length ? parts : [1440, 120],
+                      classReminderOffsetsMinutes: parts.length ? parts : [1440, 60],
                     },
                   });
                 }}
@@ -1802,8 +1804,10 @@ function PlatformSettingsShell() {
               <CardTitle>Zoom integration</CardTitle>
               <CardDescription>
                 Meeting defaults for live classes. Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`,
-                `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates meetings. In-app join uses
-                the General App Meeting SDK (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`).
+                `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates platform/booking meetings.
+                In-app join uses the Meeting SDK app (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`).
+                Instructors must Connect Zoom with a personal account (`ZOOM_INSTRUCTOR_*`) — never
+                the shared host email below.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1816,7 +1820,7 @@ function PlatformSettingsShell() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label="Host account email"
-                  description="Must be a user on the Zoom Server-to-Server account (for example ceo@aviatorpass.com). The support mailbox is not a Zoom user and is ignored when creating meetings."
+                  description="Shared platform / S2S Zoom user (for example ceo@aviatorpass.com). Instructors must not connect this email for live classes — use a personal Zoom login so personalZoomReady stays true."
                 >
                   <Input
                     value={draft.zoom.accountEmail}
@@ -1858,6 +1862,9 @@ function PlatformSettingsShell() {
                   setDraft({ ...draft, zoom: { ...draft.zoom, defaultWaitingRoom: v } })
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Live classes ignore this and open directly for invited accounts.
+              </p>
               <ToggleRow
                 label="Passcode by default"
                 checked={draft.zoom.defaultPasscode}
@@ -1868,6 +1875,84 @@ function PlatformSettingsShell() {
               <p className="text-xs text-muted-foreground">
                 Credentials configured:{" "}
                 {draft.zoom.credentialsConfigured ? "Yes" : "No (mock mode)"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Clear live meetings</CardTitle>
+              <CardDescription>
+                Lists live Zoom meetings on the platform host, then ends only known local ghosts
+                (cancelled / completed / long-past AviatorPass sessions). Never ends unknown Zoom
+                live IDs or in-window customer classes. To end a specific number, use an explicit
+                endMeetingNumbers request. Use when Error 3000 points at a stuck shared session.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={clearingLive}
+                onClick={() => {
+                  void (async () => {
+                    setClearingLive(true);
+                    const result = await authFetch<{
+                      ended: string[];
+                      kept: string[];
+                      blocked: string[];
+                      liveRemaining?: string[];
+                      liveListReadable?: boolean;
+                      liveListErrors?: Array<{
+                        host: string;
+                        status: number;
+                        error: string | null;
+                      }>;
+                    }>("/api/admin/zoom/clear-live", {
+                      method: "POST",
+                      // Inventory only — never mass-end. Explicit endMeetingNumbers or a
+                      // deliberate force ghosts call is required to terminate sessions.
+                      body: JSON.stringify({ force: false }),
+                    });
+                    setClearingLive(false);
+                    if (!result.success || !result.data) {
+                      toast.error(result.error ?? "Clear live failed");
+                      return;
+                    }
+                    const {
+                      ended,
+                      kept,
+                      blocked,
+                      liveRemaining,
+                      liveListReadable,
+                      liveListErrors,
+                    } = result.data;
+                    if (liveListReadable === false) {
+                      const detail =
+                        liveListErrors?.[0]?.error?.slice(0, 160) ||
+                        "Zoom live list is not readable (often missing meeting:read:list_meetings on CEO S2S). Empty ended[] is not proof the host is free.";
+                      toast.error(`Live list unread · ${detail}`);
+                    }
+                    toast.success(
+                      `Live inventory · remaining ${(liveRemaining ?? []).length}` +
+                        (ended.length ? ` · ended ${ended.length}` : " · ended 0") +
+                        (kept.length ? ` · kept ${kept.length}` : "") +
+                        (blocked.length ? ` · blocked ${blocked.length}` : "") +
+                        (liveListReadable === false ? " · live list unread" : ""),
+                    );
+                  })();
+                }}
+              >
+                {clearingLive ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {clearingLive ? "Checking…" : "Check live meetings (no end)"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Requires `system.zoom`. Prefer clearing after instructors disconnect a shared
+                platform Zoom connection.
               </p>
             </CardContent>
           </Card>

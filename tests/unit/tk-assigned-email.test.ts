@@ -107,13 +107,14 @@ describe("official ATPL instructor assignment email", () => {
     const studentMail = toStudent.find(
       (message) => message.subject === "TK 2 has been assigned to you.",
     )!;
-    expect(studentMail.html).toMatch(/Instructor:/i);
-    expect(studentMail.html).toMatch(/Subject:/i);
-    expect(studentMail.html).toMatch(/Date:/i);
-    expect(studentMail.html).toMatch(/Time:/i);
-    expect(studentMail.html).toMatch(/Comments:/i);
-    expect(studentMail.html).toContain("Bring the EASA workbook");
-    expect(studentMail.html).toContain(joinUrl);
+    const studentBody = `${studentMail.html || ""}\n${studentMail.text || ""}`;
+    expect(studentBody).toMatch(/Instructor:/i);
+    expect(studentBody).toMatch(/Subject:/i);
+    expect(studentBody).toMatch(/Date:/i);
+    expect(studentBody).toMatch(/Time:/i);
+    expect(studentBody).toMatch(/Comments:/i);
+    expect(studentBody).toContain("Bring the EASA workbook");
+    expect(studentBody).toContain(joinUrl);
 
     expect(toInstructor.length).toBeGreaterThan(0);
     expect(toCgi.length).toBeGreaterThan(0);

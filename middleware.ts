@@ -14,7 +14,17 @@ import {
   routes,
 } from "@/constants/routes";
 import { ROLE_DASHBOARD, type Role } from "@/constants/roles";
+import { roleMayFollowReturnPath, sanitizeReturnPath } from "@/lib/security/safe-return-path";
 import { SESSION_COOKIE, verifySessionJwt } from "@/lib/security/session-token";
+
+function redirectUnauthenticated(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  const next = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  url.pathname = routes.login;
+  url.search = "";
+  url.searchParams.set("next", next);
+  return NextResponse.redirect(url);
+}
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -195,10 +205,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = matchesPrefix(pathname, authRoutes);
 
   if (isProtected && !claims) {
-    const url = request.nextUrl.clone();
-    url.pathname = routes.login;
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return redirectUnauthenticated(request);
   }
 
   if (claims?.status === ACCOUNT_STATUS.SUSPENDED && pathname !== routes.accountSuspended) {
@@ -239,6 +246,15 @@ export async function middleware(request: NextRequest) {
   // Allow register / OTP / login so account creation or switching while another
   // session is open does not bounce back to the prior role dashboard.
   if (isAuthRoute && claims && claims.status !== ACCOUNT_STATUS.SUSPENDED) {
+    // Signed-in users following ?next=/join/... (or another allowed path) must
+    // land there — never clear their session by parking them on /login.
+    if (pathname === routes.login) {
+      const requested = request.nextUrl.searchParams.get("next");
+      const safe = sanitizeReturnPath(requested);
+      if (safe && roleMayFollowReturnPath(claims.role, safe)) {
+        return NextResponse.redirect(new URL(safe, request.url));
+      }
+    }
     const allowAuthWhileSignedIn =
       pathname === routes.register ||
       pathname.startsWith(`${routes.register}/`) ||
@@ -257,9 +273,7 @@ export async function middleware(request: NextRequest) {
   for (const [prefix, requiredRole] of Object.entries(ROLE_ROUTE_GUARDS)) {
     if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
       if (!claims) {
-        const url = request.nextUrl.clone();
-        url.pathname = routes.login;
-        return NextResponse.redirect(url);
+        return redirectUnauthenticated(request);
       }
       if (claims.role !== requiredRole) {
         const elevatedAdmin = requiredRole === "admin" && claims.role === "super_admin";
@@ -276,9 +290,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
     if (!claims) {
-      const url = request.nextUrl.clone();
-      url.pathname = routes.login;
-      return NextResponse.redirect(url);
+      return redirectUnauthenticated(request);
     }
     const url = request.nextUrl.clone();
     url.pathname = ROLE_DASHBOARD[claims.role];

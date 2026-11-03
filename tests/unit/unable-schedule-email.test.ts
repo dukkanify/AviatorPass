@@ -1,6 +1,6 @@
 /**
- * Official ATPL journey: Unable to Schedule emails TKI 1 and Super Admin
- * and sets the student to Scheduling Required.
+ * Official ATPL journey: Unable to Schedule emails the instructor, TKI 1,
+ * and Super Admin, and sets the student to Scheduling Required.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -12,6 +12,8 @@ import { findUserByEmail, readAuthDb } from "@/services/auth/store";
 import {
   assignInstructorEngine,
   listAssignmentRequests,
+  reconcileDuplicateOpenAssignmentRequests,
+  reassignInstructorEngine,
   reportUnableToScheduleNextLecture,
   scheduleAssignmentSession,
 } from "@/services/assignment/engine";
@@ -92,7 +94,7 @@ describe("unable to schedule next lecture", () => {
     expect(result.request.unableReason).toBe("No matching slot this week");
     expect(result.studentId).toBe(student.id);
     expect(result.notifiedUserIds).toEqual(
-      expect.arrayContaining([cgi.id, superAdmin.id]),
+      expect.arrayContaining([cgi.id, superAdmin.id, instructor.id]),
     );
     expect(
       listAssignmentRequests({ courseId: course.id }).some(
@@ -103,20 +105,96 @@ describe("unable to schedule next lecture", () => {
     const sent = newEmails(beforeIds);
     const toCgi = sent.filter((m) => m.to.toLowerCase() === cgi.email.toLowerCase());
     const toSa = sent.filter((m) => m.to.toLowerCase() === superAdmin.email.toLowerCase());
+    const toInstructor = sent.filter((m) => m.to.toLowerCase() === instructor.email.toLowerCase());
     expect(toCgi.length).toBeGreaterThan(0);
     expect(toSa.length).toBeGreaterThan(0);
-    expect(
-      [...toCgi, ...toSa].some((m) => /unable to schedule/i.test(m.subject)),
-    ).toBe(true);
+    expect(toInstructor.length).toBeGreaterThan(0);
+    expect([...toCgi, ...toSa].some((m) => /unable to schedule/i.test(m.subject))).toBe(true);
     const adminCopy = sent.filter((m) => /unable to schedule/i.test(m.subject));
-    expect(adminCopy.length).toBeGreaterThanOrEqual(2);
-
+    expect(adminCopy.length).toBeGreaterThanOrEqual(3);
     expect(
-      listNotifications(cgi.id).data.some((n) => n.type === "cgi.unable_to_schedule"),
+      listNotifications(instructor.id).data.some((n) => n.type === "instructor.unable_to_schedule"),
     ).toBe(true);
+
+    expect(listNotifications(cgi.id).data.some((n) => n.type === "cgi.unable_to_schedule")).toBe(
+      true,
+    );
     expect(
       listNotifications(superAdmin.id).data.some((n) => n.type === "admin.unable_to_schedule"),
     ).toBe(true);
+  });
+
+  it("keeps one Scheduling Required card when TKI 1 reassigns after Unable", async () => {
+    const instructors = readAuthDb().users.filter((u) => u.role === ROLES.INSTRUCTOR);
+    const instructorA = instructors[0]!;
+    const instructorB = instructors[1] ?? instructors[0]!;
+    const cgi = findUserByEmail(PRIMARY_DEMO_EMAILS.cgi)!;
+    const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
+    const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
+    const { start, ends } = uniqueSlot(31);
+
+    const live = await createLiveClass({
+      title: `ATPL unable-reassign ${Date.now()}`,
+      instructorId: instructorA.id,
+      courseId: course.id,
+      startsAt: start.toISOString(),
+      endsAt: ends.toISOString(),
+      durationMinutes: 60,
+      status: "completed",
+      enrollStudentIds: [student.id],
+      actorId: instructorA.id,
+    });
+    expect(live?.id).toBeTruthy();
+
+    const unable = await reportUnableToScheduleNextLecture({
+      liveClassId: live!.id,
+      studentId: student.id,
+      reason: "No agreed time",
+      actorId: instructorA.id,
+    });
+    expect(unable.request.status).toBe("scheduling_required");
+
+    // Simulate stacked historical opens (old bug).
+    writeAssignmentDb((db) => {
+      const stamp = new Date().toISOString();
+      db.requests.unshift({
+        ...unable.request,
+        id: `dup-${Date.now()}`,
+        instructorId: instructorB.id,
+        status: "scheduling_required",
+        unableReason: null,
+        createdAt: stamp,
+        updatedAt: stamp,
+        notes: "Stale reassign open",
+      });
+    });
+    expect(
+      listAssignmentRequests({ courseId: course.id }).filter(
+        (r) => r.studentId === student.id && r.status === "scheduling_required",
+      ).length,
+    ).toBeGreaterThan(1);
+
+    const healed = reconcileDuplicateOpenAssignmentRequests();
+    expect(healed).toBeGreaterThanOrEqual(1);
+    expect(
+      listAssignmentRequests({ courseId: course.id }).filter(
+        (r) => r.studentId === student.id && r.status === "scheduling_required",
+      ),
+    ).toHaveLength(1);
+
+    await reassignInstructorEngine({
+      courseId: course.id,
+      instructorId: instructorB.id,
+      studentId: student.id,
+      actorId: cgi.id,
+      moveFutureClasses: false,
+    });
+    const open = listAssignmentRequests({ courseId: course.id }).filter(
+      (r) => r.studentId === student.id && r.status === "scheduling_required",
+    );
+    expect(open).toHaveLength(1);
+    expect(open[0]?.instructorId).toBe(instructorB.id);
+    expect(open[0]?.unableReason).toBe("No agreed time");
   });
 
   it("emails TKI 1 and Super Admin when the engine cannot place a slot", async () => {

@@ -71,16 +71,18 @@ JSON mode uses `.data/aep-zoom.json` with the same fields.
 
 ## 4. API routes
 
-| Method  | Path                                | Auth                         | Purpose                                                      |
-| ------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------ |
-| GET     | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                                       |
-| GET     | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard           |
-| GET     | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens)                                |
-| POST    | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                                  |
-| POST    | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status                      |
-| GET     | `/api/integrations/zoom/webhook`    | None                         | `405` JSON (reachability; Zoom/browser must not land on `/`) |
-| OPTIONS | `/api/integrations/zoom/webhook`    | None                         | `204` with `Allow: POST, OPTIONS`                            |
-| POST    | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                           |
+| Method  | Path                                | Auth                         | Purpose                                                                               |
+| ------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------- |
+| GET     | `/api/integrations/zoom/connect`    | Instructor (`zoom.sessions`) | Redirect to Zoom OAuth                                                                |
+| GET     | `/api/integrations/zoom/callback`   | State-signed                 | Exchange code, store tokens, redirect to dashboard                                    |
+| GET     | `/api/integrations/zoom/status`     | Instructor                   | Connection status (no tokens); includes `personalZoomReady` / `sharedPlatformAccount` |
+| GET     | `/api/admin/instructors/zoom`       | Instructors manage           | Admin Zoom readiness per instructor                                                   |
+| POST    | `/api/admin/zoom/clear-live`        | Super Admin (`system.zoom`)  | End leftover live meetings blocking classroom join                                    |
+| POST    | `/api/integrations/zoom/disconnect` | Instructor                   | Revoke + delete integration                                                           |
+| POST    | `/api/integrations/zoom/sync`       | Instructor                   | Refresh tokens, profile, meeting status                                               |
+| GET     | `/api/integrations/zoom/webhook`    | None                         | `405` JSON (reachability; Zoom/browser must not land on `/`)                          |
+| OPTIONS | `/api/integrations/zoom/webhook`    | None                         | `204` with `Allow: POST, OPTIONS`                                                     |
+| POST    | `/api/integrations/zoom/webhook`    | Zoom HMAC                    | URL validation + meeting lifecycle                                                    |
 
 Existing: `GET /api/zoom/status` (platform S2S, Super Admin), `/api/classes/:id/join` (student/instructor join info).
 
@@ -91,6 +93,8 @@ Never hardcode credentials. Set in Vercel / `.env.local` only.
 ```
 ZOOM_CLIENT_ID=
 ZOOM_CLIENT_SECRET=
+ZOOM_INSTRUCTOR_CLIENT_ID=
+ZOOM_INSTRUCTOR_CLIENT_SECRET=
 ZOOM_REDIRECT_URI=https://www.aviatorpass.com/api/integrations/zoom/callback
 ZOOM_BASE_URL=https://api.zoom.us/v2
 ZOOM_SECRET_TOKEN=
@@ -101,18 +105,22 @@ ZOOM_S2S_CLIENT_ID=
 ZOOM_S2S_CLIENT_SECRET=
 ```
 
-| Variable                 | Required for instructor OAuth | Notes                                                |
-| ------------------------ | ----------------------------- | ---------------------------------------------------- |
-| `ZOOM_CLIENT_ID`         | Yes                           | General App Client ID (Meeting SDK JWT + OAuth)      |
-| `ZOOM_CLIENT_SECRET`     | Yes                           | General App Client Secret                            |
-| `ZOOM_REDIRECT_URI`      | Yes in production             | Must match Zoom Marketplace exactly                  |
-| `ZOOM_BASE_URL`          | Optional                      | Defaults to `https://api.zoom.us/v2`                 |
-| `ZOOM_SECRET_TOKEN`      | Webhooks                      | Marketplace Secret Token                             |
-| `ZOOM_WEBHOOK_SECRET`    | Webhooks                      | Alias if Secret Token is stored here                 |
-| `ZOOM_OAUTH_SCOPES`      | Optional                      | Defaults to granular meeting + user read             |
-| `ZOOM_ACCOUNT_ID`        | S2S create/update/delete      | Server-to-Server Account ID                          |
-| `ZOOM_S2S_CLIENT_ID`     | S2S create/update/delete      | Server-to-Server Client ID — never a Meeting SDK JWT |
-| `ZOOM_S2S_CLIENT_SECRET` | S2S create/update/delete      | Server-to-Server Client Secret                       |
+| Variable                        | Required for instructor OAuth | Notes                                                                                                                                                 |
+| ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ZOOM_INSTRUCTOR_CLIENT_ID`     | Yes                           | Instructor OAuth General App (e.g. Marketplace app 29)                                                                                                |
+| `ZOOM_INSTRUCTOR_CLIENT_SECRET` | Yes                           | Instructor OAuth Client Secret — never reuse Meeting SDK secret                                                                                       |
+| `ZOOM_CLIENT_ID`                | Meeting SDK only              | Embedded Meeting SDK JWT `appKey`                                                                                                                     |
+| `ZOOM_CLIENT_SECRET`            | Meeting SDK only              | Embedded Meeting SDK JWT secret                                                                                                                       |
+| `ZOOM_REDIRECT_URI`             | Yes in production             | Must match Zoom Marketplace exactly                                                                                                                   |
+| `ZOOM_BASE_URL`                 | Optional                      | Defaults to `https://api.zoom.us/v2`                                                                                                                  |
+| `ZOOM_SECRET_TOKEN`             | Webhooks                      | Marketplace Secret Token                                                                                                                              |
+| `ZOOM_WEBHOOK_SECRET`           | Webhooks                      | Alias if Secret Token is stored here                                                                                                                  |
+| `ZOOM_OAUTH_SCOPES`             | Optional                      | Defaults: `user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting` (no `meeting:read:list_meetings`) |
+| `ZOOM_ACCOUNT_ID`               | S2S create/update/delete      | Server-to-Server Account ID                                                                                                                           |
+| `ZOOM_S2S_CLIENT_ID`            | S2S create/update/delete      | Server-to-Server Client ID — never a Meeting SDK JWT                                                                                                  |
+| `ZOOM_S2S_CLIENT_SECRET`        | S2S create/update/delete      | Server-to-Server Client Secret                                                                                                                        |
+
+**Invalid scope:** requesting scopes not enabled on the Instructor OAuth app (commonly `meeting:read:list_meetings`) causes Zoom `Invalid scope`. Enable only scopes the app has, or set `ZOOM_OAUTH_SCOPES` to the enabled set.
 
 Tokens are encrypted with AES-256-GCM using a key derived from `AUTH_SECRET`.
 
@@ -171,16 +179,51 @@ Logged via ops + activity (never tokens / start URLs):
 4. Set Vercel Production env vars listed in section 5. Do **not** commit secrets.
 5. Apply `031_zoom_integrations.sql` if Postgres is in use.
 6. Deploy `main` (or this PR) and confirm `/api/health?ready=1`.
-7. Connect one instructor account and schedule a 15-minute test class.
+7. Connect one instructor’s **personal** Zoom account (not the platform Host account email) and confirm `personalZoomReady: true` on `/api/integrations/zoom/status`.
+8. Schedule a 15-minute test class and run host → student in-app join.
+
+If an instructor previously connected the shared platform / CEO Zoom email, they must **Disconnect Zoom** then **Connect Zoom** with their own login before hosting. Shared-host leftovers that still block join: Super Admin → Platform Settings → Zoom → Clear live meetings (`POST /api/admin/zoom/clear-live`).
 
 ## 11. Remaining manual configuration
 
 Zoom Marketplace (cannot be done from this repo):
 
-- Allowlist the production redirect URI.
-- Grant granular scopes: `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`, `meeting:read:list_meetings`.
-- Event subscriptions: `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
-- Optional dashboard metrics scope if live participant counts should appear (otherwise count stays “—”).
-- Add `http://localhost:3000/api/integrations/zoom/callback` only if local OAuth testing is required.
+### Development vs Production credentials (critical for error 4,700 / Marketplace “Something went wrong”)
+
+Zoom General Apps have **separate** Client ID / Secret and **separate** OAuth Redirect URL + Allow List for **Development** and **Production** (Marketplace environment filter).
+
+| AviatorPass `ZOOM_INSTRUCTOR_CLIENT_ID` belongs to… | Configure OAuth Redirect + Allow List under… |
+| --------------------------------------------------- | -------------------------------------------- |
+| Development Client ID                               | Development environment filter               |
+| Production Client ID                                | Production environment filter                |
+
+- Production AviatorPass uses the **Production** Client ID `7z2krfWYQWCi20C0FRZ0xA` (length 22, public suffix `Z0xA`) and the Client Secret from that same Production credential card. Put both only in `ZOOM_INSTRUCTOR_CLIENT_ID` and `ZOOM_INSTRUCTOR_CLIENT_SECRET`.
+- Do not put the Development Client ID in production. A Development client can complete a token-pair check and still be the wrong application. Beta testers are not a substitute for the Production pair.
+- The Production Client Secret is not in this repository. If Zoom returns `invalid_client` for `7z2krfWYQWCi20C0FRZ0xA` against every stored secret, leave the current variables unchanged and supply the matching secret through the manual action in `docs/ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`.
+- Confirm the live suffix with Super Admin `GET /api/zoom/status` → `instructorOAuth.alignment` (last 4 characters and lengths only). The instructor suffix must not equal the Meeting SDK suffix or the Server-to-Server suffix.
+
+### Authorize URL (AviatorPass)
+
+AviatorPass builds:
+
+`https://zoom.us/oauth/authorize?response_type=code&client_id=…&redirect_uri=…&state=…`
+
+It does **not** append `scope` by default (matches Zoom Marketplace Local Test / docs). Scopes are taken from the General app’s Scopes page. Set `ZOOM_OAUTH_INCLUDE_AUTHORIZE_SCOPES=true` only for temporary debugging — Zoom has rejected authorize URLs that include scopes.
+
+### Exact allowlist + scopes (Marketplace app 29)
+
+Location: [Zoom Marketplace](https://marketplace.zoom.us/) → **Manage** → General app (app 29) → environment toggle **Development** or **Production** (must match Vercel Client ID).
+
+1. **App credentials** → copy Client ID / Secret into Vercel `ZOOM_INSTRUCTOR_CLIENT_ID` / `ZOOM_INSTRUCTOR_CLIENT_SECRET` (never into `ZOOM_CLIENT_*`).
+2. **OAuth Redirect URL** (exact): `https://www.aviatorpass.com/api/integrations/zoom/callback`
+3. **OAuth Allow List**: same callback URL; with Strict Mode / subdomain check enabled, also list `https://www.aviatorpass.com` if required — apex `https://aviatorpass.com` does **not** cover `www`.
+4. **Scopes** (user-managed, required): `user:read:user`, `meeting:write:meeting`, `meeting:read:meeting`, `meeting:update:meeting`, `meeting:delete:meeting`.  
+   Without `user:read:user`, Zoom may authorize and return tokens, but AviatorPass cannot load `/users/me` (error 4711) and Connect fails unless token JWT identity fallback applies. Add `meeting:read:list_meetings` only if enabled on the app.  
+   **Remove** admin or master Create a Meeting scopes (for example `meeting:write:meeting:admin`). Live classes use `POST /users/me/meetings` on the connected instructor only. AviatorPass does not manage Zoom sub-accounts for classroom creation.
+5. Publication path: publish the General app with the Production credential pair and the www callback above. Do not add a beta program in place of that pair, and do not submit the Marketplace application until the account owner approves.
+6. Event subscriptions (optional): `meeting.started`, `meeting.ended`, `meeting.deleted`, plus URL validation.
+7. Add `http://localhost:3000/api/integrations/zoom/callback` only for local OAuth testing.
+
+If Zoom shows `Invalid redirect: …/callback (4,700)`, AviatorPass already sends the canonical www callback — fix the Marketplace environment that matches the live Client ID.
 
 Local/demo without Zoom credentials continues to use mock meetings. S2S (`ZOOM_ACCOUNT_ID`) remains available for platform-level / booking meetings.

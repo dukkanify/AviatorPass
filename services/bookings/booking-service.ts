@@ -562,10 +562,15 @@ export function listMyBookings(user: UserProfile): BookingListItem[] {
     // Non-manage roles must never fall through to every booking.
     rows = [];
   }
+  const isStudentViewer = user.role === ROLES.STUDENT;
   return rows
     .slice()
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-    .map((b) => enrichBooking(b, names));
+    .map((b) => {
+      const enriched = enrichBooking(b, names);
+      // Students never receive host start_url / ZAK on list endpoints.
+      return redactZoomStartUrlForNonHost(enriched, !isStudentViewer && b.instructorId === user.id);
+    });
 }
 
 export function listAllBookings(): BookingListItem[] {
@@ -586,6 +591,21 @@ export function enrichBooking(b: AppointmentBooking, names?: Map<string, string>
       ? displayName(n.studentId, nameMap)
       : guestLabel || n.guestEmail || "Guest",
     instructorName: displayName(n.instructorId, nameMap),
+  };
+}
+
+/** Host start_url embeds a ZAK — never return it to students/participants. */
+export function redactZoomStartUrlForNonHost(
+  booking: BookingListItem,
+  isHost: boolean,
+): BookingListItem {
+  if (isHost || !booking.zoom?.startUrl) return booking;
+  return {
+    ...booking,
+    zoom: {
+      ...booking.zoom,
+      startUrl: "",
+    },
   };
 }
 
@@ -716,7 +736,7 @@ export async function getBookingJoinInfo(input: {
           : "Zoom room ready";
 
   return {
-    booking: enrichBooking(booking),
+    booking: redactZoomStartUrlForNonHost(enrichBooking(booking), isHost),
     join: {
       meetingNumber: zoom.meetingNumber,
       joinUrl: zoom.joinUrl,

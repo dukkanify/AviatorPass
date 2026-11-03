@@ -18,13 +18,27 @@ export function hashSessionToken(token: string): string {
   return hashValue(token);
 }
 
+/**
+ * Share auth cookies across apex + www in production so a session created on
+ * either host survives the Vercel apex→www redirect (and the reverse).
+ * Host-only cookies on localhost / preview (no Domain attribute).
+ */
+function sessionCookieDomain(): string | undefined {
+  const production =
+    process.env.NEXT_PUBLIC_APP_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (!production) return undefined;
+  return ".aviatorpass.com";
+}
+
 export function sessionCookieOptions(maxAgeSeconds: number): Partial<ResponseCookie> {
+  const domain = sessionCookieDomain();
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || Boolean(domain),
     sameSite: "lax",
     path: "/",
     maxAge: maxAgeSeconds,
+    ...(domain ? { domain } : {}),
   };
 }
 
@@ -67,23 +81,43 @@ export async function setSessionCookies(
   store.set(SESSION_COOKIE, `${jwt}.${rawToken}`, opts);
   store.set(SESSION_HINT_COOKIE, "1", {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: opts.secure,
     sameSite: "lax",
     path: "/",
     maxAge: maxAgeSeconds,
+    ...(opts.domain ? { domain: opts.domain } : {}),
   });
 }
 
 export async function clearSessionCookies(): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE, "", { ...sessionCookieOptions(0), maxAge: 0 });
+  const opts = sessionCookieOptions(0);
+  store.set(SESSION_COOKIE, "", { ...opts, maxAge: 0 });
   store.set(SESSION_HINT_COOKIE, "", {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: opts.secure,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    ...(opts.domain ? { domain: opts.domain } : {}),
   });
+  // Also clear legacy host-only cookies from before Domain=.aviatorpass.com.
+  if (opts.domain) {
+    store.set(SESSION_COOKIE, "", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    store.set(SESSION_HINT_COOKIE, "", {
+      httpOnly: false,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  }
 }
 
 export async function readSessionCookie(): Promise<{
@@ -105,12 +139,14 @@ export async function ensureCsrfToken(): Promise<string> {
   const existing = store.get(CSRF_COOKIE)?.value;
   if (existing) return existing;
   const token = generateToken(24);
+  const domain = sessionCookieDomain();
   store.set(CSRF_COOKIE, token, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || Boolean(domain),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24,
+    ...(domain ? { domain } : {}),
   });
   return token;
 }

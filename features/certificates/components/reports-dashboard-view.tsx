@@ -91,7 +91,7 @@ function InstructorBlocks({ data }: { data: InstructorReportBundle }) {
         <Stat label="Avg progress" value={`${data.averageStudentProgress}%`} />
         <Stat label="Attendance" value={`${data.attendanceRate}%`} />
         <Stat label="Completion" value={`${data.courseCompletionRate}%`} />
-        <Stat label="Quiz average" value={`${data.quizAverage}%`} />
+        <Stat label="Exam average" value={`${data.quizAverage}%`} />
         <Stat label="Certificates" value={data.certificatesIssued} />
       </div>
       <Card>
@@ -106,8 +106,7 @@ function InstructorBlocks({ data }: { data: InstructorReportBundle }) {
             >
               <span>{s.studentName}</span>
               <span className="text-muted-foreground">
-                {Math.round(s.progressPercent)}% · Quiz {s.quizAverage}% · Certs{" "}
-                {s.certificates}
+                {Math.round(s.progressPercent)}% · Exam {s.quizAverage}% · Certs {s.certificates}
               </span>
             </div>
           ))}

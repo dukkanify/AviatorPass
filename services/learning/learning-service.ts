@@ -16,7 +16,7 @@ import { getStudentAtplPackageSchedule } from "@/services/cgi/journey-service";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
 import { listLiveClasses } from "@/services/classes/class-service";
-import { listParticipantsForUser, readClassesDb } from "@/services/classes/store";
+import { listParticipantsForUser, lookupLiveClass, readClassesDb } from "@/services/classes/store";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
   getCourseLearningState,
@@ -281,16 +281,46 @@ export function emptyLearningDashboardOverview(): LearningDashboardOverview {
   };
 }
 
+function soonestJoinableClass(
+  userId: string,
+): { id: string; title: string; startsAt: string } | null {
+  try {
+    const now = Date.now();
+    let best: { id: string; title: string; startsAt: string } | null = null;
+    for (const row of listParticipantsForUser(userId)) {
+      if (row.role !== "participant") continue;
+      const cls = lookupLiveClass(row.liveClassId);
+      if (!cls || cls.deletedAt) continue;
+      if (cls.status === "cancelled" || cls.status === "draft" || cls.status === "completed") {
+        continue;
+      }
+      const start = Date.parse(cls.startsAt);
+      const end = Date.parse(cls.endsAt);
+      if (!Number.isFinite(start)) continue;
+      if (!(start > now || (Number.isFinite(end) && end > now))) continue;
+      if (!best || cls.startsAt < best.startsAt) {
+        best = { id: cls.id, title: cls.title, startsAt: cls.startsAt };
+      }
+    }
+    return best;
+  } catch {
+    return null;
+  }
+}
+
 export function getLearningDashboard(user: UserProfile): LearningDashboardOverview {
   const enrollments = listStudentEnrollments(user.id).filter((e) =>
     ["approved", "completed", "pending"].includes(e.status),
   );
   const completedCourses = enrollments.filter((e) => e.status === "completed").length;
+  const upcoming = soonestJoinableClass(user.id);
   return {
     activeCourses: Math.max(0, enrollments.length - completedCourses),
     completedCourses,
-    upcomingLiveClass: null,
-    upcomingLiveClassId: null,
+    upcomingLiveClass: upcoming
+      ? `${upcoming.title} · ${new Date(upcoming.startsAt).toLocaleString()}`
+      : null,
+    upcomingLiveClassId: upcoming?.id ?? null,
     learningHours: 0,
     progressPercent: 0,
     assignments: 0,
@@ -582,6 +612,10 @@ function liveClassroomFromPaidFirstLecture(
   if (!user?.email) return null;
   const schedule = getStudentAtplPackageSchedule(studentId, user.email);
   if (!schedule.firstLectureLiveClassId) return null;
+  const onRoster = listParticipantsForUser(studentId).some(
+    (row) => row.role === "participant" && row.liveClassId === schedule.firstLectureLiveClassId,
+  );
+  if (!onRoster) return null;
   if (!firstLectureMatchesCourse(courseId, schedule.firstLectureSubjectCode)) {
     return null;
   }

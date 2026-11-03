@@ -20,7 +20,7 @@ function InstructorStudentsView({ students }: { students: InstructorStudentRow[]
     <div className="space-y-6">
       <PageHeader
         title="Students"
-        description="Learners enrolled in courses assigned to you."
+        description="Students assigned to your live ATPL lectures."
         breadcrumbs={[{ label: "Instructor" }, { label: "Students" }]}
       />
 

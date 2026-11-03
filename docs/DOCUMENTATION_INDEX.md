@@ -28,43 +28,57 @@ Master index for **Version 1.0 GA** (Task 025). Prior closure materials (Task 02
 
 ## Technical
 
-| Doc                                         | Topic                  |
-| ------------------------------------------- | ---------------------- |
-| `ARCHITECTURE.md`                           | System overview        |
-| `DEVELOPER_GUIDE.md`                        | Engineer onboarding    |
-| `ENVIRONMENT_SETUP.md`                      | Env / install          |
-| `ZOOM_OAUTH_INTEGRATION.md`                 | Instructor Zoom OAuth  |
-| `STRIPE_CHECKOUT.md`                        | Stripe hosted Checkout |
-| `TAMARA.md`                                 | Tamara hosted checkout |
-| `TALY.md`                                   | Taly hosted checkout   |
-| `EMAIL.md`                                  | Resend / SMTP / DNS    |
-| `DEPLOYMENT.md` / `PRODUCTION.md`           | Deploy                 |
-| `API_OVERVIEW.md` / `MOBILE_API.md`         | APIs                   |
-| `DATABASE_SCHEMA.md` / `database/README.md` | Schema                 |
-| `SECURITY.md` / `SECURITY_REVIEW_022.md`    | Security               |
-| `BACKUP_DISASTER_RECOVERY.md`               | Backup / restore       |
-| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md` | Ops                    |
-| `TESTING.md` / `CODING_STANDARDS.md`        | Quality                |
+| Doc                                                   | Topic                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------- |
+| `ARCHITECTURE.md`                                     | System overview                                       |
+| `DEVELOPER_GUIDE.md`                                  | Engineer onboarding                                   |
+| `ENVIRONMENT_SETUP.md`                                | Env / install                                         |
+| `ZOOM_CENTRALIZED_HOSTING_PLAN.md`                    | Option A: platform S2S host default                   |
+| `ZOOM_CLIENT_VIEW_MOBILE_DECISION.md`                 | Client View required on mobile (Oct 2026 decision)    |
+| `LIVE_CLASSES_ZOOM.md`                                | Live classes + Zoom ops                               |
+| `ZOOM_OAUTH_INTEGRATION.md`                           | Instructor Zoom OAuth                                 |
+| `ZOOM_MEETING_SDK_REVIEWER_TEST_PLAN.md`              | Meeting SDK Marketplace review                        |
+| `ZOOM_MARKETPLACE_FINAL_REVIEW_TEST_PLAN.md`          | October 22 consolidated review                        |
+| `ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md`     | Classroom Meeting SDK functional review (Oct 22/27)   |
+| `ZOOM_CLASSROOM_MARKETPLACE_REVIEWER_ONEPAGER.md`     | Classroom VGTQ reviewer steps (Z0xA separate)         |
+| `ZOOM_S2S_MEETING_READ_SCOPE_PLAN.md`                 | CEO S2S list-live scope plan — awaiting approval      |
+| `ZOOM_CLASSROOM_MARKETPLACE_FINAL_READINESS.md`       | Classroom Marketplace final readiness (NOT READY)     |
+| `ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md`      | Classroom empty-Scopes portal blocker resolution      |
+| `ZOOM_CLASSROOM_MARKETPLACE_FINAL_SUBMISSION_PREP.md` | Final submission prep — Support email, notes, verdict |
+| `ZOOM_MARKETPLACE_REVIEWER_GUIDE.md`                  | Reviewer test steps                                   |
+| `ZOOM_MARKETPLACE_REVIEW_PACKAGE.md`                  | Review evidence and owner actions                     |
+| `STRIPE_CHECKOUT.md`                                  | Stripe hosted Checkout                                |
+| `TAMARA.md`                                           | Tamara hosted checkout                                |
+| `TALY.md`                                             | Taly hosted checkout                                  |
+| `EMAIL.md`                                            | Resend / SMTP / DNS                                   |
+| `DEPLOYMENT.md` / `PRODUCTION.md`                     | Deploy                                                |
+| `API_OVERVIEW.md` / `MOBILE_API.md`                   | APIs                                                  |
+| `DATABASE_SCHEMA.md` / `database/README.md`           | Schema                                                |
+| `SECURITY.md` / `SECURITY_REVIEW_022.md`              | Security                                              |
+| `BACKUP_DISASTER_RECOVERY.md`                         | Backup / restore                                      |
+| `MAINTENANCE.md` / `POST_LAUNCH_SUPPORT.md`           | Ops                                                   |
+| `TESTING.md` / `CODING_STANDARDS.md`                  | Quality                                               |
 
 ## Closure, enterprise & release
 
-| Doc                            | Topic                           |
-| ------------------------------ | ------------------------------- |
-| `PROJECT_CLOSURE_REPORT.md`    | Closure report (Task 023)       |
-| `HANDOVER.md`                  | Client handover                 |
-| `FINAL_PROJECT_ACCEPTANCE.md`  | Prior acceptance (Task 023)     |
-| `INFRASTRUCTURE_HANDOVER.md`   | Hosting map                     |
-| `CREDENTIALS_REGISTER.md`      | Secrets inventory template      |
-| `SOURCE_CODE_HANDOVER.md`      | Repository delivery             |
-| `ENTERPRISE_READINESS_022.md`  | Audit package (Task 022)        |
-| `ENTERPRISE_AUDIT_FINAL.md`    | Senior architect critical audit |
-| `ENTERPRISE_REFACTOR_024.md`   | Refactor / excellence pass      |
-| `FINAL_RELEASE_025.md`         | GA release package              |
-| `BRAND_ASSETS_026.md`          | Branding & media integration    |
-| `PHASE2_ENTERPRISE_ROADMAP.md` | Version 2.0 expansion program   |
-| `ARCHITECTURE_V2.md`           | Multi-tenant SaaS design        |
-| `ROADMAP.md` / `ROADMAP_V2.md` | Near-term / major future        |
-| `RELEASE_NOTES.md`             | Versions                        |
-| `KNOWN_LIMITATIONS.md`         | Honest constraints              |
-| `TECHNICAL_DEBT.md`            | Debt register                   |
-| `UAT_APPROVAL.md`              | UAT evidence                    |
+| Doc                            | Topic                                                    |
+| ------------------------------ | -------------------------------------------------------- |
+| `PROJECT_CLOSURE_REPORT.md`    | Closure report (Task 023)                                |
+| `HANDOVER.md`                  | Client handover                                          |
+| `CLIENT_DELIVERY_OPTION_A.md`  | Option A freeze + real-device UAT + close-out (Oct 2026) |
+| `FINAL_PROJECT_ACCEPTANCE.md`  | Prior acceptance (Task 023)                              |
+| `INFRASTRUCTURE_HANDOVER.md`   | Hosting map                                              |
+| `CREDENTIALS_REGISTER.md`      | Secrets inventory template                               |
+| `SOURCE_CODE_HANDOVER.md`      | Repository delivery                                      |
+| `ENTERPRISE_READINESS_022.md`  | Audit package (Task 022)                                 |
+| `ENTERPRISE_AUDIT_FINAL.md`    | Senior architect critical audit                          |
+| `ENTERPRISE_REFACTOR_024.md`   | Refactor / excellence pass                               |
+| `FINAL_RELEASE_025.md`         | GA release package                                       |
+| `BRAND_ASSETS_026.md`          | Branding & media integration                             |
+| `PHASE2_ENTERPRISE_ROADMAP.md` | Version 2.0 expansion program                            |
+| `ARCHITECTURE_V2.md`           | Multi-tenant SaaS design                                 |
+| `ROADMAP.md` / `ROADMAP_V2.md` | Near-term / major future                                 |
+| `RELEASE_NOTES.md`             | Versions                                                 |
+| `KNOWN_LIMITATIONS.md`         | Honest constraints                                       |
+| `TECHNICAL_DEBT.md`            | Debt register                                            |
+| `UAT_APPROVAL.md`              | UAT evidence                                             |

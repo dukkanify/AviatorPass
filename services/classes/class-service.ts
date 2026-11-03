@@ -13,7 +13,7 @@ import {
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
-import { listEnrollments, listStudentEnrollments } from "@/services/courses/enrollment-service";
+import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
@@ -144,7 +144,10 @@ export function getLiveClassDetail(id: string, viewer?: { id: string; role: stri
           participantCount: isHost ? (zoom.participantCount ?? null) : null,
         }
       : null,
-    participants: listParticipantsForClass(id),
+    participants: listParticipantsForClass(id).map((participant) => ({
+      ...participant,
+      displayName: userName(participant.userId),
+    })),
     recordings: readClassesDb().recordings.filter((r) => r.liveClassId === id),
   };
 }
@@ -329,6 +332,21 @@ export function enrollStudentsInLiveClass(liveClassId: string, studentIds: strin
   addParticipants(liveClassId, studentIds, "participant");
 }
 
+/** Keep the roster host in step with the instructor assigned to this lecture. */
+function syncLectureStaff(
+  liveClassId: string,
+  instructorId: string,
+  assistantInstructorId: string | null,
+) {
+  writeClassesDb((d) => {
+    d.participants = d.participants.filter(
+      (row) => row.liveClassId !== liveClassId || (row.role !== "host" && row.role !== "cohost"),
+    );
+  });
+  addParticipants(liveClassId, [instructorId], "host");
+  if (assistantInstructorId) addParticipants(liveClassId, [assistantInstructorId], "cohost");
+}
+
 async function notifyUsers(
   userIds: string[],
   title: string,
@@ -339,7 +357,15 @@ async function notifyUsers(
 ) {
   const { notifyUsers: emitToUsers } =
     await import("@/services/notifications/notification-service");
-  await emitToUsers(userIds, { title, body, type, data, email });
+  const liveClassId = typeof data.liveClassId === "string" ? data.liveClassId.trim() : "";
+  await emitToUsers(userIds, {
+    title,
+    body,
+    type,
+    data,
+    email,
+    actionUrl: liveClassId ? `/join/${liveClassId}` : undefined,
+  });
 }
 
 export type CreatedLiveClassDetail = NonNullable<ReturnType<typeof getLiveClassDetail>> & {
@@ -462,6 +488,35 @@ export async function createLiveClass(
     }
   }
 
+  {
+    const {
+      getValidInstructorAccessToken,
+      getIntegrationByUserId,
+      isS2SDelegateIntegration,
+      hasPersonalInstructorZoom,
+    } = await import("@/services/zoom/oauth-service");
+    const { isMockZoomAllowed, zoomCredsPresent } = await import("@/services/classes/zoom-service");
+    const { getPlatformSettings: getZoomPlatformSettings } =
+      await import("@/services/settings/settings-service");
+    const instructorToken = await getValidInstructorAccessToken(instructorId);
+    const integration = getIntegrationByUserId(instructorId);
+    const platformZoomEmail = getZoomPlatformSettings().zoom.accountEmail;
+    const personalOAuth = Boolean(
+      instructorToken &&
+      !isS2SDelegateIntegration(integration) &&
+      hasPersonalInstructorZoom(integration, platformZoomEmail),
+    );
+    // Centralized S2S platform hosting is the default release path. Personal
+    // Instructor OAuth remains optional when connected.
+    const platformHostReady = zoomCredsPresent();
+    if (!personalOAuth && !platformHostReady && !isMockZoomAllowed()) {
+      throw new ClassValidationError(
+        "Zoom is not configured. Set platform Server-to-Server Zoom credentials, or connect a personal Zoom account.",
+        503,
+      );
+    }
+  }
+
   writeClassesDb((d) => {
     d.classes.push(...occurrences);
   });
@@ -471,13 +526,13 @@ export async function createLiveClass(
     try {
       await createMeetingForClass({
         liveClass: cls,
-        waitingRoom: input.waitingRoom ?? settings.zoom.defaultWaitingRoom,
+        waitingRoom: false,
         passcode: settings.zoom.defaultPasscode,
         meetingType,
         actorId: input.actorId,
       });
     } catch (error) {
-      if (error instanceof ClassValidationError && error.status === 503) {
+      if (error instanceof ClassValidationError && (error.status === 503 || error.status === 409)) {
         zoomError = error.message;
         console.error("Zoom meeting not created; live class kept", error);
       } else {
@@ -517,13 +572,14 @@ export async function createLiveClass(
     }
 
     await queueClassReminders(cls.id);
+    // In-app only — schedule email is owned solely by emailScheduleLifecycle below.
     await notifyUsers(
       [...participantIds],
       "Live class scheduled",
       `${cls.title} · ${new Date(cls.startsAt).toLocaleString()}`,
       "class.created",
       { liveClassId: cls.id },
-      input.omitScheduleEmail ? false : undefined,
+      false,
     );
     if (!input.omitScheduleEmail) {
       const createdMeeting = getZoomMeetingByClassId(cls.id);
@@ -641,6 +697,19 @@ export async function updateLiveClass(input: {
     const idx = d.classes.findIndex((c) => c.id === existing.id);
     if (idx >= 0) d.classes[idx] = next;
   });
+  if (
+    instructorId !== existing.instructorId ||
+    next.assistantInstructorId !== existing.assistantInstructorId
+  ) {
+    syncLectureStaff(next.id, instructorId, next.assistantInstructorId);
+  }
+
+  const enrollIds = Array.isArray(input.patch.enrollStudentIds)
+    ? input.patch.enrollStudentIds.map(String).filter(Boolean)
+    : [];
+  if (enrollIds.length) {
+    enrollStudentsInLiveClass(next.id, enrollIds);
+  }
 
   const { liveClassMeetingFieldsChanged } = await import("@/services/zoom/meeting-service");
   if (liveClassMeetingFieldsChanged(existing, next)) {
@@ -650,13 +719,30 @@ export async function updateLiveClass(input: {
   await queueClassReminders(next.id);
 
   const participantIds = listParticipantsForClass(next.id).map((p) => p.userId);
+  const dateChanged = existing.startsAt !== next.startsAt;
   await notifyUsers(
     participantIds,
-    "Live class updated",
-    `${next.title} schedule or details changed`,
-    "class.updated",
+    dateChanged ? "Live class rescheduled" : "Live class updated",
+    dateChanged
+      ? `${next.title} moved to ${new Date(next.startsAt).toLocaleString()}`
+      : `${next.title} schedule or details changed`,
+    dateChanged ? "class.rescheduled" : "class.updated",
     { liveClassId: next.id },
+    false,
   );
+  if (dateChanged) {
+    const meeting = getZoomMeetingByClassId(next.id);
+    await emailScheduleLifecycle({
+      event: "reschedule",
+      userIds: participantIds,
+      title: next.title,
+      when: new Date(next.startsAt).toLocaleString(),
+      detail: "The lecture date was updated. Join from AviatorPass at the new time.",
+      liveClassId: next.id,
+      actorId: input.actorId,
+      joinUrl: meeting ? appJoinUrl(next.id, meeting.zoomMeetingId) : undefined,
+    });
+  }
 
   await logActivity({
     actorId: input.actorId,
@@ -701,12 +787,14 @@ export async function cancelLiveClass(input: {
   await cancelClassReminders(input.id);
 
   const participantIds = listParticipantsForClass(input.id).map((p) => p.userId);
+  // In-app only — cancel email is owned solely by emailScheduleLifecycle.
   await notifyUsers(
     participantIds,
     "Live class cancelled",
     `${existing.title} has been cancelled`,
     "class.cancelled",
     { liveClassId: input.id },
+    false,
   );
   await emailScheduleLifecycle({
     event: "cancel",
@@ -817,6 +905,8 @@ export async function rescheduleLiveClass(input: {
     });
   }
 
+  await cancelMeetingForClass({ liveClassId: existing.id, actorId: input.actorId });
+
   await logActivity({
     actorId: input.actorId,
     action: ACTIVITY_ACTIONS.CLASS_RESCHEDULED,
@@ -831,12 +921,14 @@ export async function rescheduleLiveClass(input: {
     ...listParticipantsForClass(existing.id),
     ...(created ? listParticipantsForClass(created.id) : []),
   ].map((p) => p.userId);
+  // In-app only — reschedule email is owned solely by emailScheduleLifecycle.
   await notifyUsers(
     participantIds,
     "Live class rescheduled",
     `${existing.title} moved to ${new Date(startsAt).toLocaleString()}`,
     "class.rescheduled",
     { liveClassId: created?.id, fromId: existing.id },
+    false,
   );
   const rescheduledId = created?.id ?? existing.id;
   const rescheduledMeeting = getZoomMeetingByClassId(rescheduledId);
@@ -933,6 +1025,7 @@ export async function softDeleteLiveClass(input: {
       `${existing.title} has been cancelled`,
       "class.cancelled",
       { liveClassId: input.id },
+      false,
     );
     await emailScheduleLifecycle({
       event: "cancel",
@@ -963,17 +1056,17 @@ export function getJoinInfoForUser(liveClassId: string, userId: string) {
     findUserById(userId)?.role === ROLES.SUPER_ADMIN ||
     findUserById(userId)?.role === ROLES.ADMIN;
 
-  const participant = listParticipantsForClass(liveClassId).find((p) => p.userId === userId);
-  const enrolledInCourse = cls.courseId
-    ? listStudentEnrollments(userId).some((row) => row.courseId === cls.courseId)
-    : false;
-  if (!isHost && !participant && !enrolledInCourse) {
-    throw new ClassValidationError("You are not invited to this class");
+  const invited = listParticipantsForClass(liveClassId).some(
+    (p) => p.userId === userId && (p.role === "participant" || p.role === "cohost"),
+  );
+  if (!isHost && !invited) {
+    throw new ClassValidationError("You are not invited to this class", 403);
   }
 
+  const closed = cls.status === "completed" || cls.status === "cancelled";
   return {
     class: toListItem(cls),
-    join: getPublicJoinInfo(liveClassId, Boolean(isHost)),
+    join: closed ? null : getPublicJoinInfo(liveClassId, Boolean(isHost)),
     isHost: Boolean(isHost),
     audienceStatus: meetingAudienceStatus(cls),
   };

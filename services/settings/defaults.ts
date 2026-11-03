@@ -9,15 +9,15 @@ import type { PlatformSettings } from "@/types/settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   general: {
-    platformName: "Aviator Pass",
-    companyName: "Aviator Pass",
+    platformName: siteStatic.platformName,
+    companyName: siteStatic.legalName,
     websiteUrl: "https://www.aviatorpass.com",
     contactEmail: siteStatic.contactEmail,
     contactPhone: "",
     supportEmail: siteStatic.supportEmail,
     defaultTimezone: "Asia/Kuwait",
     defaultLanguage: "en",
-    dateFormat: "MMM d, yyyy",
+    dateFormat: "dd/MM/yyyy",
     timeFormat: "24h",
     currency: "KWD",
     country: "KW",
@@ -71,8 +71,8 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     reminderEmails: true,
     marketingEmails: false,
     systemAlerts: true,
-    classReminderOffsetsMinutes: [1440, 120],
-    classReminderFifteenMinutesEnabled: true,
+    classReminderOffsetsMinutes: [1440, 60],
+    classReminderFifteenMinutesEnabled: false,
   },
   authentication: {
     allowDemoOtp: true,
@@ -175,7 +175,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   zoom: {
     enabled: true,
     accountEmail: siteStatic.supportEmail,
-    defaultWaitingRoom: true,
+    defaultWaitingRoom: false,
     defaultPasscode: true,
     defaultMeetingType: "meeting",
     credentialsConfigured: false,

@@ -29,6 +29,7 @@ import { ensureClassesSeeded } from "@/services/classes/seed";
 import {
   listParticipantsForClass,
   listParticipantsForUser,
+  lookupLiveClass,
   readClassesDb,
   writeClassesDb,
 } from "@/services/classes/store";
@@ -145,6 +146,86 @@ export function getPaidStudentScheduleOverview(
       completed: session?.computedStatus === "completed" ? 1 : 0,
       cancelled: 0,
       recurringSeries: 0,
+    },
+  };
+}
+
+/** Lectures this student is rostered on. Course enrolment alone does not count. */
+export function listStudentJoinableSessions(userId: string): ScheduleSession[] {
+  const now = Date.now();
+  const sessions: ScheduleSession[] = [];
+  for (const row of listParticipantsForUser(userId)) {
+    if (row.role !== "participant") continue;
+    const cls = lookupLiveClass(row.liveClassId);
+    if (!cls || cls.deletedAt) continue;
+    if (cls.status === "cancelled" || cls.status === "draft" || cls.status === "completed") {
+      continue;
+    }
+    const start = Date.parse(cls.startsAt);
+    const end = Date.parse(cls.endsAt);
+    if (!Number.isFinite(start)) continue;
+    if (!(start > now || (Number.isFinite(end) && end > now))) continue;
+    sessions.push({
+      id: cls.id,
+      title: cls.title,
+      description: cls.description,
+      source: /atpl/i.test(cls.title) ? "atpl" : "live_course",
+      courseId: cls.courseId,
+      courseTitle: null,
+      courseCode: null,
+      lessonId: cls.lessonId,
+      instructorId: cls.instructorId,
+      instructorName: userName(cls.instructorId),
+      startsAt: cls.startsAt,
+      endsAt: cls.endsAt,
+      durationMinutes: cls.durationMinutes,
+      timezone: cls.timezone,
+      status: cls.status,
+      computedStatus: computedStatusFromWindow(cls.startsAt, cls.endsAt),
+      recurringRuleId: cls.recurringRuleId,
+      isRecurring: Boolean(cls.recurringRuleId || cls.parentClassId),
+      parentClassId: cls.parentClassId,
+      lectureAssignmentId: null,
+      zoomJoinUrl: null,
+      attendance: { present: 0, late: 0, absent: 0, excused: 0, total: 0 },
+      enrolledCount: 1,
+    });
+  }
+  sessions.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  return sessions;
+}
+
+export function restrictStudentOverviewToInvitedClasses(
+  overview: ScheduleOverview,
+  userId: string,
+): ScheduleOverview {
+  const joinable = listStudentJoinableSessions(userId);
+  const allowed = new Set(joinable.map((row) => row.id));
+  const upcoming = [
+    ...overview.upcoming.filter((row) => allowed.has(row.id)),
+    ...joinable.filter((row) => !overview.upcoming.some((existing) => existing.id === row.id)),
+  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const current = overview.nextSession.session;
+  const session = current && allowed.has(current.id) ? current : (upcoming[0] ?? null);
+  const startsInMinutes = session
+    ? Math.max(0, Math.round((Date.parse(session.startsAt) - Date.now()) / 60_000))
+    : null;
+  return {
+    ...overview,
+    upcoming,
+    nextSession: {
+      session,
+      startsInMinutes,
+      pendingStudentReminders: overview.nextSession.pendingStudentReminders,
+      pendingInstructorReminders: overview.nextSession.pendingInstructorReminders,
+    },
+    timeline: overview.timeline.filter(
+      (event) => !event.liveClassId || allowed.has(event.liveClassId),
+    ),
+    stats: {
+      ...overview.stats,
+      upcoming: upcoming.filter((row) => row.computedStatus === "upcoming").length,
+      liveNow: upcoming.filter((row) => row.computedStatus === "live_now").length,
     },
   };
 }

@@ -187,7 +187,7 @@ describe("lifetime store speed contracts", () => {
     expect(src("services/ai/recommendation-service.ts")).toMatch(/listEnrollmentsForStudent\(/);
     expect(src("services/courses/instructor-students.ts")).toMatch(/listEnrollmentsForCourse\(/);
     expect(src("services/courses/course-service.ts")).toMatch(/countEnrollments\(/);
-    expect(src("services/courses/course-service.ts")).toMatch(/countDistinctStudents\(/);
+    expect(src("services/courses/course-service.ts")).toMatch(/listDistinctStudentIds\(/);
     expect(src("services/dashboard/metrics.ts")).toMatch(/countEnrollmentsByCourse\(/);
     expect(src("services/analytics/aggregator.ts")).toMatch(/countEnrollmentsByCourse\(/);
     expect(src("services/analytics/aggregator.ts")).not.toMatch(/readCoursesDb\(\)\.enrollments/);

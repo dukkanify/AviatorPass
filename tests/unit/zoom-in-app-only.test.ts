@@ -1,13 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ZOOM_EMBEDDED_SDK_LOAD_GROUPS,
   ZOOM_EMBEDDED_SDK_SCRIPTS,
 } from "@/features/zoom/lib/load-embedded-sdk";
-import { getZoomMeetingSdkCredentials } from "@/lib/zoom/sdk-credentials";
+import {
+  getZoomMeetingSdkCredentials,
+  probeMeetingSdkCredentialPair,
+} from "@/lib/zoom/sdk-credentials";
 import { getZoomS2SCredentials } from "@/lib/zoom/s2s-credentials";
 import { linkExistingZoomMeeting } from "@/services/classes/zoom-service";
 import { writeClassesDb } from "@/services/classes/store";
@@ -17,7 +20,10 @@ import {
   generateMeetingSdkSignature,
   isExternalZoomUrl,
   resolveInAppMeetingMode,
+  isZoomZakExpired,
   zakFromStartUrl,
+  zoomLectureAgenda,
+  zoomLectureTopic,
 } from "@/lib/zoom/meeting-sdk";
 
 const JOIN_SURFACES = [
@@ -41,11 +47,27 @@ describe("Zoom stays inside AviatorPass", () => {
   it("extracts the meeting number from Zoom or in-app URLs", () => {
     expect(extractZoomMeetingNumber("https://zoom.us/j/86524929538?pwd=abc")).toBe("86524929538");
     expect(extractZoomMeetingNumber("/join/class-1?mid=123456789", "123456789")).toBe("123456789");
+    expect(extractZoomMeetingNumber(undefined, "818 6630 2161")).toBe("81866302161");
+    // Internal ZoomMeetingRecord UUIDs must never become fake meeting numbers.
+    expect(extractZoomMeetingNumber(undefined, "bdfb10f27fdbba36b2cff5872a38fe97")).toBe("");
+    expect(extractZoomMeetingNumber("/join/class-1?mid=bdfb10f27fdbba36b2cff5872a38fe97")).toBe("");
   });
 
   it("reads the host ZAK from a start URL without exposing it as a navigation target", () => {
     expect(zakFromStartUrl("https://us02web.zoom.us/s/111?zak=secret-token")).toBe("secret-token");
     expect(zakFromStartUrl("https://www.aviatorpass.com/join/class-1?host=1")).toBeNull();
+  });
+
+  it("detects expired Zoom start_url ZAK JWTs and ignores opaque mock tokens", () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const encode = (exp: number) => {
+      const payload = Buffer.from(JSON.stringify({ exp }), "utf8").toString("base64url");
+      return `hdr.${payload}.sig`;
+    };
+    expect(isZoomZakExpired(null)).toBe(true);
+    expect(isZoomZakExpired("opaque-mock-zak")).toBe(false);
+    expect(isZoomZakExpired(encode(nowSec - 120))).toBe(true);
+    expect(isZoomZakExpired(encode(nowSec + 3600))).toBe(false);
   });
 
   it("uses the first-party classroom unless live Zoom SDK credentials exist", () => {
@@ -104,6 +126,32 @@ describe("Zoom stays inside AviatorPass", () => {
       "Omar Instructor",
     );
     expect(displayMeetingName({ email: "student@aviatorpass.com" })).toBe("student");
+    expect(
+      displayMeetingName({
+        fullName: "student@aviatorpass.com",
+        firstName: "Omar",
+        lastName: "Khalil",
+      }),
+    ).toBe("Omar Khalil");
+    expect(zoomLectureTopic("ATPL lecture · Air Law", "Khalid Al Rashid")).toBe(
+      "ATPL lecture · Air Law · Khalid Al Rashid",
+    );
+    expect(
+      zoomLectureAgenda({
+        instructorName: "Khalid Al Rashid",
+        studentNames: ["Omar Khalil", "Omar Khalil"],
+      }),
+    ).toBe("Instructor: Khalid Al Rashid\nStudents: Omar Khalil");
+  });
+
+  it("refuses to assign a busy shared Zoom host (Error 3000 prevention)", () => {
+    const zoomService = readFileSync(
+      resolve(process.cwd(), "services/classes/zoom-service.ts"),
+      "utf8",
+    );
+    expect(zoomService).toMatch(/Never silently assign a busy shared host/);
+    expect(zoomService).toMatch(/already has another AviatorPass class in this time window/);
+    expect(zoomService).toMatch(/liveListReadable/);
   });
 
   it("does not open Zoom in a new tab from join surfaces", () => {
@@ -121,8 +169,33 @@ describe("Zoom stays inside AviatorPass", () => {
     );
     expect(room).not.toMatch(/sdkKey:/);
     expect(room).toMatch(/tk:\s*""/);
-    expect(room).toMatch(/Host ZAK rejected; joining with General App JWT only/);
-    expect(room).toMatch(/stageRef\.current\.replaceChildren\(\)/);
+    expect(room).toMatch(/release-host-lock/);
+    expect(room).toMatch(/Error 3000 from Meeting SDK/);
+    expect(room).toMatch(/no participant fallback/);
+    expect(room).toMatch(/End class for everyone/);
+    expect(room).toMatch(/Leave without ending/);
+    expect(room).toMatch(/endClassroomForEveryone/);
+    expect(room).not.toMatch(/joining as participant/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
+    ).toMatch(/releaseStaleLocalHostMeetings/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/in-app-session/route.ts"), "utf8"),
+    ).toMatch(/releasePriorInstructorHostMeetings/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/release-host-lock/route.ts"), "utf8"),
+    ).toMatch(/releaseHostLockForLiveClass/);
+    expect(
+      readFileSync(resolve(process.cwd(), "app/api/zoom/end-classroom/route.ts"), "utf8"),
+    ).toMatch(/endHostClassroomSession/);
+    const client = readFileSync(
+      resolve(process.cwd(), "features/zoom/components/in-app-zoom-client-view.tsx"),
+      "utf8",
+    );
+    expect(client).toMatch(/End class for everyone/);
+    expect(client).toMatch(/Leave without ending/);
+    expect(client).not.toMatch(/beaconEndClassroom/);
+    expect(room).not.toMatch(/beaconEndClassroom/);
   });
 
   it("loads Zoom vendor React before the embedded Meeting SDK", () => {
@@ -171,6 +244,12 @@ describe("Zoom stays inside AviatorPass", () => {
     expect(decoded.appKey).toBe("general-app-client");
     delete process.env.ZOOM_CLIENT_ID;
     delete process.env.ZOOM_CLIENT_SECRET;
+    expect(getZoomMeetingSdkCredentials()).toEqual({
+      clientId: "legacy-sdk-key",
+      clientSecret: "legacy-sdk-secret",
+    });
+    delete process.env.ZOOM_SDK_KEY;
+    delete process.env.ZOOM_SDK_SECRET;
     expect(getZoomMeetingSdkCredentials()).toBeNull();
     if (previous.ZOOM_SDK_KEY === undefined) delete process.env.ZOOM_SDK_KEY;
     else process.env.ZOOM_SDK_KEY = previous.ZOOM_SDK_KEY;
@@ -186,6 +265,36 @@ describe("Zoom stays inside AviatorPass", () => {
     else process.env.ZOOM_S2S_CLIENT_ID = previous.ZOOM_S2S_CLIENT_ID;
     if (previous.ZOOM_S2S_CLIENT_SECRET === undefined) delete process.env.ZOOM_S2S_CLIENT_SECRET;
     else process.env.ZOOM_S2S_CLIENT_SECRET = previous.ZOOM_S2S_CLIENT_SECRET;
+  });
+
+  it("probes Meeting SDK Client ID/Secret pairs without exposing secrets", async () => {
+    const previous = {
+      ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
+      ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+    };
+    process.env.ZOOM_CLIENT_ID = "sdk-client-id";
+    process.env.ZOOM_CLIENT_SECRET = "sdk-client-secret";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }),
+    ) as typeof fetch;
+    await expect(probeMeetingSdkCredentialPair()).resolves.toMatchObject({
+      configured: true,
+      clientIdSuffix: "t-id",
+      credentialPairValid: true,
+    });
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "invalid_client" }), { status: 401 }),
+    ) as typeof fetch;
+    await expect(probeMeetingSdkCredentialPair()).resolves.toMatchObject({
+      configured: true,
+      credentialPairValid: false,
+    });
+    globalThis.fetch = originalFetch;
+    if (previous.ZOOM_CLIENT_ID === undefined) delete process.env.ZOOM_CLIENT_ID;
+    else process.env.ZOOM_CLIENT_ID = previous.ZOOM_CLIENT_ID;
+    if (previous.ZOOM_CLIENT_SECRET === undefined) delete process.env.ZOOM_CLIENT_SECRET;
+    else process.env.ZOOM_CLIENT_SECRET = previous.ZOOM_CLIENT_SECRET;
   });
 
   it("keeps Server-to-Server OAuth off the Meeting SDK JWT path", () => {
@@ -268,8 +377,11 @@ describe("Zoom stays inside AviatorPass", () => {
     const vercel = readFileSync(resolve(process.cwd(), "vercel.json"), "utf8");
     expect(nextConfig).toMatch(/camera=\(self/);
     expect(nextConfig).toMatch(/microphone=\(self/);
+    expect(nextConfig).toMatch(/display-capture=\(self "https:\/\/zoom\.us"/);
     expect(nextConfig).not.toMatch(/camera=\(\)/);
+    expect(nextConfig).not.toMatch(/display-capture=\(self\),/);
     expect(vercel).toMatch(/camera=\(self/);
+    expect(vercel).toMatch(/display-capture=\(self \\"https:\/\/zoom\.us\\"/);
     expect(vercel).not.toMatch(/camera=\(\)/);
   });
 });

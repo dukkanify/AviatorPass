@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     email: parsed.data.email,
     password: parsed.data.password,
     rememberMe: parsed.data.rememberMe,
+    returnTo: parsed.data.returnTo,
     ctx: getRequestContext(request),
   });
 

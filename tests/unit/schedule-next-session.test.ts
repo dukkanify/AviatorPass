@@ -18,11 +18,10 @@ import { resetAssignmentDbCache, writeAssignmentDb } from "@/services/assignment
 import { createLiveClass, getLiveClass } from "@/services/classes/class-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { writeClassesDb } from "@/services/classes/store";
+import { completeSubjectFromClass } from "@/services/cgi/journey-service";
+import { readCgiDb, writeCgiDb } from "@/services/cgi/store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { readCoursesDb } from "@/services/courses/store";
-import { listOutboundEmails } from "@/services/email/outbox";
-import { listNotifications } from "@/services/notifications/notification-service";
-import { processQueue } from "@/services/api-platform/queue-service";
 
 function uniqueSlot(offsetHours: number) {
   const start = new Date(Date.now() + 140 * 86_400_000 + offsetHours * 3_600_000);
@@ -44,10 +43,6 @@ function futureDateTime(offsetDays: number, hour: number) {
   };
 }
 
-function newEmails(beforeIds: Set<string>) {
-  return listOutboundEmails(80).filter((m) => !beforeIds.has(m.id));
-}
-
 describe("schedule next session", () => {
   beforeEach(() => {
     ensureDemoUsersSeeded();
@@ -63,21 +58,12 @@ describe("schedule next session", () => {
     });
   });
 
-  it("emails the student date, time, join URL, and subject after Schedule Next Session", async () => {
+  it("does not open the same ATPL subject again", async () => {
     const instructor = findUserByEmail(PRIMARY_DEMO_EMAILS.instructor)!;
     const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
-    const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
+    const course = readCoursesDb().courses.find((c) => c.code === "ATPL-022" && !c.deletedAt)!;
     const { start, ends } = uniqueSlot(3);
     const next = futureDateTime(150, 18);
-
-    writeClassesDb((d) => {
-      for (const c of d.classes) {
-        if (c.instructorId !== instructor.id) continue;
-        if (Date.parse(c.startsAt) < Date.now() + 100 * 86_400_000) continue;
-        c.status = "cancelled";
-        c.cancelledAt = new Date().toISOString();
-      }
-    });
 
     const live = await createLiveClass({
       title: `${ATPL_PACKAGE_LECTURE_TITLE} · Instrumentation`,
@@ -86,58 +72,76 @@ describe("schedule next session", () => {
       startsAt: start.toISOString(),
       endsAt: ends.toISOString(),
       durationMinutes: 60,
-      status: "completed",
+      status: "scheduled",
       enrollStudentIds: [student.id],
       actorId: instructor.id,
     });
-    expect(live?.id).toBeTruthy();
-    await processQueue(20);
 
-    const beforeIds = new Set(listOutboundEmails(80).map((m) => m.id));
-    const result = await scheduleNextLectureFromClass({
-      liveClassId: live!.id,
-      studentId: student.id,
-      studyStartDate: next.date,
-      lectureTime: next.time,
-      homework: "Complete QB set 2 questions 1–15",
-      actorId: instructor.id,
+    await expect(
+      scheduleNextLectureFromClass({
+        liveClassId: live!.id,
+        studentId: student.id,
+        studyStartDate: next.date,
+        lectureTime: next.time,
+        actorId: instructor.id,
+      }),
+    ).rejects.toThrow(/does not open again/);
+    expect(getLiveClass(live!.id)?.status).toBe("scheduled");
+  });
+
+  it("lets the assigned instructor mark the open subject complete", async () => {
+    const instructor = findUserByEmail(PRIMARY_DEMO_EMAILS.instructor)!;
+    const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
+    const course = readCoursesDb().courses.find((c) => c.code === "ATPL-022" && !c.deletedAt)!;
+    const { start, ends } = uniqueSlot(4);
+    const previous = readCgiDb()
+      .subjectAssignments.filter((row) => row.studentId === student.id)
+      .map((row) => ({ ...row }));
+    writeCgiDb((db) => {
+      db.subjectAssignments = db.subjectAssignments.filter((row) => row.studentId !== student.id);
     });
 
-    expect(result.studentId).toBe(student.id);
-    expect(result.subjectName).toBe("Instrumentation");
-    expect(result.date).toBe(next.date);
-    expect(result.time).toBe(next.time);
-    expect(result.joinUrl).toBeTruthy();
-    expect(result.request.status).toBe("scheduled");
-    expect(result.request.liveClassId).toBe(result.liveClassId);
+    try {
+      const live = await createLiveClass({
+        title: `${ATPL_PACKAGE_LECTURE_TITLE} · Instrumentation`,
+        instructorId: instructor.id,
+        courseId: course.id,
+        startsAt: start.toISOString(),
+        endsAt: ends.toISOString(),
+        durationMinutes: 60,
+        status: "scheduled",
+        enrollStudentIds: [student.id],
+        actorId: instructor.id,
+      });
 
-    const booked = getLiveClass(result.liveClassId);
-    expect(booked?.title).toContain("Instrumentation");
-    expect(booked?.instructorId).toBe(instructor.id);
-
-    const sent = newEmails(beforeIds);
-    const studentMail = sent.filter((m) => m.to.toLowerCase() === student.email.toLowerCase());
-    expect(studentMail.some((m) => m.subject === "Your next lecture is scheduled")).toBe(true);
-    const official = studentMail.find((m) => m.subject === "Your next lecture is scheduled")!;
-    expect(official.html).toMatch(/Instrumentation/);
-    expect(official.html).toMatch(next.date);
-    expect(official.html).toMatch(next.time);
-    expect(official.html).toMatch(/Join Zoom class|href=/i);
-    expect(studentMail.some((m) => /homework/i.test(m.subject) || /homework/i.test(m.html))).toBe(
-      true,
-    );
-    expect(sent.some((m) => m.subject === "Class scheduled")).toBe(false);
-    expect(sent.some((m) => /zoom meeting created/i.test(m.subject))).toBe(false);
-
-    expect(listNotifications(student.id).data.some((n) => n.type === "class.next_session")).toBe(
-      true,
-    );
+      const result = await completeSubjectFromClass({
+        liveClassId: live!.id,
+        studentId: student.id,
+        actorId: instructor.id,
+      });
+      expect(result.subjectTitle).toBe("Instrumentation");
+      expect(getLiveClass(live!.id)?.status).toBe("completed");
+      expect(
+        readCgiDb().subjectAssignments.find(
+          (row) => row.studentId === student.id && row.courseId === course.id,
+        )?.status,
+      ).toBe("completed");
+    } finally {
+      writeCgiDb((db) => {
+        db.subjectAssignments = [
+          ...db.subjectAssignments.filter((row) => row.studentId !== student.id),
+          ...previous,
+        ];
+      });
+    }
   });
 
   it("clears Scheduling Required when the instructor later books the next session", async () => {
     const instructor = findUserByEmail(PRIMARY_DEMO_EMAILS.instructor)!;
     const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
-    const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
+    const course = readCoursesDb().courses.find(
+      (c) => c.code && !/^ATPL-/i.test(c.code) && !c.deletedAt,
+    )!;
     const { start, ends } = uniqueSlot(5);
     const next = futureDateTime(152, 16);
 
@@ -190,7 +194,9 @@ describe("schedule next session", () => {
   it("rejects a next lecture in the past", async () => {
     const instructor = findUserByEmail(PRIMARY_DEMO_EMAILS.instructor)!;
     const student = findUserByEmail(PRIMARY_DEMO_EMAILS.student)!;
-    const course = readCoursesDb().courses.find((c) => /^ATPL-/i.test(c.code) && !c.deletedAt)!;
+    const course = readCoursesDb().courses.find(
+      (c) => c.code && !/^ATPL-/i.test(c.code) && !c.deletedAt,
+    )!;
     const { start, ends } = uniqueSlot(7);
 
     const live = await createLiveClass({

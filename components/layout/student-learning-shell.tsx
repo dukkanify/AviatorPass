@@ -69,14 +69,6 @@ const CommandPalette = dynamic(
   { ssr: false },
 );
 
-const FloatingAiAssistant = dynamic(
-  () =>
-    import("@/features/ai").then((m) => ({
-      default: m.FloatingAiAssistant,
-    })),
-  { ssr: false },
-);
-
 const iconMap: Record<DashboardIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
   users: UserRound,
@@ -369,8 +361,6 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
           <p>Excellence in Aviation Education</p>
         </footer>
       </div>
-
-      <FloatingAiAssistant />
     </div>
   );
 }

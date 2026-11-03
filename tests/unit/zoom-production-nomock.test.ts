@@ -71,7 +71,7 @@ describe("production Zoom mock ban", () => {
     );
   });
 
-  it("still saves the live class when production Zoom create is unavailable", async () => {
+  it("rejects live class creation when neither platform S2S nor personal Zoom is available", async () => {
     process.env.NEXT_PUBLIC_APP_ENV = "production";
     process.env.VERCEL_ENV = "production";
     delete process.env.ALLOW_ZOOM_MOCK;
@@ -84,18 +84,18 @@ describe("production Zoom mock ban", () => {
     const startsAt = new Date(
       Date.UTC(2040, 0, 1 + Math.floor(Math.random() * 3650), Math.floor(Math.random() * 24), 0, 0),
     ).toISOString();
-    const title = `Schedule without S2S ${startsAt}`;
-    const created = await createLiveClass({
-      title,
-      instructorId: instructor!.id,
-      startsAt,
-      durationMinutes: 60,
-      status: "scheduled",
-      actorId: instructor!.id,
+    await expect(
+      createLiveClass({
+        title: `Schedule without platform Zoom ${startsAt}`,
+        instructorId: instructor!.id,
+        startsAt,
+        durationMinutes: 60,
+        status: "scheduled",
+        actorId: instructor!.id,
+      }),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/Zoom is not configured/i),
+      status: 503,
     });
-    expect(created?.id).toBeTruthy();
-    expect(created?.title).toBe(title);
-    expect(created?.zoomError).toMatch(/ZOOM_S2S_CLIENT_ID|connect an instructor Zoom account/i);
-    expect(created?.zoomMeetingId).toBeNull();
   });
 });

@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { PRIMARY_DEMO_EMAILS } from "@/constants/demo-accounts";
 import { InstructorDashboardView } from "@/features/dashboard/instructor-dashboard-view";
 import { routes } from "@/constants/routes";
 import { ROLES } from "@/constants/roles";
 import { newDashboardCorrelationId, safeDashboardQuery } from "@/lib/dashboard/safe-load";
 import { getCurrentSession } from "@/services/auth/auth-service";
 import { listAssignedFirstLectures } from "@/services/cgi/journey-service";
+import { ensureDemoOpeningLecture } from "@/services/demo/platform-demo-seed";
 import {
   getAttendanceSeries,
   getDashboardCalendarEvents,
-  getEarningsSeries,
   getInstructorOverview,
-  getProgressBreakdown,
 } from "@/services/dashboard/metrics";
 
 export const metadata: Metadata = { title: "Instructor Dashboard" };
@@ -23,6 +23,7 @@ export default async function InstructorDashboardPage() {
   if (user.role !== ROLES.INSTRUCTOR && user.role !== ROLES.CHIEF_GROUND_INSTRUCTOR) {
     redirect(routes.accessDenied);
   }
+  if (user.email === PRIMARY_DEMO_EMAILS.instructor) ensureDemoOpeningLecture();
 
   const correlationId = newDashboardCorrelationId();
   const base = {
@@ -51,23 +52,11 @@ export default async function InstructorDashboardPage() {
   return (
     <InstructorDashboardView
       overview={overview}
-      earnings={safeDashboardQuery({
-        ...base,
-        label: "getEarningsSeries",
-        fallback: [],
-        run: () => getEarningsSeries(),
-      })}
       attendance={safeDashboardQuery({
         ...base,
         label: "getAttendanceSeries",
         fallback: [],
         run: () => getAttendanceSeries(),
-      })}
-      progress={safeDashboardQuery({
-        ...base,
-        label: "getProgressBreakdown",
-        fallback: [],
-        run: () => getProgressBreakdown(),
       })}
       calendar={safeDashboardQuery({
         ...base,
@@ -79,7 +68,10 @@ export default async function InstructorDashboardPage() {
         ...base,
         label: "listAssignedFirstLectures",
         fallback: [],
-        run: () => listAssignedFirstLectures({ instructorId: user.id }),
+        run: () =>
+          listAssignedFirstLectures({ instructorId: user.id }).filter(
+            (lecture) => !lecture.studentEmail.trim().toLowerCase().endsWith(".test"),
+          ),
       })}
     />
   );

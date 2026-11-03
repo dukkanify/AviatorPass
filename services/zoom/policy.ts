@@ -75,6 +75,11 @@ export function sanitizeJoinInfoForViewer(
   };
 }
 
+/** Placeholder identities from PR #150 when /users/me lacks user:read:user. */
+export function isPlaceholderZoomIdentity(zoomUserId: string | null | undefined): boolean {
+  return Boolean(zoomUserId && String(zoomUserId).startsWith("oauth:"));
+}
+
 export function publicIntegrationView(
   userId: string,
   oauthConfigured: boolean,
@@ -87,6 +92,12 @@ export function publicIntegrationView(
   lastSyncAt: string | null;
   oauthConfigured: boolean;
   needsReconnect: boolean;
+  /** False when Connected used a placeholder Zoom user id — cannot host live meetings yet. */
+  meetingReady: boolean;
+  identitySource: "profile" | "jwt" | "placeholder" | null;
+  /** Filled by getInstructorZoomStatus — defaults false in the base view. */
+  sharedPlatformAccount: boolean;
+  personalZoomReady: boolean;
 } {
   const row = getIntegrationByUserId(userId);
   if (!row) {
@@ -99,16 +110,36 @@ export function publicIntegrationView(
       lastSyncAt: null,
       oauthConfigured,
       needsReconnect: false,
+      meetingReady: false,
+      identitySource: null,
+      sharedPlatformAccount: false,
+      personalZoomReady: false,
     };
   }
+  const placeholder = isPlaceholderZoomIdentity(row.zoomUserId);
+  const rowConnected = row.status === "connected";
+  // Placeholder Connected must not look meeting-ready or bypass reconnect guidance.
+  const status = placeholder && rowConnected ? "reconnect_required" : row.status;
+  const identitySource: "profile" | "jwt" | "placeholder" = placeholder
+    ? "placeholder"
+    : row.zoomEmail
+      ? "profile"
+      : "jwt";
+  const meetingReady = rowConnected && !placeholder && Boolean(row.zoomUserId);
   return {
-    connected: row.status === "connected",
-    status: row.status,
+    connected: rowConnected && !placeholder,
+    status,
     zoomEmail: row.zoomEmail,
     zoomUserId: row.zoomUserId,
     connectedAt: row.connectedAt,
     lastSyncAt: row.lastSyncAt,
     oauthConfigured,
-    needsReconnect: row.status === "reconnect_required",
+    needsReconnect: status === "reconnect_required",
+    meetingReady,
+    identitySource,
+    // Shared-platform / personal readiness are enriched in getInstructorZoomStatus
+    // (needs decrypt + platform settings — avoid policy ↔ oauth cycles).
+    sharedPlatformAccount: false,
+    personalZoomReady: false,
   };
 }

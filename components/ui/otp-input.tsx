@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { otpDigitsFromText } from "@/utils/otp-code";
 
 interface OtpInputProps {
   length?: number;
@@ -12,6 +13,19 @@ interface OtpInputProps {
   disabled?: boolean;
   className?: string;
   "aria-label"?: string;
+}
+
+function applyOtpText(
+  text: string,
+  length: number,
+  onChange?: (value: string) => void,
+  inputs?: Array<HTMLInputElement | null>,
+) {
+  const pasted = otpDigitsFromText(text, length);
+  if (!pasted) return;
+  onChange?.(pasted);
+  const focusIndex = Math.min(pasted.length, length) - 1;
+  if (focusIndex >= 0) inputs?.[focusIndex]?.focus();
 }
 
 function OtpInput({
@@ -27,12 +41,22 @@ function OtpInput({
 
   const setDigit = (index: number, char: string) => {
     const next = digits.slice();
-    next[index] = char.slice(-1).replace(/\D/g, "");
+    next[index] = char.replace(/\D/g, "").slice(-1);
     onChange?.(next.join("").slice(0, length));
   };
 
   return (
-    <div className={cn("flex gap-2", className)} role="group" aria-label={ariaLabel}>
+    <div
+      className={cn("flex gap-2", className)}
+      role="group"
+      aria-label={ariaLabel}
+      onPaste={(event) => {
+        const text = event.clipboardData.getData("text");
+        if (!text) return;
+        event.preventDefault();
+        applyOtpText(text, length, onChange, inputs.current);
+      }}
+    >
       {digits.map((digit, index) => (
         <Input
           key={index}
@@ -41,27 +65,32 @@ function OtpInput({
           }}
           inputMode="numeric"
           autoComplete={index === 0 ? "one-time-code" : "off"}
-          maxLength={1}
+          maxLength={length}
           disabled={disabled}
           value={digit}
           aria-label={`Digit ${index + 1}`}
           className="h-12 w-10 rounded-xl text-center text-lg font-semibold sm:w-12"
-          onChange={(e) => {
-            const v = e.target.value.replace(/\D/g, "");
-            setDigit(index, v);
-            if (v && index < length - 1) inputs.current[index + 1]?.focus();
+          onChange={(event) => {
+            const raw = event.target.value;
+            const numeric = raw.replace(/\D/g, "");
+            if (numeric.length > 1 || raw.trim().length > 1) {
+              applyOtpText(raw, length, onChange, inputs.current);
+              return;
+            }
+            setDigit(index, numeric);
+            if (numeric && index < length - 1) inputs.current[index + 1]?.focus();
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Backspace" && !digits[index] && index > 0) {
+          onKeyDown={(event) => {
+            if (event.key === "Backspace" && !digits[index] && index > 0) {
               inputs.current[index - 1]?.focus();
             }
           }}
-          onPaste={(e) => {
-            e.preventDefault();
-            const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, length);
-            onChange?.(pasted);
-            const focusIndex = Math.min(pasted.length, length - 1);
-            inputs.current[focusIndex]?.focus();
+          onPaste={(event) => {
+            const text = event.clipboardData.getData("text");
+            if (!text) return;
+            event.preventDefault();
+            event.stopPropagation();
+            applyOtpText(text, length, onChange, inputs.current);
           }}
         />
       ))}

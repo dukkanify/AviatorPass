@@ -36,7 +36,7 @@ describe("production performance contracts", () => {
     const admin = src("features/dashboard/admin-dashboard-view.tsx");
     const join = src("features/classes/components/join-class-client.tsx");
     expect(studentShell).toContain("next/dynamic");
-    expect(studentShell).toContain("FloatingAiAssistant");
+    expect(studentShell).not.toContain("FloatingAiAssistant");
     expect(studentShell).toContain("CommandPalette");
     expect(admin).toContain("next/dynamic");
     expect(admin).toContain("calendar-widget");
@@ -57,7 +57,9 @@ describe("production performance contracts", () => {
     expect(join).toContain("classroom.css");
     expect(src("features/zoom/components/in-app-zoom-room.tsx")).toContain("classroom.css");
     expect(src("features/learning/components/course-player-view.tsx")).toContain("classroom.css");
-    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(/MutationObserver/);
+    expect(src("features/zoom/components/in-app-zoom-room.tsx")).toMatch(
+      /waitForEmbeddedUiLeftConnecting/,
+    );
     expect(config).toContain("max-age=31536000");
     expect(config).toContain("image/avif");
     expect(config).toContain("image/webp");
@@ -93,6 +95,13 @@ describe("production performance contracts", () => {
     );
     expect(src("services/auth/auth-service.ts")).toContain("getSessionById");
     expect(src("services/auth/auth-service.ts")).toContain("sessionSeedReady");
+    const sessionFn = src("services/auth/auth-service.ts");
+    const sessionBody = sessionFn.slice(
+      sessionFn.indexOf("export async function getCurrentSession"),
+    );
+    expect(sessionBody.indexOf("getSessionById")).toBeLessThan(
+      sessionBody.indexOf("ensureDemoUsersSeeded"),
+    );
   });
 
   it("opens one classroom from the indexed class catalog", () => {

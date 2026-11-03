@@ -8,7 +8,10 @@ import {
   probeZoomHostZak,
   refreshZoomCredentialsFlag,
 } from "@/services/classes/zoom-service";
+import { getInstructorOAuthAlignment } from "@/lib/zoom/oauth-alignment";
+import { probeMeetingSdkCredentialPair } from "@/lib/zoom/sdk-credentials";
 import { getPlatformSettings } from "@/services/settings/settings-service";
+import { getZoomOAuthPublicDiagnostics } from "@/services/zoom/config";
 import { classErrorResponse } from "@/app/api/classes/_utils";
 
 /** Zoom integration status — never returns secrets. */
@@ -18,9 +21,14 @@ export async function GET() {
     const configured = refreshZoomCredentialsFlag();
     const settings = getPlatformSettings();
     const inventory = getZoomCredentialInventory();
-    const hostZak = configured
-      ? await probeZoomHostZak({ accountEmail: settings.zoom.accountEmail })
-      : null;
+    const oauth = getZoomOAuthPublicDiagnostics();
+    const [hostZak, meetingSdk, instructorAlignment] = await Promise.all([
+      configured
+        ? probeZoomHostZak({ accountEmail: settings.zoom.accountEmail })
+        : Promise.resolve(null),
+      probeMeetingSdkCredentialPair(),
+      getInstructorOAuthAlignment(),
+    ]);
     return NextResponse.json({
       success: true,
       data: {
@@ -32,6 +40,26 @@ export async function GET() {
         defaultPasscode: settings.zoom.defaultPasscode,
         defaultMeetingType: settings.zoom.defaultMeetingType,
         mode: inventory.meetingSdk ? "sdk" : configured ? "zoom" : "mock",
+        instructorOAuth: {
+          configured: oauth.oauthConfigured,
+          redirectUri: oauth.redirectUri,
+          clientIdSuffix: oauth.clientIdSuffix,
+          clientIdLength: oauth.clientIdLength,
+          scopes: oauth.scopes,
+          includeScopesInAuthorizeUrl: oauth.includeScopesInAuthorizeUrl,
+          authorizeHost: oauth.authorizeHost,
+          meetingSdkClientIdSuffix: oauth.meetingSdkClientIdSuffix,
+          meetingSdkClientIdLength: oauth.meetingSdkClientIdLength,
+          credentialsMixed: oauth.credentialsMixed,
+          alignment: instructorAlignment,
+        },
+        meetingSdk: {
+          configured: meetingSdk.configured,
+          clientIdSuffix: meetingSdk.clientIdSuffix,
+          clientIdLength: meetingSdk.clientIdLength,
+          credentialPairValid: meetingSdk.credentialPairValid,
+          detail: meetingSdk.detail,
+        },
         hostZak: hostZak
           ? {
               ready: hostZak.ready,

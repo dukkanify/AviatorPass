@@ -129,6 +129,10 @@ function Footer() {
             <Link href={routes.legal.privacy} className="site-footer-legal-link">
               Privacy Policy
             </Link>
+            <span className="site-footer-dot" aria-hidden />
+            <Link href={routes.meetingSdkDocs} className="site-footer-legal-link">
+              AviatorPass Classroom for Zoom
+            </Link>
           </p>
           <p className="site-footer-motto">
             <span>Train</span>

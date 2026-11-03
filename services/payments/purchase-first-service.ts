@@ -813,7 +813,7 @@ export async function fulfillGuestPaidOrder(
       },
     });
     emailSent = welcome.sent > 0;
-  } else {
+  } else if (!isAtplPurchase(bound)) {
     const confirm = await dispatchEmailEvent({
       event: "payment",
       userIds: [user.id],
@@ -837,6 +837,7 @@ export async function fulfillGuestPaidOrder(
     });
     emailSent = confirm.sent > 0;
   }
+  if (isAtplPurchase(bound)) emailSent = true;
 
   await emitNotification({
     userId: user.id,

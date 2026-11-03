@@ -239,12 +239,12 @@ function MonthGrid({
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
       <div className="table-scroll">
-        <div className="min-w-[36rem]">
+        <div className="min-w-0 w-full sm:min-w-[36rem]">
           <div className="grid grid-cols-7 border-b border-border/60 bg-muted/40">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div
                 key={d}
-                className="px-1 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:px-2 sm:text-[11px] sm:tracking-[0.14em]"
+                className="px-0.5 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:px-2 sm:py-3 sm:text-[11px] sm:tracking-[0.14em]"
               >
                 <span className="sm:hidden">{d.slice(0, 1)}</span>
                 <span className="hidden sm:inline">{d}</span>
@@ -262,7 +262,7 @@ function MonthGrid({
                   type="button"
                   onClick={() => onSelectDay(day)}
                   className={cn(
-                    "group relative min-h-[5.5rem] border-b border-r border-border/40 p-2 text-left transition-colors hover:bg-primary/[0.04] sm:min-h-24",
+                    "group relative min-h-[4.25rem] border-b border-r border-border/40 p-1 text-left transition-colors hover:bg-primary/[0.04] sm:min-h-24 sm:p-2",
                     i % 7 === 6 && "border-r-0",
                     outside && "bg-muted/20",
                   )}

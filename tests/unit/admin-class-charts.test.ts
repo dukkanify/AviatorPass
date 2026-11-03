@@ -118,7 +118,9 @@ describe("super admin class charts", () => {
   it("counts this week's sessions without scanning the classes blob", () => {
     const now = Date.now();
     const upcoming = testClass("up", new Date(now + 2 * 60 * 60_000).toISOString(), "scheduled");
-    const past = testClass("past", new Date(now - 26 * 60 * 60_000).toISOString(), "completed");
+    const pastAt = new Date(now - 2 * 60 * 60_000);
+    if (pastAt.getDay() === 0) pastAt.setTime(pastAt.getTime() - 24 * 60 * 60_000);
+    const past = testClass("past", pastAt.toISOString(), "completed");
     upsertLiveClass(upcoming);
     upsertLiveClass(past);
     markClassCatalogSynced();

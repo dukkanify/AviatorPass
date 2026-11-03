@@ -473,10 +473,11 @@ a.atpl-subject-card {
 /* —— Contact —— */
 .atpl-contact-email {
   display: inline-flex;
+  width: fit-content;
   max-width: 100%;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
-  margin-top: 2rem;
+  margin-inline: auto;
   padding: 1rem 1.25rem;
   border-radius: 1.25rem;
   border: 1px solid rgba(204, 160, 76, 0.35);
@@ -484,8 +485,7 @@ a.atpl-subject-card {
   font-size: 0.95rem;
   font-weight: 500;
   color: white;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: nowrap;
   text-align: left;
   transition:
     background 0.3s ease,
@@ -495,11 +495,10 @@ a.atpl-subject-card {
 
 @media (min-width: 640px) {
   .atpl-contact-email {
-    align-items: center;
+    margin-inline: 0;
     padding: 1rem 1.75rem;
     border-radius: 999px;
     font-size: 1rem;
-    text-align: center;
   }
 }
 

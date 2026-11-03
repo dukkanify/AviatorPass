@@ -114,7 +114,7 @@ function BookingJoinLobby({ bookingId }: BookingJoinLobbyProps) {
             {isHost ? booking.studentName : booking.instructorName}
           </p>
 
-          <div className="relative mt-10 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+          <div className="relative mt-10 rounded-[1.75rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
             <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
             <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
 
@@ -187,8 +187,8 @@ function Cred({ label, value, onCopy }: { label: string; value: string; onCopy?:
   return (
     <div className="rounded-2xl bg-black/25 px-4 py-3 ring-1 ring-white/10">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{label}</p>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <p className="font-mono text-lg font-semibold tracking-wide">{value}</p>
+      <div className="mt-1 flex items-start justify-between gap-2">
+        <p className="min-w-0 break-all font-mono text-lg font-semibold tracking-wide">{value}</p>
         {onCopy ? (
           <button
             type="button"

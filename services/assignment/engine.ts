@@ -9,7 +9,9 @@
 import { generateId } from "@/lib/security/crypto";
 import {
   ATPL_PACKAGE_LECTURE_TITLE,
+  atplPackageSubjectByEasaCode,
   combineLocalDateAndTime,
+  easaCodeFromAtplCourseCode,
   formatAtplPackageScheduleLabel,
 } from "@/constants/atpl-complete-package";
 import { ROLES } from "@/constants/roles";
@@ -63,6 +65,97 @@ function getRequest(id: string): AssignmentRequest | null {
   return readAssignmentDb().requests.find((r) => r.id === id) ?? null;
 }
 
+function isOpenAssignmentStatus(status: AssignmentRequest["status"]): boolean {
+  return status === "scheduling_required" || status === "queued" || status === "unable_to_schedule";
+}
+
+function cancelQueueItemsForRequest(
+  db: ReturnType<typeof readAssignmentDb>,
+  requestId: string,
+  reason: string,
+  stamp: string,
+) {
+  for (const q of db.queue) {
+    if (
+      q.assignmentRequestId === requestId &&
+      (q.status === "waiting" || q.status === "processing")
+    ) {
+      q.status = "cancelled";
+      q.failureReason = reason;
+      q.updatedAt = stamp;
+    }
+  }
+}
+
+/**
+ * Journey rule: one open request per student + subject.
+ * Cancel older opens so CGI Scheduling Required does not stack reassigns.
+ */
+export function cancelOpenAssignmentRequests(input: {
+  courseId: string;
+  studentId?: string | null;
+  excludeRequestId?: string | null;
+  reason: string;
+}): number {
+  const stamp = nowIso();
+  const studentKey = input.studentId ?? null;
+  let cancelled = 0;
+  writeAssignmentDb((db) => {
+    for (const req of db.requests) {
+      if (req.courseId !== input.courseId) continue;
+      if ((req.studentId ?? null) !== studentKey) continue;
+      if (input.excludeRequestId && req.id === input.excludeRequestId) continue;
+      if (!isOpenAssignmentStatus(req.status)) continue;
+      req.status = "cancelled";
+      req.updatedAt = stamp;
+      req.queuePosition = null;
+      req.notes = req.notes ? `${req.notes}\n${input.reason}` : input.reason;
+      cancelQueueItemsForRequest(db, req.id, input.reason, stamp);
+      cancelled += 1;
+    }
+  });
+  return cancelled;
+}
+
+/**
+ * Heal stacked opens (same student + course): keep newest, prefer Unable-to-Schedule.
+ */
+export function reconcileDuplicateOpenAssignmentRequests(): number {
+  const stamp = nowIso();
+  let cancelled = 0;
+  writeAssignmentDb((db) => {
+    const groups = new Map<string, AssignmentRequest[]>();
+    for (const req of db.requests) {
+      if (!req.studentId || !isOpenAssignmentStatus(req.status)) continue;
+      const key = `${req.studentId}::${req.courseId}`;
+      const list = groups.get(key) ?? [];
+      list.push(req);
+      groups.set(key, list);
+    }
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      list.sort((a, b) => {
+        const unable = Number(Boolean(b.unableReason)) - Number(Boolean(a.unableReason));
+        if (unable !== 0) return unable;
+        return (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt);
+      });
+      for (const req of list.slice(1)) {
+        const row = db.requests.find((r) => r.id === req.id);
+        if (!row || !isOpenAssignmentStatus(row.status)) continue;
+        row.status = "cancelled";
+        row.updatedAt = stamp;
+        row.queuePosition = null;
+        row.notes = row.notes
+          ? `${row.notes}\nSuperseded by newer open request`
+          : "Superseded by newer open request";
+        cancelQueueItemsForRequest(db, row.id, "Superseded by newer open request", stamp);
+        cancelled += 1;
+      }
+    }
+  });
+  return cancelled;
+}
+
 function displayName(
   user: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined,
 ) {
@@ -98,7 +191,8 @@ async function alertUnableToSchedule(input: {
   const adminIds = [...listUsersByRole(ROLES.SUPER_ADMIN), ...listUsersByRole(ROLES.ADMIN)]
     .filter((u) => u.status === "active")
     .map((u) => u.id);
-  const recipients = [...new Set([...cgiIds, ...adminIds])];
+  const instructorIds = instructor?.status === "active" ? [instructor.id] : [];
+  const recipients = [...new Set([...cgiIds, ...adminIds, ...instructorIds])];
 
   if (cgiIds.length) {
     await notifyUsers(cgiIds, {
@@ -121,7 +215,24 @@ async function alertUnableToSchedule(input: {
       body,
       type: "admin.unable_to_schedule",
       email: false,
-      actionUrl: "/super-admin",
+      actionUrl: input.request.liveClassId
+        ? `/super-admin/classes/${input.request.liveClassId}`
+        : "/super-admin/dashboard",
+      data: {
+        assignmentRequestId: input.request.id,
+        studentId: input.request.studentId,
+        liveClassId: input.request.liveClassId,
+        reason: input.reason,
+      },
+    });
+  }
+  if (instructorIds.length) {
+    await notifyUsers(instructorIds, {
+      title,
+      body,
+      type: "instructor.unable_to_schedule",
+      email: false,
+      actionUrl: "/instructor/schedule",
       data: {
         assignmentRequestId: input.request.id,
         studentId: input.request.studentId,
@@ -214,6 +325,11 @@ export async function assignInstructorEngine(input: {
   });
 
   ensureDefaultAvailability(input.instructorId);
+  cancelOpenAssignmentRequests({
+    courseId: input.courseId,
+    studentId: input.studentId ?? null,
+    reason: "Superseded by new assign request",
+  });
   const settings = readAssignmentDb().settings;
   const stamp = nowIso();
   const request: AssignmentRequest = {
@@ -301,37 +417,76 @@ export async function reassignInstructorEngine(input: {
 
   const settings = readAssignmentDb().settings;
   const stamp = nowIso();
-  const request: AssignmentRequest = {
-    id: generateId(),
-    kind: "reassign",
-    courseId: input.courseId,
-    lessonId: null,
-    lessonTitle: `Reassign ${course.code}`,
-    studentId: input.studentId ?? null,
-    instructorId: input.instructorId,
-    previousInstructorId,
-    preferredStartsAt: null,
-    durationMinutes: settings.defaultDurationMinutes,
-    status: "scheduling_required",
-    liveClassId: null,
-    zoomMeetingId: null,
-    conflictSummary: null,
-    queuePosition: null,
-    attempts: 0,
-    maxAttempts: settings.maxQueueAttempts,
-    autoZoom: settings.autoZoom,
-    notes: previousInstructorId
-      ? `Reassigned from ${previousInstructorId}`
-      : "Initial assignment via reassign",
-    createdById: input.actorId,
-    createdAt: stamp,
-    updatedAt: stamp,
-    scheduledAt: null,
-    unableReason: null,
-  };
-  writeAssignmentDb((db) => {
-    db.requests.unshift(request);
-  });
+  const studentId = input.studentId ?? null;
+  const existingOpen =
+    studentId != null
+      ? (listAssignmentRequests({ courseId: input.courseId }).find(
+          (r) => r.studentId === studentId && isOpenAssignmentStatus(r.status),
+        ) ?? null)
+      : null;
+
+  let request: AssignmentRequest;
+  if (existingOpen) {
+    cancelOpenAssignmentRequests({
+      courseId: input.courseId,
+      studentId,
+      excludeRequestId: existingOpen.id,
+      reason: "Superseded by instructor reassignment",
+    });
+    writeAssignmentDb((db) => {
+      const req = db.requests.find((r) => r.id === existingOpen.id);
+      if (!req) return;
+      req.kind = "reassign";
+      req.instructorId = input.instructorId;
+      req.previousInstructorId = previousInstructorId;
+      req.lessonTitle = `Reassign ${course.code}`;
+      req.status = "scheduling_required";
+      req.queuePosition = null;
+      req.conflictSummary = null;
+      req.updatedAt = stamp;
+      req.notes = previousInstructorId
+        ? `Reassigned from ${previousInstructorId}`
+        : "Initial assignment via reassign";
+    });
+    request = getRequest(existingOpen.id)!;
+  } else {
+    cancelOpenAssignmentRequests({
+      courseId: input.courseId,
+      studentId,
+      reason: "Superseded by instructor reassignment",
+    });
+    request = {
+      id: generateId(),
+      kind: "reassign",
+      courseId: input.courseId,
+      lessonId: null,
+      lessonTitle: `Reassign ${course.code}`,
+      studentId,
+      instructorId: input.instructorId,
+      previousInstructorId,
+      preferredStartsAt: null,
+      durationMinutes: settings.defaultDurationMinutes,
+      status: "scheduling_required",
+      liveClassId: null,
+      zoomMeetingId: null,
+      conflictSummary: null,
+      queuePosition: null,
+      attempts: 0,
+      maxAttempts: settings.maxQueueAttempts,
+      autoZoom: settings.autoZoom,
+      notes: previousInstructorId
+        ? `Reassigned from ${previousInstructorId}`
+        : "Initial assignment via reassign",
+      createdById: input.actorId,
+      createdAt: stamp,
+      updatedAt: stamp,
+      scheduledAt: null,
+      unableReason: null,
+    };
+    writeAssignmentDb((db) => {
+      db.requests.unshift(request);
+    });
+  }
 
   let movedClasses = 0;
   let queuedSessions = 0;
@@ -626,6 +781,12 @@ export async function scheduleAssignmentSession(input: {
       }
     }
   });
+  cancelOpenAssignmentRequests({
+    courseId: request.courseId,
+    studentId: request.studentId,
+    excludeRequestId: request.id,
+    reason: "Superseded after lecture was scheduled",
+  });
   bumpQueuePositions(request.instructorId);
 
   try {
@@ -842,6 +1003,12 @@ export async function scheduleNextLectureFromClass(input: {
   }
 
   const course = getCourseById(liveClass.courseId);
+  if (atplPackageSubjectByEasaCode(easaCodeFromAtplCourseCode(course?.code))) {
+    throw new AssignmentError(
+      "Mark this subject complete. It does not open again. TKI 1 books the next subject.",
+      400,
+    );
+  }
   const subjectName = subjectNameFromClass(liveClass.title, course?.title ?? null);
   const homework = input.homework?.trim() || "";
   const comments = input.comments?.trim() || "";
@@ -931,6 +1098,13 @@ export async function scheduleNextLectureFromClass(input: {
     });
     requestId = request.id;
   }
+
+  cancelOpenAssignmentRequests({
+    courseId: liveClass.courseId,
+    studentId,
+    excludeRequestId: requestId,
+    reason: "Superseded after next lecture was scheduled",
+  });
 
   const detailParts = [
     `Subject: ${subjectName}`,
@@ -1161,10 +1335,20 @@ export function getInstructorCalendar(
   };
 }
 
+function isFixtureAccount(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase().endsWith(".test");
+}
+
 export function getAssignmentEngineSnapshot() {
   ensureCoursesSeeded();
-  const instructors = listUsersByRole(ROLES.INSTRUCTOR);
-  const requests = listAssignmentRequests();
+  reconcileDuplicateOpenAssignmentRequests();
+  const instructors = listUsersByRole(ROLES.INSTRUCTOR).filter(
+    (user) => !isFixtureAccount(user.email),
+  );
+  const requests = listAssignmentRequests().filter((request) => {
+    const student = request.studentId ? findUserById(request.studentId) : null;
+    return !isFixtureAccount(student?.email);
+  });
   return {
     settings: readAssignmentDb().settings,
     counts: {
@@ -1186,7 +1370,24 @@ export function getAssignmentEngineSnapshot() {
           r.instructorId === u.id && (r.status === "scheduling_required" || r.status === "queued"),
       ).length,
     })),
-    recentRequests: requests.slice(0, 20),
+    recentRequests: requests.slice(0, 40).map((request) => {
+      const course = getCourseById(request.courseId);
+      const instructor = findUserById(request.instructorId);
+      const student = request.studentId ? findUserById(request.studentId) : null;
+      return {
+        ...request,
+        courseCode: course?.code ?? null,
+        courseTitle: course?.title ?? null,
+        instructorName:
+          [instructor?.firstName, instructor?.lastName].filter(Boolean).join(" ").trim() ||
+          instructor?.email ||
+          null,
+        studentName:
+          [student?.firstName, student?.lastName].filter(Boolean).join(" ").trim() ||
+          student?.email ||
+          null,
+      };
+    }),
     queue: listWaitingQueue(),
     atplCourses: readCoursesDb()
       .courses.filter((c) => !c.deletedAt && /^ATPL-/i.test(c.code))

@@ -396,18 +396,18 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-white/60">
             {CONTACT.body}
           </p>
-          <div className="mx-auto mt-8 flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:justify-center">
+          <div className="mx-auto mt-8 flex w-full max-w-3xl flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <a
               href={`mailto:${siteStatic.contactEmail}`}
               className="atpl-contact-email"
               aria-label={`Website contact ${siteStatic.contactEmail}`}
             >
-              <Mail className="h-5 w-5 text-accent" aria-hidden />
-              <span className="flex min-w-0 flex-col items-start text-left leading-tight">
+              <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+              <span className="flex flex-col items-start text-left leading-tight">
                 <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
                   Website
                 </span>
-                <span className="break-all">{siteStatic.contactEmail}</span>
+                <span className="whitespace-nowrap">{siteStatic.contactEmail}</span>
               </span>
             </a>
             <a
@@ -415,12 +415,12 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               className="atpl-contact-email"
               aria-label={`Student support ${siteStatic.supportEmail}`}
             >
-              <Mail className="h-5 w-5 text-accent" aria-hidden />
-              <span className="flex min-w-0 flex-col items-start text-left leading-tight">
+              <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+              <span className="flex flex-col items-start text-left leading-tight">
                 <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
                   Student support
                 </span>
-                <span className="break-all">{siteStatic.supportEmail}</span>
+                <span className="whitespace-nowrap">{siteStatic.supportEmail}</span>
               </span>
             </a>
           </div>

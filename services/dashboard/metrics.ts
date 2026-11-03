@@ -8,13 +8,14 @@ import {
   countUsersByRole,
   countUsersByStatus,
   listAllUsers,
+  listUsersByRole as listStoredUsersByRole,
   listStudentGrowthMonths,
 } from "@/lib/data/auth-identity-store";
 import { listActivityForActor, listRecentActivityLogs } from "@/lib/data/auth-activity-store";
-import { findUserById, toUserProfile, type StoredUser } from "@/services/auth/store";
+import { findUserById, toUserProfile } from "@/services/auth/store";
 import { ROLES, type Role } from "@/constants/roles";
 import { ACCOUNT_STATUS } from "@/constants/account-status";
-import { getFastCourseStats } from "@/services/courses/course-service";
+import { getCourseStats, getFastCourseStats } from "@/services/courses/course-service";
 import { listStoredCourseSummaries } from "@/lib/data/lms-course-detail-store";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import {
@@ -23,6 +24,8 @@ import {
   readCoursesDb,
 } from "@/services/courses/store";
 import { getClassStats, getPlatformClassCounts } from "@/services/classes/class-service";
+import { listBlogPosts } from "@/services/communication/blog-service";
+import { listModerationLogs } from "@/services/communication/moderation-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
 import { listParticipantsForUser, lookupAllLiveClasses } from "@/services/classes/store";
 import type { SeriesPoint } from "@/components/dashboard/chart-types";
@@ -33,13 +36,15 @@ import { getCalendarEventsForUser } from "@/services/classes/calendar-service";
 import { getOverallProgress } from "@/services/learning/progress-service";
 import { getFinanceDashboard } from "@/services/payments/report-service";
 import { listInstructorStudents } from "@/services/courses/instructor-students";
+import { getCgiDashboardSnapshot } from "@/services/cgi/journey-service";
+import {
+  countExaminerMockExams,
+  getStudentAssessmentStats,
+} from "@/services/mock-exams/assessment-scores";
+import { listCertificates } from "@/services/certificates/certificate-service";
 import type { UserProfile } from "@/types";
 
 export { ensureDemoUsersSeeded };
-
-function countByRole(users: StoredUser[], role: Role): number {
-  return users.filter((u) => u.role === role).length;
-}
 
 function emptyFinance() {
   return {
@@ -106,7 +111,9 @@ export function getPlatformOverview() {
 
 export function getSuperAdminDashboardPayload() {
   const finance = getFinanceDashboard();
+  const journey = atplControlRoomCounts();
   return {
+    journey,
     overview: buildPlatformOverview(finance),
     calendar: [],
     activity: getRecentActivityFeed(),
@@ -121,8 +128,23 @@ export function getSuperAdminDashboardPayload() {
   };
 }
 
-export function getSuperAdminCountsPayload() {
+function atplControlRoomCounts() {
+  const journey = getCgiDashboardSnapshot();
+  const live = (email: string | null | undefined) => {
+    if (!email) return false;
+    return !email.trim().toLowerCase().endsWith(".test");
+  };
   return {
+    pendingInstructor: journey.pendingInstructorAssignments.filter((row) => live(row.email)).length,
+    schedulingRequired: journey.schedulingRequired.filter((row) => live(row.studentEmail)).length,
+    confirmedLectures: journey.confirmedFirstLectures.filter((row) => live(row.email)).length,
+  };
+}
+
+export function getSuperAdminCountsPayload() {
+  const journey = atplControlRoomCounts();
+  return {
+    journey,
     overview: getPlatformOverviewCounts(),
     calendar: [],
     activity: getRecentActivityFeed(),
@@ -136,7 +158,6 @@ export function getSuperAdminCountsPayload() {
 }
 
 export function getGrowthSeries(): SeriesPoint[] {
-  ensureDemoUsersSeeded();
   return listStudentGrowthMonths();
 }
 
@@ -263,7 +284,6 @@ export function getDashboardCalendarEvents(user?: UserProfile | null): CalendarE
 }
 
 export function getRecentActivityFeed(actorUserId?: string | null): ActivityItem[] {
-  ensureDemoUsersSeeded();
   const logs = actorUserId ? listActivityForActor(actorUserId) : listRecentActivityLogs(8);
   return logs.slice(0, 8).map((log) => ({
     id: log.id,
@@ -279,7 +299,10 @@ export function listUsersByRole(
   options?: { page?: number; pageSize?: number; columns?: "profile" | "full" },
 ) {
   ensureDemoUsersSeeded();
-  const users = role ? listAllUsers().filter((u) => u.role === role) : listAllUsers();
+  const users = (role ? listAllUsers().filter((u) => u.role === role) : listAllUsers())
+    .slice()
+    // Newest accounts first so fresh registrations appear at the top of the control panel.
+    .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")));
   const pageSize = Math.min(200, Math.max(1, options?.pageSize ?? users.length));
   const page = Math.max(1, options?.page ?? 1);
   const start = (page - 1) * pageSize;
@@ -320,7 +343,7 @@ export function getInstructorOverview(instructorUserId?: string | null) {
     upcomingClasses: classStats.upcoming,
     students,
     assignments: 0,
-    quizzes: 0,
+    quizzes: countExaminerMockExams(instructor.id),
     earnings: listWallets().find((w) => w.instructorId === instructor.id)?.lifetimeEarned ?? 0,
     walletBalance:
       listWallets().find((w) => w.instructorId === instructor.id)?.availableBalance ?? 0,
@@ -345,15 +368,16 @@ export function getStudentOverview(studentUserId?: string | null) {
   }
   if (student) {
     const overall = getOverallProgress(student.id);
+    const assessment = getStudentAssessmentStats(student.id);
     return {
       currentCourses: overall.activeCourses,
       nextLiveClass: "None scheduled",
       progress: Math.round(overall.progressPercent),
-      certificates: 0,
+      certificates: listCertificates({ studentId: student.id, status: "issued" }).length,
       notifications: 0,
       assignments: 0,
-      quizzes: 0,
-      weeklyProgress: 0,
+      quizzes: assessment.attemptCount,
+      weeklyProgress: Math.round(assessment.averageScore),
       attendance: 0,
       learningHours: overall.learningHours,
     };
@@ -402,8 +426,8 @@ function listCoursesForMetrics(opts: {
 }
 
 export function getAdminDashboardPayload(user?: UserProfile | null) {
-  ensureDemoUsersSeeded();
   return {
+    journey: atplControlRoomCounts(),
     overview: getAdminOverview(),
     growth: getGrowthSeries(),
     enrollments: getEnrollmentSeries(),
@@ -412,19 +436,36 @@ export function getAdminDashboardPayload(user?: UserProfile | null) {
   };
 }
 
+function countLiveRole(role: Role): number {
+  return listStoredUsersByRole(role).filter(
+    (user) => !user.email.trim().toLowerCase().endsWith(".test"),
+  ).length;
+}
+
+function countLivePending(): number {
+  return [ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.ADMIN].reduce(
+    (total, role) =>
+      total +
+      listStoredUsersByRole(role).filter(
+        (user) =>
+          user.status === ACCOUNT_STATUS.PENDING &&
+          !user.email.trim().toLowerCase().endsWith(".test"),
+      ).length,
+    0,
+  );
+}
+
 export function getAdminOverview() {
-  // Keep this path cheap — never hydrate the course or class catalogs.
-  ensureDemoUsersSeeded();
-  const users = listAllUsers();
-  const courseStats = getFastCourseStats();
+  const courseStats = getCourseStats();
+  const classes = getClassStats();
 
   return {
-    students: countByRole(users, ROLES.STUDENT),
-    instructors: countByRole(users, ROLES.INSTRUCTOR),
+    students: countLiveRole(ROLES.STUDENT),
+    instructors: countLiveRole(ROLES.INSTRUCTOR),
     courses: courseStats.totalCourses,
-    liveClasses: 0,
-    pendingApprovals: users.filter((u) => u.status === ACCOUNT_STATUS.PENDING).length,
-    communityReports: 0,
-    blogActivity: 0,
+    liveClasses: classes.liveNow,
+    pendingApprovals: countLivePending(),
+    communityReports: listModerationLogs(100).length,
+    blogActivity: listBlogPosts({ status: "published" }).length,
   };
 }

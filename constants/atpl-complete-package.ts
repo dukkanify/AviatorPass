@@ -27,6 +27,9 @@ export const ATPL_PACKAGE_NEXT_SUBJECT_NOTICE =
 export const ATPL_PACKAGE_SUBJECT_COMPLETED_NOTICE =
   "TKI 1 has marked this subject complete. The next official subject stays locked until TKI 1 opens it.";
 
+export const ATPL_PACKAGE_INSTRUCTOR_COMPLETED_NOTICE =
+  "Your instructor marked this subject complete. It will not open again. The next official subject stays locked until TKI 1 books it.";
+
 export const ATPL_PACKAGE_FIRST_LECTURE_TITLE = "ATPL first lecture";
 export const ATPL_PACKAGE_FIRST_LECTURE_LESSON_ID = "atpl-first-lecture";
 export const ATPL_PACKAGE_LECTURE_TITLE = "ATPL lecture";
@@ -296,13 +299,14 @@ export function atplPackageScheduleIssue(
 export function formatAtplPackageInstant(value: string | Date): string {
   const when = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(when.getTime())) return String(value);
+  // Numeric day/month/year (e.g. 03/11/2026) — unambiguous for MENA operators.
   return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   }).format(when);
 }
 
@@ -313,4 +317,44 @@ export function formatAtplPackageScheduleLabel(
   const when = combineLocalDateAndTime(studyStartDate, firstLectureTime);
   if (Number.isNaN(when.getTime())) return `${studyStartDate} · ${firstLectureTime}`;
   return formatAtplPackageInstant(when);
+}
+
+/** The lecture the student can join now. A booked next subject replaces the opening classroom. */
+export function activeAtplLecture(schedule: AtplPackageScheduleSnapshot): {
+  code: string | null;
+  title: string | null;
+  when: string | null;
+  liveClassId: string | null;
+} {
+  const openingDone = schedule.subjects.some(
+    (row) =>
+      (row.opening || row.code === schedule.firstLectureSubjectCode) && row.status === "completed",
+  );
+  if (schedule.nextLectureLiveClassId) {
+    return {
+      code: schedule.nextSubjectCode,
+      title: schedule.nextSubjectTitle,
+      when: schedule.nextLectureLabel,
+      liveClassId: schedule.nextLectureLiveClassId,
+    };
+  }
+  if (!openingDone && schedule.firstLectureLiveClassId) {
+    return {
+      code: schedule.firstLectureSubjectCode,
+      title: schedule.firstLectureSubjectTitle,
+      when: schedule.scheduleProvisional
+        ? schedule.requestedFirstLectureLabel
+        : schedule.confirmedFirstLectureLabel,
+      liveClassId: schedule.firstLectureLiveClassId,
+    };
+  }
+  const active = schedule.subjects.find(
+    (row) => row.status === "available" || row.status === "in_progress",
+  );
+  return {
+    code: active?.code ?? schedule.nextSubjectCode,
+    title: active?.title ?? schedule.nextSubjectTitle ?? schedule.firstLectureSubjectTitle,
+    when: null,
+    liveClassId: null,
+  };
 }

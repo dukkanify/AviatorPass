@@ -12,18 +12,34 @@ export function isExternalZoomUrl(value: string | null | undefined): boolean {
   }
 }
 
+/** Zoom meeting numbers are 9–13 digits. Reject UUID / hex ids whose digits alone look numeric. */
+export function normalizeZoomMeetingNumber(value?: string | null): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (/^\d{9,13}$/.test(raw)) return raw;
+  // Allow spaced / dashed display forms ("818 6630 2161") when every char is digit or separator.
+  if (/^[\d\s-]+$/.test(raw)) {
+    const digits = raw.replace(/\D/g, "");
+    return digits.length >= 9 && digits.length <= 13 ? digits : "";
+  }
+  // Never digit-strip hex/UUID record ids — that invents fake meeting numbers and triggers 3712.
+  return "";
+}
+
 export function extractZoomMeetingNumber(
   joinUrl?: string | null,
   meetingNumber?: string | null,
 ): string {
-  const explicit = meetingNumber?.replace(/\D/g, "") ?? "";
+  const explicit = normalizeZoomMeetingNumber(meetingNumber);
   if (explicit) return explicit;
   if (!joinUrl) return "";
   try {
     const url = new URL(joinUrl, "https://www.aviatorpass.com");
-    return url.pathname.match(/\/(?:j|s|wc)\/(\d+)/)?.[1] ?? "";
+    const fromPath = url.pathname.match(/\/(?:j|s|wc)\/(\d{9,13})/)?.[1];
+    if (fromPath) return fromPath;
+    return normalizeZoomMeetingNumber(url.searchParams.get("mid"));
   } catch {
-    return joinUrl.match(/\/(?:j|s|wc)\/(\d+)/)?.[1] ?? "";
+    return joinUrl.match(/\/(?:j|s|wc)\/(\d{9,13})/)?.[1] ?? "";
   }
 }
 
@@ -46,18 +62,72 @@ export function zakFromStartUrl(startUrl?: string | null): string | null {
   }
 }
 
+/**
+ * Zoom start_url ZAK JWTs expire (~2h). Opaque/non-JWT tokens (tests, mocks)
+ * are treated as still usable — age-based refresh handles those separately.
+ */
+export function isZoomZakExpired(zak: string | null | undefined, nowMs = Date.now()): boolean {
+  if (!zak) return true;
+  const parts = zak.split(".");
+  if (parts.length < 2 || !parts[1]) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as {
+      exp?: unknown;
+    };
+    const exp = Number(payload.exp);
+    if (!Number.isFinite(exp)) return false;
+    // 60s skew — reject tokens that are already expired or about to expire.
+    return exp * 1000 <= nowMs + 60_000;
+  } catch {
+    return false;
+  }
+}
+
+const ZOOM_NAME_MAX = 64;
+const ZOOM_TOPIC_MAX = 200;
+const ZOOM_AGENDA_MAX = 2000;
+
+function cleanZoomText(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
 export function displayMeetingName(user: {
   fullName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
 }): string {
-  const full = user.fullName?.trim();
-  if (full) return full;
-  const parts = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  if (parts) return parts;
-  const email = user.email?.trim() ?? "";
-  return email.split("@")[0] || "AviatorPass student";
+  const full = cleanZoomText(user.fullName);
+  if (full && !full.includes("@")) return full.slice(0, ZOOM_NAME_MAX);
+  const parts = cleanZoomText([user.firstName, user.lastName].filter(Boolean).join(" "));
+  if (parts) return parts.slice(0, ZOOM_NAME_MAX);
+  const email = cleanZoomText(user.email);
+  return (email.split("@")[0] || "AviatorPass student").slice(0, ZOOM_NAME_MAX);
+}
+
+/** Zoom meeting title. The instructor name stays visible inside the meeting info. */
+export function zoomLectureTopic(title: string, instructorName: string | null | undefined): string {
+  const base = cleanZoomText(title);
+  const instructor = cleanZoomText(instructorName);
+  if (!instructor || base.toLowerCase().includes(instructor.toLowerCase())) {
+    return base.slice(0, ZOOM_TOPIC_MAX);
+  }
+  const combined = `${base} · ${instructor}`;
+  return (combined.length <= ZOOM_TOPIC_MAX ? combined : base).slice(0, ZOOM_TOPIC_MAX);
+}
+
+/** Zoom meeting agenda lists the instructor and the enrolled students by name. */
+export function zoomLectureAgenda(input: {
+  instructorName: string | null | undefined;
+  studentNames: string[];
+}): string {
+  const instructor = cleanZoomText(input.instructorName) || "Instructor";
+  const students = [
+    ...new Set(input.studentNames.map((name) => cleanZoomText(name)).filter(Boolean)),
+  ];
+  const lines = [`Instructor: ${instructor}`];
+  if (students.length) lines.push(`Students: ${students.join(", ")}`);
+  return lines.join("\n").slice(0, ZOOM_AGENDA_MAX);
 }
 
 export function resolveInAppMeetingMode(input: {
@@ -67,8 +137,8 @@ export function resolveInAppMeetingMode(input: {
 }): InAppMeetingMode {
   if (!input.hasSdkCredentials) return "classroom";
   if ((input.providerMode ?? "").toLowerCase() === "mock") return "classroom";
-  const meetingNumber = (input.meetingNumber ?? "").replace(/\D/g, "");
-  if (meetingNumber.length < 9) return "classroom";
+  const meetingNumber = normalizeZoomMeetingNumber(input.meetingNumber);
+  if (!meetingNumber) return "classroom";
   return "sdk";
 }
 
@@ -83,9 +153,13 @@ export function generateMeetingSdkSignature(input: {
   const iat = (input.nowSec ?? Math.floor(Date.now() / 1000)) - 30;
   const exp = iat + 60 * 60 * 2;
   const header = { alg: "HS256", typ: "JWT" };
+  const mn = normalizeZoomMeetingNumber(input.meetingNumber);
+  if (!mn) {
+    throw new Error("A numeric Zoom meeting number is required for the Meeting SDK signature");
+  }
   const payload = {
     appKey: input.clientId,
-    mn: String(input.meetingNumber).replace(/\D/g, ""),
+    mn,
     role: input.role,
     iat,
     exp,

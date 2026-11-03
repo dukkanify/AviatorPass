@@ -6,7 +6,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { ensureDemoUsersSeeded } from "@/services/auth/demo-users";
-import { findUserByEmail } from "@/services/auth/store";
+import { findUserByEmail, writeAuthDb } from "@/services/auth/store";
 import { requestOtp } from "@/services/auth/auth-service";
 import { processDueReminders } from "@/services/classes/reminder-service";
 import { writeClassesDb } from "@/services/classes/store";
@@ -44,8 +44,8 @@ describe("email notifications", () => {
           reminderEmails: true,
           marketingEmails: false,
           systemAlerts: true,
-          classReminderOffsetsMinutes: [1440, 120],
-          classReminderFifteenMinutesEnabled: true,
+          classReminderOffsetsMinutes: [1440, 60],
+          classReminderFifteenMinutesEnabled: false,
         },
       },
       null,
@@ -94,6 +94,12 @@ describe("email notifications", () => {
   it("delivers class reminder emails through the outbox", async () => {
     const student = findUserByEmail("student@aviatorpass.com");
     expect(student).toBeTruthy();
+    // Use a real-looking QA inbox — demo catalog addresses are intentionally suppressed.
+    const qaEmail = "qa.reminder.student@example.com";
+    writeAuthDb((db) => {
+      const row = db.users.find((u) => u.id === student!.id);
+      if (row) row.email = qaEmail;
+    });
 
     const classId = generateId();
     const reminderId = generateId();
@@ -132,7 +138,7 @@ describe("email notifications", () => {
       id: reminderId,
       liveClassId: classId,
       userId: student!.id,
-      kind: "2h",
+      kind: "1h",
       channel: "email",
       scheduledFor,
       sentAt: null,
@@ -152,13 +158,18 @@ describe("email notifications", () => {
     const reminderMail =
       listOutboundEmails(100).find(
         (m) =>
-          m.to.toLowerCase() === student!.email.toLowerCase() &&
+          m.to.toLowerCase() === qaEmail &&
           m.meta?.kind === "class_reminder" &&
           m.meta?.liveClassId === classId,
-      ) ?? getLatestOutboundTo(student!.email);
+      ) ?? getLatestOutboundTo(qaEmail);
 
     expect(reminderMail).toBeTruthy();
     expect(reminderMail!.meta?.kind).toBe("class_reminder");
-    expect(reminderMail!.subject).toMatch(/2 hours|Class starts/i);
+    expect(reminderMail!.subject).toMatch(/1 hour|Class starts/i);
+
+    writeAuthDb((db) => {
+      const row = db.users.find((u) => u.id === student!.id);
+      if (row) row.email = "student@aviatorpass.com";
+    });
   });
 });

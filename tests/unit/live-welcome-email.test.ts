@@ -168,9 +168,10 @@ describe("live program 3-day welcome", () => {
         row.to.toLowerCase() === student.email.toLowerCase() &&
         /your live program starts today/i.test(row.subject),
     )!;
-    expect(studentMail.html).toMatch(/Instructor:/i);
-    expect(studentMail.html).toMatch(/Private Pilot License/i);
-    expect(studentMail.html).toMatch(/Zoom/i);
+    const studentBody = `${studentMail.html || ""}\n${studentMail.text || ""}`;
+    expect(studentBody).toMatch(/Instructor:/i);
+    expect(studentBody).toMatch(/Private Pilot License/i);
+    expect(studentBody).toMatch(/Zoom/i);
 
     expect(sent.some((row) => row.to.toLowerCase() === instructor.email.toLowerCase())).toBe(true);
     expect(sent.some((row) => row.to.toLowerCase() === superAdmin.email.toLowerCase())).toBe(true);
