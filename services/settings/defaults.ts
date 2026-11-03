@@ -17,7 +17,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     supportEmail: siteStatic.supportEmail,
     defaultTimezone: "Asia/Kuwait",
     defaultLanguage: "en",
-    dateFormat: "MMM d, yyyy",
+    dateFormat: "dd/MM/yyyy",
     timeFormat: "24h",
     currency: "KWD",
     country: "KW",

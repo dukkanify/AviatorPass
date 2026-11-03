@@ -20,10 +20,19 @@ export function logEmailEvent(
   userId?: string | null,
 ) {
   const failed = event === "email_failed" || event === "email_queue_failure";
+  const errorHint =
+    typeof details.error === "string" && details.error.trim()
+      ? details.error.trim().slice(0, 160)
+      : null;
+  const toHint = typeof details.to === "string" ? details.to.trim().slice(0, 80) : null;
+  const base = event.replace(/_/g, " ");
+  const message = failed
+    ? [base, errorHint, toHint ? `to=${toHint}` : null].filter(Boolean).join(" · ")
+    : base;
   writeOpsLog({
     level: failed ? "error" : "info",
     category: failed ? "error" : "job",
-    message: event.replace(/_/g, " "),
+    message,
     details: { event, ...details },
     path: "services/email",
     userId: userId ?? null,

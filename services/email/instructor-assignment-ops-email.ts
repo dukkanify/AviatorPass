@@ -63,8 +63,8 @@ function formatDate(iso: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-");
     return new Date(`${year}-${month}-${day}T00:00:00.000Z`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
+      day: "2-digit",
+      month: "2-digit",
       year: "numeric",
       timeZone: "UTC",
     });
@@ -72,8 +72,8 @@ function formatDate(iso: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
     timeZone: "UTC",
   });

@@ -216,7 +216,11 @@ export function getServerEnv() {
   }
 
   if (isLiveProductionRuntime() && data.ENABLE_DEMO_OTP) {
-    console.error("[env] ENABLE_DEMO_OTP forced off in production");
+    // Once per process — avoid flooding Vercel error logs on every request.
+    if (!(globalThis as { __aepDemoOtpWarned?: boolean }).__aepDemoOtpWarned) {
+      (globalThis as { __aepDemoOtpWarned?: boolean }).__aepDemoOtpWarned = true;
+      console.warn("[env] ENABLE_DEMO_OTP forced off in production");
+    }
     return { ...data, ENABLE_DEMO_OTP: false };
   }
 

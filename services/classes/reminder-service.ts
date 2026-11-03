@@ -13,6 +13,7 @@ import { logActivity } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
 import { reminderEmailIdempotencyKey } from "@/services/email/idempotency-store";
 import { sendEmail } from "@/services/email/mailer";
+import { isRetryableEmailError } from "@/services/email/outbox";
 import { createNotification } from "@/services/notifications/notification-service";
 import { classReminderEmailTemplate } from "@/services/settings/email-templates";
 import { getPlatformSettings } from "@/services/settings/settings-service";
@@ -29,6 +30,9 @@ import type { ReminderKind, ReminderQueueItem } from "@/types/classes";
 
 /** Offsets that may send email (policy: 24h + 1h). */
 const EMAIL_REMINDER_KINDS = new Set<ReminderKind>(["24h", "1h"]);
+
+/** Cap email reminder retries so a broken provider cannot flood cron forever. */
+const MAX_EMAIL_REMINDER_ATTEMPTS = 3;
 
 function kindForOffsetMinutes(minutes: number): ReminderKind {
   if (minutes >= 1440) return "24h";
@@ -244,10 +248,21 @@ export async function processDueReminders(nowIso = new Date().toISOString()): Pr
         continue;
       }
       if (mail.suppressed || !mail.success) {
+        const priorAttempts = Number(item.payload?.sendAttempts ?? 0);
+        const sendAttempts = priorAttempts + 1;
+        const errorText = mail.error ?? "email failed";
+        const giveUp =
+          mail.suppressed ||
+          !isRetryableEmailError(errorText) ||
+          sendAttempts >= MAX_EMAIL_REMINDER_ATTEMPTS;
         upsertReminder({
           ...item,
-          status: mail.suppressed ? "cancelled" : "pending",
-          payload: { ...item.payload, lastError: mail.error },
+          status: giveUp ? (mail.suppressed ? "cancelled" : "failed") : "pending",
+          payload: {
+            ...item.payload,
+            lastError: errorText,
+            sendAttempts,
+          },
         });
         continue;
       }
