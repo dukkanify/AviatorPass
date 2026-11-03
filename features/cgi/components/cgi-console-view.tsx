@@ -11,11 +11,14 @@ import {
   Users,
 } from "lucide-react";
 
+import { format, parse } from "date-fns";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/dashboard";
 import { ACTION_LABELS } from "@/constants/programme-terms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -27,6 +30,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+function parseIsoDate(value: string): Date | undefined {
+  if (!value.trim()) return undefined;
+  const date = parse(value, "yyyy-MM-dd", new Date());
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function toIsoDate(date: Date | undefined): string {
+  return date ? format(date, "yyyy-MM-dd") : "";
+}
 
 type Snapshot = {
   subjectCount: number;
@@ -298,11 +311,10 @@ function ProvisionalFirstLectureCard({
           <Label className="text-xs" htmlFor={`confirm-date-${student.studentId}`}>
             Different date
           </Label>
-          <Input
-            id={`confirm-date-${student.studentId}`}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+          <DatePicker
+            date={parseIsoDate(date)}
+            onSelect={(next) => setDate(toIsoDate(next))}
+            placeholder="dd/mm/yyyy"
             className="h-9 w-[11rem]"
           />
         </div>
@@ -356,11 +368,10 @@ function NextSubjectCard({
           <Label className="text-xs" htmlFor={`next-date-${student.studentId}`}>
             Lecture date
           </Label>
-          <Input
-            id={`next-date-${student.studentId}`}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+          <DatePicker
+            date={parseIsoDate(date)}
+            onSelect={(next) => setDate(toIsoDate(next))}
+            placeholder="dd/mm/yyyy"
             className="h-9 w-[11rem]"
           />
         </div>

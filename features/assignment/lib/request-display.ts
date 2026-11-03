@@ -58,22 +58,23 @@ export function cleanEventTitle(title: string): string {
 export function formatEventWhen(startsAt: string, endsAt?: string | null): string {
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return startsAt;
-  const date = start.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
+  const date = start.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
   });
-  const time = start.toLocaleTimeString(undefined, {
+  const time = start.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   if (!endsAt) return `${date} · ${time}`;
   const end = new Date(endsAt);
   if (Number.isNaN(end.getTime())) return `${date} · ${time}`;
-  const endTime = end.toLocaleTimeString(undefined, {
+  const endTime = end.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   return `${date} · ${time}–${endTime}`;
 }
