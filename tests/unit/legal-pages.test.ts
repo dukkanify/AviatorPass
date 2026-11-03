@@ -55,4 +55,3 @@ describe("JSON-LD serialization", () => {
     expect(html).toContain("\\u003c");
   });
 });
-

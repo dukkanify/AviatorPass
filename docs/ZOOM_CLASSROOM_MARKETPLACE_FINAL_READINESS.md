@@ -9,18 +9,18 @@ This report reviews the consolidated Marketplace package dated 28 October 2026 a
 
 ## Executive summary
 
-| Area | Result |
-| --- | --- |
-| Classroom Meeting SDK credentials (suffix `VGTQ`) | PASS — pair valid; JWT path only; no user OAuth scopes in product code |
-| Instructor OAuth vs Meeting SDK vs S2S separation | PASS — suffixes `Z0xA` / `VGTQ` / `uX3Q`; `credentialsMixed: false` |
-| CEO / platform host (`ceo@aviatorpass.com`) | PASS — `hostZak.ready: true`; **not modified**; used as centralized live-class host |
-| Reviewer AviatorPass logins | PASS — instructor + student |
-| Centralized S2S hosting (product) | ENABLED — personal Connect Zoom optional |
-| Isolated reviewer classroom | **PASS** — created on `ceo@aviatorpass.com` without personal OAuth |
-| Working `/join/{classId}` for reviewers | **PASS** — `/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3` |
-| Host / student in-app Meeting SDK session | **PASS** — host role 1+ZAK; student role 0 no ZAK |
-| Real two-way audio/video | **NOT CLAIMED** |
-| Marketplace portal scopes / surface / Custom Form | **UNVERIFIED from AviatorPass** — owner must confirm in Zoom console |
+| Area                                              | Result                                                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Classroom Meeting SDK credentials (suffix `VGTQ`) | PASS — pair valid; JWT path only; no user OAuth scopes in product code              |
+| Instructor OAuth vs Meeting SDK vs S2S separation | PASS — suffixes `Z0xA` / `VGTQ` / `uX3Q`; `credentialsMixed: false`                 |
+| CEO / platform host (`ceo@aviatorpass.com`)       | PASS — `hostZak.ready: true`; **not modified**; used as centralized live-class host |
+| Reviewer AviatorPass logins                       | PASS — instructor + student                                                         |
+| Centralized S2S hosting (product)                 | ENABLED — personal Connect Zoom optional                                            |
+| Isolated reviewer classroom                       | **PASS** — created on `ceo@aviatorpass.com` without personal OAuth                  |
+| Working `/join/{classId}` for reviewers           | **PASS** — `/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3`                                 |
+| Host / student in-app Meeting SDK session         | **PASS** — host role 1+ZAK; student role 0 no ZAK                                   |
+| Real two-way audio/video                          | **NOT CLAIMED**                                                                     |
+| Marketplace portal scopes / surface / Custom Form | **UNVERIFIED from AviatorPass** — owner must confirm in Zoom console                |
 
 ## 1. Meeting SDK credentials only (no unnecessary user OAuth scopes)
 
@@ -32,51 +32,51 @@ This report reviews the consolidated Marketplace package dated 28 October 2026 a
   `user:read:user meeting:write:meeting meeting:read:meeting meeting:update:meeting meeting:delete:meeting` — no admin/master create scopes in AviatorPass defaults (`REJECTED_ZOOM_OAUTH_SCOPES`).
 - Classroom product code does **not** start a user OAuth consent flow for the Meeting SDK app.
 
-**Caveat:** Whether the Zoom Marketplace *portal* still lists unused Create a Meeting scopes on the Classroom app cannot be read from AviatorPass. That remains an owner console check (Note 1).
+**Caveat:** Whether the Zoom Marketplace _portal_ still lists unused Create a Meeting scopes on the Classroom app cannot be read from AviatorPass. That remains an owner console check (Note 1).
 
 ## 2–5. Reviewer classroom provisioning (centralized S2S)
 
 **Supported by current release design. Ownership/authorization not bypassed.**
 
-| Question | Answer |
-| --- | --- |
-| Can the reviewer classroom use CEO / S2S platform hosting? | **Yes** — when platform S2S credentials are present (`zoomCredsPresent` / `platformS2SReady`). |
-| Why safe? | Meeting is created on the platform Zoom host; instructors never receive CEO passwords, S2S secrets, or raw host credentials. Host ZAK is minted only in `POST /api/zoom/in-app-session` for authorized AviatorPass hosts. `/join/{classId}` still requires assigned instructor or enrolled student. |
-| Personal OAuth | Optional fallback when S2S is absent; code and credentials retained. |
-| Exact prerequisite | Platform S2S configured → Super Admin `POST /api/admin/zoom/reviewer-classroom` → use `joinPath` `/join/{classId}`. Do not connect `ceo@aviatorpass.com` on the instructor Connect Zoom panel. |
+| Question                                                   | Answer                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Can the reviewer classroom use CEO / S2S platform hosting? | **Yes** — when platform S2S credentials are present (`zoomCredsPresent` / `platformS2SReady`).                                                                                                                                                                                                      |
+| Why safe?                                                  | Meeting is created on the platform Zoom host; instructors never receive CEO passwords, S2S secrets, or raw host credentials. Host ZAK is minted only in `POST /api/zoom/in-app-session` for authorized AviatorPass hosts. `/join/{classId}` still requires assigned instructor or enrolled student. |
+| Personal OAuth                                             | Optional fallback when S2S is absent; code and credentials retained.                                                                                                                                                                                                                                |
+| Exact prerequisite                                         | Platform S2S configured → Super Admin `POST /api/admin/zoom/reviewer-classroom` → use `joinPath` `/join/{classId}`. Do not connect `ceo@aviatorpass.com` on the instructor Connect Zoom panel.                                                                                                      |
 
 **Earlier probe (before centralized hosting deploy):** reviewer create returned 409 `oauth_not_connected` when personal OAuth was required. That gate is superseded by S2S readiness in product code; production must be re-probed after deploy.
 
 ## 6. Instructor and student access to the same classroom
 
-| Check | Result |
-| --- | --- |
-| Instructor login | PASS |
-| Student login | PASS |
-| Student → `/instructor/profile` | PASS denial (307 → `/access-denied`) |
-| Shared reviewer class host/participant | Re-verify after deploy |
+| Check                                  | Result                               |
+| -------------------------------------- | ------------------------------------ |
+| Instructor login                       | PASS                                 |
+| Student login                          | PASS                                 |
+| Student → `/instructor/profile`        | PASS denial (307 → `/access-denied`) |
+| Shared reviewer class host/participant | Re-verify after deploy               |
 
 ## 7. Reviewer documentation and working classroom URL
 
-| Item | Status |
-| --- | --- |
-| Consolidated package in repo | Present (`features/zoom/content/classroom-marketplace-functional-review.ts`, `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md`) |
-| Paste text | `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` — centralized hosting workflow |
-| Meeting SDK docs `/integrations/zoom` | Present |
-| Working classroom URL `/join/{classId}` | Create after deploy; do not invent |
+| Item                                    | Status                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Consolidated package in repo            | Present (`features/zoom/content/classroom-marketplace-functional-review.ts`, `docs/ZOOM_CLASSROOM_MARKETPLACE_FUNCTIONAL_REVIEW.md`) |
+| Paste text                              | `CLASSROOM_REVIEW_ZOOM_PASTE_TEXT` — centralized hosting workflow                                                                    |
+| Meeting SDK docs `/integrations/zoom`   | Present                                                                                                                              |
+| Working classroom URL `/join/{classId}` | Create after deploy; do not invent                                                                                                   |
 
 ## 8. Six Zoom reviewer notes vs actual Marketplace configuration
 
 AviatorPass **cannot read** Zoom Marketplace portal Features/Scopes/Custom Form. Code + production credential inventory were verified; portal items remain owner-confirmed.
 
-| # | Note | Code / production | Marketplace portal | Ready? |
-| --- | --- | --- | --- | --- |
-| 1 | Duplicate Create a Meeting scopes | Classroom: no user OAuth in product. Instructor: user scopes only; admin rejected | Owner must confirm Classroom app Scopes are empty of Create a Meeting | **Open (manual)** |
-| 2 | Meetings surface | Product opens in AviatorPass `/join` only | Owner must disable Meetings surface if selected | **Open (manual)** |
-| 3 | Custom Form | Unused in product | Owner must remove | **Open (manual)** |
-| 4 | Meeting SDK testing instructions | Written in repo / SDK docs | Link after deploy | **Repo done** |
-| 5 | Reviewer credentials | Logins verified; passwords private store only | Owner pastes into Zoom private Account credentials | **Accounts OK; Zoom paste pending** |
-| 6 | Consolidated EN document | Package in repo | Link public URL after deploy | **Repo done** |
+| #   | Note                              | Code / production                                                                 | Marketplace portal                                                    | Ready?                              |
+| --- | --------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------- |
+| 1   | Duplicate Create a Meeting scopes | Classroom: no user OAuth in product. Instructor: user scopes only; admin rejected | Owner must confirm Classroom app Scopes are empty of Create a Meeting | **Open (manual)**                   |
+| 2   | Meetings surface                  | Product opens in AviatorPass `/join` only                                         | Owner must disable Meetings surface if selected                       | **Open (manual)**                   |
+| 3   | Custom Form                       | Unused in product                                                                 | Owner must remove                                                     | **Open (manual)**                   |
+| 4   | Meeting SDK testing instructions  | Written in repo / SDK docs                                                        | Link after deploy                                                     | **Repo done**                       |
+| 5   | Reviewer credentials              | Logins verified; passwords private store only                                     | Owner pastes into Zoom private Account credentials                    | **Accounts OK; Zoom paste pending** |
+| 6   | Consolidated EN document          | Package in repo                                                                   | Link public URL after deploy                                          | **Repo done**                       |
 
 ## 9. Manual owner actions still required (Zoom Marketplace + AviatorPass)
 

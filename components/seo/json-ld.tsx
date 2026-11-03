@@ -9,7 +9,10 @@ function JsonLd({ data }: JsonLdProps) {
   // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
   // Content is JSON.stringify'd with `<` escaped via serializeJsonLd (not raw HTML/user markup).
   return (
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }} />
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }}
+    />
   );
 }
 

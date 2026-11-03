@@ -115,13 +115,7 @@ function ClassFormDialog({
         const platformReady = Boolean(json.data?.platformHostingReady);
         const canHost = personalReady || platformReady;
         setZoomReady(canHost);
-        setZoomHint(
-          canHost
-            ? null
-            : json.data?.sharedPlatformAccount
-              ? sharedHint
-              : missingHint,
-        );
+        setZoomHint(canHost ? null : json.data?.sharedPlatformAccount ? sharedHint : missingHint);
         return;
       }
       if (instructorId === "none") {
@@ -153,9 +147,7 @@ function ClassFormDialog({
       const platformReady = Boolean(json.data?.platformHostingReady);
       const canHost = personalReady || platformReady;
       setZoomReady(canHost);
-      setZoomHint(
-        canHost ? null : row?.sharedPlatformAccount ? sharedHint : missingHint,
-      );
+      setZoomHint(canHost ? null : row?.sharedPlatformAccount ? sharedHint : missingHint);
     }
     void checkZoom();
     return () => {

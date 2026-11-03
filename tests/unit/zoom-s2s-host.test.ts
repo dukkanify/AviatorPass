@@ -79,13 +79,19 @@ describe("Zoom S2S meeting create host fallback", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
-      if (url.includes("/users?") && (!init || init.method === undefined || init.method === "GET")) {
+      if (
+        url.includes("/users?") &&
+        (!init || init.method === undefined || init.method === "GET")
+      ) {
         return new Response(
           JSON.stringify({ users: [{ id: "ceo-user", email: "ceo@aviatorpass.com", type: 2 }] }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.includes("/settings") && (!init || !init.method || init.method === "GET" || init.method === "PATCH")) {
+      if (
+        url.includes("/settings") &&
+        (!init || !init.method || init.method === "GET" || init.method === "PATCH")
+      ) {
         return new Response(JSON.stringify({ in_meeting: {} }), {
           status: 200,
           headers: { "Content-Type": "application/json" },

@@ -10,12 +10,12 @@ A security incident is unauthorized access, credential exposure, Zoom token leak
 
 ## Severity
 
-| Level | Examples | Initial response target |
-| --- | --- | --- |
-| Critical | Auth bypass, Zoom token dump, RCE | Immediate containment |
-| High | Privilege escalation, CSRF bypass on sensitive routes | Same business day |
-| Medium | Limited information disclosure | Scheduled remediation |
-| Low | Hardening gaps without exploit path | Backlog |
+| Level    | Examples                                              | Initial response target |
+| -------- | ----------------------------------------------------- | ----------------------- |
+| Critical | Auth bypass, Zoom token dump, RCE                     | Immediate containment   |
+| High     | Privilege escalation, CSRF bypass on sensitive routes | Same business day       |
+| Medium   | Limited information disclosure                        | Scheduled remediation   |
+| Low      | Hardening gaps without exploit path                   | Backlog                 |
 
 ## Response steps (verified operational capability)
 

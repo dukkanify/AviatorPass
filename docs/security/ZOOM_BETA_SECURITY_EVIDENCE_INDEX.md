@@ -6,21 +6,21 @@
 
 ## Mapping to typical Beta security evidence requests
 
-| Evidence item | Status | Path / URL |
-| --- | --- | --- |
-| SSDLC description | Complete (verified practices) | `docs/security/SSDLC_EVIDENCE.md` |
-| SAST original report | Complete | `/opt/cursor/artifacts/security-beta/semgrep-sast-before.json` (+ `.txt`) |
-| SAST after remediation | Complete | `/opt/cursor/artifacts/security-beta/semgrep-sast-after.json` |
-| SAST tool/version | Complete | Semgrep **1.182.1** (`semgrep-version.txt`) |
-| DAST original report | Complete (localhost controlled) | `/opt/cursor/artifacts/security-beta/zap-dast-report.xml` |
-| DAST tool/version | Complete | OWASP ZAP **2.16.1** (`zap-version.txt`, `zap-dast-summary.txt`) |
-| TLS 1.2+ verification | Complete | `/opt/cursor/artifacts/security-beta/tls-verification.txt` |
-| Privacy Policy URL | Complete | https://www.aviatorpass.com/legal/privacy (Zoom section in repo; deploy required for live copy) |
-| Security Policy | Complete | `docs/security/SECURITY_POLICY.md` |
-| Incident Management & Response | Complete | `docs/security/INCIDENT_MANAGEMENT_AND_RESPONSE.md` |
-| Vulnerability Management | Complete | `docs/security/VULNERABILITY_MANAGEMENT.md` |
-| Independent pen-test certificate | **Missing** | Not available — do not invent |
-| Formal Bug Bounty attestation | **Missing** | Not operated as a public bounty program |
+| Evidence item                    | Status                          | Path / URL                                                                                      |
+| -------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| SSDLC description                | Complete (verified practices)   | `docs/security/SSDLC_EVIDENCE.md`                                                               |
+| SAST original report             | Complete                        | `/opt/cursor/artifacts/security-beta/semgrep-sast-before.json` (+ `.txt`)                       |
+| SAST after remediation           | Complete                        | `/opt/cursor/artifacts/security-beta/semgrep-sast-after.json`                                   |
+| SAST tool/version                | Complete                        | Semgrep **1.182.1** (`semgrep-version.txt`)                                                     |
+| DAST original report             | Complete (localhost controlled) | `/opt/cursor/artifacts/security-beta/zap-dast-report.xml`                                       |
+| DAST tool/version                | Complete                        | OWASP ZAP **2.16.1** (`zap-version.txt`, `zap-dast-summary.txt`)                                |
+| TLS 1.2+ verification            | Complete                        | `/opt/cursor/artifacts/security-beta/tls-verification.txt`                                      |
+| Privacy Policy URL               | Complete                        | https://www.aviatorpass.com/legal/privacy (Zoom section in repo; deploy required for live copy) |
+| Security Policy                  | Complete                        | `docs/security/SECURITY_POLICY.md`                                                              |
+| Incident Management & Response   | Complete                        | `docs/security/INCIDENT_MANAGEMENT_AND_RESPONSE.md`                                             |
+| Vulnerability Management         | Complete                        | `docs/security/VULNERABILITY_MANAGEMENT.md`                                                     |
+| Independent pen-test certificate | **Missing**                     | Not available — do not invent                                                                   |
+| Formal Bug Bounty attestation    | **Missing**                     | Not operated as a public bounty program                                                         |
 
 ## Residual technical gaps (honest)
 
