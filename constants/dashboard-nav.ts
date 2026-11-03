@@ -130,12 +130,7 @@ export const INSTRUCTOR_NAV: DashboardNavItem[] = [
 
 export const CGI_NAV: DashboardNavItem[] = [
   { label: "Dashboard", href: "/cgi/dashboard", icon: "dashboard" },
-  { label: "ATPL Journey", href: "/cgi/atpl", icon: "courses" },
-  { label: "Subjects", href: "/cgi/subjects", icon: "lessons" },
-  { label: "Lectures", href: "/cgi/lectures", icon: "calendar" },
   { label: "Assignment Engine", href: "/cgi/assignment", icon: "instructors" },
-  { label: "Instructors", href: "/cgi/instructors", icon: "instructors" },
-  { label: "Students", href: "/cgi/students", icon: "students" },
   { label: "Schedule", href: "/cgi/schedule", icon: "classes" },
   { label: "Analytics", href: "/cgi/analytics", icon: "analytics" },
   { label: "Messages", href: "/cgi/messages", icon: "messages" },
@@ -196,7 +191,14 @@ export const NAV_SLIM_REMOVED_HREFS = {
   ],
   admin: ["/admin/ai", "/admin/reports", "/admin/performance-reports"],
   instructor: ["/instructor/reports", "/instructor/performance-reports"],
-  cgi: ["/cgi/reports"],
+  cgi: [
+    "/cgi/reports",
+    "/cgi/atpl",
+    "/cgi/subjects",
+    "/cgi/lectures",
+    "/cgi/instructors",
+    "/cgi/students",
+  ],
   student: [
     "/student/notes",
     "/student/favorites",

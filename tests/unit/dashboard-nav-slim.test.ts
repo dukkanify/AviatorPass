@@ -14,7 +14,9 @@ describe("dashboard nav slim", () => {
     expect(SUPER_ADMIN_NAV.length).toBeLessThanOrEqual(32);
     expect(ADMIN_NAV.length).toBeLessThanOrEqual(24);
     expect(INSTRUCTOR_NAV.length).toBeLessThanOrEqual(12);
-    expect(CGI_NAV.length).toBeLessThanOrEqual(14);
+    expect(CGI_NAV.length).toBeLessThanOrEqual(10);
+    expect(CGI_NAV.some((item) => item.href === "/cgi/assignment")).toBe(true);
+    expect(CGI_NAV.some((item) => item.href === "/cgi/subjects")).toBe(false);
     expect(STUDENT_NAV.length).toBeLessThanOrEqual(20);
   });
 
