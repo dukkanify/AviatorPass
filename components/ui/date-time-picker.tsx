@@ -63,7 +63,7 @@ function DateTimePicker({
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" aria-hidden />
           {date ? (
             <span className="truncate">
-              {format(date, "dd MMM yyyy")} · {time}
+              {format(date, "dd/MM/yyyy")} · {time}
             </span>
           ) : (
             <span className="truncate">{placeholder}</span>

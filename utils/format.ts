@@ -1,6 +1,9 @@
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 
-export function formatDate(date: string | Date, pattern = "MMM d, yyyy"): string {
+/** Platform-clear numeric date (day/month/year), e.g. 03/11/2026. */
+export const PLATFORM_DATE_DISPLAY = "dd/MM/yyyy";
+
+export function formatDate(date: string | Date, pattern = PLATFORM_DATE_DISPLAY): string {
   const value = typeof date === "string" ? parseISO(date) : date;
   return format(value, pattern);
 }

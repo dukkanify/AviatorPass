@@ -31,6 +31,6 @@ describe("assignment request display", () => {
   it("formats calendar events for management scanning", () => {
     expect(eventTypeLabel("live_class")).toBe("Live class");
     expect(cleanEventTitle("Zoom Classroom UAT · 12:43 GST")).toBe("Zoom Classroom UAT");
-    expect(formatEventWhen("2026-10-30T16:41:48.000Z")).toMatch(/Oct/);
+    expect(formatEventWhen("2026-10-30T16:41:48.000Z")).toMatch(/\d{2}\/\d{2}\/2026/);
   });
 });

@@ -299,13 +299,14 @@ export function atplPackageScheduleIssue(
 export function formatAtplPackageInstant(value: string | Date): string {
   const when = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(when.getTime())) return String(value);
+  // Numeric day/month/year (e.g. 03/11/2026) — unambiguous for MENA operators.
   return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   }).format(when);
 }
 
