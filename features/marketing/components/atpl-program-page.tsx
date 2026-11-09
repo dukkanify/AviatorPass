@@ -62,7 +62,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
     <>
       <section className="atpl-program-hero relative isolate overflow-hidden">
         <div className="absolute inset-0 opacity-40" aria-hidden>
-          <HeroLcpImage className="object-center" />
+          <HeroLcpImage fit="cover" />
         </div>
         <div
           className="absolute inset-0 bg-gradient-to-b from-[var(--landing-ink)]/80 via-[var(--landing-ink)]/90 to-[var(--landing-ink)]"
