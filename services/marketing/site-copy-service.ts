@@ -156,6 +156,15 @@ export function getHomeSiteCopy() {
       })),
       whyChoose: [0, 1, 2, 3, 4, 5, 6].map((i) => c[`about.whyChoose.${i}`] ?? ""),
     },
+    howItWorks: {
+      kicker: c["howItWorks.kicker"],
+      title: c["howItWorks.title"],
+      subtitle: c["howItWorks.subtitle"],
+      steps: [0, 1, 2, 3].map((i) => ({
+        title: c[`howItWorks.steps.${i}.title`] ?? "",
+        body: c[`howItWorks.steps.${i}.body`] ?? "",
+      })),
+    },
   };
 }
 
