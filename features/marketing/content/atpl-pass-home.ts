@@ -270,8 +270,8 @@ export const PAYMENTS = {
 } as const;
 
 export const CONTACT = {
-  kicker: "Support",
-  title: "Support",
+  kicker: "Direct messages",
+  title: "Direct messages (for support and inquiries).",
   body: "For enrolment inquiries, scheduling assistance, and platform support, reach the Aviator Pass team directly.",
   cta: "Email Support",
 } as const;

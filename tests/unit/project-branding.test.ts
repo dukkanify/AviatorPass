@@ -20,8 +20,8 @@ describe("AviatorPass project branding", () => {
     expect(siteStatic.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(siteStatic.contactEmail).toBe(PROJECT_CONTACT_EMAIL);
     expect(ATPL_PASS.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
-    expect(CONTACT.kicker).toBe("Support");
-    expect(CONTACT.title).toBe("Support");
+    expect(CONTACT.kicker).toBe("Direct messages");
+    expect(CONTACT.title).toBe("Direct messages (for support and inquiries).");
     expect(DEFAULT_PLATFORM_SETTINGS.general.supportEmail).toBe(PROJECT_SUPPORT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.general.contactEmail).toBe(PROJECT_CONTACT_EMAIL);
     expect(DEFAULT_PLATFORM_SETTINGS.general.websiteUrl).toBe("https://www.aviatorpass.com");
