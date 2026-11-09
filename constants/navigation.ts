@@ -16,7 +16,10 @@ export type MarketingNavItem = {
   children?: readonly MarketingNavChild[];
 };
 
+/** Public header order: Contact · Instructors · Online Courses · About (+ Login CTA). */
 export const NAV_ITEMS: readonly MarketingNavItem[] = [
+  { label: "Contact", href: routes.contact },
+  { label: "Instructors", href: "/#instructors" },
   {
     label: "Online Courses",
     href: routes.onlineCourses,
@@ -54,8 +57,6 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
     ],
   },
   { label: "About", href: "/#about" },
-  { label: "Instructors", href: "/#instructors" },
-  { label: "Contact", href: "/#contact" },
 ];
 
 export const DASHBOARD_NAV_BY_ROLE: Record<
