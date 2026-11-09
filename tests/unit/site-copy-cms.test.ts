@@ -82,4 +82,16 @@ describe("site copy CMS", () => {
     expect(getHomeSiteCopy().about.mission).toBe("Custom mission for Aviator Pass");
     expect(getHomeSiteCopy().about.vision).toBe(ABOUT.vision);
   });
+
+  it("exposes How It Works fields for Home site copy", () => {
+    const home = listSiteCopySnapshots().find((p) => p.id === "home");
+    const keys = home?.fields.map((f) => f.key) ?? [];
+    expect(keys).toContain("howItWorks.title");
+    expect(keys).toContain("howItWorks.steps.0.title");
+    expect(keys).toContain("howItWorks.steps.3.body");
+
+    updatePageCopy("home", { "howItWorks.steps.0.title": "Open your account" });
+    expect(getHomeSiteCopy().howItWorks.steps[0]?.title).toBe("Open your account");
+    expect(getHomeSiteCopy().howItWorks.title).toBe("How It Works");
+  });
 });

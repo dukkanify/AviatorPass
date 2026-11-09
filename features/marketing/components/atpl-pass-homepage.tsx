@@ -96,6 +96,15 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
     })),
     whyChoose: copy.about.whyChoose.map((item, i) => item || ABOUT.whyChoose[i] || ""),
   };
+  const howItWorks = {
+    kicker: copy.howItWorks.kicker || HOW_IT_WORKS.kicker,
+    title: copy.howItWorks.title || HOW_IT_WORKS.title,
+    subtitle: copy.howItWorks.subtitle || HOW_IT_WORKS.subtitle,
+    steps: copy.howItWorks.steps.map((step, i) => ({
+      title: step.title || HOW_IT_WORKS.steps[i]?.title || "",
+      body: step.body || HOW_IT_WORKS.steps[i]?.body || "",
+    })),
+  };
 
   return (
     <>
@@ -229,18 +238,18 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
       {/* —— How It Works —— */}
       <section id="how-it-works" className="atpl-section atpl-section-light scroll-mt-28">
         <div className="container-app">
-          <SectionKicker>{HOW_IT_WORKS.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[14ch]">{HOW_IT_WORKS.title}</h2>
+          <SectionKicker>{howItWorks.kicker}</SectionKicker>
+          <h2 className="atpl-heading mt-4 max-w-[14ch]">{howItWorks.title}</h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            {HOW_IT_WORKS.subtitle}
+            {howItWorks.subtitle}
           </p>
           <div className="atpl-how-panel mt-12">
             <ol className="atpl-how-grid">
-              {HOW_IT_WORKS.steps.map((step, index) => {
+              {howItWorks.steps.map((step, index) => {
                 const Icon = HOW_IT_WORKS_ICONS[index]!;
                 const number = String(index + 1).padStart(2, "0");
                 return (
-                  <li key={step.title} className="atpl-how-step">
+                  <li key={`${number}-${step.title}`} className="atpl-how-step">
                     <div className="atpl-how-step-top">
                       <span className="atpl-how-icon" aria-hidden>
                         <Icon className="h-5 w-5" />

@@ -3,7 +3,7 @@
  */
 
 import { routes } from "@/constants/routes";
-import { ABOUT, HERO } from "@/features/marketing/content/atpl-pass-home";
+import { ABOUT, HERO, HOW_IT_WORKS } from "@/features/marketing/content/atpl-pass-home";
 import {
   ATPL_LANDING_HERO,
   COURSE_OVERVIEW,
@@ -72,6 +72,17 @@ export const SITE_COPY_PAGES: SiteCopyPageDef[] = [
       { key: "about.whyChoose.4", label: "Why choose 5", multiline: true },
       { key: "about.whyChoose.5", label: "Why choose 6", multiline: true },
       { key: "about.whyChoose.6", label: "Why choose 7", multiline: true },
+      { key: "howItWorks.kicker", label: "How It Works kicker" },
+      { key: "howItWorks.title", label: "How It Works title" },
+      { key: "howItWorks.subtitle", label: "How It Works subtitle", multiline: true },
+      { key: "howItWorks.steps.0.title", label: "How It Works step 1 title" },
+      { key: "howItWorks.steps.0.body", label: "How It Works step 1 body", multiline: true },
+      { key: "howItWorks.steps.1.title", label: "How It Works step 2 title" },
+      { key: "howItWorks.steps.1.body", label: "How It Works step 2 body", multiline: true },
+      { key: "howItWorks.steps.2.title", label: "How It Works step 3 title" },
+      { key: "howItWorks.steps.2.body", label: "How It Works step 3 body", multiline: true },
+      { key: "howItWorks.steps.3.title", label: "How It Works step 4 title" },
+      { key: "howItWorks.steps.3.body", label: "How It Works step 4 body", multiline: true },
     ],
   },
   {
@@ -191,6 +202,17 @@ const DEFAULTS: Record<SiteCopyPageId, Record<string, string>> = {
     "about.whyChoose.4": ABOUT.whyChoose[4]!,
     "about.whyChoose.5": ABOUT.whyChoose[5]!,
     "about.whyChoose.6": ABOUT.whyChoose[6]!,
+    "howItWorks.kicker": HOW_IT_WORKS.kicker,
+    "howItWorks.title": HOW_IT_WORKS.title,
+    "howItWorks.subtitle": HOW_IT_WORKS.subtitle,
+    "howItWorks.steps.0.title": HOW_IT_WORKS.steps[0]!.title,
+    "howItWorks.steps.0.body": HOW_IT_WORKS.steps[0]!.body,
+    "howItWorks.steps.1.title": HOW_IT_WORKS.steps[1]!.title,
+    "howItWorks.steps.1.body": HOW_IT_WORKS.steps[1]!.body,
+    "howItWorks.steps.2.title": HOW_IT_WORKS.steps[2]!.title,
+    "howItWorks.steps.2.body": HOW_IT_WORKS.steps[2]!.body,
+    "howItWorks.steps.3.title": HOW_IT_WORKS.steps[3]!.title,
+    "howItWorks.steps.3.body": HOW_IT_WORKS.steps[3]!.body,
   },
   atpl: {
     "hero.kicker": ATPL_LANDING_HERO.kicker,
