@@ -26,7 +26,7 @@ export const ABOUT = {
   kicker: "Who We Are",
   title: "A complete aviation education platform",
   whoWeAre:
-    "Aviator Pass is a complete aviation education platform. We prepare students from their first introduction to aviation through Private Pilot License ground school, Airline Transport Pilot License theory, and English Language Proficiency mock examinations. Every programme is delivered by EASA Certified Instructors on a modern, secure learning platform.",
+    "Aviator Pass is a complete aviation education platform. We prepare students from their first introduction to aviation through Private Pilot License ground school, Airline Transport Pilot License theory covering Instrumentation, General Navigation, Radio Navigation, Meteorology, Human Performance and Limitations, Aircraft General Knowledge, Air Law, Flight Planning and Monitoring, Performance, Operational Procedures, Principles of Flight, Mass and Balance, and Communications, and English Language Proficiency mock examinations. Every programme is delivered by EASA Certified Instructors on a modern, secure learning platform.",
   mission:
     "To deliver professional aviation education that builds real competence at every stage of a pilot’s journey, combining live instructor-led training, selected recorded programmes, and a structured digital platform that supports students from first lesson to exam-ready performance.",
   vision:
