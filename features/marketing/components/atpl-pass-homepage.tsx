@@ -37,6 +37,7 @@ import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
+import { getHomeSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 const FEATURE_ICONS = [
@@ -74,6 +75,11 @@ function SectionKicker({ children }: { children: React.ReactNode }) {
 }
 
 function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
+  const copy = getHomeSiteCopy();
+  const hero = { ...HERO, ...copy.hero };
+  const aboutTitle = copy.about.title;
+  const aboutWhoWeAre = copy.about.whoWeAre;
+
   return (
     <>
       {/* —— Hero —— */}
@@ -90,14 +96,14 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             <span className="atpl-hero-brand-pass"> PASS</span>
           </p>
 
-          <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{HERO.kicker}</p>
+          <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{hero.kicker}</p>
 
           <h1 className="animate-in-up-delay-1 mt-5 max-w-[18ch] font-display text-[clamp(1.85rem,4.2vw,3.5rem)] font-semibold leading-[1.1] tracking-[-0.03em] text-white/96">
-            {HERO.headline}
+            {hero.headline}
           </h1>
 
           <p className="animate-in-up-delay-2 mt-7 max-w-2xl text-[1.05rem] leading-relaxed text-white/82 sm:text-lg">
-            {HERO.subheadline}
+            {hero.subheadline}
           </p>
 
           <p className="animate-in-up-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-white/65">
@@ -112,7 +118,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               asChild
             >
               <Link href={routes.onlineCourses}>
-                {HERO.primaryCta}
+                {hero.primaryCta}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -122,7 +128,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
               className="hero-cta-secondary w-full border-white/25 bg-white/[0.06] px-8 text-white hover:bg-white/12 hover:text-white sm:w-auto"
               asChild
             >
-              <Link href={routes.atpl}>{HERO.secondaryCta}</Link>
+              <Link href={routes.atpl}>{hero.secondaryCta}</Link>
             </Button>
           </div>
 
@@ -148,13 +154,13 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
       >
         <div className="container-app">
           <SectionKicker>{ABOUT.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[18ch]">{ABOUT.title}</h2>
+          <h2 className="atpl-heading mt-4 max-w-[18ch]">{aboutTitle}</h2>
 
           <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="space-y-8">
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Who We Are</h3>
-                <p>{ABOUT.whoWeAre}</p>
+                <p>{aboutWhoWeAre}</p>
               </div>
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Our Mission</h3>

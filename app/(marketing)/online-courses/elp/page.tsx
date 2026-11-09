@@ -7,6 +7,7 @@ import { routes } from "@/constants/routes";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
 import { ELP_PAGE } from "@/features/marketing/content/online-courses";
 import { ElpJourneyBooking } from "@/features/mock-exams/components/elp-journey-booking";
+import { getProgrammePageSiteCopy } from "@/services/marketing/site-copy-service";
 
 export const revalidate = 60;
 
@@ -57,14 +58,16 @@ const STEPS = [
 ];
 
 export default function ElpMockExamsPage() {
+  const page = { ...ELP_PAGE, ...getProgrammePageSiteCopy("online-courses-elp") };
+
   return (
     <div className="landing-root home-premium">
       <section className="atpl-section atpl-section-dark pt-16 sm:pt-20">
         <div className="container-app max-w-3xl">
-          <p className="atpl-kicker">{ELP_PAGE.kicker}</p>
-          <h1 className="atpl-heading-light mt-4">{ELP_PAGE.title}</h1>
+          <p className="atpl-kicker">{page.kicker}</p>
+          <h1 className="atpl-heading-light mt-4">{page.title}</h1>
           <p className="mt-4 text-sm font-semibold uppercase tracking-[0.16em] text-accent">Live</p>
-          <p className="mt-5 text-base leading-relaxed text-white/70">{ELP_PAGE.intro}</p>
+          <p className="mt-5 text-base leading-relaxed text-white/70">{page.intro}</p>
           <div className="mt-6">
             <EasaBadge variant="dark" />
           </div>

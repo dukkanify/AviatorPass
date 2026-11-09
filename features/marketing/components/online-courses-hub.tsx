@@ -10,19 +10,20 @@ import {
   ONLINE_COURSES_FAQ,
   ONLINE_COURSES_HUB,
 } from "@/features/marketing/content/online-courses";
+import { getOnlineCoursesHubSiteCopy } from "@/services/marketing/site-copy-service";
 
 function OnlineCoursesHub() {
+  const hub = { ...ONLINE_COURSES_HUB, ...getOnlineCoursesHubSiteCopy() };
+
   return (
     <div className="landing-root home-premium">
       <section className="atpl-section atpl-section-dark pt-16 sm:pt-20">
         <div className="container-app">
-          <p className="atpl-kicker">{ONLINE_COURSES_HUB.kicker}</p>
-          <h1 className="atpl-heading-light mt-4 max-w-[18ch]">{ONLINE_COURSES_HUB.title}</h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">
-            {ONLINE_COURSES_HUB.intro}
-          </p>
+          <p className="atpl-kicker">{hub.kicker}</p>
+          <h1 className="atpl-heading-light mt-4 max-w-[18ch]">{hub.title}</h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">{hub.intro}</p>
           <p className="mt-3 text-sm uppercase tracking-[0.16em] text-accent">
-            {ONLINE_COURSES_HUB.locationsLabel}
+            {hub.locationsLabel}
           </p>
           <div className="mt-8">
             <EasaBadge variant="dark" />

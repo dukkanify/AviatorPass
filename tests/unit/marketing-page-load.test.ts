@@ -30,13 +30,13 @@ describe("marketing page load stays read-only", () => {
     const home = readFileSync(path.join(process.cwd(), "app/(marketing)/page.tsx"), "utf8");
     expect(atpl).not.toMatch(/ensurePaymentsSeeded/);
     expect(journey).not.toMatch(/ensurePaymentsSeeded/);
-    expect(home).toMatch(/export const revalidate = 300/);
+    expect(home).toMatch(/export const revalidate = 60/);
     expect(home).not.toMatch(/force-dynamic/);
     const atplPage = readFileSync(
       path.join(process.cwd(), "app/(marketing)/atpl/page.tsx"),
       "utf8",
     );
-    expect(atplPage).toMatch(/export const revalidate = 300/);
+    expect(atplPage).toMatch(/export const revalidate = 60/);
     expect(atplPage).not.toMatch(/force-dynamic/);
   });
 

@@ -14,6 +14,7 @@ export const routes = {
   atpl: "/atpl",
   contact: "/contact",
   superAdminAtplSubjects: "/super-admin/courses/atpl-subjects",
+  superAdminSiteCopy: "/super-admin/site-copy",
   flightpath: "/flightpath",
   live: "/live",
   registerInstructor: "/register/instructor",

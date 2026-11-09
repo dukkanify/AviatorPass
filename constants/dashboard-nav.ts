@@ -80,6 +80,7 @@ export const SUPER_ADMIN_NAV: DashboardNavItem[] = [
   { label: "Analytics", href: "/super-admin/analytics", icon: "analytics" },
   { label: "Email automation", href: "/super-admin/email", icon: "megaphone" },
   { label: "Platform Settings", href: "/super-admin/settings", icon: "settings" },
+  { label: "Site copy", href: "/super-admin/site-copy", icon: "notes" },
   { label: "Asset Manager", href: "/super-admin/assets", icon: "assets" },
   { label: "Ops Center", href: "/super-admin/ops-center", icon: "ops" },
   { label: "API Platform", href: "/super-admin/api-platform", icon: "api" },
