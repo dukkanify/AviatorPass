@@ -37,7 +37,7 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
       {
         label: PROGRAMME_TERMS.basics.title,
         href: `${routes.onlineCoursesBasics}?mode=live`,
-        hint: `${PROGRAMME_TERMS.basics.commonName} · Live one-to-one`,
+        hint: `${PROGRAMME_TERMS.basics.commonName} · Live 1:1`,
       },
       {
         label: PROGRAMME_TERMS.elp.titleLive,
@@ -52,7 +52,7 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
       {
         label: PROGRAMME_TERMS.ppl.title,
         href: `${routes.onlineCoursesPpl}?mode=live`,
-        hint: `${PROGRAMME_TERMS.ppl.commonName} · Live one-to-one`,
+        hint: `${PROGRAMME_TERMS.ppl.commonName} · Live 1:1`,
       },
     ],
   },

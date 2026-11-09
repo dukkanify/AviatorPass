@@ -16,7 +16,7 @@ export const HERO = {
   kicker: "Complete Aviation Education Platform",
   headline: "Your aviation journey starts here, from first principles to airline theory",
   subheadline:
-    "Aviator Pass is a complete aviation education platform. Train with EASA Certified Instructors across Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams, live one-to-one and selected recorded programmes.",
+    "Aviator Pass is a complete aviation education platform. Train with EASA Certified Instructors across Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams, live 1:1 and selected recorded programmes.",
   audience: `Serving students in ${siteStatic.locations.join(", ")} and worldwide.`,
   primaryCta: "Explore Online Courses",
   secondaryCta: "Choose ATPL Complete Package",
@@ -54,7 +54,7 @@ export const ABOUT = {
   whyChoose: [
     "EASA Certified Instructors across every programme",
     "Complete aviation pathways, Basics, PPL, ATPL, and ELP",
-    "Live one-to-one sessions and selected recorded courses",
+    "Live 1:1 sessions and selected recorded courses",
     "Structured learning paths with assignments and performance reviews",
     "Mock examinations and practice assessments built into the programmes",
     "Dedicated academy support for students and instructors",
@@ -75,7 +75,7 @@ export const WHY_CHOOSE = {
     },
     {
       title: "Live and recorded pathways",
-      body: "Live one-to-one instruction where it matters, with selected recorded programmes for flexible self-paced study.",
+      body: "Live 1:1 instruction where it matters, with selected recorded programmes for flexible self-paced study.",
     },
     {
       title: "Modern Learning Platform",
@@ -150,8 +150,8 @@ export const PROGRAM = {
   includes: [
     "EASA Certified Instructors on every programme",
     "ATPL Complete Package, 13 theory subjects, live instruction",
-    "Basics of Aviation, recorded and live one-to-one",
-    "Private Pilot License, recorded and live one-to-one",
+    "Basics of Aviation, recorded and live 1:1",
+    "Private Pilot License, recorded and live 1:1",
     "ELP Mock Exams Live",
     "Progress tracking and competency milestones",
     "Assignments and performance reviews",
@@ -171,10 +171,10 @@ export const PROGRAM = {
 export const LEARNING_METHOD = {
   kicker: "How you learn",
   title: "Live where it matters. Recorded where it helps.",
-  body: "Aviator Pass is a complete education platform. Selected programmes, Basics of Aviation and Private Pilot License, are offered as recorded courses and as live one-to-one training. The ATPL Course is delivered live: sessions are live, recordings are not available to students, and any internal recording is for quality assurance only.",
+  body: "Aviator Pass is a complete education platform. Selected programmes, Basics of Aviation and Private Pilot License, are offered as recorded courses and as live 1:1 training. The ATPL Course is delivered live: sessions are live, recordings are not available to students, and any internal recording is for quality assurance only.",
   points: [
     "EASA Certified Instructors across live and recorded pathways",
-    "Basics and PPL available as recorded or live one-to-one",
+    "Basics and PPL available as recorded or live 1:1",
     "ATPL Course sessions are live, no student recordings",
     "ELP Mock Exams delivered live with an instructor",
   ],
@@ -200,7 +200,7 @@ export const INSTRUCTORS = {
     },
     {
       title: "Personal Guidance",
-      body: "One-to-one feedback on assignments and performance reviews.",
+      body: "1:1 feedback on assignments and performance reviews.",
     },
     {
       title: "Live Interaction",

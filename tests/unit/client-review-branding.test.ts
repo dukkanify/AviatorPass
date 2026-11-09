@@ -61,10 +61,10 @@ describe("final client review copy", () => {
     expect(courses?.children?.map((child) => child.hint ?? "")).toEqual([
       "Airline Transport Pilot License · Live",
       "Introduction to aviation · Recorded",
-      "Introduction to aviation · Live one-to-one",
+      "Introduction to aviation · Live 1:1",
       "English Language Proficiency · Live",
       "PPL ground school · Recorded",
-      "PPL ground school · Live one-to-one",
+      "PPL ground school · Live 1:1",
     ]);
     expect(ONLINE_COURSE_PROGRAMMES.map((p) => p.title)).toEqual([
       "ATPL Course",
