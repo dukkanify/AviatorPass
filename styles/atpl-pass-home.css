@@ -74,6 +74,17 @@
     );
 }
 
+/* Photo-led hero: keep the aircraft readable, darken only the CTA edge. */
+.atpl-hero-overlay-quiet {
+  background: linear-gradient(
+    180deg,
+    rgba(13, 34, 53, 0.12) 0%,
+    rgba(13, 34, 53, 0.08) 48%,
+    rgba(13, 34, 53, 0.55) 78%,
+    rgba(13, 34, 53, 0.78) 100%
+  );
+}
+
 .atpl-hero-glow {
   background:
     radial-gradient(ellipse 65% 50% at 78% 12%, rgba(204, 160, 76, 0.32), transparent 62%),
