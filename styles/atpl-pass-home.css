@@ -46,16 +46,8 @@
 .atpl-hero-bg img {
   height: 100%;
   width: 100%;
-  object-position: center center;
-}
-
-/* Sharp plate: full airframe. Blurred plate (first img) fills the viewport. */
-.atpl-hero-bg img:last-of-type {
-  object-fit: contain;
-}
-
-.atpl-hero-bg img:first-of-type {
   object-fit: cover;
+  object-position: center center;
 }
 
 .atpl-hero-overlay {
