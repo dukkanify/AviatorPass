@@ -77,8 +77,19 @@ function SectionKicker({ children }: { children: React.ReactNode }) {
 function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
   const copy = getHomeSiteCopy();
   const hero = { ...HERO, ...copy.hero };
-  const aboutTitle = copy.about.title;
-  const aboutWhoWeAre = copy.about.whoWeAre;
+  const about = {
+    kicker: copy.about.kicker || ABOUT.kicker,
+    title: copy.about.title || ABOUT.title,
+    whoWeAre: copy.about.whoWeAre || ABOUT.whoWeAre,
+    mission: copy.about.mission || ABOUT.mission,
+    vision: copy.about.vision || ABOUT.vision,
+    history: copy.about.history || ABOUT.history,
+    values: copy.about.values.map((v, i) => ({
+      title: v.title || ABOUT.values[i]?.title || "",
+      body: v.body || ABOUT.values[i]?.body || "",
+    })),
+    whyChoose: copy.about.whyChoose.map((item, i) => item || ABOUT.whyChoose[i] || ""),
+  };
 
   return (
     <>
@@ -153,33 +164,33 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
         className="atpl-section atpl-section-light atpl-section-about scroll-mt-28"
       >
         <div className="container-app">
-          <SectionKicker>{ABOUT.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[18ch]">{aboutTitle}</h2>
+          <SectionKicker>{about.kicker}</SectionKicker>
+          <h2 className="atpl-heading mt-4 max-w-[18ch]">{about.title}</h2>
 
           <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="space-y-8">
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Who We Are</h3>
-                <p>{aboutWhoWeAre}</p>
+                <p>{about.whoWeAre}</p>
               </div>
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Our Mission</h3>
-                <p>{ABOUT.mission}</p>
+                <p>{about.mission}</p>
               </div>
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Our Vision</h3>
-                <p>{ABOUT.vision}</p>
+                <p>{about.vision}</p>
               </div>
             </div>
             <div className="space-y-8">
               <div className="atpl-prose-block">
                 <h3 className="atpl-subheading">Our History</h3>
-                <p>{ABOUT.history}</p>
+                <p>{about.history}</p>
               </div>
               <div>
                 <h3 className="atpl-subheading mb-5">Our Values</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {ABOUT.values.map((v) => (
+                  {about.values.map((v) => (
                     <div key={v.title} className="atpl-value-card">
                       <h4 className="font-display text-sm font-semibold text-[var(--landing-ink-soft)]">
                         {v.title}
@@ -195,7 +206,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <div className="atpl-highlight-panel mt-16">
             <h3 className="atpl-subheading">Why Students Choose Us</h3>
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-              {ABOUT.whyChoose.map((item) => (
+              {about.whyChoose.map((item) => (
                 <li
                   key={item}
                   className="flex items-start gap-3 text-sm leading-relaxed text-foreground/85"

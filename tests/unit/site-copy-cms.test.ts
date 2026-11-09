@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { HERO } from "@/features/marketing/content/atpl-pass-home";
+import { ABOUT, HERO } from "@/features/marketing/content/atpl-pass-home";
 import {
   getHomeSiteCopy,
   listSiteCopySnapshots,
@@ -67,5 +67,19 @@ describe("site copy CMS", () => {
       "contact",
     ]);
     expect(pages.every((p) => p.fields.length > 0)).toBe(true);
+  });
+
+  it("exposes the full About section for Home site copy", () => {
+    const home = listSiteCopySnapshots().find((p) => p.id === "home");
+    const keys = home?.fields.map((f) => f.key) ?? [];
+    expect(keys).toContain("about.mission");
+    expect(keys).toContain("about.vision");
+    expect(keys).toContain("about.history");
+    expect(keys).toContain("about.values.0.title");
+    expect(keys).toContain("about.whyChoose.0");
+
+    updatePageCopy("home", { "about.mission": "Custom mission for Aviator Pass" });
+    expect(getHomeSiteCopy().about.mission).toBe("Custom mission for Aviator Pass");
+    expect(getHomeSiteCopy().about.vision).toBe(ABOUT.vision);
   });
 });
