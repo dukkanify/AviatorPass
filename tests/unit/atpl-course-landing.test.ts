@@ -32,12 +32,10 @@ describe("ATPL course landing conversion path", () => {
 
   it("sends Home to Online Courses and the landing Enrol CTA to checkout", () => {
     expect(HERO.primaryCta).toBe("Explore Online Courses");
-    expect(NAV_ITEMS[0]?.href).toBe(routes.onlineCourses);
-    expect(NAV_ITEMS[0]?.label).toBe("Online Courses");
-    expect(NAV_ITEMS[0]?.children?.some((child) => child.href === routes.atpl)).toBe(true);
-    expect(
-      NAV_ITEMS[0]?.children?.map((child) => [child.label, child.hint ?? "", child.href]),
-    ).toEqual([
+    const courses = NAV_ITEMS.find((item) => item.label === "Online Courses");
+    expect(courses?.href).toBe(routes.onlineCourses);
+    expect(courses?.children?.some((child) => child.href === routes.atpl)).toBe(true);
+    expect(courses?.children?.map((child) => [child.label, child.hint ?? "", child.href])).toEqual([
       ["ATPL Course", "Airline Transport Pilot License · Live", routes.atpl],
       [
         "Basics of Aviation",

@@ -48,16 +48,17 @@ describe("final client review copy", () => {
     expect(faq?.a).toMatch(/exclusive discount/);
   });
 
-  it("renames the ATPL Course nav to Online Courses and drops Private Session", () => {
+  it("orders marketing nav Contact · Instructors · Online Courses · About", () => {
     expect(NAV_ITEMS.map((item) => item.label)).toEqual([
+      "Contact",
+      "Instructors",
       "Online Courses",
       "About",
-      "Instructors",
-      "Contact",
     ]);
     expect(NAV_ITEMS.some((item) => /private session/i.test(item.label))).toBe(false);
-    expect(NAV_ITEMS[0]?.href).toBe(routes.onlineCourses);
-    expect(NAV_ITEMS[0]?.children?.map((child) => child.hint ?? "")).toEqual([
+    const courses = NAV_ITEMS.find((item) => item.label === "Online Courses");
+    expect(courses?.href).toBe(routes.onlineCourses);
+    expect(courses?.children?.map((child) => child.hint ?? "")).toEqual([
       "Airline Transport Pilot License · Live",
       "Introduction to aviation · Recorded",
       "Introduction to aviation · Live one-to-one",
