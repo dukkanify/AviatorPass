@@ -8,7 +8,8 @@ import { ATPL_FAQS } from "@/features/marketing/content/atpl-course-landing";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
-export const revalidate = 300;
+/** Site copy CMS — keep ATPL landing fresh after Super Admin edits. */
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "ATPL Course",

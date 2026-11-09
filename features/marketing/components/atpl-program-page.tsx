@@ -19,6 +19,7 @@ import {
   COURSE_OVERVIEW,
   PRICING,
 } from "@/features/marketing/content/atpl-course-landing";
+import { getAtplSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 type AtplProgramPageProps = {
@@ -47,6 +48,9 @@ function EnrolButton({
 }
 
 function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgramPageProps) {
+  const copy = getAtplSiteCopy();
+  const hero = { ...ATPL_LANDING_HERO, ...copy.hero };
+  const overview = { ...COURSE_OVERVIEW, ...copy.overview };
   const subjectCount = subjects.length;
   const subjectLabel = subjectCount === 1 ? "ATPL Subject" : "ATPL Subjects";
   const overviewStats = [
@@ -65,12 +69,12 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
           aria-hidden
         />
         <div className="container-app relative z-10 py-16 sm:py-20 lg:py-24">
-          <p className="atpl-kicker atpl-kicker-hero">{ATPL_LANDING_HERO.kicker}</p>
+          <p className="atpl-kicker atpl-kicker-hero">{hero.kicker}</p>
           <h1 className="mt-6 max-w-[18ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-bold leading-[1.06] tracking-[-0.035em] text-white">
-            {ATPL_LANDING_HERO.headline}
+            {hero.headline}
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/68 sm:text-lg">
-            {ATPL_LANDING_HERO.subheadline}
+            {hero.subheadline}
           </p>
           <ul className="mt-8 flex flex-col gap-2 text-sm text-white/75 sm:text-base">
             {ATPL_LANDING_HERO.proof.map((line) => (
@@ -81,14 +85,24 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
             ))}
           </ul>
           <div className="mt-10 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-            <EnrolButton enrollHref={enrollHref} className="hero-cta-primary px-10" />
+            <Button
+              size="lg"
+              variant="accent"
+              className="hero-cta-primary w-full px-10 sm:w-auto"
+              asChild
+            >
+              <Link href={enrollHref}>
+                {hero.primaryCta}
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </Button>
             <Button
               size="lg"
               variant="outline"
               className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               asChild
             >
-              <Link href="#subjects">{ATPL_LANDING_HERO.secondaryCta}</Link>
+              <Link href="#subjects">{hero.secondaryCta}</Link>
             </Button>
             {priceLabel ? (
               <p className="text-sm font-medium text-white/70">
@@ -103,9 +117,9 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
         <div className="container-app">
           <p className="atpl-kicker">{COURSE_OVERVIEW.kicker}</p>
           <h2 id="overview-heading" className="atpl-heading mt-4 max-w-[20ch]">
-            {COURSE_OVERVIEW.title}
+            {overview.title}
           </h2>
-          <p className="mt-5 max-w-2xl text-muted-foreground">{COURSE_OVERVIEW.body}</p>
+          <p className="mt-5 max-w-2xl text-muted-foreground">{overview.body}</p>
           <div className="mt-10 grid max-w-xl grid-cols-2 gap-4">
             {overviewStats.map((stat) => (
               <div key={stat.label} className="atpl-stat-card">

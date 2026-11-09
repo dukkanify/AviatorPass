@@ -8,6 +8,7 @@ import { EasaBadge } from "@/features/marketing/components/easa-badge";
 import { BASICS_PAGE } from "@/features/marketing/content/online-courses";
 import { resolveRequestCheckoutCountry } from "@/lib/marketing/checkout-country";
 import { getJourneyEnrollMarketing } from "@/lib/marketing/journey-enroll-marketing";
+import { getProgrammePageSiteCopy } from "@/services/marketing/site-copy-service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +27,18 @@ export default async function BasicsOfAviationPage({ searchParams }: PageProps) 
   const sku = live ? "BASICS-LIVE" : "BASICS-RECORDED";
   const country = await resolveRequestCheckoutCountry(params.country);
   const { enrollHref, priceLabel } = getJourneyEnrollMarketing(sku, country);
+  const page = { ...BASICS_PAGE, ...getProgrammePageSiteCopy("online-courses-basics") };
 
   return (
     <div className="landing-root home-premium">
       <section className="atpl-section atpl-section-dark pt-16 sm:pt-20">
         <div className="container-app max-w-3xl">
-          <p className="atpl-kicker">{BASICS_PAGE.kicker}</p>
-          <h1 className="atpl-heading-light mt-4">{BASICS_PAGE.title}</h1>
+          <p className="atpl-kicker">{page.kicker}</p>
+          <h1 className="atpl-heading-light mt-4">{page.title}</h1>
           <p className="mt-4 text-sm font-semibold uppercase tracking-[0.16em] text-accent">
             {live ? "Live One-to-One" : "Recorded"}
           </p>
-          <p className="mt-5 text-base leading-relaxed text-white/70">{BASICS_PAGE.intro}</p>
+          <p className="mt-5 text-base leading-relaxed text-white/70">{page.intro}</p>
           <div className="mt-6">
             <EasaBadge variant="dark" />
           </div>

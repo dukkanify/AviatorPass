@@ -5,8 +5,11 @@ import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import { siteStatic } from "@/config/site-static";
-import { ACTION_LABELS, PROGRAMME_TERMS } from "@/constants/programme-terms";
+import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
+import { getContactSiteCopy } from "@/services/marketing/site-copy-service";
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Contact an advisor",
@@ -20,18 +23,15 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
+  const copy = getContactSiteCopy();
+
   return (
     <div className="landing-root home-premium">
       <section className="atpl-section atpl-section-dark pt-16 sm:pt-20">
         <div className="container-app max-w-3xl">
-          <p className="atpl-kicker">{siteStatic.tagline}</p>
-          <h1 className="atpl-heading-light mt-4">Contact an advisor</h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">
-            Tell us where you are in your aviation journey. We will help you choose the{" "}
-            {PROGRAMME_TERMS.atpl.title} ({PROGRAMME_TERMS.atpl.commonName}),{" "}
-            {PROGRAMME_TERMS.basics.title}, {PROGRAMME_TERMS.ppl.title} ({PROGRAMME_TERMS.ppl.short}
-            ), or {PROGRAMME_TERMS.elp.title} ({PROGRAMME_TERMS.elp.commonName}).
-          </p>
+          <p className="atpl-kicker">{copy.kicker || siteStatic.tagline}</p>
+          <h1 className="atpl-heading-light mt-4">{copy.title}</h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">{copy.intro}</p>
         </div>
       </section>
 

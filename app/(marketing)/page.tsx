@@ -7,7 +7,8 @@ import { routes } from "@/constants/routes";
 import { APP_METADATA } from "@/constants/navigation";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
-export const revalidate = 300;
+/** Site copy CMS — keep homepage fresh after Super Admin edits. */
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: {

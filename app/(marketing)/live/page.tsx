@@ -7,6 +7,9 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { LIVE_STEPS } from "@/features/marketing/content/platform-pages";
+import { getLiveSiteCopy } from "@/services/marketing/site-copy-service";
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Live Zoom coaching",
@@ -21,6 +24,12 @@ export const metadata: Metadata = {
 };
 
 export default function LiveCoachingPage() {
+  const copy = getLiveSiteCopy();
+  const title = copy.title || "Live Zoom";
+  const titleParts = title.trim().split(/\s+/);
+  const titleLead = titleParts[0] ?? title;
+  const titleRest = titleParts.slice(1).join(" ");
+
   return (
     <div className="platform-altitude landing-root">
       <JsonLd
@@ -39,17 +48,16 @@ export default function LiveCoachingPage() {
         <div className="hero-horizon" aria-hidden />
         <div className="hero-vignette" aria-hidden />
         <div className="container-app relative z-10 py-20 sm:py-28 lg:py-32">
-          <p className="landing-kicker text-accent">Live altitude</p>
+          <p className="landing-kicker text-accent">{copy.kicker}</p>
           <h1 className="hero-brand mt-6 max-w-[12ch] font-display text-[clamp(2.8rem,8vw,5.5rem)] font-semibold">
-            <span className="hero-brand-aviator">Live</span>
-            <span className="hero-brand-pass"> Zoom</span>
+            <span className="hero-brand-aviator">{titleLead}</span>
+            {titleRest ? <span className="hero-brand-pass"> {titleRest}</span> : null}
           </h1>
           <p className="mt-6 max-w-[26ch] font-display text-[clamp(1.25rem,2.8vw,1.95rem)] font-semibold tracking-[-0.03em] leading-snug text-white/92">
-            Clear the turbulence with a live instructor
+            {copy.subtitle}
           </p>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-white/65 sm:text-lg">
-            Private coaching windows in Greenwich Mean Time. Reserve first, confirm by email, then
-            join from your AviatorPass lobby.
+            {copy.intro}
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Button variant="accent" size="lg" className="hero-cta-primary" asChild>
