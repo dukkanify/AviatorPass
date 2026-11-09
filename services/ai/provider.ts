@@ -93,7 +93,7 @@ export function generateAssistantReply(input: {
         `• Priority topics: navigation, meteorology, and performance where progress is lowest.`,
         `• Action: complete one unfinished lesson today, then quiz yourself tomorrow.`,
         ``,
-        `This summary uses only platform enrollment/progress data — no invented course content.`,
+        `This summary uses only platform enrollment/progress data, no invented course content.`,
       ].join("\n");
     case "study_tips":
       return [
@@ -112,7 +112,7 @@ export function generateAssistantReply(input: {
         ``,
         ...context.enrolledCourses
           .slice(0, 3)
-          .map((c, i) => `${i + 1}. Continue **${c.title}** — currently ${c.progress}% complete.`),
+          .map((c, i) => `${i + 1}. Continue **${c.title}**, currently ${c.progress}% complete.`),
         context.enrolledCourses.length
           ? `After finishing your active path, explore related categories in the catalog.`
           : `Browse the catalog and enroll to unlock personalized recommendations.`,
@@ -126,7 +126,7 @@ export function generateAssistantReply(input: {
         ``,
         `Week focus: revise weak areas (<50% progress), then timed quizzes.`,
         `Day before exam: light review + sleep; avoid new topics.`,
-        `Use your enrolled syllabus only — ask your instructor for official exam policies.`,
+        `Use your enrolled syllabus only, ask your instructor for official exam policies.`,
       ].join("\n");
     case "study_plan":
       return [
@@ -154,7 +154,7 @@ export function generateAssistantReply(input: {
         `**Assignment draft**`,
         `Title: Applied knowledge check`,
         `Instructions: Complete the scenario worksheet using only course materials.`,
-        `Deliverable: short written response (300–500 words) + 3 reflection points.`,
+        `Deliverable: short written response (300-500 words) + 3 reflection points.`,
         `Rubric: accuracy 40%, reasoning 40%, clarity 20%.`,
         grounded,
       ].join("\n");
@@ -166,7 +166,7 @@ export function generateAssistantReply(input: {
         `Hello team,`,
         `Please review this week’s materials and confirm attendance for upcoming live sessions (${context.liveUpcoming} upcoming on the platform).`,
         `Reach out via Support if you need help.`,
-        `— ${context.roleLabel}`,
+        `, ${context.roleLabel}`,
       ].join("\n");
     case "email":
       return [
@@ -195,7 +195,7 @@ export function generateAssistantReply(input: {
         ``,
         `• Monitor students with low progress / attendance.`,
         `• Highlight courses with completion gaps.`,
-        `• Use Analytics BI dashboards for live KPIs — I never invent platform metrics.`,
+        `• Use Analytics BI dashboards for live KPIs. I never invent platform metrics.`,
         `Ask “students at risk” or open Analytics for detailed figures.`,
       ].join("\n");
     case "search":
@@ -217,7 +217,7 @@ export function generateAssistantReply(input: {
         `I’m your ${persona} AI learning assistant for AviatorPass.`,
         grounded,
         ``,
-        `I can explain lessons, summarize content, generate practice questions, build study plans, draft instructor/admin writing, and search the platform — without replacing your instructor.`,
+        `I can explain lessons, summarize content, generate practice questions, build study plans, draft instructor/admin writing, and search the platform, without replacing your instructor.`,
         `Ask something specific, or pick a suggested prompt.`,
       ].join("\n");
   }
@@ -264,7 +264,7 @@ export function buildPracticeQuestions(
       id: generateId(),
       type: "essay",
       difficulty,
-      prompt: `Explain how ${base} applies in a real operational scenario (150–200 words).`,
+      prompt: `Explain how ${base} applies in a real operational scenario (150-200 words).`,
       answer: "Model answer should cite definitions, hazards, and mitigations from the syllabus.",
       explanation: "Assess reasoning and correct terminology.",
     },
@@ -272,7 +272,7 @@ export function buildPracticeQuestions(
       id: generateId(),
       type: "flashcard",
       difficulty,
-      prompt: `Flashcard front: Key definition — ${base}`,
+      prompt: `Flashcard front: Key definition, ${base}`,
       answer: `Concise syllabus definition of ${base} in your own words.`,
       explanation: "Use spaced repetition after live classes.",
     },

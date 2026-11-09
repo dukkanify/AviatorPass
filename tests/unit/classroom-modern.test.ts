@@ -63,7 +63,7 @@ describe("modern classroom join page", () => {
     expect(css).toMatch(/overflow-x:\s*clip/);
   });
 
-  it("keeps preview A/V only — Zoom owns share/chat/participants after join", () => {
+  it("keeps preview A/V only. Zoom owns share/chat/participants after join", () => {
     const room = readFileSync(
       resolve(process.cwd(), "features/zoom/components/in-app-zoom-room.tsx"),
       "utf8",

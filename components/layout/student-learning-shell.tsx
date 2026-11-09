@@ -204,7 +204,7 @@ function StudentLearningShell({ children }: { children: React.ReactNode }) {
                     onClick={() => setMoreOpen((open) => !open)}
                   >
                     {group.label}
-                    <span aria-hidden>{moreOpen ? "–" : "+"}</span>
+                    <span aria-hidden>{moreOpen ? "-" : "+"}</span>
                   </button>
                 ) : (
                   <p className="sl-nav-label">{group.label}</p>

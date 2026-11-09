@@ -210,7 +210,7 @@ export function AutomationCenterView() {
     <div className="space-y-8">
       <PageHeader
         title="Automation Center"
-        description="Control course types, publishing, instructors, Zoom, schedules, payments, installments, messages, certificates, reports, CGI, and mock exams — without developer intervention."
+        description="Control course types, publishing, instructors, Zoom, schedules, payments, installments, messages, certificates, reports, CGI, and mock exams, without developer intervention."
         breadcrumbs={[{ label: "Super Admin" }, { label: "Automation Center" }]}
       />
 

@@ -124,7 +124,7 @@ function GradingPanelView({ basePath = "/instructor/quizzes" }: GradingPanelView
                 <span>
                   #{a.attemptNumber} · {a.gradeStatus}
                 </span>
-                <Badge variant="secondary">{a.percent ?? "—"}%</Badge>
+                <Badge variant="secondary">{a.percent ?? "-"}%</Badge>
               </button>
             ))}
             {!attempts.length ? (

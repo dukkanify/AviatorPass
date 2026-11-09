@@ -624,7 +624,7 @@ function liveClassroomFromPaidFirstLecture(
   const startMs = Date.parse(startsAt);
   const live = startMs <= Date.now() && Date.now() < startMs + 3 * 60 * 60_000;
   const title = schedule.firstLectureSubjectTitle
-    ? `ATPL first lecture — ${schedule.firstLectureSubjectTitle}`
+    ? `ATPL first lecture, ${schedule.firstLectureSubjectTitle}`
     : "ATPL first lecture";
   return {
     id: schedule.firstLectureLiveClassId,

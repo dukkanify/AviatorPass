@@ -65,7 +65,7 @@ export function getCourseRecommendations(user: UserProfile): AiRecommendation[] 
         studentId: user.id,
         courseId: p.courseId,
         courseTitle: p.courseTitle,
-        reason: `Continue — currently ${Math.round(p.percent)}% complete`,
+        reason: `Continue, currently ${Math.round(p.percent)}% complete`,
         score: 90 - Math.round(p.percent / 2),
         categoryId: course?.categoryId ?? null,
         createdAt: new Date().toISOString(),

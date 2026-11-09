@@ -105,10 +105,10 @@ function StudentBookingView() {
       if (resolved.autoAdvanced && resolved.date !== date) {
         pendingAdvanceHintRef.current = true;
         setDate(resolved.date);
-        setSlotHint("No open times left on the selected day — jumped to the next available date.");
+        setSlotHint("No open times left on the selected day, jumped to the next available date.");
       } else if (pendingAdvanceHintRef.current) {
         pendingAdvanceHintRef.current = false;
-        setSlotHint("No open times left on the selected day — jumped to the next available date.");
+        setSlotHint("No open times left on the selected day, jumped to the next available date.");
       } else if (!resolved.slots.some((s) => s.available)) {
         setSlotHint("No open slots in the booking window. Try another instructor or session.");
       } else {
@@ -366,7 +366,7 @@ function StudentBookingView() {
                 <h2 className="font-display text-2xl font-semibold">Pick date & time</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {settings.aroundTheClock
-                    ? "Around-the-clock availability — every slot is a private Zoom room."
+                    ? "Around-the-clock availability, every slot is a private Zoom room."
                     : "Select within the open booking window."}
                 </p>
 
@@ -455,16 +455,19 @@ function StudentBookingView() {
                 </p>
 
                 <div className="mt-6 space-y-3 rounded-2xl bg-[#0B1A24] p-5 text-white">
-                  <Row label="Session" value={selectedType?.name ?? "—"} />
+                  <Row label="Session" value={selectedType?.name ?? "-"} />
                   <Row
                     label="Instructor"
-                    value={selectedInstructor?.fullName || selectedInstructor?.email || "—"}
+                    value={selectedInstructor?.fullName || selectedInstructor?.email || "-"}
                   />
                   <Row
                     label="Starts"
-                    value={selectedSlot ? formatSlotDateTime(selectedSlot) : "—"}
+                    value={selectedSlot ? formatSlotDateTime(selectedSlot) : "-"}
                   />
-                  <Row label="Duration" value={`${selectedType?.durationMinutes ?? "—"} minutes`} />
+                  <Row
+                    label="Duration"
+                    value={`${selectedType?.durationMinutes ?? ", "} minutes`}
+                  />
                   <Row
                     label="Zoom"
                     value={
@@ -514,7 +517,7 @@ function StudentBookingView() {
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-center text-sm text-muted-foreground">
                   {created.status === "pending"
-                    ? "Admin will confirm shortly — Zoom credentials unlock after approval."
+                    ? "Admin will confirm shortly. Zoom credentials unlock after approval."
                     : "Your private Zoom appointment is locked in. Enter the lobby when it’s time."}
                 </p>
 

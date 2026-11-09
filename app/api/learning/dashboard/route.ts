@@ -40,7 +40,7 @@ export async function GET() {
     writeOpsLog({
       level: "error",
       category: "error",
-      message: "GET /api/learning/dashboard failed — serving empty overview",
+      message: "GET /api/learning/dashboard failed, serving empty overview",
       path: "/api/learning/dashboard",
       details: {
         correlationId,

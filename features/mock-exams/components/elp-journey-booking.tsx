@@ -25,7 +25,7 @@ function hoursLabel(hours: MockExamWorkingHours[]) {
   const weekday = hours.find((h) => h.weekday === 1 && h.active);
   const weekend = hours.find((h) => (h.weekday === 0 || h.weekday === 6) && h.active);
   const fmt = (h?: MockExamWorkingHours) =>
-    h ? `${String(h.startHour).padStart(2, "0")}:00–${String(h.endHour).padStart(2, "0")}:00` : "—";
+    h ? `${String(h.startHour).padStart(2, "0")}:00-${String(h.endHour).padStart(2, "0")}:00` : "-";
   return {
     weekday: fmt(weekday),
     weekend: fmt(weekend),
@@ -75,8 +75,8 @@ export function ElpJourneyBooking() {
     <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white sm:p-6">
       <h2 className="font-heading text-xl">Choose your mock exam slot</h2>
       <p className="mt-2 text-sm text-white/70">
-        Only working hours appear. Monday–Friday {hours?.weekday ?? "17:00–20:00"} · Saturday–Sunday{" "}
-        {hours?.weekend ?? "09:00–18:00"} ({catalog?.settings.timezone ?? "Asia/Kuwait"}).
+        Only working hours appear. Monday–Friday {hours?.weekday ?? "17:00-20:00"} · Saturday–Sunday{" "}
+        {hours?.weekend ?? "09:00-18:00"} ({catalog?.settings.timezone ?? "Asia/Kuwait"}).
       </p>
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       <div className="mt-4 space-y-3">
@@ -120,7 +120,7 @@ export function ElpJourneyBooking() {
           <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
             <p className="font-medium">Review before payment</p>
             <p className="mt-1 text-white/70">Name: shown after you sign in</p>
-            <p className="text-white/70">Service: English Language Proficiency — Mock Exam</p>
+            <p className="text-white/70">Service: English Language Proficiency, Mock Exam</p>
             <p className="text-white/70">
               Date and time:{" "}
               {new Date(chosen.startsAt).toLocaleString([], {

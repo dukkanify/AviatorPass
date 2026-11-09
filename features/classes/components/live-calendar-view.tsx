@@ -176,7 +176,7 @@ function LiveCalendarView({ roleLabel, classesHref, embedded = false }: LiveCale
       {!embedded ? (
         <PageHeader
           title="Calendar"
-          description="Live classes you can access — month, week, day, and agenda."
+          description="Live classes you can access, month, week, day, and agenda."
           breadcrumbs={[{ label: roleLabel }, { label: "Calendar" }]}
           actions={
             classesHref ? (

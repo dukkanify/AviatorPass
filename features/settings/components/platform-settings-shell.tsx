@@ -1820,7 +1820,7 @@ function PlatformSettingsShell() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label="Host account email"
-                  description="Shared platform / S2S Zoom user (for example ceo@aviatorpass.com). Instructors must not connect this email for live classes — use a personal Zoom login so personalZoomReady stays true."
+                  description="Shared platform / S2S Zoom user (for example ceo@aviatorpass.com). Instructors must not connect this email for live classes, use a personal Zoom login so personalZoomReady stays true."
                 >
                   <Input
                     value={draft.zoom.accountEmail}

@@ -4,7 +4,7 @@ import * as React from "react";
 
 function formatCountdown(startsAt: string, now: number): string {
   const start = Date.parse(startsAt);
-  if (Number.isNaN(start)) return "—";
+  if (Number.isNaN(start)) return "-";
   const diff = start - now;
   if (diff <= 0) return "Starting now";
   const totalMinutes = Math.floor(diff / 60_000);

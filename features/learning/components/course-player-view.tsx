@@ -417,7 +417,7 @@ function CoursePlayerView({ courseId, lessonId }: CoursePlayerViewProps) {
               <div className="flex aspect-video items-center justify-center rounded-2xl border border-dashed border-border bg-muted/40 text-sm text-muted-foreground">
                 {liveCourse
                   ? "No live Zoom class is on the timetable for this subject yet."
-                  : "No video for this lesson — study the content below."}
+                  : "No video for this lesson, study the content below."}
               </div>
             )}
 

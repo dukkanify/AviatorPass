@@ -517,7 +517,7 @@ export async function renderCertificateHtml(certificateId: string): Promise<{
     }),
     instructorName: certificate.instructorName,
     completionDate: certificate.completionDate,
-    issueDate: certificate.issueDate ?? "—",
+    issueDate: certificate.issueDate ?? "-",
     certificateNumber: certificate.certificateNumber,
     verificationCode: certificate.verificationCode,
     organizationName: org,

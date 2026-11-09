@@ -25,7 +25,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     platformStatus: "online",
     primaryLocations: ["Dubai", "Copenhagen", "Kuwait", "Qatar"],
     footerText:
-      "Complete aviation education platform — live and recorded programmes with EASA Certified Instructors.",
+      "Complete aviation education platform, live and recorded programmes with EASA Certified Instructors.",
     socialHandle: siteStatic.socialHandle,
     socialLinks: {
       instagram: siteStatic.social.instagram,
@@ -47,7 +47,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
     typographyDisplay: "Exo 2",
     typographyBody: "IBM Plex Sans",
     footerInformation:
-      "Aviator Pass — YOUR AVIATION JOURNEY STARTS HERE. Complete aviation education across Dubai, Copenhagen, Kuwait, and Qatar.",
+      "Aviator Pass. YOUR AVIATION JOURNEY STARTS HERE. Complete aviation education across Dubai, Copenhagen, Kuwait, and Qatar.",
     brandGuidelinesPending: false,
     colorPalettePending: false,
     typographyPending: true,

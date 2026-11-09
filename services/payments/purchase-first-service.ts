@@ -788,7 +788,7 @@ export async function fulfillGuestPaidOrder(
       event: "registration",
       userIds: [user.id],
       to: user.email,
-      subject: "Welcome to Aviator Pass — package confirmed",
+      subject: "Welcome to Aviator Pass, package confirmed",
       data: {
         recipientName: user.fullName || firstName,
         title: "Welcome to Aviator Pass",
@@ -844,8 +844,8 @@ export async function fulfillGuestPaidOrder(
     type: provisioned.accountCreated ? "account.welcome" : "payment.succeeded",
     title: provisioned.accountCreated ? "Account created" : "Course activated",
     body: provisioned.accountCreated
-      ? `${bound.items[0]?.productName ?? "Aviator Pass"} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE} Set your password on the welcome page if the email does not arrive.`
-      : `${bound.items[0]?.productName ?? "Aviator Pass"} is confirmed on your account. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
+      ? `${bound.items[0]?.productName ?? "Aviator Pass"} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}, ${ATPL_INSTRUCTOR_CONFIRM_NOTICE} Set your password on the welcome page if the email does not arrive.`
+      : `${bound.items[0]?.productName ?? "Aviator Pass"} is confirmed on your account. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}, ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
     actionUrl: "/student/courses",
     email: false,
     dedupeKey: `purchase-first:${bound.id}:${user.id}`,

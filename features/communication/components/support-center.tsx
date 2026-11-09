@@ -17,9 +17,9 @@ import { commFetch, commJson } from "@/features/communication/lib/api";
 import type { SupportTicket, TicketReply, TicketStatus } from "@/types/communication";
 
 function formatTicketDate(iso?: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString(undefined, {
     day: "2-digit",
     month: "short",
@@ -141,7 +141,7 @@ function SupportCenterInner({ manage = false }: { manage?: boolean }) {
     <div className="space-y-6">
       <PageHeader
         title={manage ? "Support tickets" : "Support tickets"}
-        description="Tickets only — open a ticket, track replies, and keep the real created date from the record."
+        description="Tickets only, open a ticket, track replies, and keep the real created date from the record."
         breadcrumbs={[{ label: "Support" }, { label: "Tickets" }]}
       />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

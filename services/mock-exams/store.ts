@@ -75,9 +75,9 @@ function defaultExamTypes(): MockExamType[] {
     {
       id: "me_elp",
       code: "ELP-MOCK",
-      name: "English Language Proficiency — Mock Exam",
+      name: "English Language Proficiency, Mock Exam",
       description:
-        "Live English Language Proficiency mock exam. Book Mon–Fri 17:00–20:00 or Sat–Sun 09:00–18:00 (Kuwait time). Rush fees under 24h / 6–12h. Certificate after the examiner approves the session.",
+        "Live English Language Proficiency mock exam. Book Mon-Fri 17:00-20:00 or Sat-Sun 09:00-18:00 (Kuwait time). Rush fees under 24h / 6-12h. Certificate after the examiner approves the session.",
       durationMinutes: 60,
       basePrice: 40_000,
       active: true,
@@ -141,7 +141,7 @@ function defaultExtraFees(): MockExamExtraFee[] {
     {
       id: "fee_rush_12",
       code: "RUSH_12H",
-      label: "Urgent booking (6–12h)",
+      label: "Urgent booking (6-12h)",
       amount: 25_000,
       active: true,
       autoApply: true,
@@ -149,7 +149,7 @@ function defaultExtraFees(): MockExamExtraFee[] {
     {
       id: "fee_rush",
       code: "RUSH",
-      label: "Rush booking (< 48h) — legacy",
+      label: "Rush booking (< 48h), legacy",
       amount: 15_000,
       active: false,
       autoApply: false,

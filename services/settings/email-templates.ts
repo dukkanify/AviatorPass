@@ -162,7 +162,7 @@ export function otpEmailTemplate(
 export function verificationSuccessEmailTemplate(input: { firstName: string; role: string }) {
   const name = input.firstName || "Aviator";
   return renderBrandedEmail({
-    title: "Email verified — account ready",
+    title: "Email verified, account ready",
     preheader: `Welcome to Aviator Pass, ${name}`,
     bodyHtml: `<p>Hi ${name},</p>
       <p>Your email is verified and your <strong>${input.role}</strong> account is ready.</p>
@@ -390,8 +390,8 @@ export function liveClassEmailTemplate(input: {
     cancelled: "Live class cancelled",
     started: "Class started",
     finished: "Class finished",
-    reminder_24h: "Reminder — class in 24 hours",
-    reminder_2h: "Reminder — class in 2 hours",
+    reminder_24h: "Reminder, class in 24 hours",
+    reminder_2h: "Reminder, class in 2 hours",
   };
   const join = input.joinUrl
     ? `<p><a href="${escapeHtml(input.joinUrl)}">Join Zoom class</a></p>`

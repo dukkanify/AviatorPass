@@ -19,22 +19,18 @@ interface ClassStatsWidgetsProps {
 function ClassStatsWidgets({ stats, loading }: ClassStatsWidgetsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-      <StatCard label="Today" value={loading ? "—" : (stats?.today ?? 0)} icon={CalendarClock} />
-      <StatCard label="Upcoming" value={loading ? "—" : (stats?.upcoming ?? 0)} icon={Video} />
-      <StatCard label="Live now" value={loading ? "—" : (stats?.liveNow ?? 0)} icon={Radio} />
+      <StatCard label="Today" value={loading ? "-" : (stats?.today ?? 0)} icon={CalendarClock} />
+      <StatCard label="Upcoming" value={loading ? "-" : (stats?.upcoming ?? 0)} icon={Video} />
+      <StatCard label="Live now" value={loading ? "-" : (stats?.liveNow ?? 0)} icon={Radio} />
       <StatCard
         label="Completed"
-        value={loading ? "—" : (stats?.completed ?? 0)}
+        value={loading ? "-" : (stats?.completed ?? 0)}
         icon={CheckCircle2}
       />
-      <StatCard
-        label="Cancelled"
-        value={loading ? "—" : (stats?.cancelled ?? 0)}
-        icon={XCircle}
-      />
+      <StatCard label="Cancelled" value={loading ? "-" : (stats?.cancelled ?? 0)} icon={XCircle} />
       <StatCard
         label="Attendance rate"
-        value={loading ? "—" : `${stats?.attendanceRate ?? 0}%`}
+        value={loading ? "-" : `${stats?.attendanceRate ?? 0}%`}
         icon={Users}
       />
     </div>

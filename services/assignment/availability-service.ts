@@ -43,7 +43,7 @@ export function setAvailabilityWindows(input: {
   const stamp = nowIso();
   const rows: InstructorAvailabilityWindow[] = input.windows.map((w) => {
     if (w.weekday < 0 || w.weekday > 6) {
-      throw new AssignmentError("weekday must be 0–6");
+      throw new AssignmentError("weekday must be 0-6");
     }
     if (!/^\d{1,2}:\d{2}$/.test(w.startTime) || !/^\d{1,2}:\d{2}$/.test(w.endTime)) {
       throw new AssignmentError("startTime/endTime must be HH:mm");

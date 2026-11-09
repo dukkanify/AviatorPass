@@ -82,13 +82,13 @@ export function ensureClassesSeeded(): void {
     status: LiveClass["status"];
   }> = [
     {
-      title: "ATPL 010 Live — Air Law Briefing",
+      title: "ATPL 010 Live. Air Law Briefing",
       offsetHours: 2,
       duration: 90,
       status: "scheduled",
     },
     {
-      title: "ATPL 010 Live — Regulations Workshop",
+      title: "ATPL 010 Live. Regulations Workshop",
       offsetHours: 26,
       duration: 60,
       status: "scheduled",

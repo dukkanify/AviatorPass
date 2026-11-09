@@ -196,7 +196,7 @@ export async function createPerformanceReport(
   await createNotification({
     userId: input.studentId,
     title: "New performance report",
-    body: `${liveClass.title}: ${PERFORMANCE_RATING_LABELS[performance]} — ${todaysTopic}`,
+    body: `${liveClass.title}: ${PERFORMANCE_RATING_LABELS[performance]}, ${todaysTopic}`,
     type: "performance.report",
     data: { reportId: report.id, liveClassId: liveClass.id },
   });

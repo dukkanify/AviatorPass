@@ -100,7 +100,7 @@ function RegisterShell({
             </Link>
           </p>
           <p className="text-xs text-muted-foreground/90">
-            One form for students and instructors — pick your account type above.
+            One form for students and instructors. Pick your account type above.
           </p>
         </CardFooter>
       </Card>

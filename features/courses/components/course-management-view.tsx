@@ -251,12 +251,12 @@ function CourseManagementView({
       id: "primaryInstructorName",
       header: "Instructor",
       sortable: true,
-      cell: (row) => row.primaryInstructorName ?? "—",
+      cell: (row) => row.primaryInstructorName ?? "-",
     },
     {
       id: "categoryName",
       header: "Category",
-      cell: (row) => row.categoryName ?? "—",
+      cell: (row) => row.categoryName ?? "-",
     },
     {
       id: "deliveryType",
@@ -266,7 +266,7 @@ function CourseManagementView({
     {
       id: "featured",
       header: "Featured",
-      cell: (row) => (row.featured ? "Yes" : "—"),
+      cell: (row) => (row.featured ? "Yes" : "-"),
     },
     {
       id: "displayOrder",

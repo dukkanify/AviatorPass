@@ -211,7 +211,7 @@ export function getServerEnv() {
   // Coerce — do not throw. Throwing here 500s any Server Component that seeds demo data.
   if (appEnv === "production" && weakSecret) {
     console.error(
-      "[env] AUTH_SECRET must be a strong unique value (≥24 chars) in production — using configured value with warning",
+      "[env] AUTH_SECRET must be a strong unique value (≥24 chars) in production, using configured value with warning",
     );
   }
 

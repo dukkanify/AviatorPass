@@ -19,7 +19,7 @@ describe("easy course prices", () => {
   });
 
   it("builds a valid course code from the title", () => {
-    expect(suggestCourseCode("Private Pilot License — Live Online")).toMatch(
+    expect(suggestCourseCode("Private Pilot License, Live Online")).toMatch(
       /^[A-Z0-9][A-Z0-9._-]*$/,
     );
     expect(suggestCourseCode("Meteorology")).toBe("METEOROLOGY");

@@ -225,7 +225,7 @@ function UserManagementTable({
       sortable: true,
       cell: (row) => (
         <div>
-          <p className="font-medium">{row.fullName || "—"}</p>
+          <p className="font-medium">{row.fullName || "-"}</p>
           <p className="text-xs text-muted-foreground">{row.email}</p>
         </div>
       ),
@@ -249,7 +249,7 @@ function UserManagementTable({
     {
       id: "countryCode",
       header: "Country",
-      cell: (row) => row.countryCode || "—",
+      cell: (row) => row.countryCode || "-",
     },
     ...(showZoom
       ? ([
@@ -273,14 +273,14 @@ function UserManagementTable({
           {
             id: "zoomEmail",
             header: "Zoom email",
-            cell: (row: UserProfile) => zoomByUser[row.id]?.zoomEmail || "—",
+            cell: (row: UserProfile) => zoomByUser[row.id]?.zoomEmail || "-",
           },
           {
             id: "zoomSync",
             header: "Last sync",
             cell: (row: UserProfile) => {
               const value = zoomByUser[row.id]?.lastSyncAt;
-              return value ? new Date(value).toLocaleString() : "—";
+              return value ? new Date(value).toLocaleString() : "-";
             },
           },
         ] as DataTableColumn<UserProfile>[])
@@ -374,8 +374,8 @@ function UserManagementTable({
                       <tr key={row.id} className="border-t border-border/50">
                         <td className="px-3 py-2 font-medium">{row.fullName}</td>
                         <td className="px-3 py-2 text-muted-foreground">{row.email}</td>
-                        <td className="px-3 py-2 tabular-nums">{row.phone || "—"}</td>
-                        <td className="px-3 py-2">{row.countryCode || "—"}</td>
+                        <td className="px-3 py-2 tabular-nums">{row.phone || "-"}</td>
+                        <td className="px-3 py-2">{row.countryCode || "-"}</td>
                         <td className="px-3 py-2">{new Date(row.createdAt).toLocaleString()}</td>
                         <td className="px-3 py-2">
                           <Badge variant="warning">Awaiting OTP</Badge>

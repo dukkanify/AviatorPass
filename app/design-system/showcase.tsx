@@ -80,7 +80,7 @@ function DesignSystemShowcase() {
             <h1 className="text-display text-primary">Design System</h1>
             <p className="max-w-2xl text-body text-muted-foreground">
               Production UI foundation for {siteConfig.name}. Tokens, layouts, forms, feedback,
-              data, overlays, and motion — no business logic.
+              data, overlays, and motion. No business logic.
             </p>
           </div>
           <div className="flex items-center gap-2">

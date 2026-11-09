@@ -202,7 +202,7 @@ export async function fetchZoomProfile(
           event: "zoom.api.error",
           level: "warn",
           userId,
-          message: "GET /users/me missing user:read:user — using access-token identity",
+          message: "GET /users/me missing user:read:user, using access-token identity",
           details: { code: error instanceof ZoomApiError ? error.code : null, via: "jwt_uid" },
         });
         return fromJwt;
@@ -214,7 +214,7 @@ export async function fetchZoomProfile(
           event: "zoom.api.error",
           level: "warn",
           userId,
-          message: "GET /users/me missing user:read:user — using instructor placeholder identity",
+          message: "GET /users/me missing user:read:user, using instructor placeholder identity",
           details: { code: error instanceof ZoomApiError ? error.code : null, via: "placeholder" },
         });
         return {

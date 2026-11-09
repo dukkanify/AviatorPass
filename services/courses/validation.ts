@@ -49,7 +49,7 @@ export function assertCourseCode(code: unknown): string {
   }
   if (!/^[A-Z0-9][A-Z0-9._-]*$/.test(c)) {
     throw new CourseValidationError(
-      "Course code must start with a letter or number and use A–Z, 0–9, ., _, or -",
+      "Course code must start with a letter or number and use A-Z, 0-9, ., _, or -",
     );
   }
   return c;

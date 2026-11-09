@@ -113,7 +113,7 @@ export function isEmailSuppressed(
     return {
       suppressed: true,
       entry,
-      reason: "Confirmed demo mailbox — not a real inbox",
+      reason: "Confirmed demo mailbox, not a real inbox",
     };
   }
   return {

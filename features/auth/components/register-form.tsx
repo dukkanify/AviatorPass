@@ -577,7 +577,7 @@ function RegisterForm({
                     : "text-muted-foreground",
                 )}
               >
-                {password ? strength.label : "—"}
+                {password ? strength.label : "-"}
               </span>
             </p>
           </div>

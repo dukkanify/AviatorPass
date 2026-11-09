@@ -12,9 +12,9 @@ import { zoomOAuthFailureUserMessage } from "@/features/zoom/oauth-error-message
 import type { ZoomIntegrationPublic } from "@/types/zoom-oauth";
 
 function formatWhen(value: string | null) {
-  if (!value) return "—";
+  if (!value) return "-";
   const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return "—";
+  if (Number.isNaN(parsed)) return "-";
   return new Date(parsed).toLocaleString();
 }
 
@@ -94,7 +94,7 @@ function InstructorZoomPanel() {
   const statusLabel = loading
     ? "Checking"
     : sharedPlatform
-      ? "Shared platform — reconnect"
+      ? "Shared platform, reconnect"
       : personalReady
         ? "Connected"
         : needsReconnect
@@ -125,7 +125,7 @@ function InstructorZoomPanel() {
               {personalReady
                 ? "Your live classes are hosted on this Zoom account. Students join in-app as participants."
                 : sharedPlatform
-                  ? "Live classes must use your personal Zoom account — not the shared platform host."
+                  ? "Live classes must use your personal Zoom account, not the shared platform host."
                   : "Connect your personal Zoom account once to create and host your live classes."}
             </CardDescription>
           </div>
@@ -141,7 +141,7 @@ function InstructorZoomPanel() {
               Connected Email
             </dt>
             <dd className="mt-1 truncate text-sm font-medium text-foreground">
-              {status?.zoomEmail ?? "—"}
+              {status?.zoomEmail ?? "-"}
             </dd>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3">

@@ -83,7 +83,7 @@ function AdminBookingView({ roleLabel }: AdminBookingViewProps) {
     setBookings((prev) => prev.map((b) => (b.id === id ? res.data! : b)));
     toast.success(
       status === "confirmed"
-        ? "Confirmed — Zoom ready"
+        ? "Confirmed. Zoom ready"
         : status === "cancelled"
           ? "Cancelled"
           : `Marked ${status}`,
@@ -223,13 +223,13 @@ function AdminBookingView({ roleLabel }: AdminBookingViewProps) {
             {!settings.aroundTheClock ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Day start hour (0–23)"
+                  label="Day start hour (0-23)"
                   type="number"
                   value={settings.dayStartHour}
                   onCommit={(v) => queueSettings({ dayStartHour: Number(v) })}
                 />
                 <Field
-                  label="Day end hour (1–24)"
+                  label="Day end hour (1-24)"
                   type="number"
                   value={settings.dayEndHour}
                   onCommit={(v) => queueSettings({ dayEndHour: Number(v) })}

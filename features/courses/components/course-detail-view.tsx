@@ -296,7 +296,7 @@ function CourseDetailView({
               {course.primaryInstructorName ?? "Unassigned"}
             </p>
             <p>
-              <span className="text-muted-foreground">Category:</span> {course.categoryName ?? "—"}
+              <span className="text-muted-foreground">Category:</span> {course.categoryName ?? "-"}
             </p>
             <p>
               <span className="text-muted-foreground">Modules / lessons:</span>{" "}

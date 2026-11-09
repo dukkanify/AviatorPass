@@ -7,7 +7,7 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 
 export const metadata: Metadata = {
   title: "Instructor registration",
-  description: `Register as an AviatorPass instructor — teach courses and run live Zoom coaching on ${siteConfig.name}.`,
+  description: `Register as an AviatorPass instructor. Teach courses and run live Zoom coaching on ${siteConfig.name}.`,
   alternates: { canonical: routes.registerInstructor },
 };
 

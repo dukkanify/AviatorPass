@@ -121,7 +121,7 @@ describe("purchase password and package confirmation journey", () => {
       adminDashboardUrl: "https://www.aviatorpass.com/cgi/dashboard",
     });
     expect(rendered.subject).toBe(
-      "Action Required | New Student Registration – Instructor Assignment Pending | ABDULAZIZ ALSHOAIL",
+      "Action Required | New Student Registration - Instructor Assignment Pending | ABDULAZIZ ALSHOAIL",
     );
     expect(rendered.html).toContain("Dear Team");
     expect(rendered.html).toContain("through Aviator Pass");
@@ -175,7 +175,7 @@ describe("purchase password and package confirmation journey", () => {
         passwordSetupUrl: "https://www.aviatorpass.com/setup-password?email=a@b.com&token=tok",
         accountEmail: "a@b.com",
       },
-      "Welcome to Aviator Pass — package confirmed",
+      "Welcome to Aviator Pass, package confirmed",
     );
     expect(rendered.html).toContain("Package confirmed");
     expect(rendered.html).toContain("ATPL Complete Package");

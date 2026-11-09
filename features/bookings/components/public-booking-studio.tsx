@@ -222,7 +222,7 @@ function PublicBookingStudio() {
     }
     setDemoOtp(res.data.demoOtp ?? null);
     setStep("otp");
-    toast.success("Code sent — confirm to open Zoom");
+    toast.success("Code sent, confirm to open Zoom");
   }
 
   async function verifyAndFinish() {
@@ -247,7 +247,7 @@ function PublicBookingStudio() {
     }
     setRedirectTo(res.data.redirectTo);
     setStep("done");
-    toast.success("Booking confirmed — opening Zoom lobby");
+    toast.success("Booking confirmed, opening Zoom lobby");
     window.setTimeout(() => router.push(res.data!.redirectTo), 700);
   }
 

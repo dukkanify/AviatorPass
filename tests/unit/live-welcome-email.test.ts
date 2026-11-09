@@ -152,7 +152,7 @@ describe("live program 3-day welcome", () => {
       now: new Date(paidAt.getTime() + LIVE_PROGRAM_WELCOME_DELAY_MS),
     });
     expect(due.sent).toBe(1);
-    expect(due.results[0]?.subject).toMatch(/Welcome to Private Pilot License — Live Online/);
+    expect(due.results[0]?.subject).toMatch(/Welcome to Private Pilot License, Live Online/);
     expect(due.results[0]?.subject).toMatch(/your live program starts today/);
 
     const sent = newEmails(beforeIds);
@@ -193,7 +193,7 @@ describe("live program 3-day welcome", () => {
     expect(cron.liveWelcomes.sent).toBeGreaterThan(0);
     const sent = newEmails(beforeIds);
     expect(
-      sent.some((row) => /Welcome to Basics of Aviation — Live Online/i.test(row.subject)),
+      sent.some((row) => /Welcome to Basics of Aviation, Live Online/i.test(row.subject)),
     ).toBe(true);
   });
 });

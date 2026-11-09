@@ -232,19 +232,19 @@ export function OpsCenterShell() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Server" value={dash?.serverStatus ?? "—"} icon={Server} />
-        <StatCard label="Active users" value={dash?.activeUsers ?? "—"} icon={Activity} />
+        <StatCard label="Server" value={dash?.serverStatus ?? "-"} icon={Server} />
+        <StatCard label="Active users" value={dash?.activeUsers ?? "-"} icon={Activity} />
         <StatCard
           label="Open alerts"
-          value={summary?.openAlerts ?? dash?.openAlerts.length ?? "—"}
+          value={summary?.openAlerts ?? dash?.openAlerts.length ?? "-"}
           icon={AlertTriangle}
         />
         <StatCard
           label={summary?.hypercareEnabled ? "Hypercare on" : "Errors (buffer)"}
           value={
             summary?.hypercareEnabled
-              ? (summary.pendingFeatures ?? summary.openIncidents ?? "—")
-              : (dash?.errorCount ?? "—")
+              ? (summary.pendingFeatures ?? summary.openIncidents ?? "-")
+              : (dash?.errorCount ?? "-")
           }
           icon={ShieldAlert}
         />

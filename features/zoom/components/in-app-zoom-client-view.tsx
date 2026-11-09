@@ -125,7 +125,7 @@ function InAppZoomClientView({
     let cancelled = false;
     async function boot() {
       if (liveMeetingRef.current && joinedKeyRef.current) {
-        console.info("[zoom-client] boot skipped — meeting already live", {
+        console.info("[zoom-client] boot skipped, meeting already live", {
           meeting: meetingNumber,
           attempt,
         });
@@ -199,7 +199,7 @@ function InAppZoomClientView({
       if (active.mode !== "sdk" || !active.signature || !active.meetingNumber) {
         setPhase("classroom");
         setNotice(
-          "This environment has no live Meeting SDK meeting (mock/demo). On Production with Zoom configured, Client View opens automatically — no personal Zoom account needed.",
+          "This environment has no live Meeting SDK meeting (mock/demo). On Production with Zoom configured, Client View opens automatically, no personal Zoom account needed.",
         );
         return;
       }
@@ -285,8 +285,8 @@ function InAppZoomClientView({
           if (release.success && attempt < 1) {
             setNotice(
               release.data?.otherLiveMeetings?.length
-                ? "Zoom Error 3000 — another in-window meeting still holds the platform host. Stale local meetings were cleared; resolve the live conflict, then retry."
-                : "Zoom Error 3000 — released host lock for this classroom. Reopening as host.",
+                ? "Zoom Error 3000, another in-window meeting still holds the platform host. Stale local meetings were cleared; resolve the live conflict, then retry."
+                : "Zoom Error 3000, released host lock for this classroom. Reopening as host.",
             );
             setAttempt((value) => value + 1);
             setPhase("loading");
@@ -294,14 +294,14 @@ function InAppZoomClientView({
           }
           setHostBusyNotice(
             release.data?.rootCauseHint ||
-              "Zoom Error 3000 — the platform Zoom host is still in another live meeting. End that class for everyone (or wait until it finishes) before starting a new one.",
+              "Zoom Error 3000, the platform Zoom host is still in another live meeting. End that class for everyone (or wait until it finishes) before starting a new one.",
           );
         }
         setNotice(
           /3712|signature is invalid/i.test(detail)
-            ? "Zoom error 3712 — Meeting SDK signature rejected. Super Admin: verify ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET pair (Meeting SDK app)."
+            ? "Zoom error 3712. Meeting SDK signature rejected. Super Admin: verify ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET pair (Meeting SDK app)."
             : hostBusy
-              ? "Zoom Error 3000 — host already in another meeting. End the previous class for everyone, then retry."
+              ? "Zoom Error 3000, host already in another meeting. End the previous class for everyone, then retry."
               : `Could not open Zoom Client View (${detail || "unknown error"}).`,
         );
       }
@@ -340,7 +340,7 @@ function InAppZoomClientView({
       setHostBusyNotice(
         "You left without ending the meeting. The Zoom session may still hold the platform host (ceo@aviatorpass.com). End class for everyone before starting another lecture.",
       );
-      setNotice("Browser session closed — Zoom meeting may still be live.");
+      setNotice("Browser session closed. Zoom meeting may still be live.");
       return;
     }
     if (onLeave) {

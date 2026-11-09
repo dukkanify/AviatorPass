@@ -19,7 +19,7 @@ export const EMAIL_AUTOMATION_CATALOG: EmailAutomationCatalogItem[] = [
     event: "assignment",
     label: "Assignment",
     description:
-      "Official ATPL instructor assignment — student subject “TK n has been assigned to you.”",
+      "Official ATPL instructor assignment, student subject “TK n has been assigned to you.”",
     audience: "instructor",
     defaultEnabled: true,
   },

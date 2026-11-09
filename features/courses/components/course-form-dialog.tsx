@@ -142,7 +142,7 @@ function CourseFormDialog({
               onChange={(e) => changeTitle(e.target.value)}
               required
               maxLength={160}
-              placeholder="Private Pilot License — Live Online"
+              placeholder="Private Pilot License, Live Online"
             />
           </div>
           <div className="space-y-2">

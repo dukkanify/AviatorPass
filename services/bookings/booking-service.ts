@@ -728,11 +728,11 @@ export async function getBookingJoinInfo(input: {
   const canJoin = booking.status === "confirmed";
   const joinWindowLabel =
     now < openAt
-      ? "Lobby open — Zoom recommended from 15 minutes before start"
+      ? "Lobby open. Zoom recommended from 15 minutes before start"
       : now > ends + 30 * 60_000
-        ? "Scheduled window ended — host may still reopen"
+        ? "Scheduled window ended, host may still reopen"
         : withinWindow
-          ? "Live window — enter Zoom now"
+          ? "Live window, enter Zoom now"
           : "Zoom room ready";
 
   return {
@@ -789,7 +789,7 @@ export async function createGuestBookingHold(input: {
     throw new BookingAccessError("Booking is currently closed", 403);
   }
   if (!settings.allowGuestBooking) {
-    throw new BookingAccessError("Guest booking is disabled — please sign in first", 403);
+    throw new BookingAccessError("Guest booking is disabled, please sign in first", 403);
   }
 
   const email = input.email.trim().toLowerCase();
@@ -800,7 +800,7 @@ export async function createGuestBookingHold(input: {
 
   const existingUser = findUserByEmail(email);
   if (existingUser && existingUser.role !== ROLES.STUDENT) {
-    throw new BookingAccessError("This email belongs to a staff account — sign in instead", 400);
+    throw new BookingAccessError("This email belongs to a staff account, sign in instead", 400);
   }
   if (
     existingUser?.status === ACCOUNT_STATUS.SUSPENDED ||

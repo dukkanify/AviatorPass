@@ -40,7 +40,7 @@ export function Phase2RoadmapShell() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Phase 2 — Enterprise expansion"
+        title="Phase 2. Enterprise expansion"
         description="Version 2.0 roadmap. Capabilities are planned and feature-flagged; v1.0 remains stable."
         breadcrumbs={[
           { label: "Super Admin", href: "/super-admin/dashboard" },

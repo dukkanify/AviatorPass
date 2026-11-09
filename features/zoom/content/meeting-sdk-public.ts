@@ -80,7 +80,7 @@ export const MEETING_SDK_DOC_SECTIONS: MeetingSdkDocSection[] = [
       "Student join: separate session as zoom.reviewer.student@aviatorpass.com → same /join/{classId}. Expect participant join without host start URL.",
       "Controls: Zoom Meeting SDK toolbar for mute/video/share/chat/participants; AviatorPass Leave Class ends the browser session only.",
       "End meeting: Leave Class on host and student. AviatorPass accounts remain.",
-      "Do not authorize ceo@aviatorpass.com on the instructor Connect Zoom panel — that shared-platform row is unnecessary for centralized hosting.",
+      "Do not authorize ceo@aviatorpass.com on the instructor Connect Zoom panel, that shared-platform row is unnecessary for centralized hosting.",
     ],
   },
   {

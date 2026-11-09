@@ -220,7 +220,7 @@ function GuestCheckoutView() {
       });
       if (!paid.success || !paid.data) {
         toast.error(
-          paid.error ?? "Payment could not be processed. You can retry — no account was created.",
+          paid.error ?? "Payment could not be processed. You can retry, no account was created.",
         );
         return;
       }
@@ -543,7 +543,7 @@ function GuestCheckoutView() {
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {quote?.product.description ??
-                "Airline Transport Pilot License theory package — 13 subjects."}
+                "Airline Transport Pilot License theory package, 13 subjects."}
             </p>
           </div>
           <dl className="space-y-2 text-sm">
@@ -560,16 +560,16 @@ function GuestCheckoutView() {
               <dd>
                 {(quote?.countries ?? []).find((c) => c.code === form.country)?.name ??
                   form.country ??
-                  "—"}
+                  "-"}
               </dd>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <dt>Currency</dt>
-              <dd>{quote?.currency ?? quote?.detectedCurrency ?? "—"}</dd>
+              <dd>{quote?.currency ?? quote?.detectedCurrency ?? "-"}</dd>
             </div>
             <div className="flex justify-between font-medium">
               <dt>Total due today</dt>
-              <dd className="font-display text-xl">{quote?.totalLabel ?? "—"}</dd>
+              <dd className="font-display text-xl">{quote?.totalLabel ?? "-"}</dd>
             </div>
           </dl>
           <ul className="space-y-2 text-sm text-muted-foreground">

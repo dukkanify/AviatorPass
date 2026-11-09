@@ -182,7 +182,7 @@ function waitForStageSize(stage: HTMLElement, timeoutMs = 4000): Promise<DOMRect
         return;
       }
       if (Date.now() - started > timeoutMs) {
-        reject(new Error("Zoom stage container has zero size — cannot init Component View"));
+        reject(new Error("Zoom stage container has zero size, cannot init Component View"));
         return;
       }
       window.requestAnimationFrame(tick);
@@ -358,7 +358,7 @@ function InAppZoomRoom({
       // While Meeting SDK is live, ignore prop churn from parent soft-refresh —
       // reminting signature/ZAK must not replace session identity mid-call.
       if (liveMeetingRef.current && joinedKeyRef.current) {
-        console.info("[zoom] boot skipped — meeting already live", {
+        console.info("[zoom] boot skipped, meeting already live", {
           meeting: meetingNumber,
           attempt,
         });
@@ -501,7 +501,7 @@ function InAppZoomRoom({
               if (hostBusy && liveClassId && hostRecoveryRef.current < 2) {
                 hostRecoveryRef.current += 1;
                 console.warn(
-                  "[zoom] Error 3000 from Meeting SDK — releasing this class meeting instance only",
+                  "[zoom] Error 3000 from Meeting SDK, releasing this class meeting instance only",
                   detail,
                 );
                 const release = await authFetch<{
@@ -525,8 +525,8 @@ function InAppZoomRoom({
                 });
                 setNotice(
                   release.data?.liveListReadable === false
-                    ? "Zoom Error 3000 — host concurrency blocked. Zoom live lists are not readable with the current Server-to-Server token (often missing meeting:read), so empty clear-live is not proof the host is free. Retrying this classroom meeting only."
-                    : "Zoom Error 3000 — ended this classroom meeting instance and retrying as host.",
+                    ? "Zoom Error 3000, host concurrency blocked. Zoom live lists are not readable with the current Server-to-Server token (often missing meeting:read), so empty clear-live is not proof the host is free. Retrying this classroom meeting only."
+                    : "Zoom Error 3000, ended this classroom meeting instance and retrying as host.",
                 );
                 liveMeetingRef.current = false;
                 joinedKeyRef.current = null;
@@ -536,7 +536,7 @@ function InAppZoomRoom({
                 return;
               }
               if (hostBusy) {
-                const evidence = `Zoom Error 3000 — Already has other meetings in progress (SDK code ${code ?? 3000}).`;
+                const evidence = `Zoom Error 3000. Already has other meetings in progress (SDK code ${code ?? 3000}).`;
                 console.error("[zoom]", evidence, detail);
                 throw new Error(
                   `${evidence} AviatorPass ended only this classroom meeting on the first retry. If it persists, another live session is holding the platform Zoom host (ceo@aviatorpass.com), or Server-to-Server cannot list live meetings (meeting:read). Leave other Zoom clients for that host; do not end customer meetings from here.`,
@@ -545,7 +545,7 @@ function InAppZoomRoom({
               if (staleHostToken && hostRecoveryRef.current < 2) {
                 hostRecoveryRef.current += 1;
                 console.warn(
-                  "[zoom] Host ZAK rejected — refreshing host session (no participant fallback)",
+                  "[zoom] Host ZAK rejected, refreshing host session (no participant fallback)",
                   detail,
                 );
                 setNotice("Host Zoom token was rejected. Opening the classroom again as host.");
@@ -609,11 +609,11 @@ function InAppZoomRoom({
               /3099|registration/i.test(detail)
                 ? "This meeting still asks for registration. Open the classroom again."
                 : /3000|other meetings in progress/i.test(detail)
-                  ? "Zoom Error 3000 — Already has other meetings in progress. AviatorPass released only this classroom meeting once and kept you as host. If it persists, another live Zoom session is holding the platform host, or Server-to-Server cannot list live meetings (meeting:read). Leave other Zoom clients for that host; customer meetings are not ended here."
+                  ? "Zoom Error 3000. Already has other meetings in progress. AviatorPass released only this classroom meeting once and kept you as host. If it persists, another live Zoom session is holding the platform host, or Server-to-Server cannot list live meetings (meeting:read). Leave other Zoom clients for that host; customer meetings are not ended here."
                   : /3712|signature is invalid/i.test(detail)
-                    ? "Zoom error 3712 — Meeting SDK signature rejected. Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*)."
+                    ? "Zoom error 3712. Meeting SDK signature rejected. Super Admin: open /api/zoom/status and fix ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET as a matching pair from the Meeting SDK General app (Features → Embed on). Do not change Instructor OAuth (ZOOM_INSTRUCTOR_*)."
                     : /200|start meeting via tokens|\bzak\b/i.test(detail)
-                      ? "Zoom error 200 — host token (ZAK) was rejected. Open the classroom again so AviatorPass can refresh the host session. Do not connect ceo@aviatorpass.com on the instructor profile."
+                      ? "Zoom error 200, host token (ZAK) was rejected. Open the classroom again so AviatorPass can refresh the host session. Do not connect ceo@aviatorpass.com on the instructor profile."
                       : `The classroom could not open the meeting (${detail || "unknown Zoom error"}).`,
             );
           }
@@ -672,7 +672,7 @@ function InAppZoomRoom({
       setHostBusyNotice(
         "You left without ending the meeting. The Zoom session may still hold the platform host (ceo@aviatorpass.com). End class for everyone before starting another lecture.",
       );
-      setNotice("Browser session closed — Zoom meeting may still be live.");
+      setNotice("Browser session closed. Zoom meeting may still be live.");
       return;
     }
     if (onLeave) {

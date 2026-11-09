@@ -56,9 +56,9 @@ describe("performance reports (CR006)", () => {
     const report = await createPerformanceReport({
       liveClassId: liveClass.id,
       studentId: student.id,
-      todaysTopic: "Air law — privileges of licence holders",
+      todaysTopic: "Air law, privileges of licence holders",
       nextTopic: "Flight rules and ATC clearances",
-      homework: "Complete QB set 1 questions 1–20",
+      homework: "Complete QB set 1 questions 1-20",
       performance: "good",
       questionBank: "ATPL-010 bank · set 1",
       comments: "Strong oral answers; review night VFR notes.",

@@ -164,7 +164,7 @@ function parseState(state: string): { userId: string; nonce: string; expiresAt: 
     throw new PermissionError("Invalid OAuth state", 400);
   }
   if (Date.parse(parsed.exp) < Date.now()) {
-    throw new PermissionError("OAuth state expired — try Connect again", 400);
+    throw new PermissionError("OAuth state expired, try Connect again", 400);
   }
   return { userId: parsed.userId, nonce: parsed.nonce, expiresAt: parsed.exp };
 }
@@ -449,9 +449,9 @@ export async function completeZoomOAuthCallback(input: {
         reason === "token_exchange"
           ? "OAuth token exchange failed"
           : reason === "missing_user_scope"
-            ? "OAuth profile failed — missing user:read:user scope"
+            ? "OAuth profile failed, missing user:read:user scope"
             : reason === "already_linked"
-              ? "OAuth callback rejected — Zoom account already linked"
+              ? "OAuth callback rejected. Zoom account already linked"
               : "OAuth callback processing failed",
       level: "error",
       details: {
@@ -650,7 +650,7 @@ async function refreshInstructorAccessTokenUnlocked(userId: string): Promise<str
       event: "zoom.api.error",
       userId,
       level: "warn",
-      message: "Zoom refresh token rejected — reconnect required",
+      message: "Zoom refresh token rejected, reconnect required",
       details: { error: error instanceof Error ? error.message : "refresh_failed" },
     });
     throw new PermissionError("Zoom connection expired. Reconnect your Zoom account.", 409);

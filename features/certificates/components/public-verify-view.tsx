@@ -143,7 +143,7 @@ function PublicCertificateVerifyView() {
                     <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Issued
                     </dt>
-                    <dd className="mt-1 text-sm font-medium">{result.issueDate ?? "—"}</dd>
+                    <dd className="mt-1 text-sm font-medium">{result.issueDate ?? "-"}</dd>
                   </div>
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -155,7 +155,7 @@ function PublicCertificateVerifyView() {
                     <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Instructor
                     </dt>
-                    <dd className="mt-1 text-sm font-medium">{result.instructorName ?? "—"}</dd>
+                    <dd className="mt-1 text-sm font-medium">{result.instructorName ?? "-"}</dd>
                   </div>
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">

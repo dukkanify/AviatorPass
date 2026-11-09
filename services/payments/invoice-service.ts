@@ -65,7 +65,7 @@ export async function issueInvoiceForPayment(
       : undefined);
   const description =
     installmentSequence && installmentCount
-      ? `${productName} — Installment ${installmentSequence} of ${installmentCount}`
+      ? `${productName}. Installment ${installmentSequence} of ${installmentCount}`
       : productName;
 
   const invoice: Invoice = {
@@ -143,7 +143,7 @@ export async function issueInvoiceForPayment(
     data: {
       reference: invoice.invoiceNumber,
       amountLabel,
-      detail: `Order ${order.orderNumber} — thank you for your payment.`,
+      detail: `Order ${order.orderNumber}, thank you for your payment.`,
     },
     actorId: order.studentId,
     meta: { invoiceId: invoice.id, orderId: order.id, paymentId: payment.id },

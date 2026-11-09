@@ -107,7 +107,7 @@ export function ApiPlatformShell() {
             <CardTitle className="text-sm">Requests (1h)</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {String(monitoring?.requestsLastHour ?? "—")}
+            {String(monitoring?.requestsLastHour ?? "-")}
           </CardContent>
         </Card>
         <Card>
@@ -115,7 +115,7 @@ export function ApiPlatformShell() {
             <CardTitle className="text-sm">Failed (1h)</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {String(monitoring?.failedLastHour ?? "—")}
+            {String(monitoring?.failedLastHour ?? "-")}
           </CardContent>
         </Card>
         <Card>
@@ -123,7 +123,7 @@ export function ApiPlatformShell() {
             <CardTitle className="text-sm">Avg response</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {String(monitoring?.avgResponseMs ?? "—")} ms
+            {String(monitoring?.avgResponseMs ?? "-")} ms
           </CardContent>
         </Card>
       </div>

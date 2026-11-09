@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         // Never echo password on live Production; non-prod may show for local demos only.
         password: isLiveProductionRuntime() ? undefined : result.password,
         hint: isLiveProductionRuntime()
-          ? "Passwords rotated. Sign in with email OTP or the password delivered via your secure vault — not logged here."
+          ? "Passwords rotated. Sign in with email OTP or the password delivered via your secure vault, not logged here."
           : "Sign in with demo OTP (ENABLE_DEMO_OTP) or the temporary password returned for local demos.",
       },
       error: null,

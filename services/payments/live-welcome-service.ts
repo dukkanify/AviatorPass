@@ -129,7 +129,7 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
   const studentName = personName(student, order.studentName || order.studentEmail);
   const weeks = primary.weeks ? `${primary.weeks}-week` : "live";
   const lectures = primary.lectures ? `${primary.lectures} lectures` : "scheduled Zoom sessions";
-  const subject = `Welcome to ${primary.courseName} — your live program starts today`;
+  const subject = `Welcome to ${primary.courseName}, your live program starts today`;
   const studentDetail = [
     `Your ${weeks} live program is ready.`,
     `Course: ${primary.courseName}.`,
@@ -181,7 +181,7 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
 
   if (instructor) {
     await notifyUsers([instructor.id], {
-      title: `Live program starting — ${primary.courseName}`,
+      title: `Live program starting, ${primary.courseName}`,
       body: staffDetail,
       type: "instructor.student_assigned",
       email: false,
@@ -191,7 +191,7 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
     await dispatchEmailEvent({
       event: "instructor_alert",
       userIds: [instructor.id],
-      subject: `Live program starting — ${studentName}`,
+      subject: `Live program starting, ${studentName}`,
       data: {
         title: primary.courseName,
         detail: staffDetail,
@@ -206,7 +206,7 @@ export async function sendLiveProgramWelcome(orderId: string): Promise<{
 
   if (adminIds.length) {
     await notifyUsers(adminIds, {
-      title: `Live welcome sent — ${primary.courseName}`,
+      title: `Live welcome sent, ${primary.courseName}`,
       body: staffDetail,
       type: "admin.purchase",
       email: false,

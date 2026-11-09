@@ -39,9 +39,11 @@ export function summarizeContent(input: {
     if (!courseModule) throw new AiError("Module not found", 404);
     sourceTitle = courseModule.title;
     const lessons = readCoursesDb().lessons.filter((l) => l.moduleId === courseModule.id);
-    body = [courseModule.title, courseModule.description ?? "", ...lessons.map((l) => l.title)].join(
-      "\n",
-    );
+    body = [
+      courseModule.title,
+      courseModule.description ?? "",
+      ...lessons.map((l) => l.title),
+    ].join("\n");
   } else if (input.kind === "course" && input.targetId) {
     const course = readCoursesDb().courses.find((c) => c.id === input.targetId);
     if (!course) throw new AiError("Course not found", 404);
@@ -92,7 +94,7 @@ export function summarizeContent(input: {
     ``,
     bullets.map((b) => `• ${b}`).join("\n"),
     ``,
-    `Generated from available platform content only — ask your instructor for clarifications.`,
+    `Generated from available platform content only, ask your instructor for clarifications.`,
   ].join("\n");
 
   writeAiDb((db) => {
