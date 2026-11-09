@@ -144,8 +144,17 @@ export function getHomeSiteCopy() {
       secondaryCta: c["hero.secondaryCta"],
     },
     about: {
+      kicker: c["about.kicker"],
       title: c["about.title"],
       whoWeAre: c["about.whoWeAre"],
+      mission: c["about.mission"],
+      vision: c["about.vision"],
+      history: c["about.history"],
+      values: [0, 1, 2, 3].map((i) => ({
+        title: c[`about.values.${i}.title`] ?? "",
+        body: c[`about.values.${i}.body`] ?? "",
+      })),
+      whyChoose: [0, 1, 2, 3, 4, 5].map((i) => c[`about.whyChoose.${i}`] ?? ""),
     },
   };
 }
