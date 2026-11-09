@@ -14,7 +14,7 @@ export const ATPL_PASS = {
 
 export const HERO = {
   kicker: "Complete Aviation Education Platform",
-  headline: "Your aviation journey starts here, from first principles to airline theory",
+  headline: "Your aviation journey starts here. From first principles to airline theory",
   subheadline:
     "Aviator Pass is a complete aviation education platform. Train with EASA Certified Instructors across Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams, live 1:1 and selected recorded programmes.",
   audience: `Serving students in ${siteStatic.locations.join(", ")} and worldwide.`,
