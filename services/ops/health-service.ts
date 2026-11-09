@@ -91,7 +91,7 @@ export function evaluateEmailQueueHealth(input: {
       id: "email_queue",
       label: "Email queue",
       status: input.productionRuntime ? "fail" : "warn",
-      detail: "SMTP/Resend not configured — emails stay in the outbox",
+      detail: "SMTP/Resend not configured, emails stay in the outbox",
     };
   }
 
@@ -129,7 +129,7 @@ export function evaluateEmailQueueHealth(input: {
         id: "email_queue",
         label: "Email queue",
         status: "warn",
-        detail: resend.error || "Resend API unreachable — delivery still configured",
+        detail: resend.error || "Resend API unreachable, delivery still configured",
       };
     }
   }
@@ -270,7 +270,7 @@ function buildHealthSnapshot(opts?: {
     id: "supabase",
     label: "Supabase",
     status: isSupabaseConfigured() ? "pass" : "warn",
-    detail: isSupabaseConfigured() ? "Configured" : "Optional — local JSON mode",
+    detail: isSupabaseConfigured() ? "Configured" : "Optional, local JSON mode",
   });
 
   checks.push({
@@ -306,7 +306,7 @@ function buildHealthSnapshot(opts?: {
         status: backups.length ? "pass" : "warn",
         detail: backups.length
           ? `Latest ${backups[0]!.createdAt}`
-          : "No backups yet — run ops backup",
+          : "No backups yet, run ops backup",
       });
     } catch (error) {
       checks.push({
@@ -463,7 +463,7 @@ export function getProductionChecklist(): Array<{
       detail: isLiveProductionRuntime()
         ? "Live production ignores demo OTP (123456)"
         : demoOtpEnabled()
-          ? "Non-production — demo OTP allowed"
+          ? "Non-production, demo OTP allowed"
           : "Demo OTP is off",
     },
     {

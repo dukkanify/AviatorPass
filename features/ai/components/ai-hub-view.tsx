@@ -127,7 +127,7 @@ function AiHubView({ roleLabel, mode }: AiHubViewProps) {
     <div className="space-y-6">
       <PageHeader
         title="AI Learning Assistant"
-        description="Secure, permission-aware AI for learning, teaching, and operations — without replacing instructors."
+        description="Secure, permission-aware AI for learning, teaching, and operations, without replacing instructors."
         breadcrumbs={[{ label: roleLabel }, { label: "AI Assistant" }]}
       />
 

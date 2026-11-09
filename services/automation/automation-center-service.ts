@@ -129,7 +129,7 @@ function buildDomainCards(): AutomationDomainCard[] {
       id: "publishing",
       label: "Publishing",
       description:
-        "Draft / publish / schedule visibility — open the publishing console for bulk ops.",
+        "Draft / publish / schedule visibility, open the publishing console for bulk ops.",
       enabled: isDomainEnabled("publishing") && isFeatureEnabled("courses"),
       href: "/super-admin/courses/publishing",
       statusLabel: "Publishing console",
@@ -317,7 +317,7 @@ function buildDomainCards(): AutomationDomainCard[] {
     {
       id: "cgi",
       label: "Chief Ground Instructor",
-      description: "ATPL journey package SKU and default first subject — no code changes required.",
+      description: "ATPL journey package SKU and default first subject, no code changes required.",
       enabled: isDomainEnabled("cgi") && isFeatureEnabled("cgi"),
       href: "/cgi/dashboard",
       statusLabel: `SKU ${cgi.packageSku}${
@@ -334,7 +334,7 @@ function buildDomainCards(): AutomationDomainCard[] {
           cgi.defaultFirstSubjectCourseId ?? "__unset__",
           [
             { value: "__unset__", label: "Unset (use package order)" },
-            ...atplCourses.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` })),
+            ...atplCourses.map((c) => ({ value: c.id, label: `${c.code}, ${c.title}` })),
           ],
         ),
       ],

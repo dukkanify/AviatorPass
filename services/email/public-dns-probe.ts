@@ -55,7 +55,7 @@ export function inferDnsEditor(nameservers: string[]): DnsEditorHint {
       title: "cPanel Zone Editor",
       nameservers: ns,
       instruction:
-        "Add these records in cPanel → Zone Editor. The domain uses dns1.namecheaphosting.com / dns2.namecheaphosting.com. Do not use Namecheap Domain List → Advanced DNS — those records will not publish. If Host send is still a leftover CNAME, delete that CNAME before adding Resend MX/TXT.",
+        "Add these records in cPanel → Zone Editor. The domain uses dns1.namecheaphosting.com / dns2.namecheaphosting.com. Do not use Namecheap Domain List → Advanced DNS, those records will not publish. If Host send is still a leftover CNAME, delete that CNAME before adding Resend MX/TXT.",
     };
   }
   if (ns.some((name) => name.includes("registrar-servers.com") || name.endsWith("namecheap.com"))) {

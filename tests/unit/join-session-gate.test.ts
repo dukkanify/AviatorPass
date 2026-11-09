@@ -63,7 +63,7 @@ describe("join session gate", () => {
     expect(room).toContain("[session.mode, session.meetingNumber, String(attempt)].join");
     expect(room).not.toContain("session.signature ??");
     expect(room).not.toContain("session.zak ??");
-    expect(room).toMatch(/boot skipped — meeting already live/);
+    expect(room).toMatch(/boot skipped, meeting already live/);
     // Connecting fix: do not pin/observe Zoom DOM after Connected.
     expect(room).not.toMatch(/new MutationObserver/);
     expect(room).toMatch(/waitForEmbeddedConnected/);

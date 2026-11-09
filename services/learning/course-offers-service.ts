@@ -33,7 +33,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.atpl.title,
     commonName: PROGRAMME_TERMS.atpl.commonName,
     description:
-      "Official Airline Transport Pilot License syllabus. Sessions are live. Recordings are not available to students. Purchase first — your account is created automatically.",
+      "Official Airline Transport Pilot License syllabus. Sessions are live. Recordings are not available to students. Purchase first, your account is created automatically.",
     href: routes.atpl,
     sku: "ATPL-PACKAGE" as JourneySku,
     durationLabel: "230 hours",
@@ -46,7 +46,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.basics.title,
     commonName: PROGRAMME_TERMS.basics.commonName,
     description:
-      "An introduction to aviation for new students — recorded or live one-to-one with an EASA Certified Instructor.",
+      "An introduction to aviation for new students, recorded or live one-to-one with an EASA Certified Instructor.",
     href: routes.onlineCoursesBasics,
     sku: "BASICS-RECORDED" as JourneySku,
     durationLabel: "10 hours",
@@ -59,7 +59,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.ppl.title,
     commonName: PROGRAMME_TERMS.ppl.commonName,
     description:
-      "Private Pilot License (PPL) ground school — recorded or live one-to-one with an EASA Certified Instructor.",
+      "Private Pilot License (PPL) ground school, recorded or live one-to-one with an EASA Certified Instructor.",
     href: routes.onlineCoursesPpl,
     sku: "PPL-RECORDED" as JourneySku,
     durationLabel: "100 hours",
@@ -72,7 +72,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.elp.title,
     commonName: PROGRAMME_TERMS.elp.commonName,
     description:
-      "Live English Language Proficiency (ELP) mock exams with an instructor — scheduled windows and a certificate after completion.",
+      "Live English Language Proficiency (ELP) mock exams with an instructor, scheduled windows and a certificate after completion.",
     href: routes.onlineCoursesElp,
     sku: "ELP-MOCK" as JourneySku,
     durationLabel: "Live mock exam",

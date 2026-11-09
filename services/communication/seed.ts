@@ -104,7 +104,7 @@ export function ensureCommunicationSeeded(): void {
       conversationId: conversation.id,
       senderId: instructor.id,
       senderName: instructorP.fullName || instructor.email,
-      body: "Absolutely — focus on the Q-code and validity period first. I pinned a summary in the course community.",
+      body: "Absolutely, focus on the Q-code and validity period first. I pinned a summary in the course community.",
       attachments: [],
       deliveryStatus: "delivered",
       shareKind: "lesson_notes",

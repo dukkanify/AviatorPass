@@ -212,8 +212,8 @@ async function notifyBookingConfirmed(session: MockExamSession) {
       preheader: `${studentName} · ${when}`,
       bodyHtml: `<p>A new mock exam booking needs ops follow-up.</p>
         <ul>
-          <li>Student: ${studentName} (${student?.email ?? "—"})</li>
-          <li>Examiner: ${[examiner?.firstName, examiner?.lastName].filter(Boolean).join(" ") || "—"}</li>
+          <li>Student: ${studentName} (${student?.email ?? "-"})</li>
+          <li>Examiner: ${[examiner?.firstName, examiner?.lastName].filter(Boolean).join(" ") || "-"}</li>
           <li>Service: ${session.examTypeName}</li>
           <li>When: ${when}</li>
           <li>Total: ${price}</li>
@@ -371,7 +371,7 @@ export async function bookMockExam(input: {
 
   await createNotification({
     userId: input.studentId,
-    title: session.status === "confirmed" ? "Mock exam booked" : "Mock exam reserved — payment due",
+    title: session.status === "confirmed" ? "Mock exam booked" : "Mock exam reserved, payment due",
     body: `${exam.name} on ${formatZonedDateTime(new Date(session.startsAt), session.timezone)} · ${formatMinor(quote.total, quote.currency)}`,
     type: "mock_exam.booked",
     data: { sessionId: session.id },
@@ -444,7 +444,7 @@ export async function completeMockExamSession(input: {
     throw new MockExamError("Only confirmed or in-progress sessions can be completed");
   }
   if (input.scorePercent < 0 || input.scorePercent > 100) {
-    throw new MockExamError("scorePercent must be 0–100");
+    throw new MockExamError("scorePercent must be 0-100");
   }
 
   const stamp = nowIso();
@@ -477,7 +477,7 @@ export async function completeMockExamSession(input: {
   await createNotification({
     userId: session.studentId,
     title: input.passed ? "Mock exam passed" : "Mock exam completed",
-    body: `${session.examTypeName}: ${input.scorePercent}% — Aviator Pass certificate issued`,
+    body: `${session.examTypeName}: ${input.scorePercent}%. Aviator Pass certificate issued`,
     type: "mock_exam.completed",
     data: { sessionId: session.id, certificateId: session.certificateId },
   });
@@ -498,7 +498,7 @@ function issueMockExamCertificate(session: MockExamSession): MockExamCertificate
     <p>This certifies that</p>
     <h2>${student.name ?? "Candidate"}</h2>
     <p>completed the Aviator Pass <strong>${session.examTypeName}</strong></p>
-    <p>Score: ${session.scorePercent ?? "—"}% · Result: ${session.passed ? "PASS" : "Completed"}</p>
+    <p>Score: ${session.scorePercent ?? "-"}% · Result: ${session.passed ? "PASS" : "Completed"}</p>
     <p>Date: ${stamp.slice(0, 10)}</p>
     <p>Verification: ${verificationCode}</p>
   </body></html>`;
@@ -529,7 +529,7 @@ async function emailCertificate(session: MockExamSession, cert: MockExamCertific
     preheader: `${session.examTypeName} certificate is in your account`,
     bodyHtml: `<p>Hello ${student.name ?? "Candidate"},</p>
       <p>Your examiner approved the session. An Aviator Pass certificate for <strong>${session.examTypeName}</strong> is now in your account.</p>
-      <p>Score: <strong>${cert.scorePercent ?? "—"}%</strong> · ${cert.passed ? "PASS" : "Completed"}</p>
+      <p>Score: <strong>${cert.scorePercent ?? "-"}%</strong> · ${cert.passed ? "PASS" : "Completed"}</p>
       <p>Verification code: <strong>${cert.verificationCode}</strong></p>
       <p>Open AviatorPass → Mock Exams to view or download the certificate and any documents your examiner shared.</p>`,
   });

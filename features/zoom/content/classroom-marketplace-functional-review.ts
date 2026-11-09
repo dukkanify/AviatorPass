@@ -7,10 +7,10 @@
 export const CLASSROOM_REVIEW_PATH = "/integrations/zoom-classroom-review";
 
 export const CLASSROOM_REVIEW_TITLE =
-  "AviatorPass Classroom for Zoom — Marketplace Functional Review";
+  "AviatorPass Classroom for Zoom. Marketplace Functional Review";
 
 export const CLASSROOM_REVIEW_UPDATED =
-  "28 October 2026 (Asia/Dubai) — centralized platform Zoom hosting; Marketplace submit still pending owner approval";
+  "28 October 2026 (Asia/Dubai), centralized platform Zoom hosting; Marketplace submit still pending owner approval";
 
 /** Marketplace resubmission readiness — verified against production; no invented results. */
 export const CLASSROOM_REVIEW_READINESS = {
@@ -19,12 +19,12 @@ export const CLASSROOM_REVIEW_READINESS = {
   checkedAtLabel: "28 October 2026 (Asia/Dubai)",
   blockers: [
     "Zoom Marketplace Support written confirmation is pending for empty Production Scopes (“Select at least one scope”) after Create a Meeting removal. Do not add unused scopes merely to clear validation.",
-    "Zoom Marketplace portal Meetings surface and Custom Form cannot be verified from AviatorPass — owner console confirmation required.",
+    "Zoom Marketplace portal Meetings surface and Custom Form cannot be verified from AviatorPass, owner console confirmation required.",
     "Real two-way audio/video is not claimed as passed.",
   ],
   ceoPlatformProvisionSupported: true,
   ceoPlatformProvisionReason:
-    "Release default: live classes are created on the platform Server-to-Server Zoom host (ceo@aviatorpass.com). Instructors schedule/host inside AviatorPass without Connect Zoom. Personal Instructor OAuth remains optional. Instructors never receive CEO passwords, S2S secrets, or unrestricted host credentials — host ZAK is minted server-side for authorized hosts only.",
+    "Release default: live classes are created on the platform Server-to-Server Zoom host (ceo@aviatorpass.com). Instructors schedule/host inside AviatorPass without Connect Zoom. Personal Instructor OAuth remains optional. Instructors never receive CEO passwords, S2S secrets, or unrestricted host credentials, host ZAK is minted server-side for authorized hosts only.",
 } as const;
 
 export type ClassroomReviewSection = {
@@ -47,7 +47,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "Documentation URL: https://www.aviatorpass.com/integrations/zoom",
       "This functional review document: https://www.aviatorpass.com/integrations/zoom-classroom-review",
       "Support: support@aviatorpass.com",
-      "Production Meeting SDK Client ID (last four): VGTQ — credential pair validated on production (credentialPairValid true). Owner pastes the full Production Client ID from Zoom Marketplace → App Credentials into Marketplace review fields; AviatorPass public pages intentionally show only the suffix.",
+      "Production Meeting SDK Client ID (last four): VGTQ, credential pair validated on production (credentialPairValid true). Owner pastes the full Production Client ID from Zoom Marketplace → App Credentials into Marketplace review fields; AviatorPass public pages intentionally show only the suffix.",
       "Login URL for reviewers: https://www.aviatorpass.com/login",
     ],
   },
@@ -58,9 +58,9 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "This Marketplace app’s only product function is embedding a scheduled AviatorPass class with the Zoom Meeting SDK inside the AviatorPass browser UI.",
     ],
     bullets: [
-      "AviatorPass Classroom for Zoom (this app) — Meeting SDK JWT signing with ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET (suffix VGTQ). Opens /join and /join/{classId} inside AviatorPass. No meeting create and no user OAuth on this Client ID.",
-      "CEO Server-to-Server OAuth — separate platform integration (account email ceo@aviatorpass.com). Creates live-class meetings and supplies meeting start_url for host ZAK. Not part of this Marketplace app’s OAuth. Do not disconnect or rotate it for this review.",
-      "AviatorPass for Zoom — optional Instructor User-managed OAuth (ZOOM_INSTRUCTOR_*, Client ID suffix Z0xA). Kept for future per-instructor hosting; not required for the current centralized reviewer workflow.",
+      "AviatorPass Classroom for Zoom (this app). Meeting SDK JWT signing with ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET (suffix VGTQ). Opens /join and /join/{classId} inside AviatorPass. No meeting create and no user OAuth on this Client ID.",
+      "CEO Server-to-Server OAuth, separate platform integration (account email ceo@aviatorpass.com). Creates live-class meetings and supplies meeting start_url for host ZAK. Not part of this Marketplace app’s OAuth. Do not disconnect or rotate it for this review.",
+      "AviatorPass for Zoom, optional Instructor User-managed OAuth (ZOOM_INSTRUCTOR_*, Client ID suffix Z0xA). Kept for future per-instructor hosting; not required for the current centralized reviewer workflow.",
       "Instructors never receive CEO passwords, OAuth secrets, S2S tokens, or unrestricted host credentials. Host ZAK is derived server-side from the meeting start_url for authorized AviatorPass hosts only.",
     ],
   },
@@ -70,15 +70,15 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "AviatorPass Classroom for Zoom signs a Meeting SDK JSON Web Token that names the meeting number and role (participant 0 or host 1). Product code does not run user OAuth on the Classroom Client ID.",
       "Zoom Marketplace Production Scopes shows “Select at least one scope” when the list is empty. That is a portal validation gate. Meeting SDK JWT signing does not require REST scopes at runtime.",
       "Do not re-add Create a Meeting user/admin/master scopes on this Classroom app. Those were correctly removed after Zoom’s functional review.",
-      "Official Meeting SDK credential guidance for user-managed apps documents User → View a user's zak token (user:read:zak) as the Meeting SDK–oriented scope. Ask Zoom Marketplace Support whether zero scopes are allowed for a JWT-only Meeting SDK app that obtains host ZAK via a separate Instructor OAuth app. If Support confirms a scope is mandatory, add only user:read:zak — never meeting create/admin/master.",
-      "Scopes that belong only to AviatorPass for Zoom (Instructor OAuth) — not this Classroom app:",
+      "Official Meeting SDK credential guidance for user-managed apps documents User → View a user's zak token (user:read:zak) as the Meeting SDK-oriented scope. Ask Zoom Marketplace Support whether zero scopes are allowed for a JWT-only Meeting SDK app that obtains host ZAK via a separate Instructor OAuth app. If Support confirms a scope is mandatory, add only user:read:zak, never meeting create/admin/master.",
+      "Scopes that belong only to AviatorPass for Zoom (Instructor OAuth), not this Classroom app:",
     ],
     bullets: [
-      "user:read:user — Purpose: load Zoom identity after Connect Zoom. Test on /instructor/profile after Connect Zoom.",
-      "meeting:write:meeting — Purpose: POST /users/me/meetings for the connected instructor. Keep the user scope; remove meeting:write:meeting:admin / master duplicates on the Instructor OAuth app.",
-      "meeting:read:meeting — Purpose: GET /meetings/{id} during sync and join preparation.",
-      "meeting:update:meeting — Purpose: PATCH /meetings/{id} when a class is rescheduled.",
-      "meeting:delete:meeting — Purpose: DELETE /meetings/{id} when a class is cancelled.",
+      "user:read:user. Purpose: load Zoom identity after Connect Zoom. Test on /instructor/profile after Connect Zoom.",
+      "meeting:write:meeting. Purpose: POST /users/me/meetings for the connected instructor. Keep the user scope; remove meeting:write:meeting:admin / master duplicates on the Instructor OAuth app.",
+      "meeting:read:meeting. Purpose: GET /meetings/{id} during sync and join preparation.",
+      "meeting:update:meeting. Purpose: PATCH /meetings/{id} when a class is rescheduled.",
+      "meeting:delete:meeting. Purpose: DELETE /meetings/{id} when a class is cancelled.",
       "Rejected on Instructor OAuth (never enable for AviatorPass live classes): meeting:write:meeting:admin, meeting:write:admin, meeting:master.",
       "Classroom Meeting SDK runtime: POST /api/zoom/in-app-session returns a Meeting SDK signature without a Zoom OAuth consent screen for this app. Host ZAK is derived server-side from the meeting start_url (platform S2S or optional instructor OAuth).",
       "Operator resolution plan: docs/ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md",
@@ -93,11 +93,11 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
     ],
     bullets: [
       "Exact login URL: https://www.aviatorpass.com/login",
-      "Instructor — Riley Okonkwo — zoom.reviewer.instructor@aviatorpass.com (password in Zoom private Account credentials only)",
-      "Student — Jordan Hale — zoom.reviewer.student@aviatorpass.com (password in Zoom private Account credentials only)",
+      "Instructor. Riley Okonkwo, zoom.reviewer.instructor@aviatorpass.com (password in Zoom private Account credentials only)",
+      "Student. Jordan Hale, zoom.reviewer.student@aviatorpass.com (password in Zoom private Account credentials only)",
       "Use a fresh browser (or separate profiles) for instructor and student.",
       "Personal Connect Zoom is not required. Do not authorize ceo@aviatorpass.com on the instructor profile.",
-      "Isolated classroom (verified): https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3 — meeting owned by platform S2S host ceo@aviatorpass.com; only assigned instructor + enrolled student may enter.",
+      "Isolated classroom (verified): https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3, meeting owned by platform S2S host ceo@aviatorpass.com; only assigned instructor + enrolled student may enter.",
       "Marketplace Features for this Classroom app: disable Meetings surface; remove Custom Form (unused); keep Embed → Meeting SDK enabled.",
     ],
   },
@@ -122,7 +122,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "2. Sign in as zoom.reviewer.student@aviatorpass.com (password from Zoom private Account credentials).",
       "3. Open https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e90af3",
       "4. Expect LIVE participant join; student tile without HOST; no host start URL / ZAK.",
-      "5. Open https://www.aviatorpass.com/instructor/profile — expect Access denied.",
+      "5. Open https://www.aviatorpass.com/instructor/profile, expect Access denied.",
       "6. Leave Class ends the student browser session only.",
     ],
   },
@@ -137,7 +137,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "Host expected: role 1 when ZAK is present; Leave Class on the AviatorPass dock; Zoom Meeting SDK toolbar for mute/video/share/chat/participants.",
       "Participant expected: role 0; no host start URL; Zoom participant mute/video controls as permitted by the host.",
       "Troubleshooting Zoom error 3712: Meeting SDK Client ID and Secret mismatch or Embed disabled.",
-      "Troubleshooting Zoom error 3000: Meeting SDK reports the platform host already has another meeting in progress. Host join releases only THIS class meeting instance and retries once. With meeting:read:list_meetings:admin on CEO S2S, clear-live can list live meetings; it ends only known local ghosts or explicit meeting numbers — never unknown Zoom live IDs or in-window customer classes. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
+      "Troubleshooting Zoom error 3000: Meeting SDK reports the platform host already has another meeting in progress. Host join releases only THIS class meeting instance and retries once. With meeting:read:list_meetings:admin on CEO S2S, clear-live can list live meetings; it ends only known local ghosts or explicit meeting numbers, never unknown Zoom live IDs or in-window customer classes. Schedule conflicts for the same instructor are also blocked in AviatorPass.",
       "Troubleshooting HTTP 409 oauth_not_connected: only when platform S2S credentials are missing and the instructor has not connected personal Zoom. With platform S2S configured, Connect Zoom is not required.",
     ],
   },
@@ -150,7 +150,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "Reviewer instructor and student AviatorPass logins: PASS.",
       "Meeting SDK credential pair (suffix VGTQ): PASS (credentialPairValid true).",
       "Instructor OAuth Production Client ID suffix Z0xA separate from Meeting SDK VGTQ and S2S (uX3Q): PASS (credentialsMixed false). Z0xA must not block Classroom delivery.",
-      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS — do not disconnect; used as centralized live-class host for this release. S2S includes meeting:read:list_meetings:admin (live list readable).",
+      "CEO platform host (ceo@aviatorpass.com) hostZak.ready: PASS, do not disconnect; used as centralized live-class host for this release. S2S includes meeting:read:list_meetings:admin (live list readable).",
       "Classroom Meeting SDK JWT path only (no user OAuth scopes in product): PASS.",
       "Centralized platform S2S hosting for live classes: ENABLED in product (personalZoomReady not required).",
       "Isolated reviewer classroom create on ceo@aviatorpass.com without personal Connect Zoom: PASS.",
@@ -159,7 +159,7 @@ export const CLASSROOM_REVIEW_SECTIONS: ClassroomReviewSection[] = [
       "Real two-way audio/video between humans on physical devices: NOT TESTED / NOT CLAIMED as passed.",
       "Student denied instructor routes: PASS (307 → /access-denied).",
       "Customer meetings / CEO credentials: must remain unchanged; instructors never receive CEO secrets. clear-live does not mass-end unknown Zoom live IDs.",
-      "Licensing: one licensed Zoom user typically hosts one concurrent meeting — stagger schedules or add licensed hosts on the S2S account for simultaneous classes.",
+      "Licensing: one licensed Zoom user typically hosts one concurrent meeting, stagger schedules or add licensed hosts on the S2S account for simultaneous classes.",
     ],
   },
   {
@@ -229,7 +229,7 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
     correction:
       "Publish detailed instructor, student, host/participant, A/V, controls, end-meeting, and troubleshooting steps (this document).",
     evidence:
-      "CLASSROOM_REVIEW_SECTIONS 5–8; production host UI start + student UI join verified 28 October 2026 Asia/Dubai.",
+      "CLASSROOM_REVIEW_SECTIONS 5-8; production host UI start + student UI join verified 28 October 2026 Asia/Dubai.",
     status: "resolved_in_repo" as const,
     manualAction:
       "Owner pastes documentation URL into Marketplace submission fields after approval to publish text.",

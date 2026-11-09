@@ -300,7 +300,7 @@ function ProvisionalFirstLectureCard({
       <p className="font-medium">{student.name}</p>
       <p className="text-sm text-muted-foreground">{student.email}</p>
       <p className="mt-1 text-sm">
-        Requested: <span className="font-medium">{student.requestedFirstLectureLabel ?? "—"}</span>
+        Requested: <span className="font-medium">{student.requestedFirstLectureLabel ?? "-"}</span>
         <span className="ml-2 text-xs uppercase tracking-wide text-accent">Provisional</span>
       </p>
       <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -360,7 +360,7 @@ function NextSubjectCard({
       <p className="font-medium">{student.name}</p>
       <p className="text-sm text-muted-foreground">{student.email}</p>
       <p className="mt-1 text-sm">
-        Next: <span className="font-medium">{student.nextSubjectTitle ?? "—"}</span>
+        Next: <span className="font-medium">{student.nextSubjectTitle ?? "-"}</span>
         <span className="ml-2 text-xs uppercase tracking-wide text-accent">Waiting</span>
       </p>
       <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -411,7 +411,7 @@ function CompleteSubjectCard({
           <p className="font-medium">{student.name}</p>
           <p className="text-sm text-muted-foreground">{student.email}</p>
           <p className="mt-1 text-sm">
-            Current: <span className="font-medium">{student.nextSubjectTitle ?? "—"}</span>
+            Current: <span className="font-medium">{student.nextSubjectTitle ?? "-"}</span>
             {student.nextLectureLabel ? ` · ${student.nextLectureLabel}` : ""}
             <span className="ml-2 text-xs uppercase tracking-wide text-accent">Open</span>
           </p>
@@ -589,7 +589,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
     <div className="space-y-6">
       <PageHeader
         title="CGI Dashboard"
-        description="ATPL journey control for management — assign instructors, confirm first lectures, then open the next subject. The ATPL Complete Package always opens with Instrumentation."
+        description="ATPL journey control for management, assign instructors, confirm first lectures, then open the next subject. The ATPL Complete Package always opens with Instrumentation."
         breadcrumbs={[{ label: "CGI" }, { label: "Dashboard" }]}
       />
 
@@ -1108,7 +1108,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                     <span className="font-medium">{s.name}</span>
                     <span className="text-muted-foreground"> · {s.email}</span>
                     <div className="text-muted-foreground">
-                      First: {s.firstSubjectTitle ?? s.firstSubjectCode ?? "—"} ·{" "}
+                      First: {s.firstSubjectTitle ?? s.firstSubjectCode ?? "-"} ·{" "}
                       {s.enrollmentCount} enrollments
                       {s.scheduleProvisional && s.requestedFirstLectureLabel
                         ? ` · requested ${s.requestedFirstLectureLabel}`

@@ -134,7 +134,7 @@ function ClassManagementView({ basePath, roleLabel, lockInstructorId }: ClassMan
             {row.title}
           </Link>
           <p className="text-xs text-muted-foreground">
-            {row.courseCode ?? "No course"} · {row.instructorName ?? "—"}
+            {row.courseCode ?? "No course"} · {row.instructorName ?? "-"}
           </p>
         </div>
       ),

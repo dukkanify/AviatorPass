@@ -52,14 +52,14 @@ function StudentQuizResultsView() {
             <CardTitle className="text-sm text-muted-foreground">Score</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {attempt.score ?? "—"} / {attempt.maxScore}
+            {attempt.score ?? "-"} / {attempt.maxScore}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Percent</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{attempt.percent ?? "—"}%</CardContent>
+          <CardContent className="text-2xl font-semibold">{attempt.percent ?? "-"}%</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
@@ -114,7 +114,7 @@ function StudentQuizResultsView() {
                   {q.explanation ? <p className="text-muted-foreground">{q.explanation}</p> : null}
                   {ans?.feedback ? <p>Feedback: {ans.feedback}</p> : null}
                   <Badge variant="outline">
-                    {ans?.finalScore ?? ans?.autoScore ?? "—"} pts
+                    {ans?.finalScore ?? ans?.autoScore ?? "-"} pts
                     {ans?.needsManualGrading ? " · pending review" : ""}
                   </Badge>
                 </CardContent>

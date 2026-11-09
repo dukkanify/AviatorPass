@@ -36,7 +36,7 @@ export async function ensurePendingEnrollment(input: {
       courseId: input.courseId,
       studentId: input.studentId,
       status: "pending",
-      notes: "Stripe Checkout — pending payment",
+      notes: "Stripe Checkout, pending payment",
       actorId: input.actorId,
       bypassEnrollmentGate: true,
     });
@@ -85,7 +85,7 @@ export async function activatePaidEnrollment(input: {
       courseId: input.courseId,
       studentId: input.studentId,
       status: "approved",
-      notes: "Stripe Checkout — paid",
+      notes: "Stripe Checkout, paid",
       actorId: input.actorId,
       bypassEnrollmentGate: true,
     });

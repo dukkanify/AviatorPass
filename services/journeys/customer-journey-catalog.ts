@@ -88,7 +88,7 @@ type JourneyCourseDef = {
 export const JOURNEY_COURSES: JourneyCourseDef[] = [
   {
     code: "PPL-REC-01",
-    title: "Private Pilot License — Recorded",
+    title: "Private Pilot License, Recorded",
     short: "Self-paced PPL ground school with DRM-protected recorded lessons.",
     full: "Complete Private Pilot License recorded ground school with sequenced modules, progress tracking, quizzes, and AviatorPass certification on successful completion.",
     deliveryType: "recorded",
@@ -108,8 +108,8 @@ export const JOURNEY_COURSES: JourneyCourseDef[] = [
   },
   {
     code: "PPL-LIVE-01",
-    title: "Private Pilot License — Live Online",
-    short: "Live Zoom PPL program with AviatorPass instructors — 8 weeks.",
+    title: "Private Pilot License, Live Online",
+    short: "Live Zoom PPL program with AviatorPass instructors, 8 weeks.",
     full: "Private Pilot License live online cohort with scheduled Zoom lectures, attendance, homework, and final assessment. Publish this lane independently from the recorded PPL course.",
     deliveryType: "live",
     hours: 100,
@@ -130,9 +130,9 @@ export const JOURNEY_COURSES: JourneyCourseDef[] = [
   },
   {
     code: "BASICS-REC-01",
-    title: "Basics of Aviation — Recorded",
+    title: "Basics of Aviation, Recorded",
     short: "10-hour recorded introduction to aviation fundamentals.",
-    full: "Basics of Aviation recorded course covering foundational flight concepts, airspace awareness, and human factors — DRM-protected self-paced learning.",
+    full: "Basics of Aviation recorded course covering foundational flight concepts, airspace awareness, and human factors. DRM-protected self-paced learning.",
     deliveryType: "recorded",
     hours: 10,
     language: "en/ar",
@@ -150,7 +150,7 @@ export const JOURNEY_COURSES: JourneyCourseDef[] = [
   },
   {
     code: "BASICS-LIVE-01",
-    title: "Basics of Aviation — Live Online",
+    title: "Basics of Aviation, Live Online",
     short: "Live Zoom introduction to aviation with AviatorPass instructors.",
     full: "Basics of Aviation live online cohort with scheduled Zoom sessions. Publish independently from the recorded Basics lane.",
     deliveryType: "live",
@@ -486,7 +486,7 @@ export function ensureCustomerJourneyProducts(): void {
     if (elpExisting) {
       elpExisting.name = "ELP Mock Exams Live";
       elpExisting.description =
-        "Live English Language Proficiency mock exam. Choose a slot (Mon–Fri 17:00–20:00 or Sat–Sun 09:00–18:00 Kuwait time), review rush fees, then pay.";
+        "Live English Language Proficiency mock exam. Choose a slot (Mon-Fri 17:00-20:00 or Sat-Sun 09:00-18:00 Kuwait time), review rush fees, then pay.";
       elpExisting.active = true;
       elpExisting.instructorId = instructorId;
       elpExisting.updatedAt = ts;

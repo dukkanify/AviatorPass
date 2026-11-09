@@ -206,7 +206,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
           ...(input.meta ?? {}),
           suppressed: true,
           suppressionReason: suppression.reason,
-          note: "Demo mailbox — stored in outbox; Resend skipped",
+          note: "Demo mailbox, stored in outbox; Resend skipped",
         },
       });
       logEmailEvent(
@@ -318,7 +318,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
           ...(input.meta ?? {}),
           deduped: true,
           priorOutboxId: claim.existing.outboxId,
-          note: "Idempotent skip — identical send already claimed",
+          note: "Idempotent skip, identical send already claimed",
         },
       });
       logEmailEvent(
@@ -540,7 +540,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 
   if (isProductionRuntime()) {
-    const message = "SMTP/Resend not configured — production cannot store OTP in the outbox";
+    const message = "SMTP/Resend not configured, production cannot store OTP in the outbox";
     const record = recordOutboundEmail({
       to,
       subject: input.subject,
@@ -578,7 +578,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     queueStatus: "none",
     meta: {
       ...(input.meta ?? {}),
-      note: "Stored in outbox — configure SMTP or Resend to deliver to inboxes",
+      note: "Stored in outbox, configure SMTP or Resend to deliver to inboxes",
     },
   });
 

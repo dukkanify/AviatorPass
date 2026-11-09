@@ -51,7 +51,7 @@ export function ensureDefaultModerationRules(): ModerationRule[] {
         enabled: true,
         pattern: "phone",
         action: "block",
-        description: "Block phone numbers — keep communication on-platform",
+        description: "Block phone numbers, keep communication on-platform",
         updatedAt: stamp,
       },
       {

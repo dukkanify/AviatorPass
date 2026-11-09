@@ -39,7 +39,7 @@ export function AdminPerformanceOverview() {
     <div className="space-y-6">
       <PageHeader
         title="Performance reports"
-        description="Post-lecture student evaluations from instructors — visible to Super Admin."
+        description="Post-lecture student evaluations from instructors, visible to Super Admin."
         breadcrumbs={[{ label: "Super Admin" }, { label: "Performance reports" }]}
       />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -75,7 +75,7 @@ export function AdminPerformanceOverview() {
                       Today: {r.todaysTopic} · Next: {r.nextTopic} · QB: {r.questionBank}
                     </p>
                     <p className="text-muted-foreground">
-                      Instructor: {r.instructorName ?? "—"} ·{" "}
+                      Instructor: {r.instructorName ?? "-"} ·{" "}
                       {new Date(r.createdAt).toLocaleString()}
                       {r.emailSentAt ? " · emailed" : ""}
                     </p>

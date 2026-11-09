@@ -137,7 +137,7 @@ function VerifyOtpForm() {
 
       setUser(result.data.user);
       toast.success(
-        purpose === "register" ? "Account verified — welcome aboard" : "Signed in successfully",
+        purpose === "register" ? "Account verified. Welcome aboard" : "Signed in successfully",
       );
       router.replace(result.data.redirectTo);
       void refresh();
@@ -260,7 +260,7 @@ function VerifyOtpForm() {
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">
-              {codeIssued ? "Code expired — send a new one." : "No active code yet."}
+              {codeIssued ? "Code expired. Send a new one." : "No active code yet."}
             </span>
           )}
         </div>

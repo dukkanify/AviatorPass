@@ -428,7 +428,7 @@ function AnalyticsHubView({
                   <p className="font-medium">{s.name}</p>
                   <p className="text-muted-foreground">
                     {s.frequency} · next{" "}
-                    {s.nextRunAt ? new Date(s.nextRunAt).toLocaleString() : "—"}
+                    {s.nextRunAt ? new Date(s.nextRunAt).toLocaleString() : "-"}
                   </p>
                 </div>
               ))}

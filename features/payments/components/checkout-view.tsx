@@ -210,10 +210,10 @@ function CheckoutView() {
       return;
     }
     if (paid.data.order.status === "paid") {
-      setSuccess(`Payment successful — ${paid.data.order.orderNumber}`);
+      setSuccess(`Payment successful, ${paid.data.order.orderNumber}`);
     } else if (paymentMode === "installments") {
       setSuccess(
-        `First installment received — ${paid.data.order.orderNumber}. Remaining dues are on your billing schedule.`,
+        `First installment received, ${paid.data.order.orderNumber}. Remaining dues are on your billing schedule.`,
       );
     } else {
       setError(paid.data.order.failureReason ?? "Payment failed");

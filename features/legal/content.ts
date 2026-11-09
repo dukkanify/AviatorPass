@@ -118,7 +118,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "4. Email and notifications",
     paragraphs: [
-      "Verification and security emails are transactional. They may be sent through our email provider. Until our sending domain is fully authenticated with that provider, messages can come from a provider envelope and may land in spam — please check junk folders during registration.",
+      "Verification and security emails are transactional. They may be sent through our email provider. Until our sending domain is fully authenticated with that provider, messages can come from a provider envelope and may land in spam, please check junk folders during registration.",
       "You can control optional marketing from notification preferences after sign-in. Transactional mail (codes, receipts, class reminders) cannot be fully disabled while you use the Platform.",
     ],
   },

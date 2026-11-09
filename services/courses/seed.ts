@@ -270,7 +270,7 @@ const SYLLABUS_BY_CODE: Record<
       lessons: [
         {
           title: "Static & dynamic stability",
-          description: "Why the aircraft returns — or does not — after a disturbance.",
+          description: "Why the aircraft returns, or does not, after a disturbance.",
         },
         {
           title: "Control surfaces & handling qualities",
@@ -530,7 +530,7 @@ function ensurePublishedCatalogEnrichment(): void {
         title: atplPackageSubjectTitle("ATPL-062") ?? "Radio Navigation",
         code: "ATPL-062",
         short: "VOR, ILS, GNSS, and radio aids for IFR operations.",
-        full: "Radio navigation systems used on the ATPL syllabus — from ground-based aids to modern GNSS procedures.",
+        full: "Radio navigation systems used on the ATPL syllabus, from ground-based aids to modern GNSS procedures.",
         categoryId: theory?.id ?? null,
         difficulty: "advanced",
       },
@@ -809,7 +809,7 @@ export function ensureCoursesSeeded(): void {
       title: atplPackageSubjectTitle("ATPL-062") ?? "Radio Navigation",
       code: "ATPL-062",
       short: "VOR, ILS, GNSS, and radio aids for IFR operations.",
-      full: "Radio navigation systems used on the ATPL syllabus — from ground-based aids to modern GNSS procedures and approach design.",
+      full: "Radio navigation systems used on the ATPL syllabus, from ground-based aids to modern GNSS procedures and approach design.",
       categoryId: atplTheory.id,
       status: "published",
       difficulty: "advanced",
@@ -946,7 +946,7 @@ export function ensureCoursesSeeded(): void {
           moduleId,
           title: `Lesson ${m}.${l}`,
           description: `Lesson ${l} in module ${m}`,
-          contentHtml: `<p>Learning objectives for <strong>${def.code}</strong> — Module ${m}, Lesson ${l}.</p><ul><li>Understand key concepts</li><li>Apply regulatory references</li></ul>`,
+          contentHtml: `<p>Learning objectives for <strong>${def.code}</strong>. Module ${m}, Lesson ${l}.</p><ul><li>Understand key concepts</li><li>Apply regulatory references</li></ul>`,
           videoUrl: null,
           durationMinutes: 45,
           estimatedStudyMinutes: 90,

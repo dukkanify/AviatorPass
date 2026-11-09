@@ -9,12 +9,7 @@ import { ROLES } from "@/constants/roles";
 import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listCourses } from "@/services/courses/course-service";
 import { readQuizzesDb, writeQuizzesDb } from "@/services/quizzes/store";
-import type {
-  BankQuestion,
-  QuestionBankCategory,
-  Quiz,
-  QuizQuestionLink,
-} from "@/types/quizzes";
+import type { BankQuestion, QuestionBankCategory, Quiz, QuizQuestionLink } from "@/types/quizzes";
 
 export function ensureQuizzesSeeded(): void {
   ensureDemoUsersSeeded();
@@ -58,7 +53,7 @@ export function ensureQuizzesSeeded(): void {
         mkOpt("d", "Annex 14", 4),
       ],
       correctAnswer: "b",
-      explanation: "Annex 2 — Rules of the Air.",
+      explanation: "Annex 2. Rules of the Air.",
       points: 2,
       externalId: "P100-DEMO-001",
       externalSource: "pilot100",
@@ -105,7 +100,7 @@ export function ensureQuizzesSeeded(): void {
         mkOpt("d", "Passenger meal vouchers", 4),
       ],
       correctAnswer: ["a", "b", "c"],
-      explanation: "Standard aircraft documents — meal vouchers are not required.",
+      explanation: "Standard aircraft documents, meal vouchers are not required.",
       points: 3,
       externalId: null,
       externalSource: null,
@@ -147,7 +142,7 @@ export function ensureQuizzesSeeded(): void {
       tags: ["notam"],
       options: [],
       correctAnswer: null,
-      explanation: "Notice to Airmen — time-critical aeronautical information.",
+      explanation: "Notice to Airmen, time-critical aeronautical information.",
       points: 3,
       externalId: null,
       externalSource: null,
@@ -187,7 +182,7 @@ export function ensureQuizzesSeeded(): void {
 
   const quiz: Quiz = {
     id: generateId(),
-    title: "ATPL Air Law — Progress Check",
+    title: "ATPL Air Law. Progress Check",
     description: "Formative knowledge check covering ICAO basics and VFR/IFR concepts.",
     courseId: course?.id ?? null,
     moduleId: null,
@@ -209,7 +204,8 @@ export function ensureQuizzesSeeded(): void {
     allowResume: true,
     preventDuplicateAttempts: true,
     questionCount: null,
-    instructions: "Answer all questions. Auto-save is enabled. Essay/short answers may require instructor review.",
+    instructions:
+      "Answer all questions. Auto-save is enabled. Essay/short answers may require instructor review.",
     createdById: instructor?.id ?? null,
     createdAt: stamp,
     updatedAt: stamp,

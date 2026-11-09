@@ -61,7 +61,7 @@ function formatRange(startsAt: string, durationMinutes: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
-  return `${date} · ${startTime} – ${endTime}`;
+  return `${date} · ${startTime} - ${endTime}`;
 }
 
 function formatElapsed(ms: number): string {
@@ -482,7 +482,7 @@ function JoinClassClient({ classId }: JoinClassClientProps) {
               {scheduleStatus === "Cancelled"
                 ? "This class was cancelled."
                 : cls.status === "completed"
-                  ? "This live class session has ended. Open your schedule to join or start another lecture — ending a Zoom class does not complete the ATPL subject."
+                  ? "This live class session has ended. Open your schedule to join or start another lecture, ending a Zoom class does not complete the ATPL subject."
                   : "Meeting details unavailable."}
             </p>
           )}

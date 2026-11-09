@@ -48,7 +48,7 @@ function ActivityLogsView() {
     <div className="space-y-6">
       <PageHeader
         title="System logs"
-        description="Real activity from the database — user, action, time, IP, device, browser, OS, and approximate IP location. No demo rows."
+        description="Real activity from the database, user, action, time, IP, device, browser, OS, and approximate IP location. No demo rows."
         breadcrumbs={[
           { label: "Super Admin", href: "/super-admin/dashboard" },
           { label: "System Logs" },
@@ -96,16 +96,16 @@ function ActivityLogsView() {
                         {formatDate(log.createdAt, "MMM d, yyyy HH:mm:ss")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div>{log.actorName || log.actorId?.slice(0, 8) || "—"}</div>
+                        <div>{log.actorName || log.actorId?.slice(0, 8) || "-"}</div>
                         <div className="text-xs text-muted-foreground">{log.actorEmail ?? ""}</div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{log.action}</Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{log.ipAddress || "—"}</TableCell>
-                      <TableCell className="text-sm">{log.device || "—"}</TableCell>
-                      <TableCell className="text-sm">{log.browser || "—"}</TableCell>
-                      <TableCell className="text-sm">{log.os || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{log.ipAddress || "-"}</TableCell>
+                      <TableCell className="text-sm">{log.device || "-"}</TableCell>
+                      <TableCell className="text-sm">{log.browser || "-"}</TableCell>
+                      <TableCell className="text-sm">{log.os || "-"}</TableCell>
                       <TableCell className="text-sm">{log.location || "Unknown"}</TableCell>
                     </TableRow>
                   ))
@@ -151,9 +151,9 @@ function ActivityLogsView() {
                       </TableCell>
                       <TableCell className="text-sm">{log.resource}</TableCell>
                       <TableCell className="font-mono text-xs">
-                        {log.actorId?.slice(0, 8) ?? "—"}
+                        {log.actorId?.slice(0, 8) ?? "-"}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{log.ipAddress || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{log.ipAddress || "-"}</TableCell>
                     </TableRow>
                   ))
                 )}

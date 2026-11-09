@@ -91,7 +91,7 @@ function LoginForm() {
         setUser(result.data.user);
         toast.success(
           result.data.mustChangePassword
-            ? "Signed in — choose a new password to continue."
+            ? "Signed in. Choose a new password to continue."
             : "Signed in",
         );
         router.replace(result.data.redirectTo);
@@ -132,7 +132,7 @@ function LoginForm() {
     <form onSubmit={onSubmit} className="space-y-4">
       {clearedPriorSession ? (
         <p className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Switching accounts — sign in with the student, instructor, or admin email you want.
+          Switching accounts. Sign in with the student, instructor, or admin email you want.
         </p>
       ) : null}
       <div className="space-y-2">

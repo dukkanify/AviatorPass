@@ -48,13 +48,13 @@ describe("inbound email to conversation", () => {
       from: student.email,
       to: `messages+${conv.id}@inbound.aviatorpass.com`,
       subject: "Re: New message",
-      text: "Thanks — I uploaded the homework.\n\nOn Tue, Instructor wrote:\n> Please upload",
+      text: "Thanks. I uploaded the homework.\n\nOn Tue, Instructor wrote:\n> Please upload",
     });
 
     expect(result.accepted).toBe(true);
     expect(result.conversationId).toBe(conv.id);
     const stored = readCommunicationDb().messages.find((row) => row.id === result.messageId);
-    expect(stored?.body).toBe("Thanks — I uploaded the homework.");
+    expect(stored?.body).toBe("Thanks. I uploaded the homework.");
     expect(stored?.senderId).toBe(student.id);
   });
 

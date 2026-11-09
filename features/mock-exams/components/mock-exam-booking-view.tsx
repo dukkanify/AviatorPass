@@ -114,7 +114,7 @@ export function MockExamBookingView() {
         action: "confirm_payment",
         sessionId: reserved.id,
       })) as MockExamSessionWithNames;
-      toast.success("Booking confirmed — Zoom room and emails sent");
+      toast.success("Booking confirmed. Zoom room and emails sent");
       setSelectedStart("");
       await load();
       void paid;
@@ -239,7 +239,7 @@ export function MockExamBookingView() {
                   </p>
                   <p className="text-muted-foreground">
                     {formatZonedDateTime(new Date(s.startsAt), s.timezone)} · Examiner:{" "}
-                    {s.examinerName ?? "—"} · {formatMinor(s.quote.total, s.currency)}
+                    {s.examinerName ?? "-"} · {formatMinor(s.quote.total, s.currency)}
                   </p>
                   {s.zoom ? (
                     <div className="mt-3 space-y-3">
@@ -275,7 +275,7 @@ export function MockExamBookingView() {
                   ) : null}
                   {s.certificateId ? (
                     <p className="text-muted-foreground">
-                      Aviator Pass certificate available · score {s.scorePercent ?? "—"}% ·{" "}
+                      Aviator Pass certificate available · score {s.scorePercent ?? "-"}% ·{" "}
                       <a
                         className="text-primary hover:underline"
                         href={`/api/mock-exams/certificate/${s.certificateId}`}

@@ -227,7 +227,7 @@ export function ResendDnsRecords({
                   <CopyCell label="host" value={host} />
                 </TableCell>
                 <TableCell>
-                  {priority ? <CopyCell label="priority" value={priority} /> : "—"}
+                  {priority ? <CopyCell label="priority" value={priority} /> : "-"}
                 </TableCell>
                 <TableCell>
                   <CopyCell label="ttl" value={zoneTtl(row.ttl)} />
@@ -236,9 +236,9 @@ export function ResendDnsRecords({
                   <CopyCell label="value" value={row.value} />
                 </TableCell>
                 <TableCell>
-                  {row.status ? <Badge variant={statusTone(row.status)}>{row.status}</Badge> : "—"}
+                  {row.status ? <Badge variant={statusTone(row.status)}>{row.status}</Badge> : "-"}
                 </TableCell>
-                <TableCell>{seen ? <ProbeBadge row={seen} /> : "—"}</TableCell>
+                <TableCell>{seen ? <ProbeBadge row={seen} /> : "-"}</TableCell>
               </TableRow>
             );
           })}
@@ -250,7 +250,7 @@ export function ResendDnsRecords({
                     <CopyCell label="host" value={row.host} />
                   </TableCell>
                   <TableCell>
-                    {row.priority ? <CopyCell label="priority" value={row.priority} /> : "—"}
+                    {row.priority ? <CopyCell label="priority" value={row.priority} /> : "-"}
                   </TableCell>
                   <TableCell>—</TableCell>
                   <TableCell className="max-w-[28rem]">

@@ -41,7 +41,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: { oauth: true, scopes: ["calendar.events"] },
     secretsPresent: false,
-    notes: "Future — OAuth client placeholder",
+    notes: "Future. OAuth client placeholder",
   },
   {
     provider: "microsoft_calendar",
@@ -50,7 +50,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: { oauth: true },
     secretsPresent: false,
-    notes: "Future — Graph API placeholder",
+    notes: "Future. Graph API placeholder",
   },
   {
     provider: "slack",
@@ -59,7 +59,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: { events: ["notifications"] },
     secretsPresent: false,
-    notes: "Future — incoming webhooks + bot",
+    notes: "Future, incoming webhooks + bot",
   },
   {
     provider: "microsoft_teams",
@@ -68,7 +68,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: {},
     secretsPresent: false,
-    notes: "Future — adaptive cards notifications",
+    notes: "Future, adaptive cards notifications",
   },
   {
     provider: "crm",
@@ -77,7 +77,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: { adapters: ["hubspot", "salesforce"] },
     secretsPresent: false,
-    notes: "Future — lead sync",
+    notes: "Future, lead sync",
   },
   {
     provider: "marketing",
@@ -86,7 +86,7 @@ const INTEGRATIONS: Array<Omit<IntegrationSetting, "id" | "updatedAt">> = [
     status: "ready",
     config: { adapters: ["mailchimp", "brevo"] },
     secretsPresent: false,
-    notes: "Future — campaign sync",
+    notes: "Future, campaign sync",
   },
 ];
 

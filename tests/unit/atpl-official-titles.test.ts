@@ -22,13 +22,13 @@ describe("official ATPL titles in the LMS", () => {
     expect(
       officialCourseDisplayTitle({
         code: "ATPL-010",
-        title: "ATPL 010 — Air Law",
+        title: "ATPL 010. Air Law",
       }),
     ).toBe("Air Law");
     expect(
       officialCourseDisplayTitle({
         code: "ATPL-021",
-        title: "ATPL 021 — Aircraft General Knowledge",
+        title: "ATPL 021. Aircraft General Knowledge",
       }),
     ).toBe("Aircraft General Knowledge");
     expect(

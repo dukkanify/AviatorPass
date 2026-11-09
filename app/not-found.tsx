@@ -37,8 +37,8 @@ export default function NotFound() {
         Opening Aviator Pass
       </p>
       <p className="mt-3 max-w-md text-center text-base text-white/70">
-        Taking you to the platform home — Online Courses, ATPL, and academy support are all one
-        click away.
+        Taking you to the platform home. Online Courses, ATPL, and academy support are all one click
+        away.
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Button variant="accent" className="hero-cta-primary" asChild>

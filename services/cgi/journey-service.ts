@@ -1513,7 +1513,7 @@ async function maybeSendPackageConfirmationFollowup(
   const data = {
     recipientName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email,
     title: "Package confirmed",
-    detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT} — ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
+    detail: `${packageName} is confirmed. ${ATPL_PENDING_INSTRUCTOR_ASSIGNMENT}, ${ATPL_INSTRUCTOR_CONFIRM_NOTICE}`,
     packageName,
     instructorAssignmentLabel:
       typeof order.metadata.instructorAssignmentLabel === "string"
@@ -2030,7 +2030,7 @@ export async function openNextAtplPackageSubject(input: {
         courseId: next.courseId,
         studentId: input.studentId,
         status: "approved",
-        notes: "ATPL Complete Package — next subject",
+        notes: "ATPL Complete Package, next subject",
         actorId: input.actorId,
         bypassEnrollmentGate: true,
       });

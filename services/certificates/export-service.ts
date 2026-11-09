@@ -47,15 +47,12 @@ export async function exportTranscriptCsv(actor: UserProfile, studentId: string)
   return lines.join("\n");
 }
 
-export async function exportTranscriptHtml(
-  actor: UserProfile,
-  studentId: string,
-): Promise<string> {
+export async function exportTranscriptHtml(actor: UserProfile, studentId: string): Promise<string> {
   const t = await generateTranscript(actor, studentId);
   const rows = t.courses
     .map(
       (c) =>
-        `<tr><td>${c.code}</td><td>${c.courseTitle}</td><td>${c.progressPercent}%</td><td>${c.learningHours}h</td><td>${c.quizAverage ?? "—"}</td><td>${c.certificateNumber ?? "—"}</td></tr>`,
+        `<tr><td>${c.code}</td><td>${c.courseTitle}</td><td>${c.progressPercent}%</td><td>${c.learningHours}h</td><td>${c.quizAverage ?? ", "}</td><td>${c.certificateNumber ?? ", "}</td></tr>`,
     )
     .join("");
   await logActivity({
@@ -81,7 +78,7 @@ th{background:#f5f5f5}
 <table><thead><tr><th>Code</th><th>Course</th><th>Progress</th><th>Hours</th><th>Quiz Avg</th><th>Certificate</th></tr></thead>
 <tbody>${rows}</tbody></table>
 <h2>Certificates</h2>
-<ul>${t.certificates.map((c) => `<li>${c.certificateNumber} — ${c.courseName} (${c.status})</li>`).join("")}</ul>
+<ul>${t.certificates.map((c) => `<li>${c.certificateNumber}, ${c.courseName} (${c.status})</li>`).join("")}</ul>
 </body></html>`;
 }
 
@@ -138,8 +135,7 @@ export async function exportInstructorReportCsv(
     entityId: instructorId,
     metadata: { format: "csv" },
   });
-  const header =
-    "studentId,studentName,progressPercent,quizAverage,certificates,lastActivityAt";
+  const header = "studentId,studentName,progressPercent,quizAverage,certificates,lastActivityAt";
   const rows = r.studentRows.map((s) =>
     [
       s.studentId,

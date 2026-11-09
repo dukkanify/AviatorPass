@@ -96,7 +96,7 @@ function StatCard({
           </div>
         ) : null}
       </div>
-      <span className="sl-trend" data-tone={trend === "—" ? "flat" : "up"}>
+      <span className="sl-trend" data-tone={trend === "-" ? "flat" : "up"}>
         {trend}
       </span>
     </article>
@@ -525,14 +525,14 @@ function LearningDashboardView() {
           value={String(overview.activeCourses)}
           hint="Active courses"
           icon={<BookOpen className="h-4 w-4" />}
-          trend="—"
+          trend="-"
         />
         <StatCard
           label="Overall Progress"
           value={`${clampPercent(overview.progressPercent)}%`}
           hint="Across all courses"
           icon={<TrendingUp className="h-4 w-4" />}
-          trend="—"
+          trend="-"
           bar={overview.progressPercent}
         />
         <StatCard
@@ -540,7 +540,7 @@ function LearningDashboardView() {
           value={formatHoursMinutes(overview.learningHours)}
           hint="Logged this term"
           icon={<Clock3 className="h-4 w-4" />}
-          trend="—"
+          trend="-"
         />
         <StatCard
           label="Completed Lessons"
@@ -551,18 +551,18 @@ function LearningDashboardView() {
               : "No recorded lessons in this package"
           }
           icon={<GraduationCap className="h-4 w-4" />}
-          trend="—"
+          trend="-"
         />
         <StatCard
           label="Certificates"
           value={String(certificates.length)}
           hint={certificates.length > 0 ? "Ready to download" : "Earned so far"}
           icon={<Award className="h-4 w-4" />}
-          trend={certificates.length > 0 ? `+${certificates.length}` : "—"}
+          trend={certificates.length > 0 ? `+${certificates.length}` : "-"}
         />
         <StatCard
           label="Current GPA"
-          value={completedLessons > 0 || overview.progressPercent > 0 ? gpa.toFixed(1) : "—"}
+          value={completedLessons > 0 || overview.progressPercent > 0 ? gpa.toFixed(1) : "-"}
           hint={
             completedLessons > 0 || overview.progressPercent > 0
               ? gpa >= 3.7
@@ -571,14 +571,14 @@ function LearningDashboardView() {
               : "Not graded yet"
           }
           icon={<Trophy className="h-4 w-4" />}
-          trend="—"
+          trend="-"
         />
         <StatCard
           label="Learning Streak"
           value={`${streak} days`}
           hint="Keep it up!"
           icon={<Flame className="h-4 w-4" />}
-          trend={streak > 0 ? `+${Math.min(streak, 3)}` : "—"}
+          trend={streak > 0 ? `+${Math.min(streak, 3)}` : "-"}
         />
         <StatCard
           label="Pilot Level"
@@ -712,9 +712,9 @@ function LearningDashboardView() {
               </div>
               <p className="sl-muted">
                 {atplSchedule.instructorAssignmentStatus === "pending"
-                  ? `${ACTION_LABELS.instructorAssignmentStep} — ${ACTION_LABELS.stepIncomplete}`
+                  ? `${ACTION_LABELS.instructorAssignmentStep}, ${ACTION_LABELS.stepIncomplete}`
                   : atplSchedule.scheduleProvisional
-                    ? "Provisional — waiting for TKI 1"
+                    ? "Provisional, waiting for TKI 1"
                     : "Confirmed by TKI 1"}
               </p>
               {atplSchedule.instructorAssignmentStatus === "pending" ? (
@@ -875,7 +875,7 @@ function LearningDashboardView() {
                 : hasEnrolledCourses
                   ? atplSchedule?.scheduleProvisional
                     ? "Waiting for TKI 1 to confirm your first lecture."
-                    : "No live class is booked yet — open the timetable after TKI 1 confirms your first lecture."
+                    : "No live class is booked yet, open the timetable after TKI 1 confirms your first lecture."
                   : "Live classes appear here after you enrol in a programme."}
             </p>
             {assignedClassId ? (

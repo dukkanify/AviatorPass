@@ -323,11 +323,11 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
           </CardHeader>
           <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
             <p>
-              <span className="text-muted-foreground">Course:</span> {detail.courseCode ?? "—"}
+              <span className="text-muted-foreground">Course:</span> {detail.courseCode ?? "-"}
             </p>
             <p>
               <span className="text-muted-foreground">Instructor:</span>{" "}
-              {detail.instructorName ?? "—"}
+              {detail.instructorName ?? "-"}
             </p>
             <p>
               <span className="text-muted-foreground">Duration:</span> {detail.durationMinutes} min
@@ -351,7 +351,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
               <>
                 <p>
                   <span className="text-muted-foreground">Status:</span>{" "}
-                  {detail.audienceStatus ?? detail.zoom.status ?? "—"}
+                  {detail.audienceStatus ?? detail.zoom.status ?? "-"}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Meeting ID:</span>{" "}
@@ -359,11 +359,11 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                 </p>
                 <p>
                   <span className="text-muted-foreground">Passcode:</span>{" "}
-                  {detail.zoom.password || "—"}
+                  {detail.zoom.password || "-"}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Participants:</span>{" "}
-                  {detail.zoom.participantCount ?? "—"}
+                  {detail.zoom.participantCount ?? "-"}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Mode:</span> {detail.zoom.providerMode}
@@ -497,7 +497,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                     id="todaysTopic"
                     value={todaysTopic}
                     onChange={(e) => setTodaysTopic(e.target.value)}
-                    placeholder="e.g. Meteorology — air masses"
+                    placeholder="e.g. Meteorology, air masses"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -545,7 +545,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
                     id="questionBank"
                     value={questionBank}
                     onChange={(e) => setQuestionBank(e.target.value)}
-                    placeholder="e.g. ATPL-050 bank · sets 3–4"
+                    placeholder="e.g. ATPL-050 bank · sets 3-4"
                   />
                 </div>
               </div>

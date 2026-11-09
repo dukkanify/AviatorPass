@@ -144,7 +144,7 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
         passed: Number(score) >= 75,
         notes: "Session completed by admin",
       });
-      toast.success("Session approved — Aviator Pass certificate issued");
+      toast.success("Session approved. Aviator Pass certificate issued");
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Complete failed");

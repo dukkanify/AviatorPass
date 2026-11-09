@@ -59,7 +59,7 @@ function countryName(code: string): string {
 
 function formatDate(iso: string): string {
   const value = iso.trim();
-  if (!value) return "—";
+  if (!value) return "-";
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-");
     return new Date(`${year}-${month}-${day}T00:00:00.000Z`).toLocaleDateString("en-GB", {
@@ -80,14 +80,14 @@ function formatDate(iso: string): string {
 }
 
 function listItem(label: string, value: string, emphasize = false): string {
-  const shown = escapeHtml(value || "—");
+  const shown = escapeHtml(value || "-");
   return `<li><strong>${escapeHtml(label)}:</strong> ${
     emphasize ? `<span style="color:#B42318;font-weight:700;">${shown}</span>` : shown
   }</li>`;
 }
 
 export function instructorAssignmentOpsSubject(studentName: string): string {
-  return `Action Required | New Student Registration – Instructor Assignment Pending | ${studentName.trim() || "Student"}`;
+  return `Action Required | New Student Registration - Instructor Assignment Pending | ${studentName.trim() || "Student"}`;
 }
 
 export function studentAtplPurchaseSubject(): string {
@@ -234,14 +234,14 @@ function opsEmailInputFromOrder(order: Order): InstructorAssignmentOpsEmailInput
   return {
     studentName,
     studentEmail: user?.email || order.studentEmail || order.billingEmail,
-    phone: user?.phone || String(order.metadata.guestPhone || "—"),
+    phone: user?.phone || String(order.metadata.guestPhone || "-"),
     country: countryName(
       user?.countryCode || String(order.metadata.guestCountry || order.billingCountry || ""),
     ),
     registrationDate: formatDate(order.paidAt || order.createdAt),
     packageName: order.items[0]?.productName || ATPL_COMPLETE_PACKAGE_NAME,
     preferredStartDate: formatDate(start),
-    preferredTrainingTime: time || "—",
+    preferredTrainingTime: time || "-",
     paymentMethod: method,
     amountLabel: formatMinor(order.totalAmount, order.currency),
     adminDashboardUrl: `${publicAppOrigin()}${routes.cgiDashboard}`,

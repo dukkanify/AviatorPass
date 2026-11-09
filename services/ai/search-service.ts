@@ -54,7 +54,7 @@ export function aiSearch(
       results.push({
         type: "course",
         id: c.id,
-        title: `${c.code} — ${c.title}`,
+        title: `${c.code}, ${c.title}`,
         href: `/${rolePath(user)}/courses/${c.id}`,
         snippet: c.shortDescription.slice(0, 120),
       });
@@ -95,7 +95,7 @@ export function aiSearch(
   }
 
   if (!results.length) {
-    interpretation = "No specialized intent matched — showing live class stats";
+    interpretation = "No specialized intent matched, showing live class stats";
     const stats = getClassStats(user.role === ROLES.INSTRUCTOR ? user.id : undefined);
     results.push({
       type: "stats",

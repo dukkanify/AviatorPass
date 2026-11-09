@@ -72,7 +72,7 @@ function StudentCertificatesView() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <p>
-                  Issued {cert.issueDate ?? "—"} · Instructor {cert.instructorName}
+                  Issued {cert.issueDate ?? "-"} · Instructor {cert.instructorName}
                 </p>
                 <p className="font-mono text-xs text-muted-foreground">
                   Verify: {cert.verificationCode}

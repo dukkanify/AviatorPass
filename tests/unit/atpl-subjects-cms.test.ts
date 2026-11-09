@@ -37,8 +37,8 @@ const OFFICIAL_TITLES = [
 ];
 
 const RETIRED_TITLES = [
-  "AGK — Airframe & Systems",
-  "AGK — Instrumentation",
+  "AGK. Airframe & Systems",
+  "AGK. Instrumentation",
   "Flight Planning",
   "Human Performance",
 ];

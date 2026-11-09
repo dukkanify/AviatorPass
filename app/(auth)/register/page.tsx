@@ -7,7 +7,7 @@ import { getPlatformSettings } from "@/services/settings/settings-service";
 
 export const metadata: Metadata = {
   title: "Join platform",
-  description: `Join ${siteConfig.name} as a student or instructor — ATPL courses, live Zoom coaching, and exam tools.`,
+  description: `Join ${siteConfig.name} as a student or instructor. ATPL courses, live Zoom coaching, and exam tools.`,
   alternates: { canonical: routes.register },
 };
 

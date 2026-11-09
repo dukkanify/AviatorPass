@@ -650,7 +650,7 @@ async function finalizeSuccessfulPayment(input: {
       }
       await notifyPayment(updated.studentId, {
         title: "First installment received",
-        body: `${updated.orderNumber} — access unlocked. Remaining installments stay on your billing schedule.`,
+        body: `${updated.orderNumber}, access unlocked. Remaining installments stay on your billing schedule.`,
         type: "payment.installment",
         data: { orderId: updated.id, planId },
       });
@@ -711,7 +711,7 @@ export async function completePaidOrder(order: Order, payment: PaymentRecord, ac
 
   await notifyPayment(order.studentId, {
     title: "Payment successful",
-    body: `${order.orderNumber} paid — ${formatMinor(order.totalAmount, order.currency)}.`,
+    body: `${order.orderNumber} paid, ${formatMinor(order.totalAmount, order.currency)}.`,
     type: "payment.succeeded",
     data: { orderId: order.id, invoiceId: invoice.id },
     amountLabel: formatMinor(order.totalAmount, order.currency),

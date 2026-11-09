@@ -78,7 +78,7 @@ function StudentQuizCard({ quiz }: { quiz: QuizListItem }) {
         </p>
         {latest && latest.status !== "in_progress" ? (
           <Badge variant="secondary">
-            Last: {latest.percent ?? "—"}% ·{" "}
+            Last: {latest.percent ?? "-"}% ·{" "}
             {latest.passed == null ? latest.gradeStatus : latest.passed ? "Pass" : "Fail"}
           </Badge>
         ) : null}

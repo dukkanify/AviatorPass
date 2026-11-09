@@ -256,7 +256,7 @@ export function getPublicBrandConfig() {
     englishOnly: s.localization.englishOnly,
     metaDescription:
       s.general.footerText ||
-      "Aviator Pass — a complete aviation education platform with EASA Certified Instructors.",
+      "Aviator Pass, a complete aviation education platform with EASA Certified Instructors.",
     pending: {
       brandGuidelines: s.branding.brandGuidelinesPending,
       colorPalette: s.branding.colorPalettePending,

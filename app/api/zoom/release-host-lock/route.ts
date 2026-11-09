@@ -66,7 +66,7 @@ export async function POST(request: Request) {
           !result.liveListReadable && !stale.liveListReadable
             ? "Zoom live meeting list is not readable with the current Server-to-Server token (often missing meeting:read). Empty clear-live results are not proof that the host is free. Meeting SDK Error 3000 remains authoritative."
             : remainingOther.length
-              ? "Another in-window Zoom meeting is still live on the platform host. AviatorPass ended only this class and stale local ghosts — not active customer lectures."
+              ? "Another in-window Zoom meeting is still live on the platform host. AviatorPass ended only this class and stale local ghosts, not active customer lectures."
               : result.release?.released || stale.ended.length
                 ? "Host lock released for this classroom (and any stale local siblings). You can start again."
                 : "No live instance was ended for this meeting number.",

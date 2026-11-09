@@ -15,7 +15,7 @@ const MOTIVATION_QUOTES = [
   "Discipline in the briefing room becomes confidence in the cockpit.",
   "Fly the aircraft first. Then fly the procedure.",
   "Preparation is the cheapest insurance in aviation.",
-  "Stay ahead of the aircraft — and ahead of tomorrow’s lesson.",
+  "Stay ahead of the aircraft, and ahead of tomorrow’s lesson.",
   "Every hour studied today is a safer sector tomorrow.",
 ] as const;
 
@@ -626,7 +626,7 @@ export function heatmapFromDates(dates: Array<string | number | Date>, weeks = 1
 
 export function nextFlightMilestone(progressPercent: number): string {
   const percent = clampPercent(progressPercent);
-  if (percent >= 100) return "ATPL theory complete — book your skills test briefing";
+  if (percent >= 100) return "ATPL theory complete, book your skills test briefing";
   if (percent >= 75) return "Final revision block and mock exams";
   if (percent >= 40) return "Performance & Navigation deep-dive";
   return "Complete Principles of Flight fundamentals";

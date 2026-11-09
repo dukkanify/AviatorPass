@@ -192,7 +192,7 @@ function applyV2Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
     db.roadmapItems.push({
       id: generateId(),
       title,
-      description: `Planned for Version 1.1+ — ${title.toLowerCase()}.`,
+      description: `Planned for Version 1.1+, ${title.toLowerCase()}.`,
       status: "planned",
       priority:
         title.includes("mobile") || title.includes("exam") || title.includes("Multi-tenant")
@@ -352,7 +352,7 @@ function applyV2Seed(db: ReturnType<typeof ensureSupportOpsStore>, iso: (h: numb
         area: "database",
         title: "Supabase index pass",
         finding: "JSON store fine for single-node; multi-instance needs Postgres indexes.",
-        recommendedAction: "Apply migrations 002–016 and review hot-path indexes before cutover.",
+        recommendedAction: "Apply migrations 002-016 and review hot-path indexes before cutover.",
         status: "open",
         createdAt: iso(2),
         updatedAt: iso(2),

@@ -29,7 +29,7 @@ function StripeCheckoutRedirect({ initialError }: StripeCheckoutRedirectProps) {
       </h1>
       <p className="mt-3 text-muted-foreground">
         {canceled
-          ? "No charge was made. Continue when you are ready — Stripe collects your name, email, billing address, and country."
+          ? "No charge was made. Continue when you are ready. Stripe collects your name, email, billing address, and country."
           : "Enrol in Aviator Pass opens Stripe Checkout immediately. Apple Pay, Google Pay, cards, Link, and local methods appear automatically for your country."}
       </p>
       {initialError ? <p className="mt-4 text-sm text-destructive">{initialError}</p> : null}

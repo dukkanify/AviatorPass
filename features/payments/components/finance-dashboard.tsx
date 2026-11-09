@@ -157,7 +157,7 @@ function FinanceDashboard() {
                     ? rule.bnplProviders
                         .map((p) => (p === "taly" ? "Taly" : p === "tabby" ? "Tabby" : "Tamara"))
                         .join(", ")
-                    : "—"}
+                    : "-"}
                 </p>
               </div>
             ))}

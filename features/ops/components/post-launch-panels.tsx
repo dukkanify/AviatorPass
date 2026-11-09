@@ -76,7 +76,7 @@ export function PostLaunchTabs({
             <div className="rounded-md border p-3">
               <p className="text-xs text-muted-foreground">Availability</p>
               <div className="mt-1">
-                {statusBadge(String(maintenanceDash?.availability ?? "—"))}
+                {statusBadge(String(maintenanceDash?.availability ?? "-"))}
               </div>
             </div>
             <div className="rounded-md border p-3">
@@ -89,7 +89,7 @@ export function PostLaunchTabs({
               <p className="text-xs text-muted-foreground">SLA breaches · avg resolution (h)</p>
               <p className="mt-1 font-medium">
                 {String(supportMetrics.slaBreaches ?? 0)} ·{" "}
-                {String(supportMetrics.avgResolutionHours ?? "—")}
+                {String(supportMetrics.avgResolutionHours ?? "-")}
               </p>
             </div>
             <div className="rounded-md border p-3 sm:col-span-2">
@@ -133,7 +133,7 @@ export function PostLaunchTabs({
               <span className="font-medium">{String(hypercare?.label ?? "Hypercare")}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Window: {String(hypercare?.startedAt ?? "—")} → {String(hypercare?.endsAt ?? "—")}
+              Window: {String(hypercare?.startedAt ?? "-")} → {String(hypercare?.endsAt ?? "-")}
             </p>
             <p className="text-xs text-muted-foreground">
               Watch: {((hypercare?.watchModules as string[]) ?? []).join(" · ")}
@@ -242,9 +242,9 @@ export function PostLaunchTabs({
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{String(row.businessValue)}</p>
                 <p className="text-xs text-muted-foreground">
-                  Effort {String(row.estimatedEffortHours ?? "—")}h · Cost{" "}
-                  {String(row.estimatedCost ?? "—")} {String(row.currency)} · Target{" "}
-                  {String(row.targetVersion ?? "—")}
+                  Effort {String(row.estimatedEffortHours ?? "-")}h · Cost{" "}
+                  {String(row.estimatedCost ?? "-")} {String(row.currency)} · Target{" "}
+                  {String(row.targetVersion ?? "-")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
@@ -358,7 +358,7 @@ export function PostLaunchTabs({
                 <p className="font-medium">Month {String(feedbackSummary.month)}</p>
                 <p className="text-xs text-muted-foreground">
                   Total {String(feedbackSummary.total)} · Avg rating{" "}
-                  {String(feedbackSummary.averageRating ?? "—")} · New{" "}
+                  {String(feedbackSummary.averageRating ?? "-")} · New{" "}
                   {String(feedbackSummary.newCount)} · Actioned{" "}
                   {String(feedbackSummary.actionedCount)}
                 </p>

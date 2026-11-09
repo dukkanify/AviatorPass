@@ -319,7 +319,7 @@ function MessagingCenterInner({ basePath }: { basePath: string }) {
     <div className="space-y-6">
       <PageHeader
         title="Messaging center"
-        description="Secure internal communication — no phone, WhatsApp, or external chat."
+        description="Secure internal communication, no phone, WhatsApp, or external chat."
         breadcrumbs={[{ label: "Communication" }, { label: "Messages" }]}
         actions={
           <div className="flex flex-wrap gap-2">

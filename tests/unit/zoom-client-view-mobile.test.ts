@@ -71,7 +71,7 @@ describe("Meeting SDK dual-path Client View (mobile)", () => {
     expect(client).toMatch(/joinZoomClientViewMeeting/);
     expect(client).toMatch(/No personal Zoom account is required/);
     expect(client).toMatch(/sessionJoinKey/);
-    expect(client).toMatch(/boot skipped — meeting already live/);
+    expect(client).toMatch(/boot skipped, meeting already live/);
     expect(client).toMatch(/leaveUrl/);
     expect(client).toMatch(/\?left=1/);
     // Must not overlay Leave on live Client View chrome

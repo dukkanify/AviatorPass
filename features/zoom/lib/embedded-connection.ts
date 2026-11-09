@@ -114,7 +114,7 @@ export function waitForEmbeddedConnected(
     if (typeof client.on !== "function") {
       finish(() =>
         reject(
-          new Error("Zoom Component View has no connection-change API — refusing false Connected"),
+          new Error("Zoom Component View has no connection-change API, refusing false Connected"),
         ),
       );
       return;

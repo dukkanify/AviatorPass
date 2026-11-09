@@ -183,7 +183,7 @@ function ActivityMonitoringPage() {
                       key={l.id}
                       className="flex items-center justify-between gap-2 border-b border-border py-2 text-sm last:border-0"
                     >
-                      <span className="font-mono text-xs">{l.actorId?.slice(0, 8) ?? "—"}</span>
+                      <span className="font-mono text-xs">{l.actorId?.slice(0, 8) ?? "-"}</span>
                       <span className="text-muted-foreground">
                         {formatDate(l.createdAt, "MMM d, HH:mm")}
                       </span>

@@ -173,7 +173,7 @@ export function ScheduleHubView({
         description={
           role === "student"
             ? "Your ATPL lectures. Join Zoom opens the classroom for the current subject."
-            : "Dynamic schedule for Live Courses and ATPL — builder, next session, reminders, attendance, and timeline."
+            : "Dynamic schedule for Live Courses and ATPL, builder, next session, reminders, attendance, and timeline."
         }
         breadcrumbs={breadcrumbs}
         actions={

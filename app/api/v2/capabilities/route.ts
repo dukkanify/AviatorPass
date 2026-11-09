@@ -12,7 +12,7 @@ export async function GET() {
     success: true,
     data: {
       version: "2.0-planned",
-      stability: "v1.0 preserved — Phase 2 additive",
+      stability: "v1.0 preserved. Phase 2 additive",
       capabilities,
     },
     error: null,

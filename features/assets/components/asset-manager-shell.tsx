@@ -31,7 +31,7 @@ export function AssetManagerShell() {
     <div className="space-y-6">
       <PageHeader
         title="Asset manager"
-        description="Replace logos, media, documents, and email assets from the admin panel — no code deploy required for swaps."
+        description="Replace logos, media, documents, and email assets from the admin panel, no code deploy required for swaps."
         breadcrumbs={[
           { label: "Super Admin", href: "/super-admin/dashboard" },
           { label: "Asset manager" },

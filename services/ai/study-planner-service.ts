@@ -68,7 +68,7 @@ export async function generateStudyPlan(input: {
       lessonId: null,
       scheduledStart: start.toISOString(),
       scheduledEnd: end.toISOString(),
-      notes: "AI-generated — edit anytime before accepting.",
+      notes: "AI-generated, edit anytime before accepting.",
     });
   }
 
@@ -79,7 +79,7 @@ export async function generateStudyPlan(input: {
     title: `${capitalize(input.horizon)} study plan`,
     summary: courses.length
       ? `Balanced ${input.horizon} plan across ${courses.map((c) => c.code || c.title).join(", ")}.`
-      : `General ${input.horizon} plan — enroll in a course for tighter personalization.`,
+      : `General ${input.horizon} plan, enroll in a course for tighter personalization.`,
     items,
     editable: true,
     accepted: false,

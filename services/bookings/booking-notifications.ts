@@ -21,7 +21,7 @@ function displayName(userId: string): { name: string; email: string | null } {
 function formatWhen(startsAt: string, endsAt: string): string {
   const start = new Date(startsAt);
   const end = new Date(endsAt);
-  return `${start.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} – ${end.toLocaleTimeString(undefined, { timeStyle: "short" })} UTC`;
+  return `${start.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} - ${end.toLocaleTimeString(undefined, { timeStyle: "short" })} UTC`;
 }
 
 export async function sendPrivateSessionConfirmationEmails(

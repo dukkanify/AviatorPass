@@ -52,7 +52,7 @@ export function MockExamExaminerView() {
       toast.error(json.error ?? "Failed");
       return;
     }
-    toast.success("Session approved — Aviator Pass certificate issued");
+    toast.success("Session approved. Aviator Pass certificate issued");
     await load();
   }
 

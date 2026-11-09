@@ -453,7 +453,7 @@ export async function finalizeEnterpriseRegistration(input: {
     userId: created.id,
     type: "account.created",
     title: "Account created",
-    body: "Welcome to Aviator Pass — your account is ready.",
+    body: "Welcome to Aviator Pass, your account is ready.",
     actionUrl: "/complete-profile",
     email: false,
   });

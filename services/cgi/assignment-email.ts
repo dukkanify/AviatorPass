@@ -252,7 +252,7 @@ export async function notifyAtplInstructorAssigned(
     await dispatchEmailEvent({
       event: "instructor_alert",
       userIds: instructorIds,
-      subject: `${tkLabel} assigned — ${studentName}`,
+      subject: `${tkLabel} assigned, ${studentName}`,
       data: {
         ...templateData,
         title: `${tkLabel} assigned`,
