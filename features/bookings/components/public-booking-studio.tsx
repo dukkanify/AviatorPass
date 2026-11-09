@@ -294,7 +294,7 @@ function PublicBookingStudio() {
             Private Session
           </h1>
           <p className="mt-3 max-w-[32ch] font-display text-[clamp(1.1rem,2.2vw,1.5rem)] font-semibold leading-snug tracking-[-0.03em] text-white/92">
-            One-to-one with a certified AviatorPass instructor
+            1:1 with a certified AviatorPass instructor
           </p>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65 sm:text-[0.95rem]">
             Book private coaching, mock exams, interview prep, and mentoring on Zoom. This is a

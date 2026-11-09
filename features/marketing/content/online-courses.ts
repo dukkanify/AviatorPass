@@ -38,7 +38,7 @@ export const ONLINE_COURSE_PROGRAMMES = [
       { label: "Live One-to-One", href: `${routes.onlineCoursesBasics}?mode=live` },
     ],
     summary:
-      "A foundation programme for new aviation students, available as a recorded course or live one-to-one with an EASA Certified Instructor.",
+      "A foundation programme for new aviation students, available as a recorded course or live 1:1 with an EASA Certified Instructor.",
     points: [
       "Recorded self-paced lane",
       "Live One-to-One lane",
@@ -73,7 +73,7 @@ export const ONLINE_COURSE_PROGRAMMES = [
       { label: "Live One-to-One", href: `${routes.onlineCoursesPpl}?mode=live` },
     ],
     summary:
-      "PPL ground school as a recorded programme or live one-to-one training with an EASA Certified Instructor.",
+      "PPL ground school as a recorded programme or live 1:1 training with an EASA Certified Instructor.",
     points: [
       "Recorded self-paced lane",
       "Live One-to-One lane",
@@ -102,14 +102,14 @@ export const BASICS_PAGE = {
   kicker: "Online Courses",
   title: "Basics of Aviation",
   intro:
-    "Start your aviation education with a foundation programme designed for new students. Choose recorded self-paced study or live one-to-one sessions with an EASA Certified Instructor.",
+    "Start your aviation education with a foundation programme designed for new students. Choose recorded self-paced study or live 1:1 sessions with an EASA Certified Instructor.",
 } as const;
 
 export const PPL_PAGE = {
   kicker: "Online Courses",
   title: "Private Pilot License",
   intro:
-    "PPL ground school on Aviator Pass. Train with recorded lessons or live one-to-one instruction from EASA Certified Instructors.",
+    "PPL ground school on Aviator Pass. Train with recorded lessons or live 1:1 instruction from EASA Certified Instructors.",
 } as const;
 
 export const ELP_PAGE = {

@@ -46,7 +46,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.basics.title,
     commonName: PROGRAMME_TERMS.basics.commonName,
     description:
-      "An introduction to aviation for new students, recorded or live one-to-one with an EASA Certified Instructor.",
+      "An introduction to aviation for new students, recorded or live 1:1 with an EASA Certified Instructor.",
     href: routes.onlineCoursesBasics,
     sku: "BASICS-RECORDED" as JourneySku,
     durationLabel: "10 hours",
@@ -59,7 +59,7 @@ const OFFER_DEFS = [
     title: PROGRAMME_TERMS.ppl.title,
     commonName: PROGRAMME_TERMS.ppl.commonName,
     description:
-      "Private Pilot License (PPL) ground school, recorded or live one-to-one with an EASA Certified Instructor.",
+      "Private Pilot License (PPL) ground school, recorded or live 1:1 with an EASA Certified Instructor.",
     href: routes.onlineCoursesPpl,
     sku: "PPL-RECORDED" as JourneySku,
     durationLabel: "100 hours",

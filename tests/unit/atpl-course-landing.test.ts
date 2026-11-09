@@ -44,7 +44,7 @@ describe("ATPL course landing conversion path", () => {
       ],
       [
         "Basics of Aviation",
-        "Introduction to aviation · Live one-to-one",
+        "Introduction to aviation · Live 1:1",
         `${routes.onlineCoursesBasics}?mode=live`,
       ],
       ["ELP Mock Exams Live", "English Language Proficiency · Live", routes.onlineCoursesElp],
@@ -55,7 +55,7 @@ describe("ATPL course landing conversion path", () => {
       ],
       [
         "Private Pilot License",
-        "PPL ground school · Live one-to-one",
+        "PPL ground school · Live 1:1",
         `${routes.onlineCoursesPpl}?mode=live`,
       ],
     ]);

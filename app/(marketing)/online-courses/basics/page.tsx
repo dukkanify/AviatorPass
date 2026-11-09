@@ -17,7 +17,7 @@ type PageProps = { searchParams?: Promise<{ mode?: string; country?: string }> }
 export const metadata: Metadata = {
   title: "Basics of Aviation",
   description:
-    "Basics of Aviation on Aviator Pass, recorded or live one-to-one with EASA Certified Instructors.",
+    "Basics of Aviation on Aviator Pass, recorded or live 1:1 with EASA Certified Instructors.",
   alternates: { canonical: routes.onlineCoursesBasics },
 };
 
@@ -61,7 +61,7 @@ export default async function BasicsOfAviationPage({ searchParams }: PageProps) 
                     : `${routes.onlineCoursesBasics}?mode=live`
                 }
               >
-                {live ? "View recorded lane" : "View live one-to-one"}
+                {live ? "View recorded lane" : "View live 1:1"}
               </Link>
             </Button>
           </div>

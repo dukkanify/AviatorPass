@@ -36,7 +36,7 @@ export function defaultBookingSettings(): BookingSettings {
       {
         id: "st_coaching",
         name: "Private Coaching",
-        description: "One-to-one theory coaching tailored to your progress.",
+        description: "1:1 theory coaching tailored to your progress.",
         durationMinutes: 60,
         active: true,
         priceAmountMinor: 25000,
