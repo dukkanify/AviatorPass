@@ -93,18 +93,35 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
 
   return (
     <>
-      {/* —— Hero: photo-led, no copy stack —— */}
+      {/* —— Hero —— */}
       <section className="atpl-hero relative isolate -mt-[4.75rem] min-h-[100svh] overflow-hidden pt-[4.75rem]">
         <div className="atpl-hero-bg absolute inset-0" aria-hidden>
           <HeroLcpImage />
         </div>
-        <div className="atpl-hero-overlay atpl-hero-overlay-quiet absolute inset-0" aria-hidden />
+        <div className="atpl-hero-overlay absolute inset-0" aria-hidden />
         <div className="atpl-hero-glow absolute inset-0" aria-hidden />
 
-        <h1 className="sr-only">{hero.headline}</h1>
+        <div className="container-app relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-center pb-20 pt-16 sm:pb-28">
+          <p className="animate-in-up atpl-hero-brand" aria-hidden>
+            <span className="text-white">AVIATOR</span>
+            <span className="atpl-hero-brand-pass"> PASS</span>
+          </p>
 
-        <div className="container-app relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-end pb-24 pt-16 sm:pb-28">
-          <div className="animate-in-up flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
+          <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{hero.kicker}</p>
+
+          <h1 className="animate-in-up-delay-1 mt-5 max-w-[18ch] font-display text-[clamp(1.85rem,4.2vw,3.5rem)] font-semibold leading-[1.1] tracking-[-0.03em] text-white/96">
+            {hero.headline}
+          </h1>
+
+          <p className="animate-in-up-delay-2 mt-7 max-w-2xl text-[1.05rem] leading-relaxed text-white/82 sm:text-lg">
+            {hero.subheadline}
+          </p>
+
+          <p className="animate-in-up-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-white/65">
+            {HERO.audience}
+          </p>
+
+          <div className="animate-in-up-delay-3 mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               size="lg"
               variant="accent"
@@ -124,6 +141,14 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             >
               <Link href={routes.atpl}>{hero.secondaryCta}</Link>
             </Button>
+          </div>
+
+          <div className="animate-in-up-delay-3 mt-14 flex flex-wrap gap-3">
+            {PROGRAM.badges.map((badge) => (
+              <span key={badge} className="atpl-badge">
+                {badge}
+              </span>
+            ))}
           </div>
         </div>
 
