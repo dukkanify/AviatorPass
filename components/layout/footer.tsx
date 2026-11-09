@@ -39,8 +39,7 @@ function Footer() {
               className="[&_img]:h-10 [&_img]:max-w-[240px] sm:[&_img]:h-11 sm:[&_img]:max-w-[280px]"
             />
             <p className="site-footer-tagline">
-              {brandingConfig.tagline}. Complete aviation education,{" "}
-              {siteStatic.locations.join(" · ")}.
+              {brandingConfig.tagline}. {siteStatic.locations.join(" · ")}.
             </p>
             <Link href={routes.onlineCourses} className="site-footer-cta">
               Explore Online Courses
