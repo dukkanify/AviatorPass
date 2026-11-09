@@ -15,7 +15,8 @@ type HeroLcpImageProps = {
 /**
  * Above-the-fold marketing hero. Next.js Image emits a high-priority
  * preload and serves AVIF/WebP when the client supports them.
- * Uses object-cover so the photo fills the viewport with no blurred side bars.
+ * Desktop: cover. Mobile/tablet: contain so the full airframe stays visible
+ * against the solid navy hero background (no blurred side plates).
  */
 function HeroLcpImage({ className, src = MARKETING_HERO_SRC, sizes = "100vw" }: HeroLcpImageProps) {
   return (
@@ -28,7 +29,7 @@ function HeroLcpImage({ className, src = MARKETING_HERO_SRC, sizes = "100vw" }: 
       loading="eager"
       quality={68}
       sizes={sizes}
-      className={cn("object-cover object-center", className)}
+      className={cn("atpl-hero-photo object-cover object-center max-lg:object-contain", className)}
     />
   );
 }
