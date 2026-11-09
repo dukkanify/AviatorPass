@@ -39,7 +39,7 @@ export const ABOUT = {
       body: "Every lesson aligns with ICAO frameworks and regulatory best practice.",
     },
     {
-      title: "EASA Certified Instructors",
+      title: "Instructors and Pilots",
       body: "Instruction from EASA Certified Instructors, one of our strongest commitments to quality.",
     },
     {
