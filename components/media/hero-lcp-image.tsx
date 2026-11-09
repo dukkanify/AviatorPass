@@ -25,7 +25,7 @@ function HeroLcpImage({ className, src = MARKETING_HERO_SRC, sizes = "100vw" }: 
       loading="eager"
       quality={68}
       sizes={sizes}
-      className={cn("object-cover object-[center_25%]", className)}
+      className={cn("object-cover object-center", className)}
     />
   );
 }
