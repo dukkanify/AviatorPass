@@ -480,7 +480,7 @@ function LearningDashboardView() {
           {packageJourney ? null : (
             <blockquote className="sl-hero-quote">
               <p>“{quote}”</p>
-              <cite>— Unknown</cite>
+              <cite>- Unknown</cite>
             </blockquote>
           )}
           <div className="sl-hero-actions">

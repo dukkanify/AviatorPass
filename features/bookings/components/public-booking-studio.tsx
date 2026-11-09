@@ -298,7 +298,7 @@ function PublicBookingStudio() {
           </p>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65 sm:text-[0.95rem]">
             Book private coaching, mock exams, interview prep, and mentoring on Zoom. This is a
-            separate premium service — not included automatically with the ATPL Program unless your
+            separate premium service, not included automatically with the ATPL Program unless your
             administrator specifies it.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
@@ -342,7 +342,7 @@ function PublicBookingStudio() {
                 <div className="min-w-0">
                   <h2 className="booking-step-heading">Choose your private session</h2>
                   <p className="booking-step-lead">
-                    Select a service, instructor, and available time — only open slots are shown.
+                    Select a service, instructor, and available time, only open slots are shown.
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
@@ -521,7 +521,7 @@ function PublicBookingStudio() {
               </button>
               <h2 className="booking-step-heading">Review your booking</h2>
               <p className="booking-step-lead">
-                Confirm your details — we create learner access and prepare your Zoom meeting.
+                Confirm your details, we create learner access and prepare your Zoom meeting.
               </p>
 
               <div className="mt-4 bg-[var(--surface-ink)] px-4 py-3.5 text-white">
@@ -537,7 +537,7 @@ function PublicBookingStudio() {
                 </p>
                 {selectedType?.paymentRequired && selectedType.priceAmountMinor > 0 ? (
                   <p className="mt-2 text-sm text-accent">
-                    Fee: {formatMinor(selectedType.priceAmountMinor, selectedType.currency)} — pay
+                    Fee: {formatMinor(selectedType.priceAmountMinor, selectedType.currency)}, pay
                     after email confirmation (Tabby/Tamara where available)
                   </p>
                 ) : (

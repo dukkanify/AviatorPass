@@ -880,7 +880,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
                 <SelectContent>
                   {data.subjects.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.code} — {s.title}
+                      {s.code}, {s.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1185,7 +1185,7 @@ export function CgiConsoleView({ initial }: { initial: Snapshot }) {
             ) : (
               data.recentAudit.map((a) => (
                 <li key={a.id}>
-                  <span className="font-medium text-foreground">{a.action}</span> — {a.detail}
+                  <span className="font-medium text-foreground">{a.action}</span>, {a.detail}
                 </li>
               ))
             )}

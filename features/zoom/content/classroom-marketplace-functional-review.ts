@@ -265,7 +265,7 @@ export const CLASSROOM_REVIEW_NOTE_MATRIX = [
  * Exact English text for Zoom Marketplace reviewer response fields.
  * No passwords, secrets, tokens, or ZAK values.
  */
-export const CLASSROOM_REVIEW_ZOOM_PASTE_TEXT = `AviatorPass Classroom for Zoom — Marketplace reviewer response
+export const CLASSROOM_REVIEW_ZOOM_PASTE_TEXT = `AviatorPass Classroom for Zoom. Marketplace reviewer response
 Updated: 28 October 2026 (Asia/Dubai)
 READINESS: NOT READY for Marketplace resubmission until owner portal/scope actions are complete (Support confirmation on “Select at least one scope”, Meetings surface off, Custom Form removed) and owner Submit approval. Isolated /join host+student in-app session verified on centralized S2S hosting (29 Oct 2026 Asia/Dubai). Real two-way A/V on physical devices: NOT TESTED.
 
@@ -277,14 +277,14 @@ Isolated classroom: https://www.aviatorpass.com/join/1bd88dfd5a8d69fc5c78d1d3d1e
 Documentation: https://www.aviatorpass.com/integrations/zoom
 Functional review package: https://www.aviatorpass.com/integrations/zoom-classroom-review
 Support: support@aviatorpass.com
-Production Meeting SDK Client ID (last four): VGTQ — paste full Production Client ID from Zoom Marketplace App Credentials into Marketplace review fields.
+Production Meeting SDK Client ID (last four): VGTQ, paste full Production Client ID from Zoom Marketplace App Credentials into Marketplace review fields.
 
 AviatorPass is independent of Zoom Video Communications. This Marketplace app’s real function is embedding Zoom meetings inside AviatorPass. It does not create Zoom meetings and does not run a user OAuth consent flow on this Client ID.
 
 SEPARATE INTEGRATIONS (do not mix)
-1) AviatorPass Classroom for Zoom — Meeting SDK JWT signing only (Client ID suffix VGTQ). Opens /join inside AviatorPass.
-2) CEO Server-to-Server OAuth — separate platform integration (ceo@aviatorpass.com). Creates live-class meetings and supplies start_url for host ZAK. Not this Marketplace app. Do not disconnect or rotate it.
-3) AviatorPass for Zoom — optional Instructor User-managed OAuth (Production Client ID 7z2krfWYQWCi20C0FRZ0xA, suffix Z0xA). Landing /instructor/profile. Not required for this review.
+1) AviatorPass Classroom for Zoom. Meeting SDK JWT signing only (Client ID suffix VGTQ). Opens /join inside AviatorPass.
+2) CEO Server-to-Server OAuth, separate platform integration (ceo@aviatorpass.com). Creates live-class meetings and supplies start_url for host ZAK. Not this Marketplace app. Do not disconnect or rotate it.
+3) AviatorPass for Zoom, optional Instructor User-managed OAuth (Production Client ID 7z2krfWYQWCi20C0FRZ0xA, suffix Z0xA). Landing /instructor/profile. Not required for this review.
 
 SECURITY
 Instructors never receive CEO passwords, S2S secrets, OAuth tokens, or unrestricted host credentials. Host ZAK is minted server-side from the meeting start_url for authorized AviatorPass hosts only. Students never receive start_url / ZAK.
@@ -293,13 +293,13 @@ SCOPES
 Classroom Meeting SDK runtime: Meeting SDK JWT only (participant 0 / host 1). Product code does not run user OAuth on this Client ID.
 Create a Meeting user/admin/master scopes were correctly removed per Zoom review. An empty Production Scopes list now shows “Select at least one scope” (portal validation).
 Do NOT re-add Create a Meeting. Preferred: ask Zoom Marketplace Support whether JWT-only Meeting SDK apps may publish with zero scopes.
-If Support confirms a scope is mandatory, add only user-managed user:read:zak (User → View a user's zak token) per Zoom Meeting SDK get-credentials guidance — with honest disclosure that host ZAK today comes from meeting start_url via platform S2S (or optional Instructor OAuth).
+If Support confirms a scope is mandatory, add only user-managed user:read:zak (User → View a user's zak token) per Zoom Meeting SDK get-credentials guidance, with honest disclosure that host ZAK today comes from meeting start_url via platform S2S (or optional Instructor OAuth).
 Optional Instructor OAuth (separate app) retains only:
-- user:read:user — identity after Connect Zoom
-- meeting:write:meeting — POST /users/me/meetings
-- meeting:read:meeting — GET /meetings/{id}
-- meeting:update:meeting — PATCH /meetings/{id}
-- meeting:delete:meeting — DELETE /meetings/{id}
+- user:read:user, identity after Connect Zoom
+- meeting:write:meeting. POST /users/me/meetings
+- meeting:read:meeting. GET /meetings/{id}
+- meeting:update:meeting. PATCH /meetings/{id}
+- meeting:delete:meeting. DELETE /meetings/{id}
 Rejected / not used: meeting:write:meeting:admin, meeting:write:admin, meeting:master (no sub-account management).
 
 MEETINGS SURFACE
@@ -310,12 +310,12 @@ Unused. AviatorPass does not depend on Zoom Custom Form. Remove it from the Mark
 
 REVIEWER ACCOUNTS
 Login: https://www.aviatorpass.com/login
-Instructor: Riley Okonkwo — zoom.reviewer.instructor@aviatorpass.com
-Student: Jordan Hale — zoom.reviewer.student@aviatorpass.com
+Instructor: Riley Okonkwo, zoom.reviewer.instructor@aviatorpass.com
+Student: Jordan Hale, zoom.reviewer.student@aviatorpass.com
 Passwords: Zoom Marketplace private Account credentials only (never public listing / GitHub / this paste into public notes without the private field).
 Verified 28 October 2026 Asia/Dubai: both logins succeed; host started embedded Meeting SDK; student joined the same classroom.
 
-PREREQUISITE — centralized platform hosting (personal Connect Zoom not required)
+PREREQUISITE, centralized platform hosting (personal Connect Zoom not required)
 Current release: live classes (including the isolated reviewer classroom) are created on the platform Server-to-Server Zoom host (ceo@aviatorpass.com). Instructors schedule and host inside AviatorPass without connecting a personal Zoom account.
 Personal Instructor OAuth remains optional for future per-instructor hosting; its code and credentials are retained.
 Ownership/authorization are not bypassed: only the assigned instructor and enrolled students may enter /join/{classId}.
@@ -341,13 +341,13 @@ Reviewers should enable mic and camera when prompted and confirm two-way media o
 AviatorPass does NOT claim that automated Cloud Agent runs completed real two-way human audio/video validation. Treat live mic/camera confirmation as a manual reviewer check.
 
 CONCURRENT MEETINGS / LICENSING
-AviatorPass blocks overlapping schedules for the same instructor. Platform S2S prefers a free Zoom user on the account when another meeting occupies a host. A single licensed Zoom user typically hosts one concurrent meeting — stagger schedules or add licensed hosts for simultaneous classes.
+AviatorPass blocks overlapping schedules for the same instructor. Platform S2S prefers a free Zoom user on the account when another meeting occupies a host. A single licensed Zoom user typically hosts one concurrent meeting, stagger schedules or add licensed hosts for simultaneous classes.
 
-EXPECTED RESULTS (verified unless noted) — overall NOT READY
+EXPECTED RESULTS (verified unless noted), overall NOT READY
 - Reviewer instructor + student AviatorPass logins: PASS (28 Oct 2026 Asia/Dubai)
 - Meeting SDK credential pair (suffix VGTQ): PASS
 - Instructor OAuth (suffix Z0xA) separate from Meeting SDK (VGTQ) and S2S (uX3Q): PASS
-- CEO host ceo@aviatorpass.com intact: PASS — do not disconnect; used as centralized live-class host
+- CEO host ceo@aviatorpass.com intact: PASS, do not disconnect; used as centralized live-class host
 - Classroom Meeting SDK JWT path only (no user OAuth scopes in product): PASS
 - Centralized S2S hosting for live classes: ENABLED (personal OAuth optional)
 - Isolated reviewer classroom create without personal Connect Zoom: PASS
@@ -364,7 +364,7 @@ TROUBLESHOOTING
 OWNER MARKETPLACE ACTIONS STILL REQUIRED (not applied by code deploy)
 1. Keep Create a Meeting user/admin/master REMOVED on Classroom app
 2. Send Zoom Marketplace Support clarification on empty Scopes vs Meeting SDK JWT-only architecture (see docs/ZOOM_CLASSROOM_MARKETPLACE_SCOPE_RESOLUTION.md)
-3. If Support requires one scope: add only user:read:zak (user-managed) — never meeting create/admin/master; do not recreate the app
+3. If Support requires one scope: add only user:read:zak (user-managed), never meeting create/admin/master; do not recreate the app
 4. Classroom app → disable Meetings surface; remove Custom Form; keep Embed → Meeting SDK on
 5. Paste reviewer emails/passwords into private Account credentials only
 6. Link https://www.aviatorpass.com/integrations/zoom-classroom-review in documentation fields

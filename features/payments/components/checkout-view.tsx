@@ -243,7 +243,7 @@ function CheckoutView() {
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {p.isFree ? "Free" : formatMinor(p.priceAmount, p.currency)}
+                  {p.name}, {p.isFree ? "Free" : formatMinor(p.priceAmount, p.currency)}
                 </option>
               ))}
             </select>

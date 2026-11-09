@@ -44,7 +44,7 @@ function StripeCheckoutRedirect({ initialError }: StripeCheckoutRedirectProps) {
       <ul className="mx-auto mt-8 max-w-sm space-y-2 text-left text-sm text-muted-foreground">
         <li className="flex gap-2">
           <Lock className="mt-0.5 size-4 text-accent" />
-          Pay first — your student account is created after a successful payment.
+          Pay first. Your student account is created after a successful payment.
         </li>
         <li className="flex gap-2">
           <ShieldCheck className="mt-0.5 size-4 text-accent" />

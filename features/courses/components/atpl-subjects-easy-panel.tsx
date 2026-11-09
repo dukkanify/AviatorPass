@@ -84,7 +84,7 @@ function AtplSubjectsEasyPanel() {
   return (
     <Card className="rounded-2xl shadow-soft">
       <CardHeader>
-        <CardTitle className="text-base">ATPL subjects — 13 official titles</CardTitle>
+        <CardTitle className="text-base">ATPL subjects, 13 official titles</CardTitle>
         <CardDescription>
           Click a subject to change its photo or short text. Names stay official. Students see this
           on /atpl and pages such as /courses/met.

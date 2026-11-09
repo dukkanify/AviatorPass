@@ -402,7 +402,7 @@ export function OpsCenterShell() {
                 <div key={String(row.id)} className="rounded-md border p-3 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">
-                      {String(row.number)} — {String(row.subject)}
+                      {String(row.number)}, {String(row.subject)}
                     </span>
                     <div className="flex gap-2">
                       {statusBadge(String(row.priority))}
@@ -470,7 +470,7 @@ export function OpsCenterShell() {
                 <div key={String(row.id)} className="rounded-md border p-3 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">
-                      {String(row.number)} — {String(row.title)}
+                      {String(row.number)}, {String(row.title)}
                     </span>
                     <div className="flex gap-2">
                       {statusBadge(String(row.priority))}
@@ -605,7 +605,7 @@ export function OpsCenterShell() {
                 <div key={String(row.id)} className="rounded-md border p-3 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">
-                      v{String(row.version)} — {String(row.title)}
+                      v{String(row.version)}, {String(row.title)}
                     </span>
                     {row.deployedAt ? (
                       <Badge>Deployed</Badge>
@@ -722,7 +722,7 @@ export function OpsCenterShell() {
                   <div key={String(row.id)} className="rounded-md border p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-medium">
-                        {String(row.number)} — {String(row.title)}
+                        {String(row.number)}, {String(row.title)}
                       </span>
                       <div className="flex gap-2">
                         {statusBadge(String(row.severity))}

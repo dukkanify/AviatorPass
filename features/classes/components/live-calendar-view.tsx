@@ -117,7 +117,7 @@ function LiveCalendarView({ roleLabel, classesHref, embedded = false }: LiveCale
             )}
           </h2>
           <p className="mt-2 max-w-md text-sm text-white/65">
-            Live sessions on your path — review, join, and stay on course.
+            Live sessions on your path, review, join, and stay on course.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -476,7 +476,7 @@ function EmptySchedule() {
       </span>
       <p className="font-display text-lg font-semibold">No upcoming classes</p>
       <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-        When sessions are scheduled for you, they appear here — clear skies for now.
+        When sessions are scheduled for you, they appear here, clear skies for now.
       </p>
     </div>
   );

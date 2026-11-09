@@ -75,8 +75,8 @@ export function ElpJourneyBooking() {
     <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white sm:p-6">
       <h2 className="font-heading text-xl">Choose your mock exam slot</h2>
       <p className="mt-2 text-sm text-white/70">
-        Only working hours appear. Monday–Friday {hours?.weekday ?? "17:00-20:00"} · Saturday–Sunday{" "}
-        {hours?.weekend ?? "09:00-18:00"} ({catalog?.settings.timezone ?? "Asia/Kuwait"}).
+        Only working hours appear. Monday. Friday {hours?.weekday ?? "17:00-20:00"} · Saturday.
+        Sunday {hours?.weekend ?? "09:00-18:00"} ({catalog?.settings.timezone ?? "Asia/Kuwait"}).
       </p>
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       <div className="mt-4 space-y-3">

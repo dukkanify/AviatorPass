@@ -163,7 +163,7 @@ function LectureTaskCard({ lecture }: { lecture: LectureCard }) {
           {lecture.windowEnded ? (
             <p className="text-sm text-muted-foreground">
               Lecture time ended. Mark the subject complete so it does not open again. TKI 1 books
-              the next subject after you agree a time — or use Unable to Schedule on the class page
+              the next subject after you agree a time, or use Unable to Schedule on the class page
               if you cannot take it.
             </p>
           ) : (

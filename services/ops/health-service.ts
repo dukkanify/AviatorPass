@@ -232,7 +232,7 @@ function buildHealthSnapshot(opts?: {
     status: s2sReady ? "pass" : productionRuntime ? "fail" : "warn",
     detail: s2sReady
       ? "Server-to-Server OAuth ready (Account ID + S2S Client ID + S2S Client Secret)"
-      : `S2S incomplete — present: ${
+      : `S2S incomplete, present: ${
           [
             zoom.accountId ? "Account ID" : null,
             zoom.s2sClientId ? "S2S Client ID" : null,
