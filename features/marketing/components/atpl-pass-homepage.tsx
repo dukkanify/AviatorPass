@@ -37,6 +37,7 @@ import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import { EasaBadge } from "@/features/marketing/components/easa-badge";
+import { PartnerStrip } from "@/features/marketing/components/partner-strip";
 import { getHomeSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
@@ -404,6 +405,9 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mt-8 text-sm text-muted-foreground">{PAYMENTS.note}</p>
         </div>
       </section>
+
+      {/* —— Partnerships —— */}
+      <PartnerStrip size="large" />
 
       {/* —— Contact —— */}
       <section id="contact" className="atpl-section atpl-section-contact scroll-mt-28">
