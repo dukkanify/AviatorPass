@@ -8,7 +8,6 @@ import { brandingConfig } from "@/config/branding";
 import { siteStatic } from "@/config/site-static";
 import { routes } from "@/constants/routes";
 import { AdBannerSlot } from "@/features/marketing/components/ad-banner-slot";
-import { PartnerStrip } from "@/features/marketing/components/partner-strip";
 
 const exploreLinks = [
   { href: routes.onlineCourses, label: "Online Courses" },
@@ -112,7 +111,6 @@ function Footer() {
           </div>
         </div>
 
-        <PartnerStrip />
         <AdBannerSlot placement="footer" />
 
         <div className="site-footer-bottom">
