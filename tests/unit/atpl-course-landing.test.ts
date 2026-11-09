@@ -36,26 +36,26 @@ describe("ATPL course landing conversion path", () => {
     expect(courses?.href).toBe(routes.onlineCourses);
     expect(courses?.children?.some((child) => child.href === routes.atpl)).toBe(true);
     expect(courses?.children?.map((child) => [child.label, child.hint ?? "", child.href])).toEqual([
-      ["ATPL Course", "Airline Transport Pilot License · Live", routes.atpl],
+      ["ATPL Course", "Airline Transport Pilot License, Live", routes.atpl],
       [
         "Basics of Aviation",
-        "Introduction to aviation · Recorded",
+        "Introduction to aviation, Recorded",
         `${routes.onlineCoursesBasics}?mode=recorded`,
       ],
       [
         "Basics of Aviation",
-        "Introduction to aviation · Live 1:1",
+        "Introduction to aviation, Live 1:1",
         `${routes.onlineCoursesBasics}?mode=live`,
       ],
-      ["ELP Mock Exams Live", "English Language Proficiency · Live", routes.onlineCoursesElp],
+      ["ELP Mock Exams Live", "English Language Proficiency, Live", routes.onlineCoursesElp],
       [
         "Private Pilot License",
-        "PPL ground school · Recorded",
+        "PPL ground school, Recorded",
         `${routes.onlineCoursesPpl}?mode=recorded`,
       ],
       [
         "Private Pilot License",
-        "PPL ground school · Live 1:1",
+        "PPL ground school, Live 1:1",
         `${routes.onlineCoursesPpl}?mode=live`,
       ],
     ]);

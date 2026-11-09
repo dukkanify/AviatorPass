@@ -4,7 +4,7 @@
  */
 
 export const ATPL_LANDING_HERO = {
-  kicker: "Aviator Pass · ATPL Complete Package · Live airline theory",
+  kicker: "Aviator Pass, ATPL Complete Package, Live airline theory",
   headline: "The ATPL course built for pilots who train like professionals",
   subheadline:
     "One package. Thirteen ATPL theory subjects. Live instructors. Review every subject, accept the joining terms, then choose your study start on checkout.",
@@ -144,25 +144,25 @@ export const STUDENT_REVIEWS = {
       quote:
         "I expected recorded lectures. Instead every session was live, demanding, and exactly the standard I wanted before ATPL exams.",
       name: "Omar A.",
-      role: "ATPL candidate · Kuwait",
+      role: "ATPL candidate, Kuwait",
     },
     {
       quote:
         "Paying first and receiving the account by email was seamless. I was in the dashboard the same evening with every subject unlocked.",
       name: "Layla R.",
-      role: "CPL holder · Dubai",
+      role: "CPL holder, Dubai",
     },
     {
       quote:
         "The mock exams and instructor debriefs changed how I studied. I finally knew which subjects needed another live pass.",
       name: "James K.",
-      role: "Cadet · Copenhagen",
+      role: "Cadet, Copenhagen",
     },
     {
       quote:
         "Professional from checkout to first class. Currency was correct for my country and the platform felt like an airline training department.",
       name: "Noor S.",
-      role: "ATPL candidate · Qatar",
+      role: "ATPL candidate, Qatar",
     },
   ],
 } as const;

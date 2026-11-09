@@ -16,7 +16,7 @@ export type MarketingNavItem = {
   children?: readonly MarketingNavChild[];
 };
 
-/** Public header order: Contact · Instructors · Online Courses · About (+ Login CTA). */
+/** Public header order: Contact, Instructors, Online Courses, About (+ Login CTA). */
 export const NAV_ITEMS: readonly MarketingNavItem[] = [
   { label: "Contact", href: routes.contact },
   { label: "Instructors", href: "/#instructors" },
@@ -27,32 +27,32 @@ export const NAV_ITEMS: readonly MarketingNavItem[] = [
       {
         label: PROGRAMME_TERMS.atpl.title,
         href: routes.atpl,
-        hint: `${PROGRAMME_TERMS.atpl.commonName} · Live`,
+        hint: `${PROGRAMME_TERMS.atpl.commonName}, Live`,
       },
       {
         label: PROGRAMME_TERMS.basics.title,
         href: `${routes.onlineCoursesBasics}?mode=recorded`,
-        hint: `${PROGRAMME_TERMS.basics.commonName} · Recorded`,
+        hint: `${PROGRAMME_TERMS.basics.commonName}, Recorded`,
       },
       {
         label: PROGRAMME_TERMS.basics.title,
         href: `${routes.onlineCoursesBasics}?mode=live`,
-        hint: `${PROGRAMME_TERMS.basics.commonName} · Live 1:1`,
+        hint: `${PROGRAMME_TERMS.basics.commonName}, Live 1:1`,
       },
       {
         label: PROGRAMME_TERMS.elp.titleLive,
         href: routes.onlineCoursesElp,
-        hint: `${PROGRAMME_TERMS.elp.commonName} · Live`,
+        hint: `${PROGRAMME_TERMS.elp.commonName}, Live`,
       },
       {
         label: PROGRAMME_TERMS.ppl.title,
         href: `${routes.onlineCoursesPpl}?mode=recorded`,
-        hint: `${PROGRAMME_TERMS.ppl.commonName} · Recorded`,
+        hint: `${PROGRAMME_TERMS.ppl.commonName}, Recorded`,
       },
       {
         label: PROGRAMME_TERMS.ppl.title,
         href: `${routes.onlineCoursesPpl}?mode=live`,
-        hint: `${PROGRAMME_TERMS.ppl.commonName} · Live 1:1`,
+        hint: `${PROGRAMME_TERMS.ppl.commonName}, Live 1:1`,
       },
     ],
   },
