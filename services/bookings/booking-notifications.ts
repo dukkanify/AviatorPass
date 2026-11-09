@@ -55,7 +55,7 @@ export async function sendPrivateSessionConfirmationEmails(
         <p><strong>${booking.title}</strong><br/>${when}</p>
         ${priceLine}
         ${zoomBlock}
-        <p>This is a standalone AviatorPass premium service — separate from the ATPL Program unless included by your administrator.</p>
+        <p>This is a standalone AviatorPass premium service, separate from the ATPL Program unless included by your administrator.</p>
         <p>View upcoming sessions in your student dashboard.</p>`,
     });
     await sendEmail({

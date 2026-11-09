@@ -183,7 +183,7 @@ export function renderInstructorAssignmentPendingOpsEmail(
       ${listItem("Total Package Price", input.amountLabel)}
       ${listItem("Amount Received", input.amountLabel)}
     </ul>
-    <p><strong>Action Required – Instructor Assignment</strong></p>
+    <p><strong>Action Required. Instructor Assignment</strong></p>
     <p>Please access the <a href="${dashboard}">Aviator Pass Admin Dashboard</a> and assign an available Theoretical Knowledge Instructor (TKI).</p>
     <p>Best regards,<br/>Aviator Pass Automated Notification System<br/>${escapeHtml(PROJECT_SUPPORT_EMAIL)}</p>
     <p>This is an automated notification. No reply is required. Please complete the instructor assignment through the Admin Dashboard.</p>

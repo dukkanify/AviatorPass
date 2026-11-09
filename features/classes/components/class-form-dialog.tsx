@@ -255,7 +255,7 @@ function ClassFormDialog({
                   <SelectItem value="none">No course link</SelectItem>
                   {courses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.code} — {c.title}
+                      {c.code}, {c.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

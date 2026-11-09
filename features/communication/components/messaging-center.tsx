@@ -363,7 +363,7 @@ function MessagingCenterInner({ basePath }: { basePath: string }) {
             </div>
             {forwardMessageId ? (
               <p className="text-xs text-accent">
-                Forwarding mode — pick a recipient, or{" "}
+                Forwarding mode, pick a recipient, or{" "}
                 <button
                   type="button"
                   className="underline"

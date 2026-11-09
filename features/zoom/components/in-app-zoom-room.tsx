@@ -817,7 +817,7 @@ function InAppZoomRoom({
               <p>{notice}</p>
               {shownMeeting ? <p className="mt-1 opacity-70">Meeting ID {shownMeeting}</p> : null}
               {showPreview ? (
-                <p className="mt-1 opacity-70">Camera preview only — Zoom is not connected yet.</p>
+                <p className="mt-1 opacity-70">Camera preview only. Zoom is not connected yet.</p>
               ) : null}
             </div>
           </div>
@@ -826,7 +826,7 @@ function InAppZoomRoom({
         <div className={cn("classroom-dock", liveZoom && "is-live-sdk")}>
           {/*
             When Meeting SDK is live, Zoom’s toolbar owns mute/video/share/chat/participants.
-            Preview dock only toggles local camera/mic before join — no fake Zoom duplicates.
+            Preview dock only toggles local camera/mic before join, no fake Zoom duplicates.
           */}
           {!liveZoom ? (
             <div className="classroom-dock-cluster">

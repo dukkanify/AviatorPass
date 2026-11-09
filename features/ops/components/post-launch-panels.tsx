@@ -99,7 +99,7 @@ export function PostLaunchTabs({
               ) : (
                 recentReleases.map((r) => (
                   <p key={String(r.id)} className="text-sm">
-                    <span className="font-medium">v{String(r.version)}</span> — {String(r.title)}
+                    <span className="font-medium">v{String(r.version)}</span>, {String(r.title)}
                   </p>
                 ))
               )}
@@ -124,7 +124,7 @@ export function PostLaunchTabs({
               <HeartPulse className="h-4 w-4" /> Hypercare period
             </CardTitle>
             <CardDescription>
-              Intensive post-launch monitoring — stability, feedback, critical errors
+              Intensive post-launch monitoring, stability, feedback, critical errors
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -232,7 +232,7 @@ export function PostLaunchTabs({
               <div key={String(row.id)} className="rounded-md border p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">
-                    {String(row.number)} — {String(row.title)}
+                    {String(row.number)}, {String(row.title)}
                   </span>
                   <div className="flex gap-2">
                     {statusBadge(String(row.priority))}

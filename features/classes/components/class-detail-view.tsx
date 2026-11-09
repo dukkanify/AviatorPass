@@ -415,7 +415,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Attendance panel</CardTitle>
-              <CardDescription>Foundation statuses — analytics come later.</CardDescription>
+              <CardDescription>Foundation statuses, analytics come later.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {participants.length === 0 ? (
@@ -698,7 +698,7 @@ function ClassDetailView({ classId, basePath, roleLabel }: ClassDetailViewProps)
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Recordings</CardTitle>
-              <CardDescription>Metadata architecture only — no video processing.</CardDescription>
+              <CardDescription>Metadata architecture only, no video processing.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {(detail.recordings ?? []).length === 0 ? (

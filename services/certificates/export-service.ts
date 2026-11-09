@@ -62,7 +62,7 @@ export async function exportTranscriptHtml(actor: UserProfile, studentId: string
     entityId: studentId,
     metadata: { format: "pdf_html" },
   });
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Transcript — ${t.studentName}</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Transcript, ${t.studentName}</title>
 <style>
 body{font-family:system-ui,sans-serif;padding:32px;color:#0b1f33}
 h1{font-size:28px;margin:0}

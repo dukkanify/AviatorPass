@@ -1806,7 +1806,7 @@ function PlatformSettingsShell() {
                 Meeting defaults for live classes. Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`,
                 `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET`) creates platform/booking meetings.
                 In-app join uses the Meeting SDK app (`ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`).
-                Instructors must Connect Zoom with a personal account (`ZOOM_INSTRUCTOR_*`) — never
+                Instructors must Connect Zoom with a personal account (`ZOOM_INSTRUCTOR_*`), never
                 the shared host email below.
               </CardDescription>
             </CardHeader>

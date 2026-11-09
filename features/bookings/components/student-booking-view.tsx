@@ -229,7 +229,7 @@ function StudentBookingView() {
               </span>
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
-              Reserve a private Zoom flight with your instructor —{" "}
+              Reserve a private Zoom flight with your instructor,{" "}
               {settings.aroundTheClock ? "open 24/7" : "within scheduled hours"}, with instant
               meeting credentials when confirmed.
             </p>

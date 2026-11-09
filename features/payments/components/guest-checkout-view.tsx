@@ -575,7 +575,7 @@ function GuestCheckoutView() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex gap-2">
               <ShieldCheck className="mt-0.5 size-4 text-accent" />
-              Instant access after payment — no OTP before checkout
+              Instant access after payment, no OTP before checkout
             </li>
             <li className="flex gap-2">
               <Lock className="mt-0.5 size-4 text-accent" />

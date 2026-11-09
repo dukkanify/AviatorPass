@@ -76,7 +76,7 @@ function TemplateManagerView({ basePath = "/admin/certificates" }: TemplateManag
                 Colors {t.primaryColor} / {t.accentColor}
               </p>
               <p>
-                Signature: {t.signatureName} — {t.signatureTitle}
+                Signature: {t.signatureName}, {t.signatureTitle}
               </p>
               <p>Fields: {t.fields.join(", ")}</p>
             </CardContent>

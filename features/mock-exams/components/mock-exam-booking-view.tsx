@@ -158,8 +158,8 @@ export function MockExamBookingView() {
       ) : tab === "live" && catalog ? (
         <section className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Working hours ({catalog.settings.timezone}): Monday–Friday 17:00–20:00 · Saturday–Sunday
-            09:00–18:00. Slots outside these hours are hidden.
+            Working hours ({catalog.settings.timezone}): Monday. Friday 17:00, 20:00 · Saturday.
+            Sunday 09:00, 18:00. Slots outside these hours are hidden.
           </p>
           <div className="space-y-1.5 max-w-xs">
             <Label>Date</Label>

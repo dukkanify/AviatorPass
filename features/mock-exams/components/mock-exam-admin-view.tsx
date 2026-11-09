@@ -189,19 +189,19 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Mon–Fri start (Kuwait hour)</Label>
+                <Label>Mon. Fri start (Kuwait hour)</Label>
                 <Input value={weekdayStart} onChange={(e) => setWeekdayStart(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Mon–Fri end</Label>
+                <Label>Mon. Fri end</Label>
                 <Input value={weekdayEnd} onChange={(e) => setWeekdayEnd(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Sat–Sun start</Label>
+                <Label>Sat. Sun start</Label>
                 <Input value={weekendStart} onChange={(e) => setWeekendStart(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Sat–Sun end</Label>
+                <Label>Sat. Sun end</Label>
                 <Input value={weekendEnd} onChange={(e) => setWeekendEnd(e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -209,7 +209,7 @@ export function MockExamAdminView({ roleLabel = "Super Admin" }: { roleLabel?: s
                 <Input value={rush24} onChange={(e) => setRush24(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Rush 6–12h (fils)</Label>
+                <Label>Rush 6, 12h (fils)</Label>
                 <Input value={rush12} onChange={(e) => setRush12(e.target.value)} />
               </div>
               <Button onClick={() => void saveConfig()}>Save configuration</Button>

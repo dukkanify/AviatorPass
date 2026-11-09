@@ -40,7 +40,7 @@ async function copyText(label: string, value: string) {
 
 function CopyCell({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = React.useState(false);
-  if (!value) return <span className="text-muted-foreground">—</span>;
+  if (!value) return <span className="text-muted-foreground">-</span>;
   return (
     <div className="flex items-start gap-1">
       <code className="min-w-0 flex-1 break-all font-mono text-xs leading-5">{value}</code>
@@ -252,11 +252,11 @@ export function ResendDnsRecords({
                   <TableCell>
                     {row.priority ? <CopyCell label="priority" value={row.priority} /> : "-"}
                   </TableCell>
-                  <TableCell>—</TableCell>
+                  <TableCell>-</TableCell>
                   <TableCell className="max-w-[28rem]">
                     <CopyCell label="value" value={row.expected} />
                   </TableCell>
-                  <TableCell>—</TableCell>
+                  <TableCell>-</TableCell>
                   <TableCell>
                     <ProbeBadge row={row} />
                   </TableCell>

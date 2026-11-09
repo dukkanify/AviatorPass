@@ -70,7 +70,7 @@ export function renderAutomationTemplate(
                 ? `<p><strong>Account details</strong></p>
           <p>Email: ${escapeHtml(str(data, "accountEmail"))}</p>
           <p>Temporary password: <strong>${escapeHtml(str(data, "temporaryPassword"))}</strong></p>
-          <p>You will be asked to choose a new password on first login. This password is only sent once — do not share it.</p>`
+          <p>You will be asked to choose a new password on first login. This password is only sent once, do not share it.</p>`
                 : ""
           }
           ${packageConfirmationHtml(data)}
