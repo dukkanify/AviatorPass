@@ -48,7 +48,7 @@ describe("final client review copy", () => {
     expect(faq?.a).toMatch(/exclusive discount/);
   });
 
-  it("orders marketing nav Contact · Instructors · Online Courses · About", () => {
+  it("orders marketing nav Contact, Instructors, Online Courses, About", () => {
     expect(NAV_ITEMS.map((item) => item.label)).toEqual([
       "Contact",
       "Instructors",
@@ -59,12 +59,12 @@ describe("final client review copy", () => {
     const courses = NAV_ITEMS.find((item) => item.label === "Online Courses");
     expect(courses?.href).toBe(routes.onlineCourses);
     expect(courses?.children?.map((child) => child.hint ?? "")).toEqual([
-      "Airline Transport Pilot License · Live",
-      "Introduction to aviation · Recorded",
-      "Introduction to aviation · Live 1:1",
-      "English Language Proficiency · Live",
-      "PPL ground school · Recorded",
-      "PPL ground school · Live 1:1",
+      "Airline Transport Pilot License, Live",
+      "Introduction to aviation, Recorded",
+      "Introduction to aviation, Live 1:1",
+      "English Language Proficiency, Live",
+      "PPL ground school, Recorded",
+      "PPL ground school, Live 1:1",
     ]);
     expect(ONLINE_COURSE_PROGRAMMES.map((p) => p.title)).toEqual([
       "ATPL Course",

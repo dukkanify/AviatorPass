@@ -6,7 +6,7 @@ export const ONLINE_COURSES_HUB = {
   title: "Choose the pathway that matches your aviation stage",
   intro:
     "Aviator Pass is a complete aviation education platform. Explore live and recorded programmes taught by EASA Certified Instructors, from first principles through airline theory.",
-  locationsLabel: "Dubai · Copenhagen · Kuwait · Qatar",
+  locationsLabel: "Dubai, Copenhagen, Kuwait, Qatar",
 } as const;
 
 export const ONLINE_COURSE_PROGRAMMES = [
@@ -56,7 +56,7 @@ export const ONLINE_COURSE_PROGRAMMES = [
     summary:
       "Live English Language Proficiency mock exam. Choose a slot, review rush fees, pay, then sit the exam on Zoom. Certificate after examiner approval.",
     points: [
-      "Mon-Fri 17:00-20:00 · Sat-Sun 09:00-18:00 (Kuwait)",
+      "Mon-Fri 17:00-20:00, Sat-Sun 09:00-18:00 (Kuwait)",
       "Rush fees under 24h and 6-12h shown before pay",
       "Automatic Zoom room after payment",
       "Certificate after examiner approval",
