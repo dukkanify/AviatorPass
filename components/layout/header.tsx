@@ -64,11 +64,13 @@ function Header() {
         "pt-[env(safe-area-inset-top,0px)]",
         solid
           ? "border-b border-white/10 bg-[var(--surface-ink)]/80 shadow-[0_1px_0_0_rgba(204,160,76,0.14)] backdrop-blur-2xl"
-          : "border-b border-transparent bg-transparent",
+          : // Desktop can sit transparent on the hero; mobile needs a solid bar
+            // so logo + menu stay readable over bright sky/aircraft.
+            "border-b border-transparent bg-transparent max-lg:border-white/10 max-lg:bg-[var(--surface-ink)]/92 max-lg:shadow-[0_1px_0_0_rgba(204,160,76,0.14)] max-lg:backdrop-blur-xl",
       )}
     >
       <div className="container-app relative flex h-[4.25rem] items-center justify-between gap-2 sm:h-[4.85rem] sm:gap-3">
-        <div className="relative z-10 min-w-0 shrink">
+        <div className="relative z-10 min-w-0 shrink drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)]">
           <BrandLogo
             variant="dark"
             href={routes.home}
@@ -170,7 +172,7 @@ function Header() {
         <Button
           variant="ghost"
           size="icon"
-          className="touch-target relative z-10 shrink-0 rounded-xl text-white hover:bg-white/10 lg:hidden"
+          className="touch-target relative z-10 shrink-0 rounded-xl border border-white/20 bg-white/10 text-white shadow-[0_1px_8px_rgba(0,0,0,0.35)] hover:bg-white/16 lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="mobile-nav"
