@@ -54,7 +54,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
   const subjectCount = subjects.length;
   const subjectLabel = subjectCount === 1 ? "ATPL Subject" : "ATPL Subjects";
   const overviewStats = [
-    { value: String(subjectCount || "—"), label: subjectLabel },
+    { value: String(subjectCount || "-"), label: subjectLabel },
     ...COURSE_OVERVIEW.stats.slice(1),
   ];
 
@@ -145,7 +145,7 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
             Review every subject and its description before you continue. {subjectCount} theory
-            papers are included — no separate purchases.
+            papers are included, no separate purchases.
           </p>
           <AtplSubjectGrid subjects={subjects} />
         </div>

@@ -321,7 +321,7 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
             All {subjects.length} theory subjects below are included in the{" "}
-            {ATPL_COMPLETE_PACKAGE_NAME} — not separate products. Choose the package to review
+            {ATPL_COMPLETE_PACKAGE_NAME}, not separate products. Choose the package to review
             descriptions and joining terms.
           </p>
           <AtplSubjectGrid subjects={subjects} reveal />

@@ -14,7 +14,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Flightpath",
   description:
-    "Three altitudes on AviatorPass — course engine, live Zoom lane, and mastery loop for ATPL readiness.",
+    "Three altitudes on AviatorPass, course engine, live Zoom lane, and mastery loop for ATPL readiness.",
   alternates: { canonical: routes.flightpath },
   openGraph: {
     title: "Flightpath | AviatorPass",
@@ -39,7 +39,7 @@ export default function FlightpathPage() {
           name: "AviatorPass Flightpath",
           url: `${siteConfig.url}${routes.flightpath}`,
           description:
-            "Course engine, live Zoom coaching, and mastery loop — the AviatorPass training path.",
+            "Course engine, live Zoom coaching, and mastery loop, the AviatorPass training path.",
           isPartOf: { "@type": "WebSite", name: siteConfig.name, url: siteConfig.url },
         }}
       />

@@ -76,7 +76,7 @@ describe("ELP mock exam customer journey", () => {
     });
   });
 
-  it("keeps Mon–Fri 17–20 and Sat–Sun 09–18 in Kuwait time", () => {
+  it("keeps Mon-Fri 17-20 and Sat-Sun 09-18 in Kuwait time", () => {
     const tuesday = upcomingKuwaitWeekday(2);
     const saturday = upcomingKuwaitWeekday(6);
     const examiner = readAuthDb().users.find((u) => u.role === ROLES.INSTRUCTOR)!;
@@ -202,7 +202,7 @@ describe("ELP mock exam customer journey", () => {
     expect(readPaymentsDb().products.some((p) => p.metadata?.sku === "ELP-MOCK")).toBe(true);
     expect(ELP_PAGE.intro).toMatch(/rush fee/i);
     expect(ONLINE_COURSE_PROGRAMMES.find((p) => p.id === "elp")?.points.join(" ")).toMatch(
-      /17:00–20:00/,
+      /17:00-20:00/,
     );
   });
 });

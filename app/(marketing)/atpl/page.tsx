@@ -14,12 +14,12 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "ATPL Course",
   description:
-    "Review the Aviator Pass ATPL Complete Package — 13 ATPL theory subjects, joining terms, then choose your study start at checkout. Sessions are LIVE. Recordings are not available to students.",
+    "Review the Aviator Pass ATPL Complete Package, 13 ATPL theory subjects, joining terms, then choose your study start at checkout. Sessions are LIVE. Recordings are not available to students.",
   alternates: { canonical: routes.atpl },
   openGraph: {
     title: "ATPL Course | Aviator Pass",
     description:
-      "Complete ATPL preparation in one programme — live training, official ATPL syllabus, pay first, account after payment.",
+      "Complete ATPL preparation in one programme, live training, official ATPL syllabus, pay first, account after payment.",
     url: routes.atpl,
   },
 };

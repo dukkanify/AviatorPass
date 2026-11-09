@@ -44,7 +44,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     delivery: "immediate",
     emailDefault: true,
     defaultTitle: "Account created",
-    defaultBody: "Welcome to Aviator Pass — your account is ready.",
+    defaultBody: "Welcome to Aviator Pass, your account is ready.",
     audiences: ["all"],
   },
   "account.email_verified": {
@@ -176,7 +176,7 @@ export const NOTIFICATION_CATALOG: Record<string, NotificationTypeDefinition> = 
     delivery: "immediate",
     emailDefault: true,
     defaultTitle: "Your live program starts today",
-    defaultBody: "Your live AviatorPass program is ready — open My Courses and the timetable.",
+    defaultBody: "Your live AviatorPass program is ready, open My Courses and the timetable.",
     audiences: ["student"],
   },
   "course.atpl_enrolled": {

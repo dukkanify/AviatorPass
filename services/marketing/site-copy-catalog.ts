@@ -22,7 +22,7 @@ export const FLIGHTPATH_PAGE = {
   title: "Three altitudes",
   subtitle: "One training OS from syllabus to license readiness",
   intro:
-    "Learn on structured ATPL lanes, book live Zoom when you need altitude, then prove mastery — without brochure noise.",
+    "Learn on structured ATPL lanes, book live Zoom when you need altitude, then prove mastery, without brochure noise.",
 } as const;
 
 export const LIVE_PAGE = {

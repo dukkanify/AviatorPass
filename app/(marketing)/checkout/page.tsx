@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/shared/loading-state";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Secure checkout — Enrol in Aviator Pass",
+  title: "Secure checkout, Enrol in Aviator Pass",
   description:
     "Pay for Aviator Pass first. Choose your study start date and first lecture time, then complete payment. Your student account is created automatically after successful payment.",
 };

@@ -172,7 +172,7 @@ async function alertUnableToSchedule(input: {
   const student = input.request.studentId ? findUserById(input.request.studentId) : null;
   const instructor = findUserById(input.request.instructorId);
   const course = input.request.courseId ? getCourseById(input.request.courseId) : null;
-  const subjectTitle = course ? `${course.code} — ${course.title}` : input.request.lessonTitle;
+  const subjectTitle = course ? `${course.code}, ${course.title}` : input.request.lessonTitle;
   const studentLabel = displayName(student);
   const instructorLabel = displayName(instructor);
   const title = "Unable to Schedule";
@@ -245,7 +245,7 @@ async function alertUnableToSchedule(input: {
   await dispatchEmailEvent({
     event: "admin_alert",
     userIds: recipients,
-    subject: "Unable to Schedule — Scheduling Required",
+    subject: "Unable to Schedule, Scheduling Required",
     data: {
       title,
       detail: body,

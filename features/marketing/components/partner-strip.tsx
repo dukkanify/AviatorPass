@@ -35,7 +35,7 @@ function PartnerStrip() {
               <span className="partner-strip-link partner-strip-link-static">
                 <Image
                   src={partner.src}
-                  alt={`${partner.name} — reserved`}
+                  alt={`${partner.name}, reserved`}
                   width={160}
                   height={40}
                   unoptimized

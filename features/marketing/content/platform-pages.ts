@@ -4,7 +4,7 @@ export const FLIGHTPATH_STEPS = [
   {
     code: "01",
     title: "Course engine",
-    body: "ATPL theory modules sequenced like a real syllabus — lessons, resources, and progress in one lane.",
+    body: "ATPL theory modules sequenced like a real syllabus, lessons, resources, and progress in one lane.",
   },
   {
     code: "02",
@@ -14,7 +14,7 @@ export const FLIGHTPATH_STEPS = [
   {
     code: "03",
     title: "Mastery loop",
-    body: "Quizzes, certificates, and proof of readiness — every hour of study moves the license forward.",
+    body: "Quizzes, certificates, and proof of readiness, every hour of study moves the license forward.",
   },
 ] as const;
 
@@ -22,7 +22,7 @@ export const LIVE_STEPS = [
   {
     code: "01",
     title: "Reserve a window",
-    body: "Pick an instructor and an open GMT slot in the booking studio — only bookable times appear.",
+    body: "Pick an instructor and an open GMT slot in the booking studio, only bookable times appear.",
   },
   {
     code: "02",

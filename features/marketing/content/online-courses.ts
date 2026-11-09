@@ -5,7 +5,7 @@ export const ONLINE_COURSES_HUB = {
   kicker: "Online Courses",
   title: "Choose the pathway that matches your aviation stage",
   intro:
-    "Aviator Pass is a complete aviation education platform. Explore live and recorded programmes taught by EASA Certified Instructors — from first principles through airline theory.",
+    "Aviator Pass is a complete aviation education platform. Explore live and recorded programmes taught by EASA Certified Instructors, from first principles through airline theory.",
   locationsLabel: "Dubai · Copenhagen · Kuwait · Qatar",
 } as const;
 
@@ -19,11 +19,11 @@ export const ONLINE_COURSE_PROGRAMMES = [
     enrollLabel: ACTION_LABELS.chooseAtplPackage,
     modes: [{ label: "Live", href: routes.atpl }],
     summary:
-      "ATPL Complete Package — 13 theory subjects. Sessions are LIVE. Recordings are not available to students. Review the package, then pay first — your account is created automatically.",
+      "ATPL Complete Package, 13 theory subjects. Sessions are LIVE. Recordings are not available to students. Review the package, then pay first, your account is created automatically.",
     points: [
       "13 ATPL subjects in one package",
       "EASA Certified Instructors",
-      "Live sessions only — no student recordings",
+      "Live sessions only, no student recordings",
       "Start date and first lecture chosen at checkout",
     ],
   },
@@ -38,7 +38,7 @@ export const ONLINE_COURSE_PROGRAMMES = [
       { label: "Live One-to-One", href: `${routes.onlineCoursesBasics}?mode=live` },
     ],
     summary:
-      "A foundation programme for new aviation students — available as a recorded course or live one-to-one with an EASA Certified Instructor.",
+      "A foundation programme for new aviation students, available as a recorded course or live one-to-one with an EASA Certified Instructor.",
     points: [
       "Recorded self-paced lane",
       "Live One-to-One lane",
@@ -56,8 +56,8 @@ export const ONLINE_COURSE_PROGRAMMES = [
     summary:
       "Live English Language Proficiency mock exam. Choose a slot, review rush fees, pay, then sit the exam on Zoom. Certificate after examiner approval.",
     points: [
-      "Mon–Fri 17:00–20:00 · Sat–Sun 09:00–18:00 (Kuwait)",
-      "Rush fees under 24h and 6–12h shown before pay",
+      "Mon-Fri 17:00-20:00 · Sat-Sun 09:00-18:00 (Kuwait)",
+      "Rush fees under 24h and 6-12h shown before pay",
       "Automatic Zoom room after payment",
       "Certificate after examiner approval",
     ],
@@ -94,7 +94,7 @@ export const ONLINE_COURSES_FAQ = [
   },
   {
     q: "Who teaches the courses?",
-    a: "All programmes are taught by EASA Certified Instructors — one of Aviator Pass’s strongest academic commitments.",
+    a: "All programmes are taught by EASA Certified Instructors, one of Aviator Pass’s strongest academic commitments.",
   },
 ] as const;
 

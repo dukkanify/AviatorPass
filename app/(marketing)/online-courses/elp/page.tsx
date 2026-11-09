@@ -25,7 +25,7 @@ const STEPS = [
   },
   {
     title: "Pick a slot",
-    body: "Only working hours appear: Monday–Friday 17:00–20:00 and Saturday–Sunday 09:00–18:00 (Kuwait time).",
+    body: "Only working hours appear: Monday-Friday 17:00-20:00 and Saturday-Sunday 09:00-18:00 (Kuwait time).",
   },
   {
     title: "Review the price",

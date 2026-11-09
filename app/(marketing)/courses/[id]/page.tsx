@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (subject) {
     return {
       title: subject.title,
-      description: subject.shortDescription || `${subject.title} — ATPL subject`,
+      description: subject.shortDescription || `${subject.title}, ATPL subject`,
     };
   }
   const course = getPublicListedCourseByRef(id);

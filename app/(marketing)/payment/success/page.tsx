@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/shared/loading-state";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Payment successful — AviatorPass",
+  title: "Payment successful, AviatorPass",
   description: "Your Aviator Pass payment was received and enrolment is being confirmed.",
 };
 
