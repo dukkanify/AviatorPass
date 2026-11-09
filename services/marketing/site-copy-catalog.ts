@@ -71,6 +71,7 @@ export const SITE_COPY_PAGES: SiteCopyPageDef[] = [
       { key: "about.whyChoose.3", label: "Why choose 4", multiline: true },
       { key: "about.whyChoose.4", label: "Why choose 5", multiline: true },
       { key: "about.whyChoose.5", label: "Why choose 6", multiline: true },
+      { key: "about.whyChoose.6", label: "Why choose 7", multiline: true },
     ],
   },
   {
@@ -189,6 +190,7 @@ const DEFAULTS: Record<SiteCopyPageId, Record<string, string>> = {
     "about.whyChoose.3": ABOUT.whyChoose[3]!,
     "about.whyChoose.4": ABOUT.whyChoose[4]!,
     "about.whyChoose.5": ABOUT.whyChoose[5]!,
+    "about.whyChoose.6": ABOUT.whyChoose[6]!,
   },
   atpl: {
     "hero.kicker": ATPL_LANDING_HERO.kicker,

@@ -154,7 +154,7 @@ export function getHomeSiteCopy() {
         title: c[`about.values.${i}.title`] ?? "",
         body: c[`about.values.${i}.body`] ?? "",
       })),
-      whyChoose: [0, 1, 2, 3, 4, 5].map((i) => c[`about.whyChoose.${i}`] ?? ""),
+      whyChoose: [0, 1, 2, 3, 4, 5, 6].map((i) => c[`about.whyChoose.${i}`] ?? ""),
     },
   };
 }

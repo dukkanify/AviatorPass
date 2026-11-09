@@ -4,6 +4,7 @@ import {
   Award,
   BarChart3,
   BookOpen,
+  CalendarCheck,
   CheckCircle2,
   GraduationCap,
   Headphones,
@@ -12,6 +13,7 @@ import {
   MonitorPlay,
   Radio,
   Shield,
+  UserPlus,
   Users,
   Video,
   Zap,
@@ -24,6 +26,7 @@ import {
   CONTACT,
   FINAL_CTA,
   HERO,
+  HOW_IT_WORKS,
   INSTRUCTORS,
   LEARNING_METHOD,
   PAYMENTS,
@@ -40,6 +43,8 @@ import { EasaBadge } from "@/features/marketing/components/easa-badge";
 import { PartnerStrip } from "@/features/marketing/components/partner-strip";
 import { getHomeSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
+
+const HOW_IT_WORKS_ICONS = [UserPlus, BookOpen, CalendarCheck, Video] as const;
 
 const FEATURE_ICONS = [
   Video,
@@ -217,6 +222,37 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* —— How It Works —— */}
+      <section id="how-it-works" className="atpl-section atpl-section-light scroll-mt-28">
+        <div className="container-app">
+          <SectionKicker>{HOW_IT_WORKS.kicker}</SectionKicker>
+          <h2 className="atpl-heading mt-4 max-w-[14ch]">{HOW_IT_WORKS.title}</h2>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
+            {HOW_IT_WORKS.subtitle}
+          </p>
+          <div className="atpl-how-panel mt-12">
+            <ol className="atpl-how-grid">
+              {HOW_IT_WORKS.steps.map((step, index) => {
+                const Icon = HOW_IT_WORKS_ICONS[index]!;
+                const number = String(index + 1).padStart(2, "0");
+                return (
+                  <li key={step.title} className="atpl-how-step">
+                    <div className="atpl-how-step-top">
+                      <span className="atpl-how-icon" aria-hidden>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="atpl-how-number">{number}</span>
+                    </div>
+                    <h3 className="atpl-how-title">{step.title}</h3>
+                    <p className="atpl-how-body">{step.body}</p>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         </div>
       </section>

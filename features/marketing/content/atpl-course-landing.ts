@@ -133,6 +133,10 @@ export const COURSE_BENEFITS = {
       title: "Academy support",
       body: "Enrolment, scheduling, and platform help from the Aviator Pass team.",
     },
+    {
+      title: "No Hidden Fees",
+      body: "The price you see at checkout is the price you pay. No surprise add-ons after enrolment.",
+    },
   ],
 } as const;
 

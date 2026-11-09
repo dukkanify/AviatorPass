@@ -226,6 +226,87 @@
   box-shadow: 0 8px 40px -20px rgba(20, 48, 72, 0.15);
 }
 
+.atpl-how-panel {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border-radius: 1.35rem;
+  border: 1px solid rgba(20, 48, 72, 0.1);
+  background: #fff;
+  box-shadow: 0 10px 36px -24px rgba(20, 48, 72, 0.2);
+}
+
+.atpl-how-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .atpl-how-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .atpl-how-step:nth-child(odd) {
+    border-right: 1px solid rgba(20, 48, 72, 0.08);
+  }
+
+  .atpl-how-step:nth-child(-n + 2) {
+    border-bottom: 1px solid rgba(20, 48, 72, 0.08);
+  }
+}
+
+.atpl-how-step {
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.atpl-how-step-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.atpl-how-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(20, 48, 72, 0.1);
+  background: rgba(20, 48, 72, 0.04);
+  color: #143048;
+}
+
+.atpl-how-number {
+  font-family: var(--font-display), "Exo 2", sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: rgba(124, 123, 128, 0.45);
+}
+
+.atpl-how-title {
+  margin: 1.15rem 0 0;
+  font-family: var(--font-display), "Exo 2", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #143048;
+}
+
+.atpl-how-body {
+  margin: 0.55rem 0 0;
+  max-width: 28ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
 /* —— Feature cards —— */
 .atpl-feature-card {
   padding: 1.5rem;

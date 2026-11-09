@@ -58,6 +58,31 @@ export const ABOUT = {
     "Structured learning paths with assignments and performance reviews",
     "Mock examinations and practice assessments built into the programmes",
     "Dedicated academy support for students and instructors",
+    "No Hidden Fees",
+  ],
+} as const;
+
+export const HOW_IT_WORKS = {
+  kicker: "Getting started",
+  title: "How It Works",
+  subtitle: "From sign-up to live lectures in four clear steps.",
+  steps: [
+    {
+      title: "Create an Account",
+      body: "Register and set up your student profile.",
+    },
+    {
+      title: "Choose Your Package",
+      body: "Explore the available ATPL learning packages.",
+    },
+    {
+      title: "Book Your Session",
+      body: "Select an available learning session.",
+    },
+    {
+      title: "Start Learning",
+      body: "Join live classes and track your progress.",
+    },
   ],
 } as const;
 
@@ -165,6 +190,7 @@ export const PROGRAM = {
     "Recorded Pathways",
     "Complete Platform",
     "Premium Experience",
+    "No Hidden Fees",
   ],
 } as const;
 
@@ -222,7 +248,7 @@ export const PAYMENTS = {
   kicker: "Flexible Payment",
   title: "Professional installment options",
   intro:
-    "Invest in your aviation career with flexible payment methods designed for regional convenience. Full payment and installment plans are available at checkout.",
+    "Invest in your aviation career with flexible payment methods designed for regional convenience. Full payment and installment plans are available at checkout. No Hidden Fees.",
   regions: [
     {
       country: "Kuwait",
