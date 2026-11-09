@@ -46,7 +46,7 @@ export const PHASE2_PILLARS: Phase2Pillar[] = [
     flag: "mobileApps",
     train: "2.1",
     docPath: "docs/phase2/01-native-mobile.md",
-    summary: "React Native iOS/Android — student & instructor apps, push, offline, biometrics.",
+    summary: "React Native iOS/Android, student & instructor apps, push, offline, biometrics.",
   },
   {
     id: "P2-02",
@@ -86,7 +86,7 @@ export const PHASE2_PILLARS: Phase2Pillar[] = [
     flag: "crmIntegration",
     train: "2.2",
     docPath: "docs/phase2/06-crm-integration.md",
-    summary: "HubSpot, Salesforce, Zoho, Dynamics — extensible connectors.",
+    summary: "HubSpot, Salesforce, Zoho, Dynamics, extensible connectors.",
   },
   {
     id: "P2-07",

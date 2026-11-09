@@ -14,7 +14,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Live Zoom coaching",
   description:
-    "Clear turbulence with a live AviatorPass instructor — reserve a GMT window, confirm by email, join Zoom from your lobby.",
+    "Clear turbulence with a live AviatorPass instructor, reserve a GMT window, confirm by email, join Zoom from your lobby.",
   alternates: { canonical: routes.live },
   openGraph: {
     title: "Live Zoom coaching | AviatorPass",
@@ -39,7 +39,7 @@ export default function LiveCoachingPage() {
           name: "AviatorPass Live Zoom coaching",
           url: `${siteConfig.url}${routes.live}`,
           description:
-            "Book live Zoom instructor sessions on AviatorPass — confirm by email and join from the lobby.",
+            "Book live Zoom instructor sessions on AviatorPass, confirm by email and join from the lobby.",
           isPartOf: { "@type": "WebSite", name: siteConfig.name, url: siteConfig.url },
         }}
       />
@@ -85,7 +85,7 @@ export default function LiveCoachingPage() {
             Reserve. Confirm. Join Zoom.
           </h2>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Live coaching is its own page — the booking studio is where you pick the GMT slot.
+            Live coaching is its own page, the booking studio is where you pick the GMT slot.
           </p>
           <div className="landing-rule mt-12 mb-4 opacity-70" />
           <ol className="flightpath-spine mt-14 space-y-14 md:space-y-16">
@@ -119,7 +119,7 @@ export default function LiveCoachingPage() {
                 Open the booking studio when you are ready
               </h2>
               <p className="mt-5 max-w-xl text-base leading-relaxed text-white/62 sm:text-lg">
-                Choose mentoring, exam prep, or office hours — times show in GMT.
+                Choose mentoring, exam prep, or office hours, times show in GMT.
               </p>
             </div>
             <Button

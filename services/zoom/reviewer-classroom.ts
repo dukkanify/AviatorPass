@@ -20,7 +20,7 @@ import type { LiveClass } from "@/types/classes";
 
 export const REVIEWER_INSTRUCTOR_EMAIL = "zoom.reviewer.instructor@aviatorpass.com";
 export const REVIEWER_STUDENT_EMAIL = "zoom.reviewer.student@aviatorpass.com";
-export const REVIEWER_CLASS_TITLE = "Marketplace reviewer classroom — ATPL meteorology";
+export const REVIEWER_CLASS_TITLE = "Marketplace reviewer classroom, ATPL meteorology";
 
 const PLATFORM_ZOOM_EMAILS = ["ceo@aviatorpass.com"];
 

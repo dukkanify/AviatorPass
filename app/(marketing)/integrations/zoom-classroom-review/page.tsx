@@ -56,8 +56,7 @@ export default function ZoomClassroomMarketplaceReviewPage() {
             {CLASSROOM_REVIEW_UPDATED}. Passwords are not published here.
           </p>
           <p className="mt-4 max-w-2xl text-sm font-medium text-accent sm:text-base">
-            {CLASSROOM_REVIEW_READINESS.label} — checked {CLASSROOM_REVIEW_READINESS.checkedAtLabel}
-            .
+            {CLASSROOM_REVIEW_READINESS.label}, checked {CLASSROOM_REVIEW_READINESS.checkedAtLabel}.
           </p>
         </div>
       </section>

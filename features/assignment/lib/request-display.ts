@@ -27,16 +27,16 @@ export function humanConflictLines(summary: string | null | undefined): string[]
       const label = cleanConflictLabel(rest.join(":").trim() || sourceText);
       const key = sourceText.toLowerCase();
       if (key === "outside_availability") {
-        return "Preferred time is outside this instructor's available hours — pick another time or instructor.";
+        return "Preferred time is outside this instructor's available hours, pick another time or instructor.";
       }
       if (key === "live_class") {
-        return `Overlaps live class "${label}" — choose a free slot on the calendar.`;
+        return `Overlaps live class "${label}", choose a free slot on the calendar.`;
       }
       if (key === "booking") {
-        return `Overlaps booking "${label}" — choose a free slot on the calendar.`;
+        return `Overlaps booking "${label}", choose a free slot on the calendar.`;
       }
       if (key === "availability_block") {
-        return `Instructor is blocked ("${label}") — pick another time.`;
+        return `Instructor is blocked ("${label}"), pick another time.`;
       }
       return label;
     });
@@ -87,7 +87,7 @@ export function formatEventWhen(startsAt: string, endsAt?: string | null): strin
     minute: "2-digit",
     hour12: false,
   });
-  return `${date} · ${time}–${endTime}`;
+  return `${date} · ${time}-${endTime}`;
 }
 
 export function eventDayKey(startsAt: string): string {

@@ -21,7 +21,7 @@ function AtplStickyEnrol({ enrollHref, priceLabel }: AtplStickyEnrolProps) {
             {ATPL_COMPLETE_PACKAGE_NAME}
           </p>
           <p className="break-words text-sm leading-snug text-white/75">
-            {priceLabel ? `From ${priceLabel} · ` : ""}13 subjects · pay first — account after
+            {priceLabel ? `From ${priceLabel} · ` : ""}13 subjects · pay first, account after
             payment
           </p>
         </div>

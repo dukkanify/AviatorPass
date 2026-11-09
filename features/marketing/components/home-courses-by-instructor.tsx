@@ -27,7 +27,7 @@ function HomeCoursesByInstructor() {
                 Published ATPL lanes by instructor
               </h2>
               <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Open a lane for the full syllabus — then enter the platform to enroll, or book live
+                Open a lane for the full syllabus, then enter the platform to enroll, or book live
                 Zoom when you need coaching altitude.
               </p>
             </div>

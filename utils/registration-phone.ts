@@ -57,7 +57,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[569]\d{7}$/,
     placeholder: "5XXX XXXX",
-    hint: "Kuwait mobile — 8 digits starting with 5, 6, or 9",
+    hint: "Kuwait mobile, 8 digits starting with 5, 6, or 9",
   },
   {
     code: "AE",
@@ -67,7 +67,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^5\d{8}$/,
     placeholder: "5X XXX XXXX",
-    hint: "UAE mobile — 9 digits starting with 5",
+    hint: "UAE mobile, 9 digits starting with 5",
   },
   {
     code: "SA",
@@ -77,7 +77,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^5\d{8}$/,
     placeholder: "5X XXX XXXX",
-    hint: "Saudi mobile — 9 digits starting with 5",
+    hint: "Saudi mobile, 9 digits starting with 5",
   },
   {
     code: "QA",
@@ -87,7 +87,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[3567]\d{7}$/,
     placeholder: "3XXX XXXX",
-    hint: "Qatar mobile — 8 digits starting with 3, 5, 6, or 7",
+    hint: "Qatar mobile, 8 digits starting with 3, 5, 6, or 7",
   },
   {
     code: "BH",
@@ -97,7 +97,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[13-9]\d{7}$/,
     placeholder: "3XXX XXXX",
-    hint: "Bahrain mobile — 8 digits",
+    hint: "Bahrain mobile, 8 digits",
   },
   {
     code: "OM",
@@ -107,7 +107,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[79]\d{7}$/,
     placeholder: "9XXX XXXX",
-    hint: "Oman mobile — 8 digits starting with 7 or 9",
+    hint: "Oman mobile, 8 digits starting with 7 or 9",
   },
   {
     code: "EG",
@@ -117,7 +117,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^1[0125]\d{8}$/,
     placeholder: "10 XXXX XXXX",
-    hint: "Egypt mobile — 10 digits starting with 10, 11, 12, or 15 (no leading 0)",
+    hint: "Egypt mobile, 10 digits starting with 10, 11, 12, or 15 (no leading 0)",
   },
   {
     code: "JO",
@@ -127,7 +127,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^7\d{8}$/,
     placeholder: "7X XXX XXXX",
-    hint: "Jordan mobile — 9 digits starting with 7",
+    hint: "Jordan mobile, 9 digits starting with 7",
   },
   {
     code: "LB",
@@ -137,7 +137,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[378]\d{7}$/,
     placeholder: "3XXX XXXX",
-    hint: "Lebanon mobile — 8 digits starting with 3, 7, or 8",
+    hint: "Lebanon mobile, 8 digits starting with 3, 7, or 8",
   },
   {
     code: "IQ",
@@ -147,7 +147,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^7\d{9}$/,
     placeholder: "7XX XXX XXXX",
-    hint: "Iraq mobile — 10 digits starting with 7",
+    hint: "Iraq mobile, 10 digits starting with 7",
   },
   {
     code: "SY",
@@ -157,7 +157,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^9\d{8}$/,
     placeholder: "9XX XXX XXX",
-    hint: "Syria mobile — 9 digits starting with 9",
+    hint: "Syria mobile, 9 digits starting with 9",
   },
   {
     code: "PS",
@@ -167,7 +167,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^5\d{8}$/,
     placeholder: "5X XXX XXXX",
-    hint: "Palestine mobile — 9 digits starting with 5",
+    hint: "Palestine mobile, 9 digits starting with 5",
   },
   {
     code: "TR",
@@ -177,7 +177,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^5\d{9}$/,
     placeholder: "5XX XXX XXXX",
-    hint: "Turkey mobile — 10 digits starting with 5",
+    hint: "Turkey mobile, 10 digits starting with 5",
   },
   {
     code: "IN",
@@ -187,7 +187,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^[6-9]\d{9}$/,
     placeholder: "9XXXX XXXXX",
-    hint: "India mobile — 10 digits starting with 6–9",
+    hint: "India mobile, 10 digits starting with 6-9",
   },
   {
     code: "PK",
@@ -197,7 +197,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^3\d{9}$/,
     placeholder: "3XX XXXXXXX",
-    hint: "Pakistan mobile — 10 digits starting with 3",
+    hint: "Pakistan mobile, 10 digits starting with 3",
   },
   {
     code: "BD",
@@ -207,7 +207,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^1\d{9}$/,
     placeholder: "1XXX XXXXXX",
-    hint: "Bangladesh mobile — 10 digits starting with 1",
+    hint: "Bangladesh mobile, 10 digits starting with 1",
   },
   {
     code: "PH",
@@ -217,7 +217,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^9\d{9}$/,
     placeholder: "9XX XXX XXXX",
-    hint: "Philippines mobile — 10 digits starting with 9",
+    hint: "Philippines mobile, 10 digits starting with 9",
   },
   {
     code: "GB",
@@ -227,7 +227,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^7\d{9}$/,
     placeholder: "7XXX XXXXXX",
-    hint: "UK mobile — 10 digits starting with 7",
+    hint: "UK mobile, 10 digits starting with 7",
   },
   {
     code: "US",
@@ -237,7 +237,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^[2-9]\d{9}$/,
     placeholder: "(201) 555-0123",
-    hint: "US mobile — 10 digits",
+    hint: "US mobile, 10 digits",
   },
   {
     code: "CA",
@@ -247,7 +247,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^[2-9]\d{9}$/,
     placeholder: "(416) 555-0123",
-    hint: "Canada mobile — 10 digits",
+    hint: "Canada mobile, 10 digits",
   },
   {
     code: "AU",
@@ -257,7 +257,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^4\d{8}$/,
     placeholder: "4XX XXX XXX",
-    hint: "Australia mobile — 9 digits starting with 4",
+    hint: "Australia mobile, 9 digits starting with 4",
   },
   {
     code: "DE",
@@ -267,7 +267,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 11,
     pattern: /^1[5-7]\d{8,9}$/,
     placeholder: "15X XXXXXXXX",
-    hint: "Germany mobile — 10–11 digits starting with 15, 16, or 17",
+    hint: "Germany mobile, 10-11 digits starting with 15, 16, or 17",
   },
   {
     code: "FR",
@@ -277,7 +277,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^[67]\d{8}$/,
     placeholder: "6 XX XX XX XX",
-    hint: "France mobile — 9 digits starting with 6 or 7",
+    hint: "France mobile, 9 digits starting with 6 or 7",
   },
   {
     code: "IT",
@@ -287,7 +287,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^3\d{9}$/,
     placeholder: "3XX XXX XXXX",
-    hint: "Italy mobile — 10 digits starting with 3",
+    hint: "Italy mobile, 10 digits starting with 3",
   },
   {
     code: "ES",
@@ -297,7 +297,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^[67]\d{8}$/,
     placeholder: "6XX XXX XXX",
-    hint: "Spain mobile — 9 digits starting with 6 or 7",
+    hint: "Spain mobile, 9 digits starting with 6 or 7",
   },
   {
     code: "NL",
@@ -307,7 +307,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^6\d{8}$/,
     placeholder: "6 XXXXXXXX",
-    hint: "Netherlands mobile — 9 digits starting with 6",
+    hint: "Netherlands mobile, 9 digits starting with 6",
   },
   {
     code: "ZA",
@@ -317,7 +317,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^[6-8]\d{8}$/,
     placeholder: "8X XXX XXXX",
-    hint: "South Africa mobile — 9 digits starting with 6–8",
+    hint: "South Africa mobile, 9 digits starting with 6-8",
   },
   {
     code: "NG",
@@ -327,7 +327,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 10,
     pattern: /^[789]\d{9}$/,
     placeholder: "801 XXX XXXX",
-    hint: "Nigeria mobile — 10 digits starting with 7, 8, or 9",
+    hint: "Nigeria mobile, 10 digits starting with 7, 8, or 9",
   },
   {
     code: "KE",
@@ -337,7 +337,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^7\d{8}$/,
     placeholder: "7XX XXX XXX",
-    hint: "Kenya mobile — 9 digits starting with 7",
+    hint: "Kenya mobile, 9 digits starting with 7",
   },
   {
     code: "MA",
@@ -347,7 +347,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 9,
     pattern: /^[67]\d{8}$/,
     placeholder: "6XX XXX XXX",
-    hint: "Morocco mobile — 9 digits starting with 6 or 7",
+    hint: "Morocco mobile, 9 digits starting with 6 or 7",
   },
   {
     code: "TN",
@@ -357,7 +357,7 @@ export const REGISTRATION_PHONE_COUNTRIES: readonly RegistrationPhoneCountry[] =
     localLength: 8,
     pattern: /^[2459]\d{7}$/,
     placeholder: "2X XXX XXX",
-    hint: "Tunisia mobile — 8 digits",
+    hint: "Tunisia mobile, 8 digits",
   },
 ] as const;
 
@@ -456,7 +456,7 @@ export function validateLocalMobile(
 
   if (dial.code === "DE") {
     if (localDigits.length < 10) {
-      return "Germany mobile numbers are 10–11 digits starting with 15, 16, or 17";
+      return "Germany mobile numbers are 10-11 digits starting with 15, 16, or 17";
     }
     if (!dial.pattern.test(localDigits)) {
       return "Enter a valid Germany mobile number (starts with 15, 16, or 17)";

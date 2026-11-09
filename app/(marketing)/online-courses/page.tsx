@@ -11,7 +11,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Online Courses",
   description:
-    "Aviator Pass Online Courses: ATPL Course, Basics of Aviation, Private Pilot License, and ELP Mock Exams Live — taught by EASA Certified Instructors.",
+    "Aviator Pass Online Courses: ATPL Course, Basics of Aviation, Private Pilot License, and ELP Mock Exams Live, taught by EASA Certified Instructors.",
   alternates: { canonical: routes.onlineCourses },
 };
 

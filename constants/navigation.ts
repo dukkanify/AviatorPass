@@ -106,5 +106,5 @@ export const APP_METADATA = {
     template: "%s | Aviator Pass",
   },
   description:
-    "Aviator Pass — a complete aviation education platform with EASA Certified Instructors. Online courses covering Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams across Dubai, Copenhagen, Kuwait, and Qatar.",
+    "Aviator Pass, a complete aviation education platform with EASA Certified Instructors. Online courses covering Basics of Aviation, Private Pilot License, ATPL theory, and ELP mock exams across Dubai, Copenhagen, Kuwait, and Qatar.",
 } as const;

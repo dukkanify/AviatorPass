@@ -68,7 +68,7 @@ function SiteCopyManager() {
       return;
     }
     setPages((prev) => prev.map((p) => (p.id === result.data!.id ? result.data! : p)));
-    toast.success("Site copy saved — live on the website");
+    toast.success("Site copy saved, live on the website");
   }
 
   async function resetPage() {

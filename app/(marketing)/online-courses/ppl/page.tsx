@@ -17,7 +17,7 @@ type PageProps = { searchParams?: Promise<{ mode?: string; country?: string }> }
 export const metadata: Metadata = {
   title: "Private Pilot License",
   description:
-    "Private Pilot License on Aviator Pass — recorded or live one-to-one with EASA Certified Instructors.",
+    "Private Pilot License on Aviator Pass, recorded or live one-to-one with EASA Certified Instructors.",
   alternates: { canonical: routes.onlineCoursesPpl },
 };
 

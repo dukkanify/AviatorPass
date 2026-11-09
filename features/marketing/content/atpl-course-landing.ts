@@ -10,8 +10,8 @@ export const ATPL_LANDING_HERO = {
     "One package. Thirteen ATPL theory subjects. Live instructors. Review every subject, accept the joining terms, then choose your study start on checkout.",
   proof: [
     "13 ATPL subjects included in one package",
-    "Pay first — account created automatically",
-    "Sessions are LIVE — recordings are not available to students",
+    "Pay first, account created automatically",
+    "Sessions are LIVE, recordings are not available to students",
     "Start date and first lecture chosen at checkout (72-hour minimum)",
   ],
   primaryCta: "Choose this package",
@@ -48,7 +48,7 @@ export const WHO_SHOULD_JOIN = {
     },
     {
       title: "International students",
-      body: "You train from Dubai, Copenhagen, Kuwait, Qatar, or anywhere Stripe supports — currency is selected automatically at checkout.",
+      body: "You train from Dubai, Copenhagen, Kuwait, Qatar, or anywhere Stripe supports, currency is selected automatically at checkout.",
     },
   ],
 } as const;
@@ -73,7 +73,7 @@ export const COURSE_STRUCTURE = {
     {
       step: "01",
       title: "Foundation",
-      body: "Air law, human performance, and communications — the professional baseline every session builds on.",
+      body: "Air law, human performance, and communications, the professional baseline every session builds on.",
     },
     {
       step: "02",
@@ -99,7 +99,7 @@ export const ATPL_LIVE_TRAINING = {
   body: "ATPL Course sessions are delivered live with an EASA Certified Instructor. Recordings are not available to students. Sessions may only be recorded internally for quality assurance.",
   points: [
     "Every ATPL session is conducted live with an instructor",
-    "Interactive participation — questions, exercises, and discussions",
+    "Interactive participation, questions, exercises, and discussions",
     "Recordings are not available to students",
     "Internal recording, if any, is for quality assurance only",
   ],
@@ -202,7 +202,7 @@ export const ATPL_FAQS = [
   },
   {
     q: "I already have an Aviator Pass account.",
-    a: "Pay with the same email. We attach the purchase to your existing student profile and activate the course — we do not create a second user.",
+    a: "Pay with the same email. We attach the purchase to your existing student profile and activate the course, we do not create a second user.",
   },
   {
     q: "What if payment fails?",
@@ -218,11 +218,11 @@ export const PRICING = {
     "Full ATPL theory programme with EASA Certified Instructors, all 13 package subjects, mock exams, and platform access. You review the package, pay first, and registration is automatic.",
   bullets: [
     "13 ATPL subjects included",
-    "Live instructor-led sessions — no student recordings",
+    "Live instructor-led sessions, no student recordings",
     "Study start date and first lecture chosen at checkout",
     "Student dashboard, progress, and certificates",
     "Invoice issued after payment",
-    "Account created automatically — no pre-registration",
+    "Account created automatically, no pre-registration",
   ],
   note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible.",
   cta: "Choose this package",

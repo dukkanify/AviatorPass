@@ -17,7 +17,7 @@ type PageProps = { searchParams?: Promise<{ mode?: string; country?: string }> }
 export const metadata: Metadata = {
   title: "Basics of Aviation",
   description:
-    "Basics of Aviation on Aviator Pass — recorded or live one-to-one with EASA Certified Instructors.",
+    "Basics of Aviation on Aviator Pass, recorded or live one-to-one with EASA Certified Instructors.",
   alternates: { canonical: routes.onlineCoursesBasics },
 };
 

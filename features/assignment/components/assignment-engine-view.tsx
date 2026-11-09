@@ -497,7 +497,7 @@ function InstructorCalendarBoard({ calendar }: { calendar: CalendarPayload }) {
           <div className="mt-3 flex flex-wrap gap-2">
             {calendar.availability.map((window, idx) => (
               <Badge key={`${window.weekday}-${idx}`} variant="secondary" className="font-normal">
-                {WEEKDAYS[window.weekday]} {window.startTime}–{window.endTime}
+                {WEEKDAYS[window.weekday]} {window.startTime}-{window.endTime}
               </Badge>
             ))}
           </div>
@@ -797,7 +797,7 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
                   <SelectContent>
                     {data.atplCourses.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.title}
+                        {c.code}, {c.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1032,7 +1032,7 @@ export function AssignmentEngineView({ initial }: { initial: Snapshot }) {
                 )
               }
             >
-              Set Mon–Fri 09–17 availability
+              Set Mon-Fri 09-17 availability
             </Button>
           </div>
 

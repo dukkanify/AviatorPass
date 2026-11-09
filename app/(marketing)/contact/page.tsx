@@ -43,8 +43,8 @@ export default function ContactPage() {
             </div>
             <h2 className="font-display text-2xl tracking-tight">Talk to the academy team</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Email is the fastest way to reach an advisor. There is no WhatsApp or public live chat
-              — we keep student communication on official Aviator Pass channels.
+              Email is the fastest way to reach an advisor. There is no WhatsApp or public live
+              chat. We keep student communication on official Aviator Pass channels.
             </p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button asChild className="hero-cta-primary">

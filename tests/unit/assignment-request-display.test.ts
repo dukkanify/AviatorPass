@@ -16,14 +16,14 @@ describe("assignment request display", () => {
         "outside_availability: Outside instructor availability window; live_class: ATPL lecture · Instrumentation",
       ),
     ).toEqual([
-      "Preferred time is outside this instructor's available hours — pick another time or instructor.",
-      'Overlaps live class "ATPL lecture · Instrumentation" — choose a free slot on the calendar.',
+      "Preferred time is outside this instructor's available hours, pick another time or instructor.",
+      'Overlaps live class "ATPL lecture · Instrumentation", choose a free slot on the calendar.',
     ]);
   });
 
   it("hides raw blocking-class ids in conflict labels", () => {
     expect(humanConflictLines("live_class: Blocking class 1793637043043")).toEqual([
-      'Overlaps live class "another live class" — choose a free slot on the calendar.',
+      'Overlaps live class "another live class", choose a free slot on the calendar.',
     ]);
   });
 

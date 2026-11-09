@@ -9,7 +9,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Course catalog",
   description:
-    "Browse Aviator Pass courses by category — live and recorded programmes taught by EASA Certified Instructors.",
+    "Browse Aviator Pass courses by category, live and recorded programmes taught by EASA Certified Instructors.",
   alternates: { canonical: routes.courses },
   openGraph: {
     title: `Course catalog | ${siteConfig.name}`,
