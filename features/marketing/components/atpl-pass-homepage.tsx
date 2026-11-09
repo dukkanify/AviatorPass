@@ -421,12 +421,12 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
             <a
               href={`mailto:${siteStatic.contactEmail}`}
               className="atpl-contact-email"
-              aria-label={`Website contact ${siteStatic.contactEmail}`}
+              aria-label={`Inquiries ${siteStatic.contactEmail}`}
             >
               <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden />
               <span className="flex flex-col items-start text-left leading-tight">
                 <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
-                  Website
+                  Inquiries
                 </span>
                 <span className="whitespace-nowrap">{siteStatic.contactEmail}</span>
               </span>
