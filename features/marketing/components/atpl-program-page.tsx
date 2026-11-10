@@ -10,6 +10,7 @@ import {
 import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { cn } from "@/lib/utils";
+import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import {
@@ -235,6 +236,27 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
               />
             </div>
             <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{PRICING.note}</p>
+          </div>
+
+          <div className="mx-auto mt-16 max-w-3xl" aria-labelledby="before-enrol-heading">
+            <p className="atpl-kicker">Before you enrol</p>
+            <h3 id="before-enrol-heading" className="atpl-heading mt-4">
+              Payment and enrolment questions
+            </h3>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
+              Clear answers about checkout, accounts, and what happens after you pay. Full Q&A also
+              lives on the{" "}
+              <Link
+                href={routes.qa}
+                className="font-medium text-accent underline-offset-4 hover:underline"
+              >
+                Q&A page
+              </Link>
+              .
+            </p>
+            <div className="mt-8">
+              <AtplCourseFaq />
+            </div>
           </div>
         </div>
       </section>
