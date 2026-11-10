@@ -168,11 +168,11 @@ export function resolveCountryPrice(
           : isAtplPackage(product)
             ? ATPL_PACKAGE_PRICES
             : null;
-  // ATPL catalogue amounts win over stale product rows (e.g. old demo KWD 12).
+  // Catalogue defaults fill gaps; saved product / admin prices win.
   const table: Record<string, number> = {
+    ...(atplDefaults ?? {}),
     ...deriveListedPrices(product.priceAmount, product.currency),
     ...pricesByCurrencyOf(product),
-    ...(atplDefaults ?? {}),
   };
   if (typeof table[plan.currency] === "number") {
     return { currency: plan.currency, amount: table[plan.currency]!, country: plan.country };

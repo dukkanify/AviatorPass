@@ -467,11 +467,39 @@ function ensureAtplTierExist(): void {
   });
 }
 
-function atplCatalogPricesStale(
+/** Known old demo full-package amount that must not undercut tier prices. */
+const ATPL_DEMO_STALE_KWD = majorToMinor(12, "KWD");
+
+function fillMissingAtplPrices(
   prices: Record<string, number> | undefined,
   catalog: Record<string, number>,
+  options?: { migrateDemoKwd12?: boolean },
+): Record<string, number> | null {
+  const next: Record<string, number> = { ...(prices ?? {}) };
+  let changed = false;
+  for (const [code, amount] of Object.entries(catalog)) {
+    if (typeof next[code] !== "number") {
+      next[code] = amount;
+      changed = true;
+    }
+  }
+  if (
+    options?.migrateDemoKwd12 &&
+    next.KWD === ATPL_DEMO_STALE_KWD &&
+    catalog.KWD !== ATPL_DEMO_STALE_KWD
+  ) {
+    Object.assign(next, catalog);
+    changed = true;
+  }
+  return changed ? next : null;
+}
+
+function atplPricesNeedFill(
+  prices: Record<string, number> | undefined,
+  catalog: Record<string, number>,
+  options?: { migrateDemoKwd12?: boolean },
 ): boolean {
-  return Object.entries(catalog).some(([code, amount]) => prices?.[code] !== amount);
+  return fillMissingAtplPrices(prices, catalog, options) != null;
 }
 
 export function ensureAtplPackageAndRegionalRules(): void {
@@ -480,15 +508,13 @@ export function ensureAtplPackageAndRegionalRules(): void {
   const single = current.products.find((p) => p.metadata?.sku === "ATPL-SINGLE");
   const five = current.products.find((p) => p.metadata?.sku === "ATPL-5");
   const missingPrices = existing
-    ? Object.keys(ATPL_PACKAGE_PRICES).some(
-        (code) => typeof existing.pricesByCurrency?.[code] !== "number",
-      )
+    ? atplPricesNeedFill(existing.pricesByCurrency, ATPL_PACKAGE_PRICES, {
+        migrateDemoKwd12: true,
+      })
     : false;
-  const packagePricesStale =
-    Boolean(existing) && atplCatalogPricesStale(existing?.pricesByCurrency, ATPL_PACKAGE_PRICES);
-  const tierPricesStale =
-    (Boolean(single) && atplCatalogPricesStale(single?.pricesByCurrency, ATPL_SINGLE_PRICES)) ||
-    (Boolean(five) && atplCatalogPricesStale(five?.pricesByCurrency, ATPL_FIVE_PRICES));
+  const tierPricesNeedFill =
+    (Boolean(single) && atplPricesNeedFill(single?.pricesByCurrency, ATPL_SINGLE_PRICES)) ||
+    (Boolean(five) && atplPricesNeedFill(five?.pricesByCurrency, ATPL_FIVE_PRICES));
   const packageCourseIds = existing ? atplPackageCourseIds(false) : [];
   const currentIds = Array.isArray(existing?.metadata.courseIds)
     ? existing.metadata.courseIds.map(String)
@@ -503,8 +529,7 @@ export function ensureAtplPackageAndRegionalRules(): void {
   if (
     existing &&
     !missingPrices &&
-    !packagePricesStale &&
-    !tierPricesStale &&
+    !tierPricesNeedFill &&
     !courseIdsStale &&
     !needsRules &&
     !needsTiers
@@ -523,38 +548,29 @@ export function ensureAtplPackageAndRegionalRules(): void {
       d.regionalRules = defaultRegionalPaymentRules(d.settings.currency);
     }
     const stamp = new Date().toISOString();
-    const syncTier = (
-      sku: "ATPL-SINGLE" | "ATPL-5",
-      prices: Record<string, number>,
+    const fillTier = (
+      sku: "ATPL-SINGLE" | "ATPL-5" | "ATPL-PACKAGE",
+      catalog: Record<string, number>,
       compare: Record<string, number>,
+      options?: { migrateDemoKwd12?: boolean },
     ) => {
       const tier = d.products.find((p) => p.metadata?.sku === sku);
-      if (!tier || !atplCatalogPricesStale(tier.pricesByCurrency, prices)) return;
-      tier.pricesByCurrency = { ...prices };
-      tier.priceAmount = prices[d.settings.currency] ?? prices.KWD ?? tier.priceAmount;
+      if (!tier) return;
+      const filled = fillMissingAtplPrices(tier.pricesByCurrency, catalog, options);
+      if (!filled) return;
+      tier.pricesByCurrency = filled;
+      tier.priceAmount = filled[d.settings.currency] ?? filled.KWD ?? tier.priceAmount;
       tier.compareAtAmount = compare[d.settings.currency] ?? compare.KWD ?? tier.compareAtAmount;
       tier.updatedAt = stamp;
     };
-    syncTier("ATPL-SINGLE", ATPL_SINGLE_PRICES, ATPL_SINGLE_COMPARE_AT);
-    syncTier("ATPL-5", ATPL_FIVE_PRICES, ATPL_FIVE_COMPARE_AT);
+    fillTier("ATPL-SINGLE", ATPL_SINGLE_PRICES, ATPL_SINGLE_COMPARE_AT);
+    fillTier("ATPL-5", ATPL_FIVE_PRICES, ATPL_FIVE_COMPARE_AT);
+    fillTier("ATPL-PACKAGE", ATPL_PACKAGE_PRICES, ATPL_PACKAGE_COMPARE_AT, {
+      migrateDemoKwd12: true,
+    });
 
     const row = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
     if (row) {
-      if (
-        Object.keys(ATPL_PACKAGE_PRICES).some(
-          (code) => typeof row.pricesByCurrency?.[code] !== "number",
-        ) ||
-        atplCatalogPricesStale(row.pricesByCurrency, ATPL_PACKAGE_PRICES)
-      ) {
-        row.pricesByCurrency = { ...ATPL_PACKAGE_PRICES };
-        row.priceAmount =
-          ATPL_PACKAGE_PRICES[d.settings.currency as keyof typeof ATPL_PACKAGE_PRICES] ??
-          ATPL_PACKAGE_PRICES.KWD;
-        row.compareAtAmount =
-          ATPL_PACKAGE_COMPARE_AT[d.settings.currency as keyof typeof ATPL_PACKAGE_COMPARE_AT] ??
-          ATPL_PACKAGE_COMPARE_AT.KWD;
-        row.updatedAt = stamp;
-      }
       const nextCourseIds = atplPackageCourseIds();
       const ids = Array.isArray(row.metadata.courseIds) ? row.metadata.courseIds.map(String) : [];
       if (
