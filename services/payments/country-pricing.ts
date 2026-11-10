@@ -43,6 +43,39 @@ export const ATPL_PACKAGE_COMPARE_AT = {
   EUR: majorToMinor(7000, "EUR"),
 } as const;
 
+function scaleAtplPrices(
+  source: Record<string, number>,
+  subjectCount: number,
+  fullCount = 13,
+): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(source).map(([code, amount]) => [
+      code,
+      Math.max(1, Math.round((amount * subjectCount) / fullCount)),
+    ]),
+  );
+}
+
+/** Single-subject ATPL tier (1 of 13). */
+export const ATPL_SINGLE_PRICES = scaleAtplPrices(
+  ATPL_PACKAGE_PRICES,
+  1,
+) as typeof ATPL_PACKAGE_PRICES;
+export const ATPL_SINGLE_COMPARE_AT = scaleAtplPrices(
+  ATPL_PACKAGE_COMPARE_AT,
+  1,
+) as typeof ATPL_PACKAGE_COMPARE_AT;
+
+/** Five-subject ATPL tier. */
+export const ATPL_FIVE_PRICES = scaleAtplPrices(
+  ATPL_PACKAGE_PRICES,
+  5,
+) as typeof ATPL_PACKAGE_PRICES;
+export const ATPL_FIVE_COMPARE_AT = scaleAtplPrices(
+  ATPL_PACKAGE_COMPARE_AT,
+  5,
+) as typeof ATPL_PACKAGE_COMPARE_AT;
+
 type AtplCurrency = keyof typeof ATPL_PACKAGE_PRICES;
 
 export function atplPriceForCurrency(currency: string): number {
@@ -104,7 +137,13 @@ export function pricesByCurrencyOf(
 function isAtplPackage(
   product: Pick<CatalogProduct, "name"> & { metadata?: { sku?: unknown } },
 ): boolean {
-  return product.metadata?.sku === "ATPL-PACKAGE" || /ATPL/i.test(product.name);
+  const sku = product.metadata?.sku;
+  return (
+    sku === "ATPL-PACKAGE" ||
+    sku === "ATPL-5" ||
+    sku === "ATPL-SINGLE" ||
+    /ATPL/i.test(product.name)
+  );
 }
 
 export function resolveCountryPrice(
@@ -118,9 +157,20 @@ export function resolveCountryPrice(
   if (product.isFree) {
     return { currency: plan.currency, amount: 0, country: plan.country };
   }
+  const sku = product.metadata?.sku;
+  const atplDefaults =
+    sku === "ATPL-SINGLE"
+      ? ATPL_SINGLE_PRICES
+      : sku === "ATPL-5"
+        ? ATPL_FIVE_PRICES
+        : sku === "ATPL-PACKAGE"
+          ? ATPL_PACKAGE_PRICES
+          : isAtplPackage(product)
+            ? ATPL_PACKAGE_PRICES
+            : null;
   const table: Record<string, number> = {
     ...deriveListedPrices(product.priceAmount, product.currency),
-    ...(isAtplPackage(product) ? ATPL_PACKAGE_PRICES : {}),
+    ...(atplDefaults ?? {}),
     ...pricesByCurrencyOf(product),
   };
   if (typeof table[plan.currency] === "number") {

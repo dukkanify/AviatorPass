@@ -19,7 +19,8 @@ describe("ATPL course landing conversion path", () => {
     );
     expect(ATPL_FAQS.some((item) => /Are all ATPL Subjects included/i.test(item.q))).toBe(true);
     expect(ATPL_LANDING_HERO.primaryCta).toBe("Choose this package");
-    expect(PRICING.cta).toBe("Choose this package");
+    expect(PRICING.cta).toBe("Choose Package");
+    expect(PRICING.title).toMatch(/Choose your ATPL package/i);
     expect(ATPL_LANDING_HERO.secondaryCta).toBe("Review the 13 ATPL Subjects");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",

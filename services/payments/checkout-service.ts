@@ -644,7 +644,9 @@ async function finalizeSuccessfulPayment(input: {
       });
       if (
         /ATPL/i.test(updated.items[0]?.productName ?? "") ||
-        updated.metadata.sku === "ATPL-PACKAGE"
+        updated.metadata.sku === "ATPL-PACKAGE" ||
+        updated.metadata.sku === "ATPL-5" ||
+        updated.metadata.sku === "ATPL-SINGLE"
       ) {
         markAtplInstructorAssignmentPending(updated.id);
       }
@@ -666,6 +668,8 @@ export async function completePaidOrder(order: Order, payment: PaymentRecord, ac
   if (
     /ATPL/i.test(order.items[0]?.productName ?? "") ||
     order.metadata.sku === "ATPL-PACKAGE" ||
+    order.metadata.sku === "ATPL-5" ||
+    order.metadata.sku === "ATPL-SINGLE" ||
     Boolean(order.metadata.purchaseFirst)
   ) {
     markAtplInstructorAssignmentPending(order.id);
