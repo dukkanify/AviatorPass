@@ -248,7 +248,10 @@ export const PAYMENTS = {
   kicker: "Flexible Payment",
   title: "Professional installment options",
   intro:
-    "Invest in your aviation career with flexible payment methods designed for regional convenience. Full payment and installment plans are available at checkout. No Hidden Fees.",
+    "Invest in your aviation career with flexible payment methods designed for regional convenience. Full payment and installment plans are available at checkout.",
+  highlight: "No Hidden Fees",
+  highlightBody:
+    "The price you see at checkout is the price you pay. No surprise add-ons after enrolment.",
   regions: [
     {
       country: "Kuwait",

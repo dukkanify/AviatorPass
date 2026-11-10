@@ -535,6 +535,14 @@ a.atpl-subject-card {
 }
 
 /* —— Payments —— */
+.atpl-payment-highlight {
+  max-width: 36rem;
+  padding: 1.15rem 1.35rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(204, 160, 76, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 241, 228, 0.7) 100%);
+}
+
 .atpl-payment-region {
   padding: 2rem;
   border-radius: 1.25rem;
