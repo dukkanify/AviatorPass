@@ -225,7 +225,7 @@ export function atplPackageLectureLessonId(easaCode: string): string {
 }
 
 export const ATPL_PACKAGE_JOINING_TERMS = [
-  "The ATPL Complete Package includes all 13 Airline Transport Pilot License theory subjects listed on this page. Subjects are not sold separately.",
+  "The ATPL Complete Package includes all 13 Airline Transport Pilot License theory subjects listed on this page.",
   "Training is live with an instructor. Recordings are not available to students.",
   `After you choose this package you select a study start date and a preferred time for the first lecture. That choice must be at least ${ATPL_PACKAGE_MIN_NOTICE_HOURS} hours from the moment you pay.`,
   ATPL_PACKAGE_TKI_NOTICE,
