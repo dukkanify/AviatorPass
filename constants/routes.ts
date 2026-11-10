@@ -12,6 +12,7 @@ export const routes = {
   onlineCoursesPpl: "/online-courses/ppl",
   onlineCoursesElp: "/online-courses/elp",
   atpl: "/atpl",
+  qa: "/qa",
   contact: "/contact",
   superAdminAtplSubjects: "/super-admin/courses/atpl-subjects",
   superAdminSiteCopy: "/super-admin/site-copy",

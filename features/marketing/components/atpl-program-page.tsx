@@ -10,7 +10,6 @@ import {
 import { ACTION_LABELS } from "@/constants/programme-terms";
 import { routes } from "@/constants/routes";
 import { cn } from "@/lib/utils";
-import { AtplCourseFaq } from "@/features/marketing/components/atpl-course-faq";
 import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enrol";
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import {
@@ -236,18 +235,6 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
               />
             </div>
             <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{PRICING.note}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="atpl-section atpl-section-light" aria-labelledby="faq-heading">
-        <div className="container-app max-w-3xl">
-          <p className="atpl-kicker">Frequently asked questions</p>
-          <h2 id="faq-heading" className="atpl-heading mt-4">
-            Before you enrol
-          </h2>
-          <div className="mt-8">
-            <AtplCourseFaq />
           </div>
         </div>
       </section>
