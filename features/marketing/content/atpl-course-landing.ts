@@ -214,7 +214,22 @@ export const PRICING = {
   kicker: "Pricing",
   title: "Choose your ATPL package",
   blurb:
-    "Pick the package that matches your study plan. All options include live instruction, pay first checkout, and automatic account creation.",
+    "Pick the package that matches your study plan. All options include live instruction with EASA Certified Instructors.",
+  cardBlurb:
+    "ATPL theory programme with EASA Certified Instructors, mock exams, and platform access. You review the package.",
+  bullets: [
+    "Live instructor-led sessions",
+    "Study start date and first lecture chosen at checkout",
+    "Student dashboard, progress, and certificates",
+    "Invoice issued after payment",
+    "Account created automatically, no pre-registration",
+  ],
   note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible. No Hidden Fees: the checkout total is what you pay.",
-  cta: "Choose Package",
+  cta: "Choose this package",
 } as const;
+
+export function atplSubjectsIncludedLabel(subjectCount: number): string {
+  return subjectCount === 1
+    ? "(1 ATPL subject included)"
+    : `(${subjectCount} ATPL subjects included)`;
+}

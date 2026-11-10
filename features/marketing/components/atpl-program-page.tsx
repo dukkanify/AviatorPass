@@ -15,6 +15,7 @@ import { AtplStickyEnrol } from "@/features/marketing/components/atpl-sticky-enr
 import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
 import {
   ATPL_LANDING_HERO,
+  atplSubjectsIncludedLabel,
   COURSE_BENEFITS,
   COURSE_OVERVIEW,
   PRICING,
@@ -34,15 +35,17 @@ function EnrolButton({
   enrollHref,
   className,
   size = "lg",
+  label = ACTION_LABELS.chooseThisPackage,
 }: {
   enrollHref: string;
   className?: string;
   size?: "lg" | "sm";
+  label?: string;
 }) {
   return (
     <Button size={size} variant="accent" className={cn("w-full sm:w-auto", className)} asChild>
       <Link href={enrollHref}>
-        {ACTION_LABELS.chooseThisPackage}
+        {label}
         <ArrowUpRight className="h-4 w-4" />
       </Link>
     </Button>
@@ -224,25 +227,36 @@ function AtplProgramPageContent({
             {PRICING.blurb}
           </p>
           <div className="atpl-package-grid mt-10">
-            {packages.map((pkg) => (
-              <article key={pkg.sku} className="atpl-package-card">
-                <p className="atpl-package-card-title">{pkg.title}</p>
-                <p
-                  className="atpl-package-card-count"
-                  aria-label={`${pkg.subjectCount} ${pkg.subjectLabel}`}
-                >
-                  {pkg.subjectCount}
-                </p>
-                <p className="atpl-package-card-label">{pkg.subjectLabel}</p>
-                {pkg.priceLabel ? (
-                  <p className="atpl-package-card-price">From {pkg.priceLabel}</p>
-                ) : null}
-                <Link href={pkg.enrollHref} className="atpl-package-card-cta">
-                  {pkg.cta}
-                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-                </Link>
-              </article>
-            ))}
+            {packages.map((pkg) => {
+              const included = atplSubjectsIncludedLabel(pkg.subjectCount);
+              return (
+                <article key={pkg.sku} className="atpl-package-card">
+                  <p className="atpl-package-card-name">{pkg.title}</p>
+                  <p className="atpl-package-card-included">{included}</p>
+                  <p className="atpl-package-card-blurb">{PRICING.cardBlurb}</p>
+                  <ul className="atpl-package-card-bullets">
+                    <li>
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                      {pkg.subjectCount === 1
+                        ? "1 ATPL subject included"
+                        : `${pkg.subjectCount} ATPL subjects included`}
+                    </li>
+                    {PRICING.bullets.map((bullet) => (
+                      <li key={bullet}>
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="atpl-package-card-price">{pkg.priceLabel ?? "Stripe Checkout"}</p>
+                  <EnrolButton
+                    enrollHref={pkg.enrollHref}
+                    label={pkg.cta}
+                    className="atpl-package-card-cta hero-cta-primary"
+                  />
+                </article>
+              );
+            })}
           </div>
           <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground">
             {PRICING.note}
