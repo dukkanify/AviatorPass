@@ -11,7 +11,11 @@ import { ensureCoursesSeeded } from "@/services/courses/seed";
 import { listCourses } from "@/services/courses/course-service";
 import { readCoursesDb } from "@/services/courses/store";
 import {
+  ATPL_FIVE_COMPARE_AT,
+  ATPL_FIVE_PRICES,
   ATPL_PACKAGE_PRICES,
+  ATPL_SINGLE_COMPARE_AT,
+  ATPL_SINGLE_PRICES,
   atplCompareForCurrency,
   atplPriceForCurrency,
 } from "@/services/payments/country-pricing";
@@ -393,6 +397,75 @@ export function ensurePaymentsSeeded(): void {
 }
 
 /** Backfill ATPL package + regional BNPL rules on already-seeded payment DBs. */
+function ensureAtplTierExist(): void {
+  const current = readPaymentsDb();
+  const hasFive = current.products.some((p) => p.metadata?.sku === "ATPL-5");
+  const hasSingle = current.products.some((p) => p.metadata?.sku === "ATPL-SINGLE");
+  if (hasFive && hasSingle) return;
+
+  ensureCoursesSeeded();
+  const courses = listCourses({ pageSize: 50, status: "published" }).data;
+  const users = readAuthDb().users;
+  const instructor = users.find((u) => u.role === ROLES.INSTRUCTOR);
+  if (!instructor) return;
+  const allCourseIds = atplPackageCourseIds();
+  const stamp = new Date().toISOString();
+  const currency = current.settings.currency;
+
+  writePaymentsDb((d) => {
+    const pushTier = (
+      sku: "ATPL-5" | "ATPL-SINGLE",
+      name: string,
+      description: string,
+      subjectCount: number,
+      prices: Record<string, number>,
+      compare: Record<string, number>,
+    ) => {
+      if (d.products.some((p) => p.metadata?.sku === sku)) return;
+      d.products.push({
+        id: generateId(),
+        name,
+        description,
+        pricingModel: "package",
+        courseId: courses.find((c) => c.code === "ATPL-010")?.id ?? courses[0]?.id ?? null,
+        instructorId: instructor.id,
+        priceAmount: prices[currency] ?? prices.KWD ?? 0,
+        compareAtAmount: compare[currency] ?? compare.KWD ?? null,
+        currency,
+        pricesByCurrency: { ...prices },
+        isFree: false,
+        active: true,
+        metadata: {
+          sku,
+          courseIds: allCourseIds.slice(0, subjectCount),
+          subjectCount,
+          supportsInstallments: true,
+          supportsBnpl: true,
+        },
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
+    };
+
+    pushTier(
+      "ATPL-SINGLE",
+      "ATPL Single Subject",
+      "One ATPL theory subject with live instructor-led training.",
+      1,
+      ATPL_SINGLE_PRICES,
+      ATPL_SINGLE_COMPARE_AT,
+    );
+    pushTier(
+      "ATPL-5",
+      "ATPL Package (5 Subjects)",
+      "Five ATPL theory subjects with live instructor-led training.",
+      5,
+      ATPL_FIVE_PRICES,
+      ATPL_FIVE_COMPARE_AT,
+    );
+  });
+}
+
 export function ensureAtplPackageAndRegionalRules(): void {
   const current = readPaymentsDb();
   const existing = current.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
@@ -411,9 +484,13 @@ export function ensureAtplPackageAndRegionalRules(): void {
     (currentIds.length !== packageCourseIds.length ||
       packageCourseIds.some((id) => !currentIds.includes(id)));
   const needsRules = current.regionalRules.length === 0;
-  if (existing && !missingPrices && !courseIdsStale && !needsRules) {
+  const needsTiers =
+    !current.products.some((p) => p.metadata?.sku === "ATPL-5") ||
+    !current.products.some((p) => p.metadata?.sku === "ATPL-SINGLE");
+  if (existing && !missingPrices && !courseIdsStale && !needsRules && !needsTiers) {
     return;
   }
+  if (needsTiers) ensureAtplTierExist();
 
   ensureCoursesSeeded();
 

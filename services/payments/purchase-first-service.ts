@@ -148,6 +148,8 @@ function isAtplPurchase(order: Order): boolean {
   return (
     /ATPL/i.test(order.items[0]?.productName ?? "") ||
     order.metadata.sku === "ATPL-PACKAGE" ||
+    order.metadata.sku === "ATPL-5" ||
+    order.metadata.sku === "ATPL-SINGLE" ||
     Boolean(order.metadata.purchaseFirst)
   );
 }
@@ -485,6 +487,9 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       o.metadata = {
         ...o.metadata,
         purchaseFirst: true,
+        sku: product.metadata?.sku ?? null,
+        subjectCount:
+          typeof product.metadata?.subjectCount === "number" ? product.metadata.subjectCount : null,
         guestFirstName: sanitizeString(input.firstName),
         guestLastName: sanitizeString(input.lastName),
         guestPhone: normalizePhone(input.phone),
@@ -523,6 +528,9 @@ export async function payGuestCheckout(input: GuestCheckoutInput): Promise<Guest
       expiresAt: new Date(Date.now() + ORDER_EXPIRY_MINUTES * 60_000).toISOString(),
       metadata: {
         purchaseFirst: true,
+        sku: product.metadata?.sku ?? null,
+        subjectCount:
+          typeof product.metadata?.subjectCount === "number" ? product.metadata.subjectCount : null,
         guestFirstName: sanitizeString(input.firstName),
         guestLastName: sanitizeString(input.lastName),
         guestPhone: normalizePhone(input.phone),

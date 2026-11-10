@@ -5,6 +5,52 @@
 
 export const ATPL_COMPLETE_PACKAGE_NAME = "ATPL Complete Package";
 
+/** Purchase SKUs for ATPL package tiers shown on the ATPL pricing section. */
+export const ATPL_PACKAGE_SKU_FULL = "ATPL-PACKAGE";
+export const ATPL_PACKAGE_SKU_FIVE = "ATPL-5";
+export const ATPL_PACKAGE_SKU_SINGLE = "ATPL-SINGLE";
+
+export const ATPL_PACKAGE_SKUS = [
+  ATPL_PACKAGE_SKU_SINGLE,
+  ATPL_PACKAGE_SKU_FIVE,
+  ATPL_PACKAGE_SKU_FULL,
+] as const;
+
+export type AtplPackageSku = (typeof ATPL_PACKAGE_SKUS)[number];
+
+export const ATPL_PACKAGE_TIERS = [
+  {
+    sku: ATPL_PACKAGE_SKU_SINGLE,
+    title: "Single Subject",
+    subjectCount: 1,
+    subjectLabel: "Subject",
+    cta: "Choose Package",
+  },
+  {
+    sku: ATPL_PACKAGE_SKU_FIVE,
+    title: "ATPL Package",
+    subjectCount: 5,
+    subjectLabel: "Subjects",
+    cta: "Choose Package",
+  },
+  {
+    sku: ATPL_PACKAGE_SKU_FULL,
+    title: "Full ATPL",
+    subjectCount: 13,
+    subjectLabel: "Subjects",
+    cta: "Choose Package",
+  },
+] as const;
+
+export function isAtplPackageSku(sku: unknown): sku is AtplPackageSku {
+  return typeof sku === "string" && (ATPL_PACKAGE_SKUS as readonly string[]).includes(sku);
+}
+
+export function atplPackageSubjectCountForSku(sku: unknown): number {
+  const tier = ATPL_PACKAGE_TIERS.find((row) => row.sku === sku);
+  return tier?.subjectCount ?? 13;
+}
+
 export const ATPL_PACKAGE_MIN_NOTICE_HOURS = 72;
 export const ATPL_PACKAGE_MIN_NOTICE_MS = ATPL_PACKAGE_MIN_NOTICE_HOURS * 60 * 60 * 1000;
 

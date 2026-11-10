@@ -4,7 +4,10 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { AtplProgramPageContent } from "@/features/marketing/components/atpl-program-page";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
-import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
+import {
+  getAtplPackageTierMarketing,
+  getAtplProgramMarketing,
+} from "@/lib/marketing/atpl-program-marketing";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
 /** Site copy CMS — keep ATPL landing fresh after Super Admin edits. */
@@ -25,6 +28,7 @@ export const metadata: Metadata = {
 
 export default async function AtplCoursePage() {
   const { enrollHref, priceLabel } = getAtplProgramMarketing();
+  const packages = getAtplPackageTierMarketing();
   const subjects = listAtplPackageReviewSubjects();
 
   return (
@@ -52,7 +56,12 @@ export default async function AtplCoursePage() {
         }}
       />
 
-      <AtplProgramPageContent enrollHref={enrollHref} priceLabel={priceLabel} subjects={subjects} />
+      <AtplProgramPageContent
+        enrollHref={enrollHref}
+        priceLabel={priceLabel}
+        packages={packages}
+        subjects={subjects}
+      />
     </div>
   );
 }

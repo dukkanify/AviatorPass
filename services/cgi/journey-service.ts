@@ -1187,7 +1187,13 @@ function isPaidAtplPackageOrder(order: {
   const purchaseFirst =
     Boolean(order.metadata?.purchaseFirst) && typeof order.metadata?.studyStartDate === "string";
   const atplNamed = /ATPL/i.test(order.items[0]?.productName ?? "");
-  return purchaseFirst || atplNamed || order.metadata?.sku === "ATPL-PACKAGE";
+  return (
+    purchaseFirst ||
+    atplNamed ||
+    order.metadata?.sku === "ATPL-PACKAGE" ||
+    order.metadata?.sku === "ATPL-5" ||
+    order.metadata?.sku === "ATPL-SINGLE"
+  );
 }
 
 function orderEmail(order: { studentEmail?: string | null; billingEmail?: string | null }) {
@@ -1556,9 +1562,24 @@ async function ensureAtplPackageSubjectCoverage(
       .filter((row) => !["dropped", "rejected"].includes(row.status))
       .map((row) => row.courseId),
   );
-  const missing = officialPackageCourses().filter((course) => !enrolled.has(course.id));
+  const subjectCount =
+    typeof order?.metadata.subjectCount === "number"
+      ? order.metadata.subjectCount
+      : order?.metadata.sku === "ATPL-SINGLE"
+        ? 1
+        : order?.metadata.sku === "ATPL-5"
+          ? 5
+          : officialPackageCourses().length;
+  const packageCourses = officialPackageCourses().slice(0, Math.max(1, subjectCount));
+  const missing = packageCourses.filter((course) => !enrolled.has(course.id));
   if (!missing.length) return;
   const now = nowIso();
+  const notes =
+    subjectCount <= 1
+      ? "ATPL Single Subject"
+      : subjectCount <= 5
+        ? "ATPL Package (5 Subjects)"
+        : "ATPL Complete Package";
   for (const course of missing) {
     upsertEnrollment({
       id: generateId(),
@@ -1571,7 +1592,7 @@ async function ensureAtplPackageSubjectCoverage(
       completedAt: null,
       droppedAt: null,
       suspendedAt: null,
-      notes: "ATPL Complete Package",
+      notes,
       updatedAt: now,
     });
   }

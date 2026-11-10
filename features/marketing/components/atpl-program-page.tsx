@@ -19,12 +19,14 @@ import {
   COURSE_OVERVIEW,
   PRICING,
 } from "@/features/marketing/content/atpl-course-landing";
+import type { AtplPackageTierMarketing } from "@/lib/marketing/atpl-program-marketing";
 import { getAtplSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 type AtplProgramPageProps = {
   enrollHref: string;
   priceLabel: string | null;
+  packages: AtplPackageTierMarketing[];
   subjects: AtplLandingSubjectPublic[];
 };
 
@@ -47,7 +49,12 @@ function EnrolButton({
   );
 }
 
-function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgramPageProps) {
+function AtplProgramPageContent({
+  enrollHref,
+  priceLabel,
+  packages,
+  subjects,
+}: AtplProgramPageProps) {
   const copy = getAtplSiteCopy();
   const hero = { ...ATPL_LANDING_HERO, ...copy.hero };
   const overview = { ...COURSE_OVERVIEW, ...copy.overview };
@@ -210,33 +217,36 @@ function AtplProgramPageContent({ enrollHref, priceLabel, subjects }: AtplProgra
       >
         <div className="container-app">
           <p className="atpl-kicker">{PRICING.kicker}</p>
-          <h2 id="pricing-heading" className="atpl-heading mt-4 max-w-[16ch]">
+          <h2 id="pricing-heading" className="atpl-heading mt-4 max-w-[18ch]">
             {PRICING.title}
           </h2>
-          <div className="atpl-pricing-card mx-auto mt-10 max-w-xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent">
-              {PRICING.name}
-            </p>
-            <p className="mt-3 font-display text-4xl font-semibold tracking-tight text-[var(--landing-ink-soft)]">
-              {priceLabel ?? "Stripe Checkout"}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{PRICING.blurb}</p>
-            <ul className="mt-8 space-y-3">
-              {PRICING.bullets.map((bullet) => (
-                <li key={bullet} className="flex gap-2 text-sm">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-8">
-              <EnrolButton
-                enrollHref={enrollHref}
-                className="hero-cta-primary w-full px-10 sm:w-auto"
-              />
-            </div>
-            <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{PRICING.note}</p>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
+            {PRICING.blurb}
+          </p>
+          <div className="atpl-package-grid mt-10">
+            {packages.map((pkg) => (
+              <article key={pkg.sku} className="atpl-package-card">
+                <p className="atpl-package-card-title">{pkg.title}</p>
+                <p
+                  className="atpl-package-card-count"
+                  aria-label={`${pkg.subjectCount} ${pkg.subjectLabel}`}
+                >
+                  {pkg.subjectCount}
+                </p>
+                <p className="atpl-package-card-label">{pkg.subjectLabel}</p>
+                {pkg.priceLabel ? (
+                  <p className="atpl-package-card-price">From {pkg.priceLabel}</p>
+                ) : null}
+                <Link href={pkg.enrollHref} className="atpl-package-card-cta">
+                  {pkg.cta}
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </article>
+            ))}
           </div>
+          <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground">
+            {PRICING.note}
+          </p>
 
           <div className="mx-auto mt-16 max-w-3xl" aria-labelledby="before-enrol-heading">
             <p className="atpl-kicker">Before you enrol</p>
