@@ -19,8 +19,9 @@ import {
   Zap,
 } from "lucide-react";
 
-import { HeroLcpImage } from "@/components/media/hero-lcp-image";
+import { HomeHeroSlider } from "@/components/media/home-hero-slider";
 import { Button } from "@/components/ui/button";
+import type { HomeSliderSlide } from "@/types/home-slider";
 import {
   ABOUT,
   CONTACT,
@@ -74,13 +75,20 @@ const PLATFORM_ICONS = [
 type AtplPassHomepageProps = {
   subjects: AtplLandingSubjectPublic[];
   courseHref: string;
+  heroSlides?: HomeSliderSlide[];
+  heroIntervalMs?: number;
 };
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
   return <p className="atpl-kicker">{children}</p>;
 }
 
-function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
+function AtplPassHomepage({
+  subjects,
+  courseHref,
+  heroSlides = [],
+  heroIntervalMs = 6000,
+}: AtplPassHomepageProps) {
   const copy = getHomeSiteCopy();
   const hero = { ...HERO, ...copy.hero };
   const about = {
@@ -110,8 +118,8 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
     <>
       {/* —— Hero —— */}
       <section className="atpl-hero relative isolate -mt-[4.75rem] min-h-[100svh] overflow-hidden pt-[4.75rem]">
-        <div className="atpl-hero-bg absolute inset-0" aria-hidden>
-          <HeroLcpImage />
+        <div className="atpl-hero-bg absolute inset-0">
+          <HomeHeroSlider slides={heroSlides} intervalMs={heroIntervalMs} />
         </div>
         <div className="atpl-hero-overlay absolute inset-0" aria-hidden />
         <div className="atpl-hero-glow absolute inset-0" aria-hidden />

@@ -1,8 +1,9 @@
 import Image from "next/image";
 
+import { MARKETING_HERO_SRC } from "@/constants/marketing-hero";
 import { cn } from "@/lib/utils";
 
-export const MARKETING_HERO_SRC = "/images/marketing/hero-aircraft.jpg";
+export { MARKETING_HERO_SRC };
 
 type HeroLcpImageProps = {
   className?: string;

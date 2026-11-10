@@ -13,6 +13,7 @@ import { brandingConfig } from "@/config/branding";
 import { CommercialLicensePanel } from "@/features/assets/components/commercial-license-panel";
 import { MediaLibraryPanel } from "@/features/assets/components/media-library-panel";
 import { authFetch } from "@/features/auth/services/auth-api";
+import { HomeSliderManager } from "@/features/marketing/components/home-slider-manager";
 import type { PlatformSettings } from "@/types/settings";
 
 export function AssetManagerShell() {
@@ -55,6 +56,7 @@ export function AssetManagerShell() {
       <Tabs defaultValue="brand">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="brand">Brand logos</TabsTrigger>
+          <TabsTrigger value="slider">Homepage slider</TabsTrigger>
           <TabsTrigger value="media">Media library</TabsTrigger>
           <TabsTrigger value="license">Commercial license</TabsTrigger>
           <TabsTrigger value="email">Email & SEO</TabsTrigger>
@@ -100,6 +102,10 @@ export function AssetManagerShell() {
               <ExternalLink className="ms-2 size-4" />
             </Link>
           </Button>
+        </TabsContent>
+
+        <TabsContent value="slider" className="mt-4">
+          <HomeSliderManager />
         </TabsContent>
 
         <TabsContent value="media" className="mt-4">
