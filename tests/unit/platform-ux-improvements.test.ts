@@ -57,7 +57,9 @@ describe("platform UX improvements", () => {
     expect(source).toContain("COURSE_OVERVIEW");
     expect(source).toContain("COURSE_BENEFITS");
     expect(source).toContain("PRICING");
-    expect(source).not.toContain("AtplCourseFaq");
+    expect(source).toContain("AtplCourseFaq");
+    expect(source).toContain('id="pricing"');
+    expect(source).toContain("Before you enrol");
     expect(COURSE_BENEFITS.kicker).toBe("Course features");
   });
 
