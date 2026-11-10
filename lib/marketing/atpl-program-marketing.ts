@@ -30,6 +30,7 @@ export type AtplPackageTierMarketing = {
   subjectCount: number;
   subjectLabel: string;
   cta: string;
+  featured: boolean;
   enrollHref: string;
   priceLabel: string | null;
 };
@@ -75,6 +76,7 @@ export function getAtplPackageTierMarketing(country?: string | null): AtplPackag
           subjectCount: tier.subjectCount,
           subjectLabel: tier.subjectLabel,
           cta: tier.cta,
+          featured: tier.featured,
           enrollHref: base.enrollHref,
           priceLabel: tier.sku === ATPL_PACKAGE_SKU_FULL ? base.priceLabel : null,
         };
@@ -86,6 +88,7 @@ export function getAtplPackageTierMarketing(country?: string | null): AtplPackag
         subjectCount: tier.subjectCount,
         subjectLabel: tier.subjectLabel,
         cta: tier.cta,
+        featured: tier.featured,
         enrollHref: checkoutEnrollHref(product.id, priced.country),
         priceLabel: formatMinor(priced.amount, priced.currency),
       };
@@ -98,6 +101,7 @@ export function getAtplPackageTierMarketing(country?: string | null): AtplPackag
       subjectCount: tier.subjectCount,
       subjectLabel: tier.subjectLabel,
       cta: tier.cta,
+      featured: tier.featured,
       enrollHref: base.enrollHref,
       priceLabel: tier.sku === ATPL_PACKAGE_SKU_FULL ? base.priceLabel : null,
     }));

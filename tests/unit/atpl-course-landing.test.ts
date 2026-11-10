@@ -6,6 +6,7 @@ import { HERO } from "@/features/marketing/content/atpl-pass-home";
 import {
   ATPL_FAQS,
   ATPL_LANDING_HERO,
+  atplSubjectsIncludedLabel,
   COURSE_OVERVIEW,
   PRICING,
 } from "@/features/marketing/content/atpl-course-landing";
@@ -24,6 +25,8 @@ describe("ATPL course landing conversion path", () => {
     expect(PRICING.cardBlurb).not.toMatch(/pay first|registration is automatic/i);
     expect(PRICING.bullets.some((b) => /no student recording/i.test(b))).toBe(false);
     expect(PRICING.bullets[0]).toBe("Live instructor-led sessions");
+    expect(atplSubjectsIncludedLabel(1)).toBe("(1 ATPL subject included)");
+    expect(atplSubjectsIncludedLabel(13)).toBe("(13 ATPL subjects included)");
     expect(ATPL_LANDING_HERO.secondaryCta).toBe("Review the 13 ATPL Subjects");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",

@@ -230,7 +230,10 @@ function AtplProgramPageContent({
             {packages.map((pkg) => {
               const included = atplSubjectsIncludedLabel(pkg.subjectCount);
               return (
-                <article key={pkg.sku} className="atpl-package-card">
+                <article
+                  key={pkg.sku}
+                  className={cn("atpl-package-card", pkg.featured && "atpl-package-card-featured")}
+                >
                   <p className="atpl-package-card-name">{pkg.title}</p>
                   <p className="atpl-package-card-included">{included}</p>
                   <p className="atpl-package-card-blurb">{PRICING.cardBlurb}</p>
@@ -248,12 +251,14 @@ function AtplProgramPageContent({
                       </li>
                     ))}
                   </ul>
-                  <p className="atpl-package-card-price">{pkg.priceLabel ?? "Stripe Checkout"}</p>
-                  <EnrolButton
-                    enrollHref={pkg.enrollHref}
-                    label={pkg.cta}
-                    className="atpl-package-card-cta hero-cta-primary"
-                  />
+                  <div className="atpl-package-card-footer">
+                    <p className="atpl-package-card-price">{pkg.priceLabel ?? "Stripe Checkout"}</p>
+                    <EnrolButton
+                      enrollHref={pkg.enrollHref}
+                      label={pkg.cta}
+                      className="atpl-package-card-cta hero-cta-primary"
+                    />
+                  </div>
                 </article>
               );
             })}
