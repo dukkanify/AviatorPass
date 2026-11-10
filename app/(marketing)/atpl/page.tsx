@@ -4,7 +4,6 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { AtplProgramPageContent } from "@/features/marketing/components/atpl-program-page";
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
-import { ATPL_FAQS } from "@/features/marketing/content/atpl-course-landing";
 import { getAtplProgramMarketing } from "@/lib/marketing/atpl-program-marketing";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 
@@ -47,14 +46,6 @@ export default async function AtplCoursePage() {
                 "@type": "CourseInstance",
                 name: s.title,
                 courseCode: s.code || undefined,
-              })),
-            },
-            {
-              "@type": "FAQPage",
-              mainEntity: ATPL_FAQS.map((item) => ({
-                "@type": "Question",
-                name: item.q,
-                acceptedAnswer: { "@type": "Answer", text: item.a },
               })),
             },
           ],

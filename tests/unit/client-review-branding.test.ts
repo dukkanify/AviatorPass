@@ -48,13 +48,15 @@ describe("final client review copy", () => {
     expect(faq?.a).toMatch(/exclusive discount/);
   });
 
-  it("orders marketing nav Contact, Instructors, Online Courses, About", () => {
+  it("orders marketing nav Contact, Instructors, Online Courses, About, Q&A", () => {
     expect(NAV_ITEMS.map((item) => item.label)).toEqual([
       "Contact",
       "Instructors",
       "Online Courses",
       "About",
+      "Q&A",
     ]);
+    expect(NAV_ITEMS.find((item) => item.label === "Q&A")?.href).toBe(routes.qa);
     expect(NAV_ITEMS.some((item) => /private session/i.test(item.label))).toBe(false);
     const courses = NAV_ITEMS.find((item) => item.label === "Online Courses");
     expect(courses?.href).toBe(routes.onlineCourses);

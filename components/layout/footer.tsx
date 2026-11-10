@@ -12,6 +12,7 @@ import { AdBannerSlot } from "@/features/marketing/components/ad-banner-slot";
 const exploreLinks = [
   { href: routes.onlineCourses, label: "Online Courses" },
   { href: routes.atpl, label: "ATPL Course" },
+  { href: routes.qa, label: "Q&A" },
   { href: "/#about", label: "About" },
   { href: "/#instructors", label: "Instructors" },
   { href: "/#contact", label: "Contact" },
