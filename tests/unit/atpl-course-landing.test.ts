@@ -19,8 +19,11 @@ describe("ATPL course landing conversion path", () => {
     );
     expect(ATPL_FAQS.some((item) => /Are all ATPL Subjects included/i.test(item.q))).toBe(true);
     expect(ATPL_LANDING_HERO.primaryCta).toBe("Choose this package");
-    expect(PRICING.cta).toBe("Choose Package");
+    expect(PRICING.cta).toBe("Choose this package");
     expect(PRICING.title).toMatch(/Choose your ATPL package/i);
+    expect(PRICING.cardBlurb).not.toMatch(/pay first|registration is automatic/i);
+    expect(PRICING.bullets.some((b) => /no student recording/i.test(b))).toBe(false);
+    expect(PRICING.bullets[0]).toBe("Live instructor-led sessions");
     expect(ATPL_LANDING_HERO.secondaryCta).toBe("Review the 13 ATPL Subjects");
     expect(COURSE_OVERVIEW.stats.map((s) => s.label)).toEqual([
       "ATPL Subjects",

@@ -24,21 +24,21 @@ export const ATPL_PACKAGE_TIERS = [
     title: "Single Subject",
     subjectCount: 1,
     subjectLabel: "Subject",
-    cta: "Choose Package",
+    cta: "Choose this package",
   },
   {
     sku: ATPL_PACKAGE_SKU_FIVE,
     title: "ATPL Package",
     subjectCount: 5,
     subjectLabel: "Subjects",
-    cta: "Choose Package",
+    cta: "Choose this package",
   },
   {
     sku: ATPL_PACKAGE_SKU_FULL,
-    title: "Full ATPL",
+    title: "ATPL Complete Package",
     subjectCount: 13,
     subjectLabel: "Subjects",
-    cta: "Choose Package",
+    cta: "Choose this package",
   },
 ] as const;
 
