@@ -7,14 +7,14 @@ import {
   createCoupon,
   getPaymentSettings,
   listCoupons,
-  atplPackagePricesMajor,
-  getAtplPackageProduct,
+  listAtplTierPricesMajor,
   listProducts,
-  updateAtplPackagePrices,
+  updateAtplTierPrices,
   updatePaymentSettings,
   upsertProduct,
   validateCoupon,
 } from "@/services/payments/catalog-service";
+import type { AtplPackageSku } from "@/constants/atpl-complete-package";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
 import type { CouponType, PricingModel } from "@/types/payments";
 
@@ -36,14 +36,10 @@ export async function GET(request: Request) {
     }
     if (view === "atpl_prices") {
       await requirePermission(PERMISSIONS.SYSTEM_PAYMENTS);
-      const product = getAtplPackageProduct();
+      const tiers = listAtplTierPricesMajor();
       return NextResponse.json({
         success: true,
-        data: {
-          productId: product?.id ?? null,
-          name: product?.name ?? "ATPL Theory Package",
-          prices: atplPackagePricesMajor(product),
-        },
+        data: { tiers },
         error: null,
       });
     }
@@ -78,14 +74,15 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
     if (body?.action === "atpl_prices") {
-      const majors = (body.prices ?? {}) as Record<string, number>;
-      const product = updateAtplPackagePrices(user, majors);
+      const tiersInput =
+        (body.tiers as Partial<Record<AtplPackageSku, Record<string, number>>> | undefined) ??
+        (body.prices ? { "ATPL-PACKAGE": body.prices as Record<string, number> } : undefined);
+      const saved = updateAtplTierPrices(user, tiersInput ?? {});
       return NextResponse.json({
         success: true,
         data: {
-          productId: product.id,
-          name: product.name,
-          prices: atplPackagePricesMajor(product),
+          updated: saved.map((product) => product.metadata?.sku),
+          tiers: listAtplTierPricesMajor(),
         },
         error: null,
       });

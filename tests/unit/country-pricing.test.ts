@@ -75,14 +75,26 @@ describe("country-first pricing", () => {
     expect(resolveCountryPrice(atpl, "KW").currency).not.toBe("AED");
   });
 
-  it("prefers ATPL catalogue amounts over stale product prices", () => {
-    const stale = {
+  it("prefers saved product prices and falls back to ATPL catalogue defaults", () => {
+    const custom = {
       ...atpl,
-      priceAmount: 12_000,
-      pricesByCurrency: { KWD: 12_000, AED: 1, SAR: 1, USD: 1, EUR: 1 },
+      priceAmount: 500_000,
+      pricesByCurrency: {
+        KWD: 500_000,
+        AED: ATPL_PACKAGE_PRICES.AED,
+        SAR: ATPL_PACKAGE_PRICES.SAR,
+        USD: ATPL_PACKAGE_PRICES.USD,
+        EUR: ATPL_PACKAGE_PRICES.EUR,
+      },
     };
-    expect(resolveCountryPrice(stale, "KW").amount).toBe(ATPL_PACKAGE_PRICES.KWD);
-    expect(resolveCountryPrice(stale, "KW").amount).toBeGreaterThan(12_000);
+    expect(resolveCountryPrice(custom, "KW").amount).toBe(500_000);
+
+    const missingCurrency = {
+      ...atpl,
+      priceAmount: ATPL_PACKAGE_PRICES.KWD,
+      pricesByCurrency: { KWD: ATPL_PACKAGE_PRICES.KWD },
+    };
+    expect(resolveCountryPrice(missingCurrency, "AE").amount).toBe(ATPL_PACKAGE_PRICES.AED);
   });
 
   it("rejects unsupported BNPL country-currency pairs", () => {
