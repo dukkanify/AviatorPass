@@ -6,6 +6,10 @@ import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { APP_METADATA } from "@/constants/navigation";
 import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
+import {
+  getHomeSliderIntervalMs,
+  listActiveHomeSliderSlides,
+} from "@/services/marketing/home-slider-service";
 
 /** Site copy CMS — keep homepage fresh after Super Admin edits. */
 export const revalidate = 60;
@@ -48,6 +52,8 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   const subjects = listAtplPackageReviewSubjects();
+  const heroSlides = listActiveHomeSliderSlides();
+  const heroIntervalMs = getHomeSliderIntervalMs();
 
   return (
     <div className="landing-root home-premium">
@@ -93,7 +99,12 @@ export default function HomePage() {
         }}
       />
 
-      <AtplPassHomepage subjects={subjects} courseHref={routes.atpl} />
+      <AtplPassHomepage
+        subjects={subjects}
+        courseHref={routes.atpl}
+        heroSlides={heroSlides}
+        heroIntervalMs={heroIntervalMs}
+      />
     </div>
   );
 }
