@@ -731,13 +731,14 @@ a.atpl-subject-card {
 .atpl-package-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 1.15rem;
+  align-items: stretch;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .atpl-package-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.25rem;
+    gap: 1.35rem;
   }
 }
 
@@ -745,11 +746,11 @@ a.atpl-subject-card {
   display: flex;
   height: 100%;
   flex-direction: column;
-  padding: 1.75rem 1.5rem 1.5rem;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(204, 160, 76, 0.28);
-  background: #fff;
-  box-shadow: 0 16px 48px -24px rgba(20, 48, 72, 0.2);
+  padding: 1.65rem 1.4rem 1.35rem;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(20, 48, 72, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fb 100%);
+  box-shadow: 0 14px 40px -26px rgba(20, 48, 72, 0.28);
   transition:
     transform 180ms ease,
     border-color 180ms ease,
@@ -757,9 +758,27 @@ a.atpl-subject-card {
 }
 
 .atpl-package-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(204, 160, 76, 0.5);
-  box-shadow: 0 18px 40px -22px rgba(20, 48, 72, 0.22);
+  transform: translateY(-4px);
+  border-color: rgba(204, 160, 76, 0.42);
+  box-shadow: 0 20px 44px -24px rgba(20, 48, 72, 0.3);
+}
+
+.atpl-package-card-featured {
+  border-color: rgba(204, 160, 76, 0.55);
+  background: linear-gradient(180deg, #fffdf8 0%, #ffffff 42%, #f8f4ea 100%);
+  box-shadow:
+    0 0 0 1px rgba(204, 160, 76, 0.18),
+    0 18px 48px -24px rgba(20, 48, 72, 0.32);
+}
+
+@media (min-width: 900px) {
+  .atpl-package-card-featured {
+    transform: translateY(-6px);
+  }
+
+  .atpl-package-card-featured:hover {
+    transform: translateY(-9px);
+  }
 }
 
 .atpl-package-card-name {
@@ -768,31 +787,31 @@ a.atpl-subject-card {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--accent, #cca04c);
+  color: #9e712e;
 }
 
 .atpl-package-card-included {
-  margin: 0.85rem 0 0;
+  margin: 0.9rem 0 0;
   font-family: var(--font-display), "Exo 2", sans-serif;
-  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-size: clamp(1.28rem, 2.1vw, 1.62rem);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
   color: #143048;
 }
 
 .atpl-package-card-blurb {
-  margin: 0.85rem 0 0;
-  font-size: 0.875rem;
+  margin: 0.8rem 0 0;
+  font-size: 0.84rem;
   line-height: 1.55;
   color: #7c7b80;
 }
 
 .atpl-package-card-bullets {
-  margin: 1.25rem 0 0;
+  margin: 1.15rem 0 0;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.62rem;
   padding: 0;
   list-style: none;
 }
@@ -800,24 +819,30 @@ a.atpl-subject-card {
 .atpl-package-card-bullets li {
   display: flex;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
   line-height: 1.4;
   color: #143048;
 }
 
-.atpl-package-card-price {
-  margin: auto 0 0;
+.atpl-package-card-footer {
+  margin-top: auto;
   padding-top: 1.35rem;
+}
+
+.atpl-package-card-price {
+  margin: 0;
   font-family: var(--font-display), "Exo 2", sans-serif;
-  font-size: 1.55rem;
+  font-size: clamp(1.45rem, 2.2vw, 1.75rem);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: #143048;
 }
 
 .atpl-package-card-cta {
   width: 100% !important;
-  margin-top: 1rem;
+  margin-top: 0.95rem;
+  min-height: 3rem;
+  justify-content: center;
 }
 
 .atpl-faq-item {

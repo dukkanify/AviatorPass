@@ -25,6 +25,7 @@ export const ATPL_PACKAGE_TIERS = [
     subjectCount: 1,
     subjectLabel: "Subject",
     cta: "Choose this package",
+    featured: false,
   },
   {
     sku: ATPL_PACKAGE_SKU_FIVE,
@@ -32,6 +33,7 @@ export const ATPL_PACKAGE_TIERS = [
     subjectCount: 5,
     subjectLabel: "Subjects",
     cta: "Choose this package",
+    featured: false,
   },
   {
     sku: ATPL_PACKAGE_SKU_FULL,
@@ -39,6 +41,7 @@ export const ATPL_PACKAGE_TIERS = [
     subjectCount: 13,
     subjectLabel: "Subjects",
     cta: "Choose this package",
+    featured: true,
   },
 ] as const;
 

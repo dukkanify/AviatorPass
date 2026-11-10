@@ -13,6 +13,7 @@ import { readCoursesDb } from "@/services/courses/store";
 import {
   ATPL_FIVE_COMPARE_AT,
   ATPL_FIVE_PRICES,
+  ATPL_PACKAGE_COMPARE_AT,
   ATPL_PACKAGE_PRICES,
   ATPL_SINGLE_COMPARE_AT,
   ATPL_SINGLE_PRICES,
@@ -466,14 +467,28 @@ function ensureAtplTierExist(): void {
   });
 }
 
+function atplCatalogPricesStale(
+  prices: Record<string, number> | undefined,
+  catalog: Record<string, number>,
+): boolean {
+  return Object.entries(catalog).some(([code, amount]) => prices?.[code] !== amount);
+}
+
 export function ensureAtplPackageAndRegionalRules(): void {
   const current = readPaymentsDb();
   const existing = current.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
+  const single = current.products.find((p) => p.metadata?.sku === "ATPL-SINGLE");
+  const five = current.products.find((p) => p.metadata?.sku === "ATPL-5");
   const missingPrices = existing
     ? Object.keys(ATPL_PACKAGE_PRICES).some(
         (code) => typeof existing.pricesByCurrency?.[code] !== "number",
       )
     : false;
+  const packagePricesStale =
+    Boolean(existing) && atplCatalogPricesStale(existing?.pricesByCurrency, ATPL_PACKAGE_PRICES);
+  const tierPricesStale =
+    (Boolean(single) && atplCatalogPricesStale(single?.pricesByCurrency, ATPL_SINGLE_PRICES)) ||
+    (Boolean(five) && atplCatalogPricesStale(five?.pricesByCurrency, ATPL_FIVE_PRICES));
   const packageCourseIds = existing ? atplPackageCourseIds(false) : [];
   const currentIds = Array.isArray(existing?.metadata.courseIds)
     ? existing.metadata.courseIds.map(String)
@@ -484,10 +499,16 @@ export function ensureAtplPackageAndRegionalRules(): void {
     (currentIds.length !== packageCourseIds.length ||
       packageCourseIds.some((id) => !currentIds.includes(id)));
   const needsRules = current.regionalRules.length === 0;
-  const needsTiers =
-    !current.products.some((p) => p.metadata?.sku === "ATPL-5") ||
-    !current.products.some((p) => p.metadata?.sku === "ATPL-SINGLE");
-  if (existing && !missingPrices && !courseIdsStale && !needsRules && !needsTiers) {
+  const needsTiers = !five || !single;
+  if (
+    existing &&
+    !missingPrices &&
+    !packagePricesStale &&
+    !tierPricesStale &&
+    !courseIdsStale &&
+    !needsRules &&
+    !needsTiers
+  ) {
     return;
   }
   if (needsTiers) ensureAtplTierExist();
@@ -502,15 +523,36 @@ export function ensureAtplPackageAndRegionalRules(): void {
       d.regionalRules = defaultRegionalPaymentRules(d.settings.currency);
     }
     const stamp = new Date().toISOString();
+    const syncTier = (
+      sku: "ATPL-SINGLE" | "ATPL-5",
+      prices: Record<string, number>,
+      compare: Record<string, number>,
+    ) => {
+      const tier = d.products.find((p) => p.metadata?.sku === sku);
+      if (!tier || !atplCatalogPricesStale(tier.pricesByCurrency, prices)) return;
+      tier.pricesByCurrency = { ...prices };
+      tier.priceAmount = prices[d.settings.currency] ?? prices.KWD ?? tier.priceAmount;
+      tier.compareAtAmount = compare[d.settings.currency] ?? compare.KWD ?? tier.compareAtAmount;
+      tier.updatedAt = stamp;
+    };
+    syncTier("ATPL-SINGLE", ATPL_SINGLE_PRICES, ATPL_SINGLE_COMPARE_AT);
+    syncTier("ATPL-5", ATPL_FIVE_PRICES, ATPL_FIVE_COMPARE_AT);
+
     const row = d.products.find((p) => p.metadata?.sku === "ATPL-PACKAGE");
     if (row) {
-      const next = { ...ATPL_PACKAGE_PRICES, ...row.pricesByCurrency };
       if (
         Object.keys(ATPL_PACKAGE_PRICES).some(
           (code) => typeof row.pricesByCurrency?.[code] !== "number",
-        )
+        ) ||
+        atplCatalogPricesStale(row.pricesByCurrency, ATPL_PACKAGE_PRICES)
       ) {
-        row.pricesByCurrency = next;
+        row.pricesByCurrency = { ...ATPL_PACKAGE_PRICES };
+        row.priceAmount =
+          ATPL_PACKAGE_PRICES[d.settings.currency as keyof typeof ATPL_PACKAGE_PRICES] ??
+          ATPL_PACKAGE_PRICES.KWD;
+        row.compareAtAmount =
+          ATPL_PACKAGE_COMPARE_AT[d.settings.currency as keyof typeof ATPL_PACKAGE_COMPARE_AT] ??
+          ATPL_PACKAGE_COMPARE_AT.KWD;
         row.updatedAt = stamp;
       }
       const nextCourseIds = atplPackageCourseIds();

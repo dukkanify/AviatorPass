@@ -75,6 +75,16 @@ describe("country-first pricing", () => {
     expect(resolveCountryPrice(atpl, "KW").currency).not.toBe("AED");
   });
 
+  it("prefers ATPL catalogue amounts over stale product prices", () => {
+    const stale = {
+      ...atpl,
+      priceAmount: 12_000,
+      pricesByCurrency: { KWD: 12_000, AED: 1, SAR: 1, USD: 1, EUR: 1 },
+    };
+    expect(resolveCountryPrice(stale, "KW").amount).toBe(ATPL_PACKAGE_PRICES.KWD);
+    expect(resolveCountryPrice(stale, "KW").amount).toBeGreaterThan(12_000);
+  });
+
   it("rejects unsupported BNPL country-currency pairs", () => {
     expect(() => assertBnplCurrency("tamara", "KW", "KWD")).toThrow(PaymentError);
     expect(() => assertBnplCurrency("tamara", "AE", "KWD")).toThrow(PaymentError);
