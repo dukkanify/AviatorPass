@@ -133,10 +133,6 @@ export const COURSE_BENEFITS = {
       title: "Academy support",
       body: "Enrolment, scheduling, and platform help from the Aviator Pass team.",
     },
-    {
-      title: "No Hidden Fees",
-      body: "The price you see at checkout is the price you pay. No surprise add-ons after enrolment.",
-    },
   ],
 } as const;
 
@@ -227,7 +223,8 @@ export const PRICING = {
     "Student dashboard, progress, and certificates",
     "Invoice issued after payment",
     "Account created automatically, no pre-registration",
+    "No Hidden Fees",
   ],
-  note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible.",
+  note: "Displayed from is the catalogue amount. Stripe Checkout charges the Price for your detected currency. Apple Pay, Google Pay, and local methods appear when eligible. No Hidden Fees: the checkout total is what you pay.",
   cta: "Choose this package",
 } as const;

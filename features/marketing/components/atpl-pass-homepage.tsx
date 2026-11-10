@@ -427,6 +427,14 @@ function AtplPassHomepage({ subjects, courseHref }: AtplPassHomepageProps) {
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
             {PAYMENTS.intro}
           </p>
+          <div className="atpl-payment-highlight mt-8">
+            <p className="font-display text-base font-semibold text-[var(--landing-ink-soft)]">
+              {PAYMENTS.highlight}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {PAYMENTS.highlightBody}
+            </p>
+          </div>
 
           <div className="mt-12 grid gap-8 lg:grid-cols-2">
             {PAYMENTS.regions.map((region) => (
