@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
+import { revalidateSiteCopyPage } from "@/lib/marketing/revalidate-marketing";
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import {
   getSiteCopySnapshot,
@@ -81,6 +82,8 @@ export async function PUT(request: Request) {
       userId: user.id,
       path: "/api/admin/site-copy",
     });
+
+    revalidateSiteCopyPage(pageId);
 
     return NextResponse.json({ success: true, data: snapshot, error: null });
   } catch (error) {

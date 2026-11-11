@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { courseErrorResponse } from "@/app/api/courses/_utils";
 import { PERMISSIONS } from "@/constants/permissions";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import {
   deleteAtplLandingSubject,
@@ -37,6 +38,7 @@ export async function PATCH(request: Request, { params }: Params) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateMarketingPaths(["/", "/atpl"]);
     return NextResponse.json({ success: true, data: subject, error: null });
   } catch (error) {
     return courseErrorResponse(error);
@@ -49,6 +51,7 @@ export async function DELETE(request: Request, { params }: Params) {
     const { id } = await params;
     const ctx = getRequestContext(request);
     await deleteAtplLandingSubject({ id, actorId: user.id, ...ctx });
+    revalidateMarketingPaths(["/", "/atpl"]);
     return NextResponse.json({ success: true, data: { id }, error: null });
   } catch (error) {
     return courseErrorResponse(error);

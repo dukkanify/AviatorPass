@@ -8,6 +8,7 @@ import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { generateId } from "@/lib/security/crypto";
 import { validateUpload, virusScanHook, UploadSecurityError } from "@/lib/security/upload";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import { writeOpsLog } from "@/services/ops/logging-service";
 import { putUploadedFile, UploadBackendError } from "@/lib/ops/upload-backend";
 
@@ -120,6 +121,8 @@ export async function POST(request: Request) {
       userId: user.id,
       path: publicUrl,
     });
+
+    revalidateMarketingPaths();
 
     return NextResponse.json({
       success: true,

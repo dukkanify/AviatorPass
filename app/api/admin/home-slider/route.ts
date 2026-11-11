@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
 import { PERMISSIONS } from "@/constants/permissions";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import { UploadSecurityError } from "@/lib/security/upload";
 import { UploadBackendError } from "@/lib/ops/upload-backend";
 import { logActivity } from "@/services/auth/activity-log";
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
         entityId: slide.id,
         metadata: { event: "add_slide", imageUrl: slide.imageUrl },
       });
+      revalidateMarketingPaths(["/"]);
       return NextResponse.json({ success: true, data: getHomeSliderAdmin(), error: null });
     }
 
@@ -122,6 +124,8 @@ export async function POST(request: Request) {
       entityId: String(body?.id ?? "collection"),
       metadata: { event: action },
     });
+
+    revalidateMarketingPaths(["/"]);
 
     return NextResponse.json({ success: true, data: getHomeSliderAdmin(), error: null });
   } catch (error) {
