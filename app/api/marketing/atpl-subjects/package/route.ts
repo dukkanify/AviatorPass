@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ATPL_COMPLETE_PACKAGE_SUBJECTS } from "@/constants/atpl-complete-package";
 import { courseErrorResponse } from "@/app/api/courses/_utils";
 import { PERMISSIONS } from "@/constants/permissions";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import {
   ensureOfficialPackageSubject,
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateMarketingPaths(["/", "/atpl"]);
     return NextResponse.json({ success: true, data: subject, error: null });
   } catch (error) {
     return courseErrorResponse(error);

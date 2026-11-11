@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAuth, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ensurePaymentsSeeded } from "@/services/payments/seed";
+import type { AtplPackageSku } from "@/constants/atpl-complete-package";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import {
   createCoupon,
   getPaymentSettings,
@@ -14,7 +16,6 @@ import {
   upsertProduct,
   validateCoupon,
 } from "@/services/payments/catalog-service";
-import type { AtplPackageSku } from "@/constants/atpl-complete-package";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
 import type { CouponType, PricingModel } from "@/types/payments";
 
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
         (body.tiers as Partial<Record<AtplPackageSku, Record<string, number>>> | undefined) ??
         (body.prices ? { "ATPL-PACKAGE": body.prices as Record<string, number> } : undefined);
       const saved = updateAtplTierPrices(user, tiersInput ?? {});
+      revalidateMarketingPaths(["/", "/atpl", "/online-courses"]);
       return NextResponse.json({
         success: true,
         data: {
