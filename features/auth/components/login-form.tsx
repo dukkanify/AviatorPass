@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { loginSchema } from "@/utils/validation";
 import { sanitizeEmail } from "@/utils/sanitize";
 import { authFetch } from "@/features/auth/services/auth-api";
+import { ROLE_DASHBOARD } from "@/constants/roles";
 import { routes } from "@/constants/routes";
 import { roleMayFollowReturnPath, sanitizeReturnPath } from "@/lib/security/safe-return-path";
 import { useAuth } from "@/providers/auth-provider";
@@ -23,7 +24,7 @@ let loginNavigationLocked = false;
 
 function LoginForm() {
   const router = useRouter();
-  const { user, isLoading, signOut, setUser } = useAuth();
+  const { user, isLoading, setUser } = useAuth();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("next");
   const [email, setEmail] = React.useState(searchParams.get("email") ?? "");
@@ -31,24 +32,21 @@ function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [rememberMe, setRememberMe] = React.useState(false);
   const [pending, setPending] = React.useState(false);
-  const [clearedPriorSession, setClearedPriorSession] = React.useState(false);
   const completingRef = React.useRef(loginNavigationLocked);
 
   React.useEffect(() => {
     if (loginNavigationLocked || completingRef.current || pending) return;
     if (isLoading || !user) return;
-    // Preserve an active session when Login was opened with a safe return path
-    // (e.g. /login?next=/join/{classId}). Only clear the session for explicit
-    // account switching on bare /login.
+    // Keep the active session. Bare /login returns to the role dashboard;
+    // ?next=/join/... continues into the classroom.
     const safe = sanitizeReturnPath(returnTo);
+    completingRef.current = true;
     if (safe && roleMayFollowReturnPath(user.role, safe)) {
-      completingRef.current = true;
       router.replace(safe);
       return;
     }
-    setClearedPriorSession(true);
-    void signOut();
-  }, [isLoading, user, signOut, pending, returnTo, router]);
+    router.replace(ROLE_DASHBOARD[user.role] ?? routes.home);
+  }, [isLoading, user, pending, returnTo, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,10 +62,6 @@ function LoginForm() {
 
     setPending(true);
     try {
-      if (user) {
-        await signOut();
-      }
-
       if (password.trim()) {
         const result = await authFetch<{
           user: UserProfile;
@@ -130,11 +124,6 @@ function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {clearedPriorSession ? (
-        <p className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Switching accounts. Sign in with the student, instructor, or admin email you want.
-        </p>
-      ) : null}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

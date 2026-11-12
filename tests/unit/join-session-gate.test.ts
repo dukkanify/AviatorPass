@@ -26,11 +26,16 @@ describe("join session gate", () => {
     expect(middleware).toMatch(/NextResponse\.redirect\(new URL\(safe, request\.url\)\)/);
   });
 
-  it("login form preserves an active session when next is a safe classroom path", () => {
+  it("login keeps an active session and never auto-signs out on bare /login", () => {
     const login = src("features/auth/components/login-form.tsx");
+    const middleware = src("middleware.ts");
     expect(login).toMatch(/sanitizeReturnPath\(returnTo\)/);
     expect(login).toMatch(/roleMayFollowReturnPath\(user\.role, safe\)/);
     expect(login).toMatch(/router\.replace\(safe\)/);
+    expect(login).toMatch(/ROLE_DASHBOARD\[user\.role\]/);
+    expect(login).not.toMatch(/void signOut\(\)/);
+    expect(middleware).toMatch(/Bare \/login must NOT sign people out/);
+    expect(middleware).toMatch(/ROLE_DASHBOARD\[claims\.role\]/);
   });
 
   it("join client waits for auth, maps 401→login?next and 403→access denied", () => {
