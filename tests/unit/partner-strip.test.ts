@@ -13,7 +13,9 @@ describe("Partnerships strip", () => {
     expect(strip).toContain("/partners/pilot100-logo.svg");
     expect(strip).toContain("/partners/tamara-logo.svg");
     expect(strip).toContain("/partners/taly-logo.svg");
-    expect(strip).toContain("/partners/easa-logo.png");
+    expect(strip).toContain("/partners/easa-logo-mark.png");
+    expect(strip).toContain("partner-strip-logo-pilot100");
+    expect(strip).toContain("partner-strip-logo-easa");
     expect(strip).not.toContain("Future partner");
     expect(strip).not.toContain("future-partner.svg");
   });

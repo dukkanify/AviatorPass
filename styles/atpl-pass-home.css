@@ -226,18 +226,10 @@
   box-shadow: 0 8px 40px -20px rgba(20, 48, 72, 0.15);
 }
 
-.atpl-how-panel {
-  padding: clamp(1.25rem, 3vw, 2rem);
-  border-radius: 1.35rem;
-  border: 1px solid rgba(20, 48, 72, 0.1);
-  background: #fff;
-  box-shadow: 0 10px 36px -24px rgba(20, 48, 72, 0.2);
-}
-
 .atpl-how-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.25rem;
+  gap: 1rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -246,65 +238,106 @@
 @media (min-width: 640px) {
   .atpl-how-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
+    gap: 1.1rem;
   }
+}
 
-  .atpl-how-step:nth-child(odd) {
-    border-right: 1px solid rgba(20, 48, 72, 0.08);
-  }
-
-  .atpl-how-step:nth-child(-n + 2) {
-    border-bottom: 1px solid rgba(20, 48, 72, 0.08);
+@media (min-width: 1024px) {
+  .atpl-how-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.15rem;
   }
 }
 
 .atpl-how-step {
-  padding: clamp(1.25rem, 3vw, 1.75rem);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 1.25rem 1.2rem 1.35rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(20, 48, 72, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaf8 100%);
+  box-shadow: 0 12px 28px -22px rgba(20, 48, 72, 0.35);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atpl-how-step:hover {
+    transform: translateY(-3px);
+    border-color: rgba(204, 160, 76, 0.55);
+    box-shadow:
+      0 16px 32px -20px rgba(20, 48, 72, 0.4),
+      0 0 0 1px rgba(204, 160, 76, 0.12);
+  }
+
+  .atpl-how-step:hover .atpl-how-icon {
+    background: #143048;
+    border-color: #143048;
+    color: #f6c36c;
+  }
+
+  .atpl-how-step:hover .atpl-how-number {
+    color: #9e712e;
+    opacity: 1;
+  }
 }
 
 .atpl-how-step-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .atpl-how-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.85rem;
-  border: 1px solid rgba(20, 48, 72, 0.1);
-  background: rgba(20, 48, 72, 0.04);
-  color: #143048;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex-shrink: 0;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(204, 160, 76, 0.35);
+  background: linear-gradient(145deg, #143048 0%, #1a3d5c 100%);
+  color: #f6c36c;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 .atpl-how-number {
   font-family: var(--font-display), "Exo 2", sans-serif;
-  font-size: 1.65rem;
+  font-size: clamp(1.85rem, 3.2vw, 2.25rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   line-height: 1;
-  color: rgba(124, 123, 128, 0.45);
+  color: #cca04c;
+  opacity: 0.88;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease;
 }
 
 .atpl-how-title {
-  margin: 1.15rem 0 0;
+  margin: 0;
   font-family: var(--font-display), "Exo 2", sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.12rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
   color: #143048;
 }
 
 .atpl-how-body {
-  margin: 0.55rem 0 0;
-  max-width: 28ch;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: hsl(var(--muted-foreground));
+  margin: 0.45rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #5c6470;
 }
 
 /* —— Feature cards —— */
