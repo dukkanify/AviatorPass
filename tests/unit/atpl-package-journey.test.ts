@@ -7,6 +7,10 @@ import {
   ATPL_COMPLETE_PACKAGE_SUBJECTS,
   ATPL_PACKAGE_CONFIRMED_NOTICE,
   ATPL_PACKAGE_JOINING_TERMS,
+  ATPL_PACKAGE_SKU_FIVE,
+  ATPL_PACKAGE_SKU_FULL,
+  ATPL_PACKAGE_SKU_SINGLE,
+  atplPackageJoiningTermsForSku,
   ATPL_PACKAGE_LECTURE_TITLE,
   ATPL_PACKAGE_LMS_COURSE_CODES,
   ATPL_PACKAGE_MIN_NOTICE_HOURS,
@@ -135,6 +139,12 @@ describe("ATPL Complete Package journey", () => {
     expect(ATPL_PACKAGE_MIN_NOTICE_HOURS).toBe(72);
     expect(ATPL_PACKAGE_TKI_NOTICE).toMatch(/TKI 1/);
     expect(ATPL_PACKAGE_JOINING_TERMS.length).toBeGreaterThanOrEqual(4);
+    expect(atplPackageJoiningTermsForSku(ATPL_PACKAGE_SKU_FULL)[0]).toContain("13");
+    expect(atplPackageJoiningTermsForSku(ATPL_PACKAGE_SKU_FIVE)[0]).toContain("5");
+    expect(atplPackageJoiningTermsForSku(ATPL_PACKAGE_SKU_SINGLE)[0]).toContain("1");
+    expect(atplPackageJoiningTermsForSku(ATPL_PACKAGE_SKU_FIVE).slice(1)).toEqual([
+      ...ATPL_PACKAGE_JOINING_TERMS.slice(1),
+    ]);
   });
 
   it("rejects guest checkout payloads without a valid package schedule", () => {
@@ -148,14 +158,26 @@ describe("ATPL Complete Package journey", () => {
     expect(guestCheckoutSchema.safeParse(base).success).toBe(false);
     expect(
       guestCheckoutSchema.safeParse({
+        acceptJoiningTerms: true,
         ...base,
         studyStartDate: formatLocalDateInput(new Date()),
         firstLectureTime: "09:00",
       }).success,
     ).toBe(false);
-    expect(guestCheckoutSchema.safeParse({ ...base, ...validAtplPackageSchedule() }).success).toBe(
-      true,
-    );
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...base,
+        ...validAtplPackageSchedule(),
+        acceptJoiningTerms: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...base,
+        ...validAtplPackageSchedule(),
+        acceptJoiningTerms: false,
+      }).success,
+    ).toBe(false);
   });
 
   it("stores the requested start on the paid order and welcome snapshot", async () => {
@@ -164,6 +186,7 @@ describe("ATPL Complete Package journey", () => {
     ensurePaymentsSeeded();
     const schedule = validAtplPackageSchedule();
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Huda",
       lastName: "Farid",
       email: `package.schedule.${Date.now()}@aviatorpass.test`,
@@ -214,6 +237,9 @@ describe("ATPL Complete Package journey", () => {
     expect(checkoutView).toContain("firstLectureTime");
     expect(checkoutView).toContain("Time for the first lecture (UTC)");
     expect(checkoutView).toContain("ATPL_PACKAGE_TKI_NOTICE");
+    expect(checkoutView).toContain("Before You Enrol");
+    expect(checkoutView).toContain("atplPackageJoiningTermsForSku");
+    expect(checkoutView).toContain("acceptJoiningTerms");
     expect(checkoutView).toContain("countryOptionLabel");
     expect(checkoutView).toContain("applyCountryDialCode");
 
@@ -269,6 +295,7 @@ describe("ATPL Complete Package journey", () => {
     expect(getCgiDashboardSnapshot().defaultFirstSubjectCourseId).toBe(opening.id);
 
     const paid = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Maha",
       lastName: "Saleh",
       email: `tki.opening.${Date.now()}@aviatorpass.test`,
@@ -312,6 +339,7 @@ describe("ATPL Complete Package journey", () => {
     ensureCoursesSeeded();
     ensurePaymentsSeeded();
     const paid = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Noura",
       lastName: "Saleh",
       email: `package.heal.${Date.now()}@aviatorpass.test`,
@@ -388,6 +416,7 @@ describe("ATPL Complete Package journey", () => {
       const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
       const requested = validAtplPackageSchedule();
       const paid = await payGuestCheckout({
+        acceptJoiningTerms: true,
         firstName: "Rami",
         lastName: "Nasser",
         email: `tki.confirm.${Date.now()}@aviatorpass.test`,
@@ -486,6 +515,7 @@ describe("ATPL Complete Package journey", () => {
 
       const later = validAtplPackageSchedule();
       const paidAgain = await payGuestCheckout({
+        acceptJoiningTerms: true,
         firstName: "Sara",
         lastName: "Hadi",
         email: `tki.replace.${Date.now()}@aviatorpass.test`,
@@ -608,6 +638,7 @@ describe("ATPL Complete Package journey", () => {
     const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
     const requested = validAtplPackageSchedule();
     const paid = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Nour",
       lastName: "Salem",
       email: `tki.next.${Date.now()}@aviatorpass.test`,
@@ -706,6 +737,7 @@ describe("ATPL Complete Package journey", () => {
       const cgi = readAuthDb().users.find((u) => u.role === ROLES.CHIEF_GROUND_INSTRUCTOR)!;
       const requested = validAtplPackageSchedule();
       const paid = await payGuestCheckout({
+        acceptJoiningTerms: true,
         firstName: "Lina",
         lastName: "Farah",
         email: `tki.complete.${Date.now()}@aviatorpass.test`,

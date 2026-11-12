@@ -60,6 +60,7 @@ describe("Tamara checkout creation", () => {
 
     const email = `tamara.guest.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Mona",
       lastName: "Lisa",
       email,

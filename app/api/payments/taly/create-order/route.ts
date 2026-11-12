@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     }
 
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       ...parsed.data,
       methodBrand: "taly" as PaymentMethodBrand,
     });

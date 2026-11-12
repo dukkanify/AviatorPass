@@ -95,6 +95,7 @@ describe("purchase-first ATPL enrollment", () => {
     const email = `fail.guest.${Date.now()}@aviatorpass.test`;
     const before = readAuthDb().users.length;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Fail",
       lastName: "Case",
       email,
@@ -117,6 +118,7 @@ describe("purchase-first ATPL enrollment", () => {
   it("creates a student, emails a one-time password, and enrolls ATPL after success", async () => {
     const email = `buy.guest.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Laila",
       lastName: "Hassan",
       email,
@@ -202,6 +204,7 @@ describe("purchase-first ATPL enrollment", () => {
     expect(beforeCount).toBe(1);
 
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Existing",
       lastName: "Pilot",
       email,
@@ -232,6 +235,7 @@ describe("purchase-first ATPL enrollment", () => {
     const email = `welcome.guest.${Date.now()}@aviatorpass.test`;
     const schedule = validAtplPackageSchedule();
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Nora",
       lastName: "Rivera",
       email,

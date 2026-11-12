@@ -14,6 +14,7 @@ import {
   ATPL_PACKAGE_LECTURE_TIME_OPTIONS,
   ATPL_PACKAGE_MIN_NOTICE_HOURS,
   ATPL_PACKAGE_TKI_NOTICE,
+  atplPackageJoiningTermsForSku,
   atplPackageScheduleIssue,
   earliestAtplPackageDateTime,
   formatAtplPackageScheduleLabel,
@@ -135,9 +136,14 @@ function GuestCheckoutView() {
     studyStartDate: "",
     firstLectureTime: "",
     methodBrand: "card" as PaymentMethodBrand,
+    acceptJoiningTerms: false,
   });
   const [scheduleError, setScheduleError] = React.useState<string | null>(null);
+  const [termsError, setTermsError] = React.useState<string | null>(null);
   const minStudyDate = formatLocalDateInput(earliestAtplPackageDateTime());
+  const productSku =
+    typeof quote?.product.metadata?.sku === "string" ? quote.product.metadata.sku : null;
+  const joiningTerms = atplPackageJoiningTermsForSku(productSku);
 
   const productId = search.get("productId") ?? "";
   const canceled = search.get("canceled") === "1";
@@ -197,7 +203,14 @@ function GuestCheckoutView() {
       toast.error(scheduleIssue);
       return;
     }
+    if (!form.acceptJoiningTerms) {
+      const message = "Confirm the joining terms before paying.";
+      setTermsError(message);
+      toast.error(message);
+      return;
+    }
     setScheduleError(null);
+    setTermsError(null);
     setPending(true);
     try {
       const paid = await authFetch<PayResult>("/api/public/checkout", {
@@ -215,6 +228,7 @@ function GuestCheckoutView() {
           firstLectureTime: form.firstLectureTime,
           methodBrand: form.methodBrand,
           paymentToken: "tok_4242",
+          acceptJoiningTerms: true,
         }),
       });
       if (!paid.success || !paid.data) {
@@ -511,6 +525,50 @@ function GuestCheckoutView() {
               Stripe is available in every country. Tamara appears for the United Arab Emirates and
               Saudi Arabia. Taly appears for Kuwait. Unsupported gateways are hidden.
             </p>
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4 sm:p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                Before You Enrol
+              </p>
+              <h2 className="mt-2 font-display text-lg font-semibold text-foreground">
+                Terms for joining this package
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {quote
+                  ? `Read these terms for ${quote.product.name} before you pay.`
+                  : "Loading the joining terms for your selected package…"}
+              </p>
+            </div>
+            {quote ? (
+              <>
+                <ol className="atpl-joining-terms">
+                  {joiningTerms.map((term, index) => (
+                    <li key={term}>
+                      <span className="atpl-joining-term-index">{index + 1}</span>
+                      <p>{term}</p>
+                    </li>
+                  ))}
+                </ol>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 shrink-0 accent-[hsl(var(--accent))]"
+                    checked={form.acceptJoiningTerms}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, acceptJoiningTerms: e.target.checked }));
+                      if (e.target.checked) setTermsError(null);
+                    }}
+                    aria-invalid={Boolean(termsError)}
+                  />
+                  <span>
+                    I have read and agree to the joining terms for this package before paying.
+                  </span>
+                </label>
+                {termsError ? <p className="text-sm text-destructive">{termsError}</p> : null}
+              </>
+            ) : null}
           </div>
 
           <Button

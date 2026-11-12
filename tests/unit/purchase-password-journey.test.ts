@@ -57,6 +57,7 @@ describe("purchase password and package confirmation journey", () => {
   it("puts a setup token on the welcome snapshot and confirms the ATPL package in email copy", async () => {
     const email = `welcome.password.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Aziz",
       lastName: "Buyer",
       email,
@@ -200,6 +201,7 @@ describe("purchase password and package confirmation journey", () => {
   it("rebinds a paid ATPL order onto the live email account for CGI and welcome", async () => {
     const email = `rebind.buyer.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Rebind",
       lastName: "Buyer",
       email,
@@ -231,6 +233,7 @@ describe("purchase password and package confirmation journey", () => {
   it("hydrates ATPL enrollments onto the live account after a ghost student id", async () => {
     const email = `hydrate.buyer.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Hydrate",
       lastName: "Buyer",
       email,

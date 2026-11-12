@@ -111,6 +111,7 @@ describe("country gateway routing", () => {
   it("blocks guest checkout when the gateway does not support the billing country", async () => {
     await expect(
       payGuestCheckout({
+        acceptJoiningTerms: true,
         firstName: "Noor",
         lastName: "Ali",
         email: `route.taly.ae.${Date.now()}@aviatorpass.test`,
@@ -129,6 +130,7 @@ describe("country gateway routing", () => {
 
     await expect(
       payGuestCheckout({
+        acceptJoiningTerms: true,
         firstName: "Sara",
         lastName: "Kuwait",
         email: `route.tamara.kw.${Date.now()}@aviatorpass.test`,

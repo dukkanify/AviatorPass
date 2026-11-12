@@ -26,6 +26,7 @@ describe("purchase-first password setup", () => {
   it("emails a setup link and consumes the token once", async () => {
     const email = `setup.guest.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Setup",
       lastName: "Pilot",
       email,
