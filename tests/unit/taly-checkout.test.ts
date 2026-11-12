@@ -94,6 +94,7 @@ describe("Taly checkout creation", () => {
 
     const email = `taly.guest.${Date.now()}@aviatorpass.test`;
     const result = await payGuestCheckout({
+      acceptJoiningTerms: true,
       firstName: "Omar",
       lastName: "Pilot",
       email,

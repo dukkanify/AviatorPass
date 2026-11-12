@@ -393,6 +393,9 @@ function alreadyOwnsProduct(studentId: string, productId: string): boolean {
 }
 
 export async function payGuestCheckout(input: GuestCheckoutInput): Promise<GuestPayResult> {
+  if (input.acceptJoiningTerms !== true) {
+    throw new PaymentError("Confirm the joining terms before paying.", 400);
+  }
   const scheduleIssue = atplPackageScheduleIssue(input.studyStartDate, input.firstLectureTime);
   if (scheduleIssue) {
     throw new PaymentError(scheduleIssue, 400);

@@ -137,6 +137,7 @@ export const guestCheckoutSchema = z
     paymentToken: z.string().max(80).optional(),
     simulateFailure: z.boolean().optional(),
     idempotencyKey: z.string().min(8).max(80).optional(),
+    acceptJoiningTerms: z.boolean(),
   })
   .superRefine((data, ctx) => {
     const issue = atplPackageScheduleIssue(data.studyStartDate, data.firstLectureTime);
@@ -145,6 +146,13 @@ export const guestCheckoutSchema = z
         code: z.ZodIssueCode.custom,
         message: issue,
         path: ["firstLectureTime"],
+      });
+    }
+    if (data.acceptJoiningTerms !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Confirm the joining terms before paying.",
+        path: ["acceptJoiningTerms"],
       });
     }
   });

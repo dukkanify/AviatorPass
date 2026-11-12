@@ -282,6 +282,25 @@ export const ATPL_PACKAGE_JOINING_TERMS = [
   "Seat confirmation and instructor assignment follow successful payment and coordination with TKI 1.",
 ] as const;
 
+/** Shared joining terms with the package-inclusion line matched to the selected SKU. */
+export function atplPackageJoiningTermsForSku(sku?: string | null): string[] {
+  const tier = ATPL_PACKAGE_TIERS.find((row) => row.sku === sku);
+  const [, ...sharedTerms] = ATPL_PACKAGE_JOINING_TERMS;
+  if (!tier || tier.sku === ATPL_PACKAGE_SKU_FULL) {
+    return [...ATPL_PACKAGE_JOINING_TERMS];
+  }
+  if (tier.subjectCount === 1) {
+    return [
+      `The ${tier.title} package includes 1 Airline Transport Pilot License theory subject.`,
+      ...sharedTerms,
+    ];
+  }
+  return [
+    `The ${tier.title} includes ${tier.subjectCount} Airline Transport Pilot License theory subjects.`,
+    ...sharedTerms,
+  ];
+}
+
 export const ATPL_PACKAGE_LECTURE_TIME_OPTIONS = [
   "08:00",
   "10:00",
