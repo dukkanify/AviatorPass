@@ -118,6 +118,8 @@ function Footer() {
           <p className="site-footer-copy">
             © {year} {siteStatic.name}
             <span className="site-footer-dot" aria-hidden />
+            Developed by Dukkanify Technology LLC
+            <span className="site-footer-dot" aria-hidden />
             English only
             <span className="site-footer-dot" aria-hidden />
             <Link href={routes.legal.terms} className="site-footer-legal-link">
