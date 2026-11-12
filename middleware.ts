@@ -243,17 +243,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Allow register / OTP / login so account creation or switching while another
-  // session is open does not bounce back to the prior role dashboard.
+  // Allow register / OTP flows while signed in so account creation can continue.
+  // Bare /login must NOT sign people out — send them back to their dashboard.
   if (isAuthRoute && claims && claims.status !== ACCOUNT_STATUS.SUSPENDED) {
-    // Signed-in users following ?next=/join/... (or another allowed path) must
-    // land there — never clear their session by parking them on /login.
     if (pathname === routes.login) {
       const requested = request.nextUrl.searchParams.get("next");
       const safe = sanitizeReturnPath(requested);
       if (safe && roleMayFollowReturnPath(claims.role, safe)) {
         return NextResponse.redirect(new URL(safe, request.url));
       }
+      const url = request.nextUrl.clone();
+      url.search = "";
+      url.pathname = claims.profileComplete ? ROLE_DASHBOARD[claims.role] : routes.completeProfile;
+      return NextResponse.redirect(url);
     }
     const allowAuthWhileSignedIn =
       pathname === routes.register ||
@@ -261,8 +263,7 @@ export async function middleware(request: NextRequest) {
       pathname === routes.verifyOtp ||
       pathname === routes.forgotPassword ||
       pathname === routes.resetPassword ||
-      pathname === routes.setupPassword ||
-      pathname === routes.login;
+      pathname === routes.setupPassword;
     if (!allowAuthWhileSignedIn) {
       const url = request.nextUrl.clone();
       url.pathname = claims.profileComplete ? ROLE_DASHBOARD[claims.role] : routes.completeProfile;
