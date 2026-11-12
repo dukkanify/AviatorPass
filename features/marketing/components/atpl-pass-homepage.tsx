@@ -253,26 +253,26 @@ function AtplPassHomepage({
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
             {howItWorks.subtitle}
           </p>
-          <div className="atpl-how-panel mt-12">
-            <ol className="atpl-how-grid">
-              {howItWorks.steps.map((step, index) => {
-                const Icon = HOW_IT_WORKS_ICONS[index]!;
-                const number = String(index + 1).padStart(2, "0");
-                return (
-                  <li key={`${number}-${step.title}`} className="atpl-how-step">
-                    <div className="atpl-how-step-top">
-                      <span className="atpl-how-icon" aria-hidden>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="atpl-how-number">{number}</span>
-                    </div>
-                    <h3 className="atpl-how-title">{step.title}</h3>
-                    <p className="atpl-how-body">{step.body}</p>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+          <ol className="atpl-how-grid mt-12">
+            {howItWorks.steps.map((step, index) => {
+              const Icon = HOW_IT_WORKS_ICONS[index]!;
+              const number = String(index + 1).padStart(2, "0");
+              return (
+                <li key={`${number}-${step.title}`} className="atpl-how-step">
+                  <div className="atpl-how-step-top">
+                    <span className="atpl-how-icon" aria-hidden>
+                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.75} />
+                    </span>
+                    <span className="atpl-how-number" aria-hidden>
+                      {number}
+                    </span>
+                  </div>
+                  <h3 className="atpl-how-title">{step.title}</h3>
+                  <p className="atpl-how-body">{step.body}</p>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </section>
 

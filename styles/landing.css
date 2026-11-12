@@ -1726,6 +1726,39 @@ a.partner-strip-link:hover {
   max-width: 11rem;
 }
 
+/* Only Pilot100 — keep the other partner logos at the default strip size */
+.partner-strip-large .partner-strip-link-pilot100 {
+  padding: 0.4rem 0.55rem;
+}
+
+.partner-strip-large .partner-strip-link-tamara,
+.partner-strip-large .partner-strip-link-taly {
+  padding: 0.55rem 0.7rem;
+}
+
+.partner-strip-large .partner-strip-logo-pilot100 {
+  height: 6.35rem;
+  max-width: 100%;
+  width: auto;
+}
+
+.partner-strip-large .partner-strip-logo-tamara {
+  height: 5.25rem;
+  max-width: 100%;
+  width: auto;
+}
+
+.partner-strip-large .partner-strip-logo-taly {
+  height: 4.75rem;
+  max-width: 100%;
+  width: auto;
+}
+
+.partner-strip-large .partner-strip-logo-easa {
+  height: 5.1rem;
+  max-width: 14.5rem;
+}
+
 @media (max-width: 479px) {
   .partner-strip-list,
   .partner-strip-large .partner-strip-list {
@@ -1735,6 +1768,22 @@ a.partner-strip-link:hover {
   .partner-strip-large .partner-strip-link,
   .partner-strip-large .partner-strip-link-static {
     min-height: 5.75rem;
+  }
+
+  .partner-strip-large .partner-strip-logo-pilot100 {
+    height: 5.15rem;
+    max-width: 100%;
+  }
+
+  .partner-strip-large .partner-strip-logo-tamara,
+  .partner-strip-large .partner-strip-logo-taly {
+    height: 4.5rem;
+    max-width: 100%;
+  }
+
+  .partner-strip-large .partner-strip-logo-easa {
+    height: 4.35rem;
+    max-width: 13rem;
   }
 }
 

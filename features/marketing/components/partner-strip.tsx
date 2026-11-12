@@ -1,12 +1,20 @@
 import Image from "next/image";
 
-const PARTNERS = [
+const PARTNERS: Array<{
+  name: string;
+  src: string;
+  href: string;
+  width: number;
+  height: number;
+  logoClass?: string;
+}> = [
   {
     name: "Pilot100",
     src: "/partners/pilot100-logo.svg",
     href: "https://pilot100atpl.com",
     width: 146,
     height: 32,
+    logoClass: "partner-strip-logo-pilot100",
   },
   {
     name: "Tamara",
@@ -14,6 +22,7 @@ const PARTNERS = [
     href: "https://tamara.co",
     width: 97,
     height: 19,
+    logoClass: "partner-strip-logo-tamara",
   },
   {
     name: "Taly",
@@ -21,15 +30,17 @@ const PARTNERS = [
     href: "https://taly.io",
     width: 106,
     height: 48,
+    logoClass: "partner-strip-logo-taly",
   },
   {
     name: "EASA",
-    src: "/partners/easa-logo.png",
+    src: "/partners/easa-logo-mark.png",
     href: "https://www.easa.europa.eu",
-    width: 220,
-    height: 94,
+    width: 821,
+    height: 288,
+    logoClass: "partner-strip-logo-easa",
   },
-] as const;
+];
 
 type PartnerStripProps = {
   /** Larger homepage / marketing treatment. */
@@ -65,7 +76,11 @@ function PartnerStrip({ size = "default" }: PartnerStripProps) {
                 width={partner.width}
                 height={partner.height}
                 unoptimized
-                className="partner-strip-logo"
+                className={
+                  partner.logoClass
+                    ? `partner-strip-logo ${partner.logoClass}`
+                    : "partner-strip-logo"
+                }
               />
             );
 
@@ -73,7 +88,15 @@ function PartnerStrip({ size = "default" }: PartnerStripProps) {
               <li key={partner.name} className="partner-strip-item">
                 <a
                   href={partner.href}
-                  className="partner-strip-link"
+                  className={
+                    partner.name === "Pilot100"
+                      ? "partner-strip-link partner-strip-link-pilot100"
+                      : partner.name === "Tamara"
+                        ? "partner-strip-link partner-strip-link-tamara"
+                        : partner.name === "Taly"
+                          ? "partner-strip-link partner-strip-link-taly"
+                          : "partner-strip-link"
+                  }
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`${partner.name} (opens in a new tab)`}

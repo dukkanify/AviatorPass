@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Apple, CheckCircle2, CreditCard, Lock, ShieldCheck, Smartphone } from "lucide-react";
+import { CheckCircle2, CreditCard, Lock, ShieldCheck, Smartphone } from "lucide-react";
 import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,6 @@ type PayResult = {
 };
 
 function methodIcon(id: PaymentMethodBrand) {
-  if (id === "apple_pay") return Apple;
   if (id === "google_pay" || id === "mada") return Smartphone;
   return CreditCard;
 }
@@ -490,7 +489,10 @@ function GuestCheckoutView() {
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        {method.id === "tamara" ? (
+                        {method.id === "apple_pay" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src="/partners/apple-logo.svg" alt="" className="h-5 w-auto" />
+                        ) : method.id === "tamara" ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src="/partners/tamara-logo.svg" alt="" className="h-5 w-auto" />
                         ) : method.id === "taly" ? (
