@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 72" role="img" aria-labelledby="talyTitle">
-  <title id="talyTitle">Taly</title>
-  <rect width="220" height="72" rx="12" fill="#F7F5F2"/>
-  <rect x="18" y="18" width="36" height="36" rx="10" fill="#143048"/>
-  <path d="M27 30h14v3.2h-5.4V42h-3.2V33.2H27V30z" fill="#CCA04C"/>
-  <text x="68" y="33" font-family="IBM Plex Sans, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="0.18em" fill="#7C7B80">INSTALLMENTS</text>
-  <text x="68" y="54" font-family="IBM Plex Sans, Arial, sans-serif" font-size="24" font-weight="700" fill="#143048">Taly</text>
-</svg>

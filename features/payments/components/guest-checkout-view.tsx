@@ -492,10 +492,10 @@ function GuestCheckoutView() {
                       <span className="flex items-center gap-2">
                         {method.id === "tamara" ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src="/partners/tamara.svg" alt="" className="h-5 w-auto" />
+                          <img src="/partners/tamara-logo.svg" alt="" className="h-5 w-auto" />
                         ) : method.id === "taly" ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src="/partners/taly.svg" alt="" className="h-5 w-auto" />
+                          <img src="/partners/taly-logo.svg" alt="" className="h-5 w-auto" />
                         ) : (
                           <Icon className="size-4" />
                         )}

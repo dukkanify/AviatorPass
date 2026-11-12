@@ -103,7 +103,7 @@ export const DASHBOARD_NAV_BY_ROLE: Record<
 
 export const APP_METADATA = {
   title: {
-    default: "Aviator Pass | Complete Aviation Education Platform",
+    default: "Aviator Pass",
     template: "%s | Aviator Pass",
   },
   description:
