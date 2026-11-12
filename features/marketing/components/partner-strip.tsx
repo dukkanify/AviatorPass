@@ -1,9 +1,27 @@
 import Image from "next/image";
 
 const PARTNERS = [
-  { name: "Pilot100", src: "/partners/pilot100.svg", href: "https://pilot100.com" },
-  { name: "Tamara", src: "/partners/tamara.svg", href: "https://tamara.co" },
-  { name: "Taly", src: "/partners/taly.svg", href: "https://taly.io" },
+  {
+    name: "Pilot100",
+    src: "/partners/pilot100-logo.svg",
+    href: "https://pilot100atpl.com",
+    width: 146,
+    height: 32,
+  },
+  {
+    name: "Tamara",
+    src: "/partners/tamara-logo.svg",
+    href: "https://tamara.co",
+    width: 97,
+    height: 19,
+  },
+  {
+    name: "Taly",
+    src: "/partners/taly-logo.svg",
+    href: "https://taly.io",
+    width: 106,
+    height: 48,
+  },
   {
     name: "EASA",
     src: "/partners/easa-logo.png",
@@ -11,7 +29,6 @@ const PARTNERS = [
     width: 220,
     height: 94,
   },
-  { name: "Future partner", src: "/partners/future-partner.svg", href: null },
 ] as const;
 
 type PartnerStripProps = {
@@ -41,14 +58,12 @@ function PartnerStrip({ size = "default" }: PartnerStripProps) {
         ) : null}
         <ul className="partner-strip-list">
           {PARTNERS.map((partner) => {
-            const width = "width" in partner ? partner.width : 220;
-            const height = "height" in partner ? partner.height : 72;
             const logo = (
               <Image
                 src={partner.src}
-                alt={partner.href ? partner.name : `${partner.name}, reserved`}
-                width={width}
-                height={height}
+                alt={partner.name}
+                width={partner.width}
+                height={partner.height}
                 unoptimized
                 className="partner-strip-logo"
               />
@@ -56,19 +71,15 @@ function PartnerStrip({ size = "default" }: PartnerStripProps) {
 
             return (
               <li key={partner.name} className="partner-strip-item">
-                {partner.href ? (
-                  <a
-                    href={partner.href}
-                    className="partner-strip-link"
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`${partner.name} (opens in a new tab)`}
-                  >
-                    {logo}
-                  </a>
-                ) : (
-                  <span className="partner-strip-link partner-strip-link-static">{logo}</span>
-                )}
+                <a
+                  href={partner.href}
+                  className="partner-strip-link"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${partner.name} (opens in a new tab)`}
+                >
+                  {logo}
+                </a>
               </li>
             );
           })}

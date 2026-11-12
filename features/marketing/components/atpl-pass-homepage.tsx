@@ -130,7 +130,9 @@ function AtplPassHomepage({
             <span className="atpl-hero-brand-pass"> PASS</span>
           </p>
 
-          <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{hero.kicker}</p>
+          {hero.kicker ? (
+            <p className="animate-in-up atpl-kicker atpl-kicker-hero mt-8">{hero.kicker}</p>
+          ) : null}
 
           <h1 className="animate-in-up-delay-1 mt-5 max-w-[18ch] font-display text-[clamp(1.85rem,4.2vw,3.5rem)] font-semibold leading-[1.1] tracking-[-0.03em] text-white/96">
             {hero.headline}

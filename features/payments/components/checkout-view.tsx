@@ -376,10 +376,10 @@ function CheckoutView() {
               <div className="space-y-2">
                 {paymentMode === "tamara" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src="/partners/tamara.svg" alt="Tamara" className="h-8 w-auto" />
+                  <img src="/partners/tamara-logo.svg" alt="Tamara" className="h-8 w-auto" />
                 ) : paymentMode === "taly" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src="/partners/taly.svg" alt="Taly" className="h-8 w-auto" />
+                  <img src="/partners/taly-logo.svg" alt="Taly" className="h-8 w-auto" />
                 ) : null}
                 <p className="text-xs text-muted-foreground">
                   {paymentMode === "tamara"
