@@ -7,6 +7,8 @@ import { extractTalySignature } from "@/services/payments/taly-signature";
 import { processTalyWebhook } from "@/services/payments/taly-webhook-service";
 
 export const dynamic = "force-dynamic";
+/** Must be a static literal for Next.js segment config (Taly blocked from bom1). */
+export const preferredRegion = ["iad1"];
 
 const ALLOW = { Allow: "POST, OPTIONS", "Cache-Control": "no-store" } as const;
 

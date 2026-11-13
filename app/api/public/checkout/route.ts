@@ -14,6 +14,9 @@ import { COUNTRIES } from "@/constants/countries";
 import { readCheckoutCountryCookie } from "@/services/payments/currency-detection";
 import { guestCheckoutSchema } from "@/utils/validation";
 
+/** Guest checkout may call Taly; keep off bom1 (Taly edge/WAF blocks that region). */
+export const preferredRegion = ["iad1"];
+
 export async function GET(request: Request) {
   try {
     await ensureCsrfToken();

@@ -6,11 +6,14 @@
 
 import { PaymentError } from "@/services/payments/access";
 import {
-  TALY_OAUTH_CLIENT_BASIC,
   getTalyApiKey,
+  getTalyBaseHost,
   getTalyBaseUrl,
+  getTalyBaseUrlAlignment,
+  getTalyOauthClientBasic,
   getTalySecretKey,
   isTalyConfigured,
+  talyOauthClientConfiguredFromEnv,
 } from "@/services/payments/taly-config";
 import { logTalyEvent } from "@/services/payments/taly-logging";
 
@@ -60,7 +63,25 @@ function errorMessageFromBody(json: unknown, status: number): string {
     }
     if (typeof record.error === "string" && record.error.trim()) return record.error;
   }
+  if (status === 403) {
+    return "Taly rejected the request (HTTP 403). Check region allowlisting and TALY_BASE_URL.";
+  }
   return `Taly request failed (${status})`;
+}
+
+function transportFailureDetails(error: unknown): Record<string, unknown> {
+  const err = error as { name?: string; code?: string; message?: string; cause?: unknown };
+  const cause =
+    err?.cause && typeof err.cause === "object"
+      ? (err.cause as { code?: string; message?: string })
+      : null;
+  return {
+    name: typeof err?.name === "string" ? err.name.slice(0, 80) : null,
+    code: typeof err?.code === "string" ? err.code.slice(0, 80) : null,
+    causeCode: typeof cause?.code === "string" ? cause.code.slice(0, 80) : null,
+    reason: typeof err?.message === "string" ? err.message.slice(0, 160) : "fetch failed",
+    baseHost: getTalyBaseHost(),
+  };
 }
 
 async function parseJson(text: string): Promise<unknown> {
@@ -68,7 +89,11 @@ async function parseJson(text: string): Promise<unknown> {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    return { message: text.slice(0, 400) };
+    const trimmed = text.trim();
+    if (/^<!DOCTYPE|^<html/i.test(trimmed)) {
+      return { message: `Non-JSON HTML response (${trimmed.slice(0, 80).replace(/\s+/g, " ")})` };
+    }
+    return { message: text.slice(0, 200) };
   }
 }
 
@@ -79,8 +104,60 @@ async function loginTaly(): Promise<string> {
     return tokenCache.accessToken;
   }
 
+  const alignment = getTalyBaseUrlAlignment();
+  if (alignment.mismatched || alignment.kind === "invalid") {
+    logTalyEvent({
+      level: "warn",
+      message: "TALY_BASE_URL may not match runtime environment",
+      path: "/uaa/oauth/token",
+      details: {
+        baseHost: alignment.host,
+        baseKind: alignment.kind,
+        productionRuntime: alignment.productionRuntime,
+        mismatched: alignment.mismatched,
+      },
+    });
+  }
+  if (!talyOauthClientConfiguredFromEnv()) {
+    if (alignment.productionRuntime) {
+      logTalyEvent({
+        level: "error",
+        message: "Taly OAuth client env missing in Production",
+        path: "/uaa/oauth/token",
+        details: {
+          baseHost: alignment.host,
+          oauthClientFromEnv: false,
+        },
+      });
+      throw new PaymentError(
+        "Taly OAuth client is not configured. Set TALY_OAUTH_CLIENT_ID and TALY_OAUTH_CLIENT_SECRET.",
+        503,
+      );
+    }
+    logTalyEvent({
+      level: "warn",
+      message: "Taly OAuth client env unset; using docs sandbox client fallback",
+      path: "/uaa/oauth/token",
+      details: {
+        baseHost: alignment.host,
+        oauthClientFromEnv: false,
+      },
+    });
+  }
+
   const username = getTalyApiKey()!;
   const password = getTalySecretKey()!;
+  let oauthBasic: string;
+  try {
+    oauthBasic = getTalyOauthClientBasic();
+  } catch (error) {
+    throw new PaymentError(
+      error instanceof Error
+        ? error.message
+        : "Taly OAuth client is not configured. Set TALY_OAUTH_CLIENT_ID and TALY_OAUTH_CLIENT_SECRET.",
+      503,
+    );
+  }
   const url = `${getTalyBaseUrl()}/uaa/oauth/token`;
   const form = new URLSearchParams({
     username,
@@ -89,19 +166,27 @@ async function loginTaly(): Promise<string> {
     scope: "api",
   });
 
-  const attempts: Array<{ authorization: string; contentType: string; body: string }> = [
+  const attempts: Array<{
+    authorization: string;
+    contentType: string;
+    body: string;
+    label: string;
+  }> = [
     {
-      authorization: TALY_OAUTH_CLIENT_BASIC,
+      label: "oauth-client-basic-form",
+      authorization: oauthBasic,
       contentType: "application/x-www-form-urlencoded",
       body: form.toString(),
     },
     {
+      label: "merchant-basic-form",
       authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
       contentType: "application/x-www-form-urlencoded",
       body: form.toString(),
     },
     {
-      authorization: TALY_OAUTH_CLIENT_BASIC,
+      label: "oauth-client-basic-json",
+      authorization: oauthBasic,
       contentType: "application/json",
       body: JSON.stringify({
         username,
@@ -114,6 +199,7 @@ async function loginTaly(): Promise<string> {
 
   let lastStatus = 0;
   let lastJson: unknown = null;
+  let lastAttempt = "";
   for (const attempt of attempts) {
     let response: Response;
     try {
@@ -132,7 +218,9 @@ async function loginTaly(): Promise<string> {
         message: "Merchant login transport failed",
         path: "/uaa/oauth/token",
         details: {
-          reason: error instanceof Error ? error.message : "fetch failed",
+          ...transportFailureDetails(error),
+          attempt: attempt.label,
+          oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
         },
       });
       throw new PaymentError(
@@ -144,8 +232,10 @@ async function loginTaly(): Promise<string> {
     const json = await parseJson(text);
     lastStatus = response.status;
     lastJson = json;
+    lastAttempt = attempt.label;
     if (!response.ok) continue;
     const record = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+    // Prefer snake_case access_token (Taly OAuth), then camelCase.
     const accessToken =
       (typeof record.access_token === "string" && record.access_token) ||
       (typeof record.accessToken === "string" && record.accessToken) ||
@@ -163,6 +253,9 @@ async function loginTaly(): Promise<string> {
     path: "/uaa/oauth/token",
     details: {
       status: lastStatus,
+      attempt: lastAttempt,
+      baseHost: getTalyBaseHost(),
+      oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
       error: errorMessageFromBody(lastJson, lastStatus).slice(0, 200),
     },
   });
@@ -195,11 +288,25 @@ async function talyFetch<T>(
     "X-Api-Secret": secret,
   };
 
-  const response = await fetch(url.toString(), {
-    method: init.method ?? "GET",
-    headers,
-    body: init.body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      method: init.method ?? "GET",
+      headers,
+      body: init.body,
+    });
+  } catch (error) {
+    logTalyEvent({
+      level: "error",
+      message: "Taly API transport failed",
+      path,
+      details: transportFailureDetails(error),
+    });
+    throw new PaymentError(
+      "Taly API transport failed. Check TALY_BASE_URL, region allowlisting, and TLS.",
+      502,
+    );
+  }
   const text = await response.text();
   const json = await parseJson(text);
   if (!response.ok) {
@@ -211,7 +318,11 @@ async function talyFetch<T>(
       level: "error",
       message: "Taly API error",
       path,
-      details: { status: response.status, error: message.slice(0, 200) },
+      details: {
+        status: response.status,
+        baseHost: getTalyBaseHost(),
+        error: message.slice(0, 200),
+      },
     });
     throw new PaymentError(
       message,

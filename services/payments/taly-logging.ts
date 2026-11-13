@@ -18,6 +18,12 @@ const BLOCKED = new Set([
   "TALY_API_KEY",
   "TALY_SECRET_KEY",
   "TALY_WEBHOOK_SECRET",
+  "TALY_OAUTH_CLIENT_ID",
+  "TALY_OAUTH_CLIENT_SECRET",
+  "oauthClientId",
+  "oauthClientSecret",
+  "clientSecret",
+  "client_secret",
 ]);
 
 function looksSecret(value: unknown): boolean {

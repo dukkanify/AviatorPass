@@ -19,6 +19,9 @@ import { paymentErrorResponse } from "@/app/api/payments/_utils";
 import type { PaymentMethodBrand } from "@/types/payments";
 import { enforceMutatingApiSecurity } from "@/lib/security/api-guard";
 
+/** Authenticated pay/retry may call Taly; keep off bom1. */
+export const preferredRegion = ["iad1"];
+
 export async function GET(request: Request) {
   try {
     const user = await requireAuth();

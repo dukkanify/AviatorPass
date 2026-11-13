@@ -129,6 +129,8 @@ beforeEach(() => {
   process.env.TALY_SECRET_KEY = "test-taly-secret-key";
   process.env.TALY_WEBHOOK_SECRET = WEBHOOK_SECRET;
   process.env.TALY_BASE_URL = "https://api.dev-taly.io";
+  process.env.TALY_OAUTH_CLIENT_ID = "test-oauth-client";
+  process.env.TALY_OAUTH_CLIENT_SECRET = "test-oauth-secret";
   process.env.NEXT_PUBLIC_APP_ENV = "development";
   resetTalyTokenCache();
   ensureDemoUsersSeeded();
