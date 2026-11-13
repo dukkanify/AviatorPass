@@ -55,7 +55,7 @@ TALY_OAUTH_CLIENT_SECRET=
 
 If `TALY_BASE_URL` is omitted, AviatorPass uses sandbox unless `NEXT_PUBLIC_APP_ENV` or `VERCEL_ENV` is `production`. Keep Production keys with `https://api.taly.io` and sandbox keys with `https://api.dev-taly.io`.
 
-Taly-touching App Router handlers set `preferredRegion = ["iad1"]` because Taly’s edge returns HTTP 403 from Vercel `bom1`.
+Taly-touching App Router handlers set `preferredRegion = ["iad1"]`, and `vercel.json` pins project `regions` to `["iad1"]`, because Taly’s edge blocks Vercel `bom1` (transport failure / HTTP 403).
 
 Every Taly API call authenticates with the merchant **API Key** and **Secret Key**: password-grant login (`POST /uaa/oauth/token`) then `Authorization: Bearer` plus `X-Api-Key` / `X-Api-Secret` on subsequent requests. Access tokens are cached until shortly before expiry (~24h). Tokens and keys are never logged.
 

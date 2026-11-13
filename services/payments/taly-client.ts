@@ -69,6 +69,11 @@ function errorMessageFromBody(json: unknown, status: number): string {
   return `Taly request failed (${status})`;
 }
 
+function vercelRegion(): string | null {
+  const region = process.env.VERCEL_REGION?.trim();
+  return region ? region.slice(0, 32) : null;
+}
+
 function transportFailureDetails(error: unknown): Record<string, unknown> {
   const err = error as { name?: string; code?: string; message?: string; cause?: unknown };
   const cause =
@@ -81,6 +86,7 @@ function transportFailureDetails(error: unknown): Record<string, unknown> {
     causeCode: typeof cause?.code === "string" ? cause.code.slice(0, 80) : null,
     reason: typeof err?.message === "string" ? err.message.slice(0, 160) : "fetch failed",
     baseHost: getTalyBaseHost(),
+    vercelRegion: vercelRegion(),
   };
 }
 
@@ -255,6 +261,7 @@ async function loginTaly(): Promise<string> {
       status: lastStatus,
       attempt: lastAttempt,
       baseHost: getTalyBaseHost(),
+      vercelRegion: vercelRegion(),
       oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
       error: errorMessageFromBody(lastJson, lastStatus).slice(0, 200),
     },

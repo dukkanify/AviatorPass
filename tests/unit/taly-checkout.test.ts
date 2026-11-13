@@ -113,6 +113,13 @@ describe("Taly checkout creation", () => {
       const source = readFileSync(path.join(process.cwd(), relative), "utf8");
       expect(source).toContain('preferredRegion = ["iad1"]');
     }
+
+    const vercelJson = JSON.parse(
+      readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"),
+    ) as {
+      regions?: string[];
+    };
+    expect(vercelJson.regions).toEqual(["iad1"]);
   });
 
   it("refuses the docs OAuth fallback when Production runtime lacks client env", () => {
