@@ -79,6 +79,10 @@ const serverEnvSchema = z.object({
   TALY_SECRET_KEY: z.string().optional(),
   TALY_WEBHOOK_SECRET: z.string().optional(),
   TALY_BASE_URL: z.string().url().optional(),
+  /** OAuth client id for POST /uaa/oauth/token (not the merchant API key). */
+  TALY_OAUTH_CLIENT_ID: z.string().optional(),
+  /** OAuth client secret for POST /uaa/oauth/token (not the merchant API secret). */
+  TALY_OAUTH_CLIENT_SECRET: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),
   SMTP_USER: z.string().optional(),
@@ -181,6 +185,8 @@ export function getServerEnv() {
     TALY_SECRET_KEY: emptyToUndef(process.env.TALY_SECRET_KEY),
     TALY_WEBHOOK_SECRET: emptyToUndef(process.env.TALY_WEBHOOK_SECRET),
     TALY_BASE_URL: emptyToUndef(process.env.TALY_BASE_URL),
+    TALY_OAUTH_CLIENT_ID: emptyToUndef(process.env.TALY_OAUTH_CLIENT_ID),
+    TALY_OAUTH_CLIENT_SECRET: emptyToUndef(process.env.TALY_OAUTH_CLIENT_SECRET),
     SMTP_HOST: emptyToUndef(process.env.SMTP_HOST),
     SMTP_PORT: emptyToUndef(process.env.SMTP_PORT),
     SMTP_USER: emptyToUndef(process.env.SMTP_USER),

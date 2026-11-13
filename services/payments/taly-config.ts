@@ -14,8 +14,15 @@ export const TALY_CREATE_ORDER_PATH = "/api/payments/taly/create-order";
 export const TALY_SANDBOX_BASE_URL = "https://api.dev-taly.io";
 export const TALY_PRODUCTION_BASE_URL = "https://api.taly.io";
 
-/** Taly OAuth client default from merchant-login docs (`merchant-api:secret`). */
-export const TALY_OAUTH_CLIENT_BASIC = "Basic bWVyY2hhbnQtYXBpOnNlY3JldA==";
+/**
+ * Pin Taly-touching serverless routes away from bom1 (blocked by Taly edge/WAF).
+ * iad1 was verified to reach api.taly.io / api.dev-taly.io.
+ */
+export const TALY_PREFERRED_REGIONS = ["iad1"] as const;
+
+/** Documented sandbox OAuth client id from Taly merchant-login docs (not a merchant API key). */
+const TALY_DOCS_OAUTH_CLIENT_ID = "merchant-api";
+const TALY_DOCS_OAUTH_CLIENT_SECRET = "secret";
 
 function isProductionRuntime(): boolean {
   return (
@@ -35,10 +42,77 @@ export function getTalyWebhookSecret(): string | null {
   return process.env.TALY_WEBHOOK_SECRET?.trim() || null;
 }
 
+export function getTalyOauthClientId(): string | null {
+  return process.env.TALY_OAUTH_CLIENT_ID?.trim() || null;
+}
+
+export function getTalyOauthClientSecret(): string | null {
+  return process.env.TALY_OAUTH_CLIENT_SECRET?.trim() || null;
+}
+
+export function talyOauthClientConfiguredFromEnv(): boolean {
+  return Boolean(getTalyOauthClientId() && getTalyOauthClientSecret());
+}
+
+/**
+ * OAuth client Basic header for POST /uaa/oauth/token.
+ * Requires TALY_OAUTH_CLIENT_ID + TALY_OAUTH_CLIENT_SECRET in Production (never log these).
+ * Non-production may fall back to the Taly docs sandbox client when env is unset.
+ */
+export function getTalyOauthClientBasic(): string {
+  const id = getTalyOauthClientId();
+  const secret = getTalyOauthClientSecret();
+  if (id && secret) {
+    return `Basic ${Buffer.from(`${id}:${secret}`, "utf8").toString("base64")}`;
+  }
+  if (isProductionRuntime()) {
+    throw new Error(
+      "Taly OAuth client is required in Production. Set TALY_OAUTH_CLIENT_ID and TALY_OAUTH_CLIENT_SECRET.",
+    );
+  }
+  return `Basic ${Buffer.from(
+    `${TALY_DOCS_OAUTH_CLIENT_ID}:${TALY_DOCS_OAUTH_CLIENT_SECRET}`,
+    "utf8",
+  ).toString("base64")}`;
+}
+
 export function getTalyBaseUrl(): string {
   const explicit = process.env.TALY_BASE_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
   return isProductionRuntime() ? TALY_PRODUCTION_BASE_URL : TALY_SANDBOX_BASE_URL;
+}
+
+export function getTalyBaseHost(): string {
+  try {
+    return new URL(getTalyBaseUrl()).host;
+  } catch {
+    return "invalid-taly-base-url";
+  }
+}
+
+export type TalyBaseUrlAlignment = {
+  host: string;
+  kind: "production" | "sandbox" | "custom" | "invalid";
+  productionRuntime: boolean;
+  /** True when production runtime points at sandbox host (or the reverse). */
+  mismatched: boolean;
+};
+
+export function getTalyBaseUrlAlignment(): TalyBaseUrlAlignment {
+  const productionRuntime = isProductionRuntime();
+  let host = "invalid-taly-base-url";
+  let kind: TalyBaseUrlAlignment["kind"] = "invalid";
+  try {
+    host = new URL(getTalyBaseUrl()).host;
+    if (host === "api.taly.io") kind = "production";
+    else if (host === "api.dev-taly.io") kind = "sandbox";
+    else kind = "custom";
+  } catch {
+    kind = "invalid";
+  }
+  const mismatched =
+    (productionRuntime && kind === "sandbox") || (!productionRuntime && kind === "production");
+  return { host, kind, productionRuntime, mismatched };
 }
 
 export function isTalyConfigured(): boolean {

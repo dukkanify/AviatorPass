@@ -36,16 +36,26 @@ TALY_API_KEY=
 TALY_SECRET_KEY=
 TALY_WEBHOOK_SECRET=
 TALY_BASE_URL=
+TALY_OAUTH_CLIENT_ID=
+TALY_OAUTH_CLIENT_SECRET=
 ```
 
-| Variable              | Sandbox                     | Production                 |
-| --------------------- | --------------------------- | -------------------------- |
-| `TALY_API_KEY`        | Merchant API username       | Live merchant API username |
-| `TALY_SECRET_KEY`     | Merchant API password       | Live merchant API password |
-| `TALY_WEBHOOK_SECRET` | HMAC secret from onboarding | Live webhook HMAC secret   |
-| `TALY_BASE_URL`       | `https://api.dev-taly.io`   | `https://api.taly.io`      |
+| Variable                   | Sandbox                     | Production                 |
+| -------------------------- | --------------------------- | -------------------------- |
+| `TALY_API_KEY`             | Merchant API username       | Live merchant API username |
+| `TALY_SECRET_KEY`          | Merchant API password       | Live merchant API password |
+| `TALY_WEBHOOK_SECRET`      | HMAC secret from onboarding | Live webhook HMAC secret   |
+| `TALY_BASE_URL`            | `https://api.dev-taly.io`   | `https://api.taly.io`      |
+| `TALY_OAUTH_CLIENT_ID`     | OAuth client id             | Live OAuth client id       |
+| `TALY_OAUTH_CLIENT_SECRET` | OAuth client secret         | Live OAuth client secret   |
 
-If `TALY_BASE_URL` is omitted, AviatorPass uses sandbox unless `NEXT_PUBLIC_APP_ENV` or `VERCEL_ENV` is `production`.
+`TALY_OAUTH_CLIENT_*` is **not** the same as `TALY_API_KEY` / `TALY_SECRET_KEY`. The OAuth client authenticates the password-grant call; the merchant API key/secret are the username/password and the `X-Api-Key` / `X-Api-Secret` headers afterward.
+
+**Production:** `TALY_OAUTH_CLIENT_ID` and `TALY_OAUTH_CLIENT_SECRET` are **required**. AviatorPass does not use the docs sandbox OAuth fallback when `VERCEL_ENV` or `NEXT_PUBLIC_APP_ENV` is `production`.
+
+If `TALY_BASE_URL` is omitted, AviatorPass uses sandbox unless `NEXT_PUBLIC_APP_ENV` or `VERCEL_ENV` is `production`. Keep Production keys with `https://api.taly.io` and sandbox keys with `https://api.dev-taly.io`.
+
+Taly-touching App Router handlers set `preferredRegion = ["iad1"]` because Taly’s edge returns HTTP 403 from Vercel `bom1`.
 
 Every Taly API call authenticates with the merchant **API Key** and **Secret Key**: password-grant login (`POST /uaa/oauth/token`) then `Authorization: Bearer` plus `X-Api-Key` / `X-Api-Secret` on subsequent requests. Access tokens are cached until shortly before expiry (~24h). Tokens and keys are never logged.
 

@@ -7,6 +7,9 @@ import { listRefunds, requestRefund, reviewRefund } from "@/services/payments/re
 import { canManageFinance } from "@/services/payments/access";
 import { paymentErrorResponse } from "@/app/api/payments/_utils";
 
+/** Approved refunds may call Taly refund API; keep off bom1. */
+export const preferredRegion = ["iad1"];
+
 export async function GET() {
   try {
     const user = await requireAuth();

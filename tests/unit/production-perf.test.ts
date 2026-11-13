@@ -12,14 +12,18 @@ function src(rel: string) {
 describe("production performance contracts", () => {
   it("prioritizes the marketing and student LCP heroes with next/image", () => {
     const home = src("features/marketing/components/atpl-pass-homepage.tsx");
+    const slider = src("components/media/home-hero-slider.tsx");
     const atpl = src("features/marketing/components/atpl-program-page.tsx");
     const student = src(
       "features/learning/components/student-dashboard/student-dashboard-view.tsx",
     );
     const hero = src("components/media/hero-lcp-image.tsx");
     expect(home).not.toMatch(/["']use client["']/);
-    expect(home).toContain("HeroLcpImage");
+    expect(home).toContain("HomeHeroSlider");
     expect(home).not.toContain("backgroundImage");
+    expect(slider).toContain("next/image");
+    expect(slider).toContain("priority={slideIndex === 0}");
+    expect(slider).toContain('fetchPriority={slideIndex === 0 ? "high" : "auto"}');
     expect(atpl).toContain("HeroLcpImage");
     expect(hero).toContain("priority");
     expect(hero).toContain('fetchPriority="high"');

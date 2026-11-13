@@ -17,7 +17,14 @@ import { getPaymentGateway } from "@/services/payments/gateway";
 import { payGuestCheckout, quoteGuestCheckout } from "@/services/payments/purchase-first-service";
 import { formatTamaraAmount } from "@/services/payments/money";
 import { resetTalyTokenCache } from "@/services/payments/taly-client";
+import {
+  TALY_PREFERRED_REGIONS,
+  getTalyBaseUrlAlignment,
+  getTalyOauthClientBasic,
+} from "@/services/payments/taly-config";
 import { TalyGateway } from "@/services/payments/taly-gateway";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -26,7 +33,9 @@ function mockTalyFetch() {
     const url = String(input);
     if (url.includes("/uaa/oauth/token")) {
       const headers = new Headers(init?.headers);
-      expect(headers.get("Authorization")).toBeTruthy();
+      expect(headers.get("Authorization")).toBe(
+        `Basic ${Buffer.from("test-oauth-client:test-oauth-secret").toString("base64")}`,
+      );
       return new Response(
         JSON.stringify({
           access_token: "taly-access-token",
@@ -61,6 +70,8 @@ beforeEach(() => {
   process.env.TALY_SECRET_KEY = "test-taly-secret-key";
   process.env.TALY_WEBHOOK_SECRET = "test-taly-webhook-secret";
   process.env.TALY_BASE_URL = "https://api.dev-taly.io";
+  process.env.TALY_OAUTH_CLIENT_ID = "test-oauth-client";
+  process.env.TALY_OAUTH_CLIENT_SECRET = "test-oauth-secret";
   delete process.env.STRIPE_SECRET_KEY;
   resetTalyTokenCache();
   ensureDemoUsersSeeded();
@@ -79,6 +90,36 @@ describe("Taly checkout creation", () => {
     expect(getPaymentGateway().provider).toBe("mock");
     expect(getPaymentGateway("taly")).toBeInstanceOf(TalyGateway);
     expect(getPaymentGateway("tamara").provider).toBe("tamara");
+  });
+
+  it("builds OAuth Basic from env client id/secret and pins iad1 on Taly routes", () => {
+    const expected = `Basic ${Buffer.from("test-oauth-client:test-oauth-secret").toString("base64")}`;
+    expect(getTalyOauthClientBasic()).toBe(expected);
+    expect([...TALY_PREFERRED_REGIONS]).toEqual(["iad1"]);
+    expect(getTalyBaseUrlAlignment()).toMatchObject({
+      host: "api.dev-taly.io",
+      kind: "sandbox",
+      mismatched: false,
+    });
+
+    const routes = [
+      "app/api/payments/taly/create-order/route.ts",
+      "app/api/payments/taly/webhook/route.ts",
+      "app/api/public/checkout/route.ts",
+      "app/api/payments/orders/route.ts",
+      "app/api/payments/refunds/route.ts",
+    ];
+    for (const relative of routes) {
+      const source = readFileSync(path.join(process.cwd(), relative), "utf8");
+      expect(source).toContain('preferredRegion = ["iad1"]');
+    }
+  });
+
+  it("refuses the docs OAuth fallback when Production runtime lacks client env", () => {
+    delete process.env.TALY_OAUTH_CLIENT_ID;
+    delete process.env.TALY_OAUTH_CLIENT_SECRET;
+    process.env.VERCEL_ENV = "production";
+    expect(() => getTalyOauthClientBasic()).toThrow(/TALY_OAUTH_CLIENT_ID/);
   });
 
   it("converts minor units to Taly major amounts for existing currencies", () => {
@@ -159,6 +200,7 @@ describe("Taly checkout creation", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          acceptJoiningTerms: true,
           firstName: "Sara",
           lastName: "Student",
           email: `taly.create.${Date.now()}@aviatorpass.test`,

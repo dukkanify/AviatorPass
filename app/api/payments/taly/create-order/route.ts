@@ -12,6 +12,8 @@ import { guestCheckoutSchema } from "@/utils/validation";
 import type { PaymentMethodBrand } from "@/types/payments";
 
 export const dynamic = "force-dynamic";
+/** Must be a static literal for Next.js segment config (Taly blocked from bom1). */
+export const preferredRegion = ["iad1"];
 
 const ALLOW = { Allow: "POST, OPTIONS", "Cache-Control": "no-store" } as const;
 
