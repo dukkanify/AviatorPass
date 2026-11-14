@@ -6,8 +6,7 @@ describe("dead route redirects", () => {
   const config = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
 
   it("folds marketing aliases into existing surfaces", () => {
-    expect(config).toContain('source: "/about"');
-    expect(config).toContain('destination: "/"');
+    expect(config).not.toContain('source: "/about"');
     expect(config).toContain('source: "/pricing"');
     expect(config).toContain('destination: "/atpl"');
   });

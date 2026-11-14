@@ -20,6 +20,8 @@ import {
   COURSE_OVERVIEW,
   PRICING,
 } from "@/features/marketing/content/atpl-course-landing";
+import { LEARNING_METHOD, PAYMENTS } from "@/features/marketing/content/atpl-pass-home";
+import { MarketingSectionKicker } from "@/features/marketing/components/marketing-section-kicker";
 import type { AtplPackageTierMarketing } from "@/lib/marketing/atpl-program-marketing";
 import { getAtplSiteCopy } from "@/services/marketing/site-copy-service";
 import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
@@ -210,6 +212,78 @@ function AtplProgramPageContent({
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section
+        id="learning-method"
+        className="atpl-section atpl-section-accent scroll-mt-28"
+        aria-labelledby="learning-method-heading"
+      >
+        <div className="container-app">
+          <div className="mx-auto max-w-3xl text-center">
+            <MarketingSectionKicker>{LEARNING_METHOD.kicker}</MarketingSectionKicker>
+            <h2 id="learning-method-heading" className="atpl-heading mt-4">
+              {LEARNING_METHOD.title}
+            </h2>
+            <p className="mt-6 text-base leading-relaxed text-muted-foreground">
+              {LEARNING_METHOD.body}
+            </p>
+            <ul className="mt-10 grid gap-4 text-left sm:grid-cols-2">
+              {LEARNING_METHOD.points.map((point) => (
+                <li key={point} className="atpl-learning-point">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                  <span className="text-sm font-medium leading-relaxed text-foreground">
+                    {point}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="payments"
+        className="atpl-section atpl-section-light scroll-mt-28"
+        aria-labelledby="payments-heading"
+      >
+        <div className="container-app">
+          <MarketingSectionKicker>{PAYMENTS.kicker}</MarketingSectionKicker>
+          <h2 id="payments-heading" className="atpl-heading mt-4 max-w-[18ch]">
+            {PAYMENTS.title}
+          </h2>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
+            {PAYMENTS.intro}
+          </p>
+          <div className="atpl-payment-highlight mt-8">
+            <p className="font-display text-base font-semibold text-[var(--landing-ink-soft)]">
+              {PAYMENTS.highlight}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {PAYMENTS.highlightBody}
+            </p>
+          </div>
+          <div className="mt-12 grid gap-8 lg:grid-cols-2">
+            {PAYMENTS.regions.map((region) => (
+              <div key={region.country} className="atpl-payment-region">
+                <h3 className="font-display text-xl font-semibold text-[var(--landing-ink-soft)]">
+                  {region.country}
+                </h3>
+                <div className="mt-6 space-y-4">
+                  {region.methods.map((method) => (
+                    <div key={method.name} className="atpl-payment-method">
+                      <span className="atpl-payment-badge">{method.name}</span>
+                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {method.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 text-sm text-muted-foreground">{PAYMENTS.note}</p>
         </div>
       </section>
 

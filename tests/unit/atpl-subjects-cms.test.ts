@@ -141,18 +141,12 @@ describe("ATPL subjects CMS", () => {
       path.join(process.cwd(), "features/marketing/components/atpl-program-page.tsx"),
       "utf8",
     );
-    const home = readFileSync(
-      path.join(process.cwd(), "features/marketing/components/atpl-pass-homepage.tsx"),
-      "utf8",
-    );
     const atplPage = readFileSync(
       path.join(process.cwd(), "app/(marketing)/atpl/page.tsx"),
       "utf8",
     );
     expect(program).toContain("AtplSubjectGrid");
-    expect(home).toContain("AtplSubjectGrid");
     expect(atplPage).toContain("listAtplPackageReviewSubjects");
     expect(program).not.toContain("AGK —");
-    expect(home).not.toContain("AGK —");
   });
 });

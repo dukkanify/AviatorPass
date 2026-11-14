@@ -13,9 +13,9 @@ const exploreLinks = [
   { href: routes.onlineCourses, label: "Online Courses" },
   { href: routes.atpl, label: "ATPL Course" },
   { href: routes.qa, label: "Q&A" },
-  { href: "/#about", label: "About" },
-  { href: "/#instructors", label: "Instructors" },
-  { href: "/#contact", label: "Contact" },
+  { href: routes.about, label: "About" },
+  { href: routes.instructors, label: "Instructors" },
+  { href: routes.contact, label: "Contact" },
 ] as const;
 
 const accountLinks = [
