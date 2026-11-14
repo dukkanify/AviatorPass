@@ -15,6 +15,12 @@ import {
   isTalyConfigured,
   talyOauthClientConfiguredFromEnv,
 } from "@/services/payments/taly-config";
+import {
+  buildLoginTransportDiagnostic,
+  probeTalyConnectivity,
+  vercelExecutionRegion,
+  writeTalyLoginTransportStderr,
+} from "@/services/payments/taly-diagnostics";
 import { logTalyEvent } from "@/services/payments/taly-logging";
 
 export type TalyInitiateResponse = {
@@ -69,25 +75,14 @@ function errorMessageFromBody(json: unknown, status: number): string {
   return `Taly request failed (${status})`;
 }
 
-function vercelRegion(): string | null {
-  const region = process.env.VERCEL_REGION?.trim();
-  return region ? region.slice(0, 32) : null;
-}
-
 function transportFailureDetails(error: unknown): Record<string, unknown> {
-  const err = error as { name?: string; code?: string; message?: string; cause?: unknown };
-  const cause =
-    err?.cause && typeof err.cause === "object"
-      ? (err.cause as { code?: string; message?: string })
-      : null;
-  return {
-    name: typeof err?.name === "string" ? err.name.slice(0, 80) : null,
-    code: typeof err?.code === "string" ? err.code.slice(0, 80) : null,
-    causeCode: typeof cause?.code === "string" ? cause.code.slice(0, 80) : null,
-    reason: typeof err?.message === "string" ? err.message.slice(0, 160) : "fetch failed",
-    baseHost: getTalyBaseHost(),
-    vercelRegion: vercelRegion(),
-  };
+  return buildLoginTransportDiagnostic({
+    error,
+    attempt: "n/a",
+    durationMs: 0,
+    failedAt: new Date().toISOString(),
+    oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
+  });
 }
 
 async function parseJson(text: string): Promise<unknown> {
@@ -208,6 +203,7 @@ async function loginTaly(): Promise<string> {
   let lastAttempt = "";
   for (const attempt of attempts) {
     let response: Response;
+    const attemptStarted = Date.now();
     try {
       response = await fetch(url, {
         method: "POST",
@@ -219,15 +215,29 @@ async function loginTaly(): Promise<string> {
         body: attempt.body,
       });
     } catch (error) {
+      const failedAt = new Date().toISOString();
+      const durationMs = Date.now() - attemptStarted;
+      let probe = null;
+      try {
+        // Same runtime as payment login — unauthenticated DNS/TLS/HTTPS reachability only.
+        probe = await probeTalyConnectivity();
+      } catch {
+        probe = null;
+      }
+      const details = buildLoginTransportDiagnostic({
+        error,
+        attempt: attempt.label,
+        durationMs,
+        failedAt,
+        oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
+        probe,
+      });
+      writeTalyLoginTransportStderr(details);
       logTalyEvent({
         level: "error",
         message: "Merchant login transport failed",
         path: "/uaa/oauth/token",
-        details: {
-          ...transportFailureDetails(error),
-          attempt: attempt.label,
-          oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
-        },
+        details,
       });
       throw new PaymentError(
         "Taly login failed. Check TALY_BASE_URL, merchant credentials, and Taly API TLS.",
@@ -261,7 +271,7 @@ async function loginTaly(): Promise<string> {
       status: lastStatus,
       attempt: lastAttempt,
       baseHost: getTalyBaseHost(),
-      vercelRegion: vercelRegion(),
+      vercelRegion: vercelExecutionRegion(),
       oauthClientFromEnv: talyOauthClientConfiguredFromEnv(),
       error: errorMessageFromBody(lastJson, lastStatus).slice(0, 200),
     },
