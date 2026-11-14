@@ -5,11 +5,8 @@ import {
   BarChart3,
   BookOpen,
   CalendarCheck,
-  CheckCircle2,
-  GraduationCap,
   Headphones,
   Layers3,
-  Mail,
   MonitorPlay,
   Radio,
   Shield,
@@ -23,27 +20,14 @@ import { HomeHeroSlider } from "@/components/media/home-hero-slider";
 import { Button } from "@/components/ui/button";
 import type { HomeSliderSlide } from "@/types/home-slider";
 import {
-  ABOUT,
-  CONTACT,
-  FINAL_CTA,
   HERO,
   HOW_IT_WORKS,
-  INSTRUCTORS,
-  LEARNING_METHOD,
-  PAYMENTS,
-  PLATFORM_FEATURES,
   PROGRAM,
   WHY_CHOOSE,
 } from "@/features/marketing/content/atpl-pass-home";
-import { siteStatic } from "@/config/site-static";
-import { ATPL_COMPLETE_PACKAGE_NAME } from "@/constants/atpl-complete-package";
-import { ACTION_LABELS } from "@/constants/programme-terms";
+import { MarketingSectionKicker } from "@/features/marketing/components/marketing-section-kicker";
 import { routes } from "@/constants/routes";
-import { AtplSubjectGrid } from "@/features/marketing/components/atpl-subject-grid";
-import { EasaBadge } from "@/features/marketing/components/easa-badge";
-import { PartnerStrip } from "@/features/marketing/components/partner-strip";
 import { getHomeSiteCopy } from "@/services/marketing/site-copy-service";
-import type { AtplLandingSubjectPublic } from "@/types/atpl-subjects";
 
 const HOW_IT_WORKS_ICONS = [UserPlus, BookOpen, CalendarCheck, Video] as const;
 
@@ -60,50 +44,14 @@ const FEATURE_ICONS = [
   Headphones,
 ] as const;
 
-const PLATFORM_ICONS = [
-  Video,
-  MonitorPlay,
-  BarChart3,
-  Award,
-  GraduationCap,
-  BookOpen,
-  BookOpen,
-  Shield,
-  MonitorPlay,
-] as const;
-
 type AtplPassHomepageProps = {
-  subjects: AtplLandingSubjectPublic[];
-  courseHref: string;
   heroSlides?: HomeSliderSlide[];
   heroIntervalMs?: number;
 };
 
-function SectionKicker({ children }: { children: React.ReactNode }) {
-  return <p className="atpl-kicker">{children}</p>;
-}
-
-function AtplPassHomepage({
-  subjects,
-  courseHref,
-  heroSlides = [],
-  heroIntervalMs = 6000,
-}: AtplPassHomepageProps) {
+function AtplPassHomepage({ heroSlides = [], heroIntervalMs = 6000 }: AtplPassHomepageProps) {
   const copy = getHomeSiteCopy();
   const hero = { ...HERO, ...copy.hero };
-  const about = {
-    kicker: copy.about.kicker || ABOUT.kicker,
-    title: copy.about.title || ABOUT.title,
-    whoWeAre: copy.about.whoWeAre || ABOUT.whoWeAre,
-    mission: copy.about.mission || ABOUT.mission,
-    vision: copy.about.vision || ABOUT.vision,
-    history: copy.about.history || ABOUT.history,
-    values: copy.about.values.map((v, i) => ({
-      title: v.title || ABOUT.values[i]?.title || "",
-      body: v.body || ABOUT.values[i]?.body || "",
-    })),
-    whyChoose: copy.about.whyChoose.map((item, i) => item || ABOUT.whyChoose[i] || ""),
-  };
   const howItWorks = {
     kicker: copy.howItWorks.kicker || HOW_IT_WORKS.kicker,
     title: copy.howItWorks.title || HOW_IT_WORKS.title,
@@ -177,78 +125,16 @@ function AtplPassHomepage({
           </div>
         </div>
 
-        <a href="#about" className="home-hero-descend">
+        <a href="#how-it-works" className="home-hero-descend">
           <span className="home-hero-descend-mark" aria-hidden />
           Discover Aviator Pass
         </a>
       </section>
 
-      {/* —— About —— */}
-      <section
-        id="about"
-        className="atpl-section atpl-section-light atpl-section-about scroll-mt-28"
-      >
-        <div className="container-app">
-          <SectionKicker>{about.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[18ch]">{about.title}</h2>
-
-          <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:gap-16">
-            <div className="space-y-8">
-              <div className="atpl-prose-block">
-                <h3 className="atpl-subheading">Who We Are</h3>
-                <p>{about.whoWeAre}</p>
-              </div>
-              <div className="atpl-prose-block">
-                <h3 className="atpl-subheading">Our Mission</h3>
-                <p>{about.mission}</p>
-              </div>
-              <div className="atpl-prose-block">
-                <h3 className="atpl-subheading">Our Vision</h3>
-                <p>{about.vision}</p>
-              </div>
-            </div>
-            <div className="space-y-8">
-              <div className="atpl-prose-block">
-                <h3 className="atpl-subheading">Our History</h3>
-                <p>{about.history}</p>
-              </div>
-              <div>
-                <h3 className="atpl-subheading mb-5">Our Values</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {about.values.map((v) => (
-                    <div key={v.title} className="atpl-value-card">
-                      <h4 className="font-display text-sm font-semibold text-[var(--landing-ink-soft)]">
-                        {v.title}
-                      </h4>
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{v.body}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="atpl-highlight-panel mt-16">
-            <h3 className="atpl-subheading">Why Students Choose Us</h3>
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-              {about.whyChoose.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-3 text-sm leading-relaxed text-foreground/85"
-                >
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
       {/* —— How It Works —— */}
       <section id="how-it-works" className="atpl-section atpl-section-light scroll-mt-28">
         <div className="container-app">
-          <SectionKicker>{howItWorks.kicker}</SectionKicker>
+          <MarketingSectionKicker>{howItWorks.kicker}</MarketingSectionKicker>
           <h2 className="atpl-heading mt-4 max-w-[14ch]">{howItWorks.title}</h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
             {howItWorks.subtitle}
@@ -279,7 +165,7 @@ function AtplPassHomepage({
       {/* —— Why Choose —— */}
       <section className="atpl-section atpl-section-dark">
         <div className="container-app">
-          <SectionKicker>{WHY_CHOOSE.kicker}</SectionKicker>
+          <MarketingSectionKicker>{WHY_CHOOSE.kicker}</MarketingSectionKicker>
           <h2 className="atpl-heading-light mt-4 max-w-[16ch]">{WHY_CHOOSE.title}</h2>
           <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {WHY_CHOOSE.features.map((f, i) => {
@@ -300,245 +186,6 @@ function AtplPassHomepage({
                 </article>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* —— Platform Features —— */}
-      <section className="atpl-section atpl-section-light">
-        <div className="container-app">
-          <SectionKicker>{PLATFORM_FEATURES.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[20ch]">{PLATFORM_FEATURES.title}</h2>
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {PLATFORM_FEATURES.items.map((item, i) => {
-              const Icon = PLATFORM_ICONS[i % PLATFORM_ICONS.length]!;
-              return (
-                <article key={item.title} className="atpl-platform-card">
-                  <Icon className="h-6 w-6 text-accent" aria-hidden />
-                  <h3 className="mt-4 font-display text-lg font-semibold text-[var(--landing-ink-soft)]">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* —— ATPL Program Preview —— */}
-      <section id="program" className="atpl-section atpl-section-program scroll-mt-28">
-        <div className="container-app">
-          <SectionKicker>{PROGRAM.kicker}</SectionKicker>
-          <h2 className="atpl-heading-light mt-4 max-w-[18ch]">{PROGRAM.title}</h2>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/65">
-            {PROGRAM.description}
-          </p>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PROGRAM.includes.map((item) => (
-              <div key={item} className="atpl-program-item">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" aria-hidden />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap">
-            <Button
-              size="lg"
-              variant="accent"
-              className="hero-cta-primary w-full sm:w-auto"
-              asChild
-            >
-              <Link href={courseHref}>
-                {ACTION_LABELS.chooseAtplPackage}
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
-              asChild
-            >
-              <Link href={routes.atpl}>View full course details</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* —— ATPL Subjects —— */}
-      <section className="atpl-section atpl-section-light">
-        <div className="container-app">
-          <SectionKicker>ATPL Complete Package</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[22ch]">
-            {subjects.length} ATPL subjects in one package
-          </h2>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            All {subjects.length} theory subjects below are included in the{" "}
-            {ATPL_COMPLETE_PACKAGE_NAME}, not separate products. Choose the package to review
-            descriptions and joining terms.
-          </p>
-          <AtplSubjectGrid subjects={subjects} reveal />
-        </div>
-      </section>
-
-      {/* —— Learning Method —— */}
-      <section className="atpl-section atpl-section-accent">
-        <div className="container-app">
-          <div className="mx-auto max-w-3xl text-center">
-            <SectionKicker>{LEARNING_METHOD.kicker}</SectionKicker>
-            <h2 className="atpl-heading mt-4">{LEARNING_METHOD.title}</h2>
-            <p className="mt-6 text-base leading-relaxed text-muted-foreground">
-              {LEARNING_METHOD.body}
-            </p>
-            <ul className="mt-10 grid gap-4 text-left sm:grid-cols-2">
-              {LEARNING_METHOD.points.map((point) => (
-                <li key={point} className="atpl-learning-point">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-                  <span className="text-sm font-medium leading-relaxed text-foreground">
-                    {point}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* —— Instructors —— */}
-      <section id="instructors" className="atpl-section atpl-section-instructors scroll-mt-28">
-        <div className="container-app">
-          <SectionKicker>{INSTRUCTORS.kicker}</SectionKicker>
-          <h2 className="atpl-heading-light mt-4 max-w-[20ch]">{INSTRUCTORS.title}</h2>
-          <div className="mt-6">
-            <EasaBadge variant="dark" />
-          </div>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/62">
-            {INSTRUCTORS.intro}
-          </p>
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {INSTRUCTORS.highlights.map((h) => (
-              <article key={h.title} className="atpl-instructor-card">
-                <h3 className="font-display text-base font-semibold text-white">{h.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/55">{h.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* —— Payments —— */}
-      <section id="payments" className="atpl-section atpl-section-light scroll-mt-28">
-        <div className="container-app">
-          <SectionKicker>{PAYMENTS.kicker}</SectionKicker>
-          <h2 className="atpl-heading mt-4 max-w-[18ch]">{PAYMENTS.title}</h2>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            {PAYMENTS.intro}
-          </p>
-          <div className="atpl-payment-highlight mt-8">
-            <p className="font-display text-base font-semibold text-[var(--landing-ink-soft)]">
-              {PAYMENTS.highlight}
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {PAYMENTS.highlightBody}
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-8 lg:grid-cols-2">
-            {PAYMENTS.regions.map((region) => (
-              <div key={region.country} className="atpl-payment-region">
-                <h3 className="font-display text-xl font-semibold text-[var(--landing-ink-soft)]">
-                  {region.country}
-                </h3>
-                <div className="mt-6 space-y-4">
-                  {region.methods.map((method) => (
-                    <div key={method.name} className="atpl-payment-method">
-                      <span className="atpl-payment-badge">{method.name}</span>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {method.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 text-sm text-muted-foreground">{PAYMENTS.note}</p>
-        </div>
-      </section>
-
-      {/* —— Partnerships —— */}
-      <PartnerStrip size="large" />
-
-      {/* —— Contact —— */}
-      <section id="contact" className="atpl-section atpl-section-contact scroll-mt-28">
-        <div className="container-app text-center">
-          <SectionKicker>{CONTACT.kicker}</SectionKicker>
-          <h2 className="atpl-heading-light mt-4">{CONTACT.title}</h2>
-          <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-white/60">
-            {CONTACT.body}
-          </p>
-          <div className="mx-auto mt-8 flex w-full max-w-3xl flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-            <a
-              href={`mailto:${siteStatic.contactEmail}`}
-              className="atpl-contact-email"
-              aria-label={`Inquiries ${siteStatic.contactEmail}`}
-            >
-              <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-              <span className="flex flex-col items-start text-left leading-tight">
-                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
-                  Inquiries
-                </span>
-                <span className="whitespace-nowrap">{siteStatic.contactEmail}</span>
-              </span>
-            </a>
-            <a
-              href={`mailto:${siteStatic.supportEmail}`}
-              className="atpl-contact-email"
-              aria-label={`Student support ${siteStatic.supportEmail}`}
-            >
-              <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-              <span className="flex flex-col items-start text-left leading-tight">
-                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent">
-                  Student support
-                </span>
-                <span className="whitespace-nowrap">{siteStatic.supportEmail}</span>
-              </span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* —— Final CTA —— */}
-      <section className="atpl-section atpl-section-final">
-        <div className="container-app text-center">
-          <SectionKicker>{FINAL_CTA.kicker}</SectionKicker>
-          <h2 className="atpl-heading-light mx-auto mt-4 max-w-[16ch]">{FINAL_CTA.title}</h2>
-          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-white/55">
-            {FINAL_CTA.body}
-          </p>
-          <div className="mt-10 flex w-full max-w-sm flex-col justify-center gap-3 sm:mx-auto sm:max-w-none sm:flex-row sm:flex-wrap">
-            <Button
-              size="lg"
-              variant="accent"
-              className="hero-cta-primary w-full px-10 sm:w-auto"
-              asChild
-            >
-              <Link href={routes.onlineCourses}>
-                {FINAL_CTA.primaryCta}
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white sm:w-auto"
-              asChild
-            >
-              <Link href={routes.login}>{FINAL_CTA.secondaryCta}</Link>
-            </Button>
           </div>
         </div>
       </section>

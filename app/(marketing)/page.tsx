@@ -5,7 +5,6 @@ import { AtplPassHomepage } from "@/features/marketing/components/atpl-pass-home
 import { siteConfig } from "@/config/site";
 import { routes } from "@/constants/routes";
 import { APP_METADATA } from "@/constants/navigation";
-import { listAtplPackageReviewSubjects } from "@/services/marketing/atpl-package-review";
 import {
   getHomeSliderIntervalMs,
   listActiveHomeSliderSlides,
@@ -51,7 +50,6 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const subjects = listAtplPackageReviewSubjects();
   const heroSlides = listActiveHomeSliderSlides();
   const heroIntervalMs = getHomeSliderIntervalMs();
 
@@ -99,12 +97,7 @@ export default function HomePage() {
         }}
       />
 
-      <AtplPassHomepage
-        subjects={subjects}
-        courseHref={routes.atpl}
-        heroSlides={heroSlides}
-        heroIntervalMs={heroIntervalMs}
-      />
+      <AtplPassHomepage heroSlides={heroSlides} heroIntervalMs={heroIntervalMs} />
     </div>
   );
 }

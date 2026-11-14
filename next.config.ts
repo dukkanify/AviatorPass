@@ -103,8 +103,7 @@ const nextConfig: NextConfig = {
       { source: "/home", destination: "/", permanent: true },
       { source: "/atpl-pass", destination: "/atpl", permanent: false },
       { source: "/atpl-course", destination: "/atpl", permanent: false },
-      // Marketing aliases — content lives on home (#about) and ATPL (#pricing)
-      { source: "/about", destination: "/", permanent: false },
+      // Marketing aliases — /about is a real page; pricing still folds into ATPL
       { source: "/pricing", destination: "/atpl", permanent: false },
       // Student aliases — keep old bookmarks from hitting a hard 404
       { source: "/student/live-classes", destination: "/student/schedule", permanent: false },
