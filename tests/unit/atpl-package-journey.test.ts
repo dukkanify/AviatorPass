@@ -254,8 +254,11 @@ describe("ATPL Complete Package journey", () => {
     expect(ACTION_LABELS.chooseAtplPackage).toBe("Choose ATPL Complete Package");
     expect(HERO.secondaryCta).toBe("Choose ATPL Complete Package");
 
-    const homePage = readFileSync(path.join(process.cwd(), "app/(marketing)/page.tsx"), "utf8");
-    expect(homePage).toContain("listAtplPackageReviewSubjects");
+    const atplPage = readFileSync(
+      path.join(process.cwd(), "app/(marketing)/atpl/page.tsx"),
+      "utf8",
+    );
+    expect(atplPage).toContain("listAtplPackageReviewSubjects");
     expect(listAtplPackageReviewSubjects()).toHaveLength(13);
   });
 
