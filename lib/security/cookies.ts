@@ -89,35 +89,41 @@ export async function setSessionCookies(
   });
 }
 
-export async function clearSessionCookies(): Promise<void> {
-  const store = await cookies();
-  const opts = sessionCookieOptions(0);
-  store.set(SESSION_COOKIE, "", { ...opts, maxAge: 0 });
-  store.set(SESSION_HINT_COOKIE, "", {
-    httpOnly: false,
-    secure: opts.secure,
-    sameSite: "lax",
+type AuthCookieWriter = {
+  set(name: string, value: string, options?: Partial<ResponseCookie>): unknown;
+};
+
+function expiredAuthCookieOptions(): Array<Partial<ResponseCookie>> {
+  const domain = sessionCookieDomain();
+  const base: Partial<ResponseCookie> = {
     path: "/",
     maxAge: 0,
-    ...(opts.domain ? { domain: opts.domain } : {}),
-  });
-  // Also clear legacy host-only cookies from before Domain=.aviatorpass.com.
-  if (opts.domain) {
-    store.set(SESSION_COOKIE, "", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-    store.set(SESSION_HINT_COOKIE, "", {
-      httpOnly: false,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
+    expires: new Date(0),
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production" || Boolean(domain),
+  };
+  const variants: Array<Partial<ResponseCookie>> = [{ ...base }];
+  if (domain) variants.push({ ...base, domain });
+  return variants;
+}
+
+/** Expire session + signed-in hint for host-only and Domain=.aviatorpass.com cookies. */
+export function writeExpiredAuthCookies(store: AuthCookieWriter): void {
+  for (const extra of expiredAuthCookieOptions()) {
+    store.set(SESSION_COOKIE, "", { ...extra, httpOnly: true });
+    store.set(SESSION_HINT_COOKIE, "", { ...extra, httpOnly: false });
   }
+}
+
+export async function clearSessionCookies(): Promise<void> {
+  const store = await cookies();
+  writeExpiredAuthCookies(store);
+}
+
+/** Attach expired auth cookies to a Route Handler / middleware response. */
+export function applyExpiredAuthCookies<T extends { cookies: AuthCookieWriter }>(response: T): T {
+  writeExpiredAuthCookies(response.cookies);
+  return response;
 }
 
 export async function readSessionCookie(): Promise<{
