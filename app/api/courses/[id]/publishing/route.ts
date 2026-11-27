@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ROLES } from "@/constants/roles";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requireAuth } from "@/services/auth/guards";
 import { PermissionError } from "@/services/auth/permissions";
 import { updateCoursePublishing } from "@/services/courses/course-service";
@@ -41,6 +42,8 @@ export async function PATCH(request: Request, { params }: Params) {
       actorId: user.id,
       ...ctx,
     });
+
+    revalidateCoursePublishing();
 
     return NextResponse.json({ success: true, data: course, error: null });
   } catch (error) {

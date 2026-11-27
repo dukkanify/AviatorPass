@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { authErrorResponse, getRequestContext, requireAuth } from "@/services/auth/guards";
 import { assertPermission, hasPermission, PermissionError } from "@/services/auth/permissions";
 import { createCourse, listCourses } from "@/services/courses/course-service";
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: course, error: null }, { status: 201 });
   } catch (error) {
     return courseErrorResponse(error);

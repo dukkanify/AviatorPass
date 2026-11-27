@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, requirePermission } from "@/services/auth/guards";
 import { PERMISSIONS } from "@/constants/permissions";
+import { revalidateMarketingPaths } from "@/lib/marketing/revalidate-marketing";
 import {
   getPlatformSettings,
   updatePlatformSettings,
@@ -64,6 +65,10 @@ export async function PATCH(request: Request) {
       userId: user.id,
       path: "/api/admin/settings",
     });
+
+    if (patch.courses || patch.branding) {
+      revalidateMarketingPaths();
+    }
 
     // Redact password in response
     const safe = structuredClone(settings);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requireAuth, requirePermission } from "@/services/auth/guards";
 import { hasPermission, PermissionError } from "@/services/auth/permissions";
 import {
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: category, error: null }, { status: 201 });
   } catch (error) {
     return courseErrorResponse(error);

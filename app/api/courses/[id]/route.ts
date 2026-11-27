@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requireAuth } from "@/services/auth/guards";
 import { hasPermission, PermissionError } from "@/services/auth/permissions";
 import {
@@ -97,6 +98,7 @@ export async function PATCH(request: Request, { params }: Params) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: course, error: null });
   } catch (error) {
     return courseErrorResponse(error);
@@ -110,6 +112,7 @@ export async function DELETE(request: Request, { params }: Params) {
     assertCanMutateCourse(user.id, user.role, id);
     const ctx = getRequestContext(request);
     await softDeleteCourse(id, user.id, ctx);
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: { id }, error: null });
   } catch (error) {
     return courseErrorResponse(error);
