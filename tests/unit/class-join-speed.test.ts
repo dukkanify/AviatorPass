@@ -148,6 +148,7 @@ describe("class join speed contracts", () => {
     expect(join.indexOf("assertCallerMayReceiveInAppZoomSession")).toBeLessThan(
       join.indexOf("ensureLiveMeetingForClass"),
     );
+    expect(join).toMatch(/setImmediate\(/);
     expect(join).toMatch(/void markJoin\(/);
     expect(join).not.toMatch(/await markJoin\(/);
     expect(src("services/classes/zoom-service.ts")).toMatch(
