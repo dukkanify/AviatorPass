@@ -122,6 +122,8 @@ describe("production performance contracts", () => {
     );
     expect(ensure).toContain("lookupLiveClass");
     expect(ensure).toContain("lookupZoomMeetingByClassId");
+    expect(ensure).toContain("meetingReadyForImmediateJoin");
+    expect(ensure).toContain("refreshInAppJoinSettingsLater");
     expect(ensure).not.toContain("readClassesDb");
     expect(zoom).not.toMatch(/readClassesDb\(/);
     const list = live.slice(
@@ -130,5 +132,15 @@ describe("production performance contracts", () => {
     );
     expect(list).toContain("lookupAllLiveClasses");
     expect(list).not.toContain("readClassesDb");
+    const classesRoute = src("app/api/classes/route.ts");
+    expect(classesRoute).not.toContain("upgradeUpcomingPlaceholderMeetings");
+    expect(src("services/zoom/live-upgrade.ts")).toContain("lookupAllLiveClasses");
+    expect(src("services/zoom/live-upgrade.ts")).not.toMatch(/readClassesDb\(/);
+    const toList = live.slice(
+      live.indexOf("function toListItem"),
+      live.indexOf("export function getLiveClass"),
+    );
+    expect(toList).toContain("getStoredCourseDetail");
+    expect(toList).not.toContain("getCourseById");
   });
 });

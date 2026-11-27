@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requirePermission } from "@/services/auth/guards";
 import { deleteCategory, updateCategory } from "@/services/courses/category-service";
 import { courseErrorResponse } from "@/app/api/courses/_utils";
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, { params }: Params) {
       actorId: user.id,
       ...ctx,
     });
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: category, error: null });
   } catch (error) {
     return courseErrorResponse(error);
@@ -37,6 +39,7 @@ export async function DELETE(request: Request, { params }: Params) {
     const { id } = await params;
     const ctx = getRequestContext(request);
     await deleteCategory({ id, actorId: user.id, ...ctx });
+    revalidateCoursePublishing();
     return NextResponse.json({ success: true, data: { id }, error: null });
   } catch (error) {
     return courseErrorResponse(error);

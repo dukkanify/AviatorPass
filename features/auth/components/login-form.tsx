@@ -27,6 +27,7 @@ function LoginForm() {
   const { user, isLoading, setUser } = useAuth();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("next");
+  const loggedOut = searchParams.get("loggedOut") === "1";
   const [email, setEmail] = React.useState(searchParams.get("email") ?? "");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -35,6 +36,13 @@ function LoginForm() {
   const completingRef = React.useRef(loginNavigationLocked);
 
   React.useEffect(() => {
+    if (loggedOut) {
+      setUser(null);
+    }
+  }, [loggedOut, setUser]);
+
+  React.useEffect(() => {
+    if (loggedOut) return;
     if (loginNavigationLocked || completingRef.current || pending) return;
     if (isLoading || !user) return;
     // Keep the active session. Bare /login returns to the role dashboard;
@@ -46,7 +54,7 @@ function LoginForm() {
       return;
     }
     router.replace(ROLE_DASHBOARD[user.role] ?? routes.home);
-  }, [isLoading, user, pending, returnTo, router]);
+  }, [isLoading, user, pending, returnTo, router, loggedOut]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -3,6 +3,7 @@
  */
 
 import { ACTIVITY_ACTIONS } from "@/constants/activity-actions";
+import { getSessionById, upsertSession } from "@/lib/data/auth-identity-store";
 import { describeDeviceFromUserAgent } from "@/lib/security/device-fingerprint";
 import { clearSessionCookies, readSessionCookie } from "@/lib/security/cookies";
 import { logActivity } from "@/services/auth/activity-log";
@@ -51,15 +52,10 @@ export function maxAllowedSessions(role: Role): number {
 /** Revoke the browser's current session (any user) so account switches cannot leak identity. */
 export function revokeSessionById(sessionId: string | null | undefined): boolean {
   if (!sessionId) return false;
-  let revoked = false;
-  writeAuthDb((db) => {
-    const session = db.sessions.find((s) => s.id === sessionId && !s.revokedAt);
-    if (session) {
-      session.revokedAt = nowIso();
-      revoked = true;
-    }
-  });
-  return revoked;
+  const session = getSessionById(sessionId);
+  if (!session || session.revokedAt) return false;
+  upsertSession({ ...session, revokedAt: nowIso() });
+  return true;
 }
 
 /** Revoke older sessions so at most `keep` remain (excluding the new one if passed). */
