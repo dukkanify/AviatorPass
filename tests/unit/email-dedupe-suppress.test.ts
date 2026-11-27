@@ -86,6 +86,20 @@ describe("email suppression + idempotency", () => {
     expect(result.delivered).toBe(false);
   });
 
+  it("skips Resend for confirmed demo mailboxes without failing the queue", async () => {
+    const result = await sendEmail({
+      to: "instructor@aviatorpass.com",
+      subject: "Class reminder",
+      html: "<p>Live in 1 hour</p>",
+      text: "Live in 1 hour",
+      meta: { kind: "email_automation", event: "class.reminder_1h", system: true },
+    });
+    expect(result.suppressed).toBe(true);
+    expect(result.success).toBe(true);
+    expect(result.delivered).toBe(false);
+    expect(result.mode).toBe("outbox");
+  });
+
   it("skips Resend for confirmed demo mailboxes on OTP but keeps outbox success", async () => {
     const result = await sendEmail({
       to: "student@aviatorpass.com",

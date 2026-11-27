@@ -13,6 +13,7 @@ import {
   updateOutboundEmail,
   type OutboundEmailRecord,
 } from "@/services/email/outbox";
+import { isEmailSuppressed } from "@/services/email/suppression-store";
 
 function toInput(record: OutboundEmailRecord): SendEmailInput {
   return {
@@ -46,6 +47,17 @@ export async function retryFailedOutbound(limit = 10) {
   const results: Array<{ id: string; ok: boolean; error?: string }> = [];
 
   for (const row of rows) {
+    const suppression = isEmailSuppressed(row.to);
+    if (suppression.suppressed) {
+      updateOutboundEmail(row.id, {
+        mode: "failed",
+        error: suppression.reason,
+        queueStatus: "dead",
+        nextRetryAt: null,
+      });
+      results.push({ id: row.id, ok: true });
+      continue;
+    }
     const attempts = (row.attempts ?? 1) + 1;
     updateOutboundEmail(row.id, { queueStatus: "retrying", attempts });
     logEmailEvent("email_retry", { outboxId: row.id, attempts, to: row.to });
