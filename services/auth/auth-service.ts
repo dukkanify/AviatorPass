@@ -8,7 +8,6 @@ import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accou
 import { getPermissionsForRole, ROLE_DASHBOARD, ROLES, type Role } from "@/constants/roles";
 import { postAuthRedirect } from "@/lib/security/safe-return-path";
 import {
-  clearSessionCookies,
   hashSessionToken,
   readSessionCookie,
   setSessionCookies,
@@ -994,7 +993,8 @@ export async function signOut(ctx?: RequestContext): Promise<ApiResponse<null>> 
       });
     }
   }
-  await clearSessionCookies();
+  // Expire cookies on the Route Handler NextResponse (applyExpiredAuthCookies).
+  // cookies().set here is a name-keyed jar and would drop host-only or Domain.
   return { success: true, data: null, error: null };
 }
 

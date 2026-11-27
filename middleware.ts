@@ -186,20 +186,16 @@ export async function middleware(request: NextRequest) {
   const loggedOut = pathname === routes.login && request.nextUrl.searchParams.get("loggedOut") === "1";
   if (loggedOut) {
     const res = NextResponse.next();
-    const expired = new Date(0);
-    const secure = process.env.NODE_ENV === "production";
-    const variants: Array<{ domain?: string }> = [{}, { domain: ".aviatorpass.com" }];
+    const expired = "Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    const domains = ["", "; Domain=.aviatorpass.com"];
     for (const name of [SESSION_COOKIE, SESSION_HINT_COOKIE]) {
-      for (const extra of variants) {
-        res.cookies.set(name, "", {
-          httpOnly: name === SESSION_COOKIE,
-          secure,
-          sameSite: "lax",
-          path: "/",
-          maxAge: 0,
-          expires: expired,
-          ...extra,
-        });
+      const httpOnly = name === SESSION_COOKIE ? "; HttpOnly" : "";
+      for (const domain of domains) {
+        res.headers.append(
+          "Set-Cookie",
+          `${name}=; Path=/; ${expired}; Max-Age=0${domain}${secure}${httpOnly}; SameSite=lax`,
+        );
       }
     }
     return res;
