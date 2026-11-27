@@ -29,6 +29,13 @@ function hasSignedInHint(): boolean {
   return document.cookie.split("; ").some((row) => row.startsWith(`${SESSION_HINT_COOKIE}=`));
 }
 
+function clearSignedInHint(): void {
+  if (typeof document === "undefined") return;
+  const expire = "Max-Age=0; Path=/";
+  document.cookie = `${SESSION_HINT_COOKIE}=; ${expire}`;
+  document.cookie = `${SESSION_HINT_COOKIE}=; ${expire}; Domain=.aviatorpass.com`;
+}
+
 function AuthProvider({
   children,
   initialUser = null,
@@ -77,6 +84,7 @@ function AuthProvider({
     setIsLoading(true);
     try {
       await authFetch(routes.api.auth.logout, { method: "POST", body: "{}" });
+      clearSignedInHint();
       setUser(null);
       setPermissions([]);
     } finally {

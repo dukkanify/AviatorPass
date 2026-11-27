@@ -89,35 +89,85 @@ export async function setSessionCookies(
   });
 }
 
-export async function clearSessionCookies(): Promise<void> {
-  const store = await cookies();
-  const opts = sessionCookieOptions(0);
-  store.set(SESSION_COOKIE, "", { ...opts, maxAge: 0 });
-  store.set(SESSION_HINT_COOKIE, "", {
-    httpOnly: false,
-    secure: opts.secure,
-    sameSite: "lax",
+type AuthCookieWriter = {
+  set(name: string, value: string, options?: Partial<ResponseCookie>): unknown;
+};
+
+function expiredAuthCookieOptions(): Array<Partial<ResponseCookie>> {
+  const domain = sessionCookieDomain();
+  const base: Partial<ResponseCookie> = {
     path: "/",
     maxAge: 0,
-    ...(opts.domain ? { domain: opts.domain } : {}),
-  });
-  // Also clear legacy host-only cookies from before Domain=.aviatorpass.com.
-  if (opts.domain) {
-    store.set(SESSION_COOKIE, "", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-    store.set(SESSION_HINT_COOKIE, "", {
-      httpOnly: false,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
+    expires: new Date(0),
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production" || Boolean(domain),
+  };
+  const variants: Array<Partial<ResponseCookie>> = [{ ...base }];
+  if (domain) variants.push({ ...base, domain });
+  return variants;
+}
+
+function serializeExpiredCookie(name: string, options: Partial<ResponseCookie>): string {
+  const parts = [
+    `${name}=`,
+    `Path=${options.path ?? "/"}`,
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+    "SameSite=lax",
+  ];
+  if (options.httpOnly) parts.push("HttpOnly");
+  if (options.secure) parts.push("Secure");
+  if (options.domain) parts.push(`Domain=${options.domain}`);
+  return parts.join("; ");
+}
+
+function expireCookieVariants(): Array<Partial<ResponseCookie>> {
+  const domain = sessionCookieDomain();
+  const variants = expiredAuthCookieOptions();
+  // Always drop Domain=.aviatorpass.com leftovers, even on preview/local.
+  if (!domain) variants.push({ ...variants[0]!, domain: ".aviatorpass.com" });
+  return variants;
+}
+
+/** Expire session + signed-in hint for host-only and Domain=.aviatorpass.com cookies. */
+export function writeExpiredAuthCookies(store: AuthCookieWriter): void {
+  for (const extra of expireCookieVariants()) {
+    store.set(SESSION_COOKIE, "", { ...extra, httpOnly: true });
+    store.set(SESSION_HINT_COOKIE, "", { ...extra, httpOnly: false });
   }
+}
+
+export async function clearSessionCookies(): Promise<void> {
+  const store = await cookies();
+  writeExpiredAuthCookies(store);
+}
+
+type CookieResponse = {
+  cookies: AuthCookieWriter;
+  headers?: { append(name: string, value: string): void };
+};
+
+/**
+ * Attach expired auth cookies to a Route Handler / middleware response.
+ * Next cookie jars key by name, so append both host-only and Domain variants
+ * instead of response.cookies.set (last write would drop one of them).
+ */
+export function applyExpiredAuthCookies<T extends CookieResponse>(response: T): T {
+  if (!response.headers?.append) {
+    writeExpiredAuthCookies(response.cookies);
+    return response;
+  }
+  for (const extra of expireCookieVariants()) {
+    response.headers.append(
+      "Set-Cookie",
+      serializeExpiredCookie(SESSION_COOKIE, { ...extra, httpOnly: true }),
+    );
+    response.headers.append(
+      "Set-Cookie",
+      serializeExpiredCookie(SESSION_HINT_COOKIE, { ...extra, httpOnly: false }),
+    );
+  }
+  return response;
 }
 
 export async function readSessionCookie(): Promise<{

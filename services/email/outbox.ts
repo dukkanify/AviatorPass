@@ -153,5 +153,7 @@ export function isRetryableEmailError(error: string | null | undefined): boolean
   if (text.includes("disabled in platform settings")) return false;
   if (text.includes("domain is not verified")) return false;
   if (text.includes("not a verified domain")) return false;
+  if (text.includes("suppressed")) return false;
+  if (text.includes("confirmed_demo_mailbox")) return false;
   return true;
 }

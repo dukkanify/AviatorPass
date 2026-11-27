@@ -8,7 +8,6 @@ import { canonicalDemoEmail, demoEmailsEquivalent } from "@/constants/demo-accou
 import { getPermissionsForRole, ROLE_DASHBOARD, ROLES, type Role } from "@/constants/roles";
 import { postAuthRedirect } from "@/lib/security/safe-return-path";
 import {
-  clearSessionCookies,
   hashSessionToken,
   readSessionCookie,
   setSessionCookies,
@@ -981,13 +980,9 @@ export async function updateProfile(
 
 export async function signOut(ctx?: RequestContext): Promise<ApiResponse<null>> {
   const parsed = await readSessionCookie();
-  if (parsed) {
-    const db = readAuthDb();
-    const session = db.sessions.find((s) => s.id === parsed.payload.sid);
-    writeAuthDb((d) => {
-      const s = d.sessions.find((x) => x.id === parsed.payload.sid);
-      if (s && !s.revokedAt) s.revokedAt = nowIso();
-    });
+  if (parsed?.payload.sid) {
+    const session = getSessionById(parsed.payload.sid);
+    revokeSessionById(parsed.payload.sid);
     if (session) {
       await logActivity({
         actorId: session.userId,
@@ -998,7 +993,8 @@ export async function signOut(ctx?: RequestContext): Promise<ApiResponse<null>> 
       });
     }
   }
-  await clearSessionCookies();
+  // Expire cookies on the Route Handler NextResponse (applyExpiredAuthCookies).
+  // cookies().set here is a name-keyed jar and would drop host-only or Domain.
   return { success: true, data: null, error: null };
 }
 

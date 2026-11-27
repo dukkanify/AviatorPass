@@ -15,7 +15,7 @@ import {
 } from "@/constants/routes";
 import { ROLE_DASHBOARD, type Role } from "@/constants/roles";
 import { roleMayFollowReturnPath, sanitizeReturnPath } from "@/lib/security/safe-return-path";
-import { SESSION_COOKIE, verifySessionJwt } from "@/lib/security/session-token";
+import { SESSION_COOKIE, SESSION_HINT_COOKIE, verifySessionJwt } from "@/lib/security/session-token";
 
 function redirectUnauthenticated(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -181,6 +181,24 @@ export async function middleware(request: NextRequest) {
     pathname.includes(".")
   ) {
     return NextResponse.next();
+  }
+
+  const loggedOut = pathname === routes.login && request.nextUrl.searchParams.get("loggedOut") === "1";
+  if (loggedOut) {
+    const res = NextResponse.next();
+    const expired = "Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    const domains = ["", "; Domain=.aviatorpass.com"];
+    for (const name of [SESSION_COOKIE, SESSION_HINT_COOKIE]) {
+      const httpOnly = name === SESSION_COOKIE ? "; HttpOnly" : "";
+      for (const domain of domains) {
+        res.headers.append(
+          "Set-Cookie",
+          `${name}=; Path=/; ${expired}; Max-Age=0${domain}${secure}${httpOnly}; SameSite=lax`,
+        );
+      }
+    }
+    return res;
   }
 
   const claims = await readClaims(request);

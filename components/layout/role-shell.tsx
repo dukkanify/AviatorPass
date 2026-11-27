@@ -253,7 +253,8 @@ function ProfileMenu() {
         <DropdownMenuItem
           onClick={async () => {
             await signOut();
-            router.replace(routes.login);
+            router.replace(`${routes.login}?loggedOut=1`);
+            router.refresh();
           }}
         >
           <LogOut className="h-4 w-4" />
