@@ -13,6 +13,7 @@ import {
 import { ROLES } from "@/constants/roles";
 import { logActivity, logAudit } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
+import { getStoredCourseDetail } from "@/lib/data/lms-course-detail-store";
 import { listEnrollments } from "@/services/courses/enrollment-service";
 import { getCourseById } from "@/services/courses/course-service";
 import { ensureClassesSeeded } from "@/services/classes/seed";
@@ -79,7 +80,7 @@ export function computeRuntimeStatus(cls: LiveClass): LiveClassStatus | "upcomin
 }
 
 function toListItem(cls: LiveClass): LiveClassListItem {
-  const course = cls.courseId ? getCourseById(cls.courseId) : null;
+  const course = cls.courseId ? getStoredCourseDetail(cls.courseId) : null;
   const zoom = getZoomMeetingByClassId(cls.id);
   const enrolled = listParticipantsForClass(cls.id).filter((p) => p.role === "participant").length;
   return {
@@ -161,7 +162,10 @@ export function listLiveClasses(filters: ClassFilters = {}): {
 } {
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? DEFAULT_CLASS_PAGE_SIZE;
-  let rows = lookupAllLiveClasses({ complete: true }).filter((c) => !c.deletedAt);
+  let rows = lookupAllLiveClasses().filter((c) => !c.deletedAt);
+  if (rows.length === 0) {
+    rows = lookupAllLiveClasses({ complete: true }).filter((c) => !c.deletedAt);
+  }
 
   if (filters.q) {
     const q = filters.q.toLowerCase();

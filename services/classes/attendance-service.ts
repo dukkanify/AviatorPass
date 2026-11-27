@@ -11,10 +11,13 @@ import { logActivity } from "@/services/auth/activity-log";
 import { findUserById } from "@/services/auth/store";
 import { getLiveClass } from "@/services/classes/class-service";
 import {
+  getAttendanceForStudent,
+  listAllAttendance,
+  listAttendanceForClass,
   listParticipantsForClass,
   listParticipantsForUser,
-  readClassesDb,
-  writeClassesDb,
+  lookupAllLiveClasses,
+  upsertAttendanceRecord,
 } from "@/services/classes/store";
 import { ClassValidationError } from "@/services/classes/validation";
 import { readCgiDb } from "@/services/cgi/store";
@@ -29,9 +32,10 @@ function studentMeta(studentId: string) {
 }
 
 export function listAttendance(liveClassId: string): AttendanceWithStudent[] {
-  return readClassesDb()
-    .attendance.filter((a) => a.liveClassId === liveClassId)
-    .map((a) => ({ ...a, ...studentMeta(a.studentId) }));
+  return listAttendanceForClass(liveClassId).map((a) => ({
+    ...a,
+    ...studentMeta(a.studentId),
+  }));
 }
 
 export async function upsertAttendance(input: {
@@ -61,9 +65,7 @@ export async function upsertAttendance(input: {
   }
   const attendancePercent = Math.min(100, Math.round((durationSeconds / classDuration) * 100));
 
-  const existing = readClassesDb().attendance.find(
-    (a) => a.liveClassId === input.liveClassId && a.studentId === input.studentId,
-  );
+  const existing = getAttendanceForStudent(input.liveClassId, input.studentId);
   const now = new Date().toISOString();
 
   let record: AttendanceRecord;
@@ -80,10 +82,6 @@ export async function upsertAttendance(input: {
       notes: input.notes !== undefined ? input.notes : existing.notes,
       updatedAt: now,
     };
-    writeClassesDb((d) => {
-      const idx = d.attendance.findIndex((a) => a.id === existing.id);
-      if (idx >= 0) d.attendance[idx] = record;
-    });
   } else {
     record = {
       id: generateId(),
@@ -98,10 +96,8 @@ export async function upsertAttendance(input: {
       createdAt: now,
       updatedAt: now,
     };
-    writeClassesDb((d) => {
-      d.attendance.push(record);
-    });
   }
+  upsertAttendanceRecord(record);
 
   await logActivity({
     actorId: input.actorId,
@@ -133,9 +129,7 @@ export async function markLeave(input: {
   studentId: string;
   actorId: string | null;
 }) {
-  const existing = readClassesDb().attendance.find(
-    (a) => a.liveClassId === input.liveClassId && a.studentId === input.studentId,
-  );
+  const existing = getAttendanceForStudent(input.liveClassId, input.studentId);
   return upsertAttendance({
     liveClassId: input.liveClassId,
     studentId: input.studentId,
@@ -153,7 +147,7 @@ export function getAttendanceOverview(
     typeof instructorIdOrOpts === "string"
       ? { instructorId: instructorIdOrOpts }
       : (instructorIdOrOpts ?? {});
-  let classes = readClassesDb().classes.filter((c) => !c.deletedAt);
+  let classes = lookupAllLiveClasses().filter((c) => !c.deletedAt);
   if (opts.instructorId) {
     classes = classes.filter(
       (c) => c.instructorId === opts.instructorId || c.assistantInstructorId === opts.instructorId,
@@ -164,7 +158,7 @@ export function getAttendanceOverview(
     classes = classes.filter((c) => classIds.has(c.id));
   }
   const ids = new Set(classes.map((c) => c.id));
-  let rows = readClassesDb().attendance.filter((a) => ids.has(a.liveClassId));
+  let rows = listAllAttendance().filter((a) => ids.has(a.liveClassId));
   if (opts.studentId) {
     rows = rows.filter((a) => a.studentId === opts.studentId);
   }

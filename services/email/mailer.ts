@@ -188,10 +188,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const suppression = isEmailSuppressed(to);
   if (suppression.suppressed) {
     const isDemoMailbox = suppression.entry?.reason === "confirmed_demo_mailbox";
-    const isAuthMail = kind === "otp" || kind === "password_reset";
-    // Demo catalog addresses are not real inboxes — never hit Resend/SMTP.
-    // OTP / recovery still succeeds via outbox so local auth continues to work.
-    if (isDemoMailbox && isAuthMail) {
+    // Demo catalog addresses are not real inboxes — never hit Resend/SMTP
+    // and never fail the retry queue. OTP / recovery still succeed via outbox.
+    if (isDemoMailbox) {
       const record = syntheticSkippedRecord({
         to,
         subject: input.subject,
