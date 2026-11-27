@@ -132,5 +132,11 @@ describe("production performance contracts", () => {
     );
     expect(list).toContain("lookupAllLiveClasses");
     expect(list).not.toContain("readClassesDb");
+    const toList = live.slice(
+      live.indexOf("function toListItem"),
+      live.indexOf("export function getLiveClass"),
+    );
+    expect(toList).toContain("getStoredCourseDetail");
+    expect(toList).not.toContain("getCourseById");
   });
 });

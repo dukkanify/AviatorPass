@@ -16,12 +16,15 @@ import {
   upsertLiveClass,
   upsertZoomMeeting,
 } from "@/lib/data/lms-class-catalog-store";
-import { getLiveClass } from "@/services/classes/class-service";
+import { markJoin } from "@/services/classes/attendance-service";
+import { getLiveClass, listLiveClasses } from "@/services/classes/class-service";
 import {
+  getAttendanceForStudent,
   lookupLiveClass,
   lookupZoomMeetingByClassId,
   writeClassesDb,
 } from "@/services/classes/store";
+import { resetClassAttendanceStoreRuntime } from "@/lib/data/lms-class-attendance-store";
 import {
   ensureLiveMeetingForClass,
   getZoomMeetingByClassId,
@@ -151,6 +154,11 @@ describe("class join speed contracts", () => {
     expect(join).toMatch(/void markJoin\(/);
     expect(join).not.toMatch(/await markJoin\(/);
     expect(join).not.toMatch(/setImmediate\(/);
+    const attendance = src("services/classes/attendance-service.ts");
+    expect(attendance).toMatch(/upsertAttendanceRecord\(/);
+    expect(attendance).not.toMatch(/writeClassesDb\(/);
+    expect(attendance).not.toMatch(/readClassesDb\(/);
+    expect(src("lib/data/lms-class-attendance-store.ts")).toMatch(/aep_lms_class_attendance/);
     expect(src("services/classes/zoom-service.ts")).toMatch(
       /export async function ensureInAppJoinSettings[\s\S]*upsertZoomMeeting\(next\)/,
     );
@@ -166,6 +174,9 @@ describe("indexed class catalog", () => {
     cleanup(`${PREFIX}cls-blob`);
     cleanup(`${PREFIX}cls-ensure`);
     cleanup(`${PREFIX}cls-ready`);
+    cleanup(`${PREFIX}cls-attend`);
+    cleanup(`${PREFIX}cls-list`);
+    resetClassAttendanceStoreRuntime();
   });
 
   it("returns one class and meeting without scanning the classes blob", () => {
@@ -227,5 +238,22 @@ describe("indexed class catalog", () => {
     expect(Date.now() - started).toBeLessThan(500);
     expect(existing?.id).toBe(meeting.id);
     expect(existing?.joinUrl).toBe(meeting.joinUrl);
+  });
+
+  it("records attendance without writing the classes blob", async () => {
+    const liveClass = testClass("attend");
+    upsertLiveClass(liveClass);
+    resetClassCatalogStoreRuntime();
+    const studentId = `${PREFIX}student`;
+    await markJoin({ liveClassId: liveClass.id, studentId, actorId: studentId });
+    expect(getAttendanceForStudent(liveClass.id, studentId)?.status).toBe("present");
+  });
+
+  it("lists indexed classes without requiring a blob backfill", () => {
+    const liveClass = testClass("list");
+    upsertLiveClass(liveClass);
+    resetClassCatalogStoreRuntime();
+    const listed = listLiveClasses({ q: liveClass.title });
+    expect(listed.data.some((row) => row.id === liveClass.id)).toBe(true);
   });
 });
