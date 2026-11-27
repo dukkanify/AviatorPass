@@ -38,9 +38,7 @@ export async function GET(request: Request) {
       const ids = new Set(listParticipantsForUser(user.id).map((p) => p.liveClassId));
       const all = listLiveClasses({ ...filters, pageSize: 200 });
       const data = all.data.filter((c) => ids.has(c.id));
-      void import("@/services/zoom/live-upgrade")
-        .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
-        .catch((error) => console.error("[classes] upcoming Zoom upgrade failed", error));
+      scheduleUpcomingZoomUpgrade();
       return NextResponse.json({
         success: true,
         data: { ...all, data, total: data.length },
@@ -48,9 +46,7 @@ export async function GET(request: Request) {
       });
     }
 
-    void import("@/services/zoom/live-upgrade")
-      .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
-      .catch((error) => console.error("[classes] upcoming Zoom upgrade failed", error));
+    scheduleUpcomingZoomUpgrade();
 
     return NextResponse.json({
       success: true,
@@ -111,6 +107,14 @@ export async function POST(request: Request) {
   } catch (error) {
     return classErrorResponse(error);
   }
+}
+
+function scheduleUpcomingZoomUpgrade() {
+  setImmediate(() => {
+    void import("@/services/zoom/live-upgrade")
+      .then(({ upgradeUpcomingPlaceholderMeetings }) => upgradeUpcomingPlaceholderMeetings())
+      .catch((error) => console.error("[classes] upcoming Zoom upgrade failed", error));
+  });
 }
 
 type CreateRecurrence = {

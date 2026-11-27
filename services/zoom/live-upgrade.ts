@@ -5,7 +5,10 @@
 
 import { readBookingsDb } from "@/services/bookings/store";
 import { ensureBookingZoom } from "@/services/bookings/booking-service";
-import { readClassesDb } from "@/services/classes/store";
+import {
+  lookupAllLiveClasses,
+  lookupZoomMeetingByClassId,
+} from "@/services/classes/store";
 import {
   ensureLiveMeetingForClass,
   isLiveZoomConfigured,
@@ -35,14 +38,13 @@ export async function upgradeUpcomingPlaceholderMeetings(input?: {
   let upgraded = 0;
   let failed = 0;
 
-  const classes = readClassesDb();
-  for (const liveClass of classes.classes) {
+  for (const liveClass of lookupAllLiveClasses()) {
     if (upgraded + failed >= limit) break;
     if (liveClass.deletedAt || liveClass.status === "cancelled" || liveClass.status === "draft") {
       continue;
     }
     if (!inWindow(liveClass.startsAt, now, windowMs)) continue;
-    const meeting = classes.zoomMeetings.find((item) => item.liveClassId === liveClass.id);
+    const meeting = lookupZoomMeetingByClassId(liveClass.id);
     if (meeting && !isPlaceholderZoomMeeting(meeting)) continue;
     try {
       const next = await ensureLiveMeetingForClass(liveClass.id);

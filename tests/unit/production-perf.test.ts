@@ -132,6 +132,11 @@ describe("production performance contracts", () => {
     );
     expect(list).toContain("lookupAllLiveClasses");
     expect(list).not.toContain("readClassesDb");
+    const classesRoute = src("app/api/classes/route.ts");
+    expect(classesRoute).toContain("scheduleUpcomingZoomUpgrade");
+    expect(classesRoute).toContain("setImmediate");
+    expect(src("services/zoom/live-upgrade.ts")).toContain("lookupAllLiveClasses");
+    expect(src("services/zoom/live-upgrade.ts")).not.toMatch(/readClassesDb\(/);
     const toList = live.slice(
       live.indexOf("function toListItem"),
       live.indexOf("export function getLiveClass"),
