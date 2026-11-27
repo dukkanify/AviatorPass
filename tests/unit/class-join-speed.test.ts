@@ -164,6 +164,7 @@ describe("indexed class catalog", () => {
     cleanup(`${PREFIX}cls-catalog`);
     cleanup(`${PREFIX}cls-blob`);
     cleanup(`${PREFIX}cls-ensure`);
+    cleanup(`${PREFIX}cls-ready`);
   });
 
   it("returns one class and meeting without scanning the classes blob", () => {
@@ -206,5 +207,24 @@ describe("indexed class catalog", () => {
     const existing = await ensureLiveMeetingForClass(liveClass.id, "actor-join-speed");
     expect(existing?.id).toBe(meeting.id);
     expect(existing?.zoomMeetingId).toBe(meeting.zoomMeetingId);
+  });
+
+  it("returns a stored Zoom meeting immediately without waiting for Zoom settings", async () => {
+    const liveClass = testClass("ready");
+    const meeting = {
+      ...testMeeting("ready", liveClass.id),
+      providerMode: "zoom" as const,
+      joinUrl: "https://zoom.us/j/86524929901",
+      startUrl: "https://zoom.us/s/86524929901?zak=join-speed",
+    };
+    upsertLiveClass(liveClass);
+    upsertZoomMeeting(meeting);
+    resetClassCatalogStoreRuntime();
+
+    const started = Date.now();
+    const existing = await ensureLiveMeetingForClass(liveClass.id, "actor-join-ready");
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(existing?.id).toBe(meeting.id);
+    expect(existing?.joinUrl).toBe(meeting.joinUrl);
   });
 });
