@@ -122,6 +122,9 @@ describe("class join speed contracts", () => {
     expect(ensure).toMatch(/lookupLiveClass\(/);
     expect(ensure).toMatch(/lookupZoomMeetingByClassId\(/);
     expect(ensure).not.toMatch(/readClassesDb\(/);
+    expect(ensure).toMatch(/meetingReadyForImmediateJoin\(existing\)/);
+    expect(ensure).toMatch(/refreshInAppJoinSettingsLater\(existing\)/);
+    expect(ensure).toMatch(/return existing;/);
     expect(ensure).toMatch(/ensureInAppJoinSettings\(existing\)/);
 
     const byClass = zoom.slice(

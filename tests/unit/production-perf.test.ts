@@ -122,6 +122,8 @@ describe("production performance contracts", () => {
     );
     expect(ensure).toContain("lookupLiveClass");
     expect(ensure).toContain("lookupZoomMeetingByClassId");
+    expect(ensure).toContain("meetingReadyForImmediateJoin");
+    expect(ensure).toContain("refreshInAppJoinSettingsLater");
     expect(ensure).not.toContain("readClassesDb");
     expect(zoom).not.toMatch(/readClassesDb\(/);
     const list = live.slice(

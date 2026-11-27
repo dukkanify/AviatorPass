@@ -124,6 +124,20 @@ export function isPlaceholderZoomMeeting(
   return /zak=mock/i.test(start) || /zak=mock/i.test(join);
 }
 
+function meetingReadyForImmediateJoin(meeting: ZoomMeetingRecord): boolean {
+  return (
+    !isPlaceholderZoomMeeting(meeting) &&
+    Boolean(meeting.zoomMeetingId) &&
+    !isZoomRegistrationJoinUrl(meeting.joinUrl)
+  );
+}
+
+function refreshInAppJoinSettingsLater(meeting: ZoomMeetingRecord): void {
+  void ensureInAppJoinSettings(meeting).catch((error) => {
+    console.error("[classes] background Zoom join settings refresh failed", error);
+  });
+}
+
 /** True when platform Server-to-Server Zoom credentials are configured. */
 export function zoomCredsPresent(): boolean {
   try {
@@ -673,12 +687,20 @@ export async function ensureLiveMeetingForClass(
       }
     }
     const existing = lookupZoomMeetingByClassId(liveClassId);
+    if (existing && meetingReadyForImmediateJoin(existing)) {
+      refreshInAppJoinSettingsLater(existing);
+      return existing;
+    }
     if (existing && !isPlaceholderZoomMeeting(existing)) {
       return ensureInAppJoinSettings(existing);
     }
     if (!zoomCredsPresent() && existing) return existing;
     // Re-check after any await gap before creating a remote meeting.
     const raced = lookupZoomMeetingByClassId(liveClassId);
+    if (raced && meetingReadyForImmediateJoin(raced)) {
+      refreshInAppJoinSettingsLater(raced);
+      return raced;
+    }
     if (raced && !isPlaceholderZoomMeeting(raced)) {
       return ensureInAppJoinSettings(raced);
     }
