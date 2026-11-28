@@ -10,12 +10,12 @@ import { routes } from "@/constants/routes";
 import { AdBannerSlot } from "@/features/marketing/components/ad-banner-slot";
 
 const exploreLinks = [
+  { href: routes.about, label: "About" },
   { href: routes.onlineCourses, label: "Online Courses" },
   { href: routes.atpl, label: "ATPL Course" },
-  { href: routes.qa, label: "Q&A" },
-  { href: routes.about, label: "About" },
-  { href: routes.instructors, label: "Instructors" },
   { href: routes.contact, label: "Contact" },
+  { href: routes.qa, label: "Q&A" },
+  { href: routes.instructors, label: "Instructors" },
 ] as const;
 
 const accountLinks = [
