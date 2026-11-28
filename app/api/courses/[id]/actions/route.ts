@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROLES } from "@/constants/roles";
+import { revalidateCoursePublishing } from "@/lib/marketing/revalidate-marketing";
 import { getRequestContext, requireAuth, requirePermission } from "@/services/auth/guards";
 import { hasPermission, PermissionError } from "@/services/auth/permissions";
 import {
@@ -63,25 +64,31 @@ export async function POST(request: Request, { params }: Params) {
 
     if (action === "publish") {
       assertSuperAdminPublishing(user.role);
+      const data = await publishCourse(id, user.id, ctx);
+      revalidateCoursePublishing();
       return NextResponse.json({
         success: true,
-        data: await publishCourse(id, user.id, ctx),
+        data,
         error: null,
       });
     }
     if (action === "unpublish") {
       assertSuperAdminPublishing(user.role);
+      const data = await unpublishCourse(id, user.id, ctx);
+      revalidateCoursePublishing();
       return NextResponse.json({
         success: true,
-        data: await unpublishCourse(id, user.id, ctx),
+        data,
         error: null,
       });
     }
     if (action === "archive") {
       assertSuperAdminPublishing(user.role);
+      const data = await archiveCourse(id, user.id, ctx);
+      revalidateCoursePublishing();
       return NextResponse.json({
         success: true,
-        data: await archiveCourse(id, user.id, ctx),
+        data,
         error: null,
       });
     }

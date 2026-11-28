@@ -1,7 +1,7 @@
 /**
  * Live classes durable store (.data/aep-classes.json).
- * Reminders and participants live in indexed stores so dashboard class
- * reads never hydrate the invite or reminder queues.
+ * Reminders, participants, and attendance live in indexed stores so join and
+ * dashboard class reads never hydrate those queues from the blob.
  */
 
 import path from "path";
@@ -20,6 +20,10 @@ import {
   upsertLiveClass,
   upsertZoomMeeting,
 } from "@/lib/data/lms-class-catalog-store";
+import {
+  listAllAttendance,
+  replaceAllAttendance,
+} from "@/lib/data/lms-class-attendance-store";
 import {
   listAllParticipants,
   replaceAllParticipants,
@@ -83,7 +87,7 @@ function catalogSnapshot(db: ClassesDatabase): ClassesDatabase {
     classes: db.classes,
     zoomMeetings: db.zoomMeetings,
     recurringRules: db.recurringRules,
-    attendance: db.attendance,
+    attendance: [],
     participants: [],
     recordings: db.recordings,
     reminders: [],
@@ -113,11 +117,25 @@ function extractEmbeddedParticipants(db: ClassesDatabase): void {
   persistCatalog(db);
 }
 
+function extractEmbeddedAttendance(db: ClassesDatabase): void {
+  const embedded = db.attendance ?? [];
+  if (embedded.length === 0) return;
+  const existing = listAllAttendance();
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  for (const row of embedded) {
+    if (row?.id) byId.set(row.id, row);
+  }
+  replaceAllAttendance([...byId.values()]);
+  db.attendance = [];
+  persistCatalog(db);
+}
+
 function withIndexedView(db: ClassesDatabase): ClassesDatabase {
   return {
     ...db,
     reminders: listAllReminders(),
     participants: listAllParticipants(),
+    attendance: listAllAttendance(),
   };
 }
 
@@ -129,7 +147,9 @@ function withLazyIndexedWrites(catalog: ClassesDatabase): {
   let reminders: ReminderQueueItem[] = [];
   let participantsLoaded = false;
   let participants: MeetingParticipant[] = [];
-  const working = { ...catalog, reminders: [], participants: [] };
+  let attendanceLoaded = false;
+  let attendance: AttendanceRecord[] = [];
+  const working = { ...catalog, reminders: [], participants: [], attendance: [] };
   Object.defineProperty(working, "reminders", {
     configurable: true,
     enumerable: true,
@@ -160,11 +180,27 @@ function withLazyIndexedWrites(catalog: ClassesDatabase): {
       participantsLoaded = true;
     },
   });
+  Object.defineProperty(working, "attendance", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!attendanceLoaded) {
+        attendance = listAllAttendance();
+        attendanceLoaded = true;
+      }
+      return attendance;
+    },
+    set(value: AttendanceRecord[]) {
+      attendance = Array.isArray(value) ? value : [];
+      attendanceLoaded = true;
+    },
+  });
   return {
     working,
     flushIndexed() {
       if (remindersLoaded) replaceAllReminders(reminders);
       if (participantsLoaded) replaceAllParticipants(participants);
+      if (attendanceLoaded) replaceAllAttendance(attendance);
     },
   };
 }
@@ -223,8 +259,10 @@ export function ensureClassesStore(): ClassesDatabase {
   const db = normalizeDb(readJsonFile<Partial<ClassesDatabase>>(dataFile(), emptyDb));
   extractEmbeddedReminders(db);
   extractEmbeddedParticipants(db);
+  extractEmbeddedAttendance(db);
   db.reminders = [];
   db.participants = [];
+  db.attendance = [];
   return db;
 }
 
@@ -255,6 +293,13 @@ export {
   listParticipantsForClass,
   listParticipantsForUser,
 } from "@/lib/data/lms-class-participant-store";
+
+export {
+  getAttendanceForStudent,
+  listAllAttendance,
+  listAttendanceForClass,
+  upsertAttendanceRecord,
+} from "@/lib/data/lms-class-attendance-store";
 
 export {
   getStoredLiveClass,
